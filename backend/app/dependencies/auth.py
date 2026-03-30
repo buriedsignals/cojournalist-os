@@ -1,0 +1,292 @@
+"""
+FastAPI auth dependencies — session cookie, service key, and API key verification.
+
+PURPOSE: Provides injectable auth dependencies for all routers: get_current_user
+(session cookie validation), get_optional_user (optional auth), verify_service_key
+(Lambda auth via X-Service-Key), verify_api_key (Bearer token), get_user_email,
+and build_user_response.
+
+DEPENDS ON: config (session secret, service key), SessionService, UserService,
+    ApiKeyService
+USED BY: All routers (auth injection), dependencies/__init__.py
+"""
+import logging
+import secrets
+from typing import Optional
+
+from fastapi import Header, HTTPException, Request, status
+
+from app.config import get_settings
+try:
+    from app.services.api_key_service import ApiKeyService
+except ImportError:
+    ApiKeyService = None  # OSS mirror: API key auth not available
+from app.services.session_service import SessionService
+from app.services.user_service import UserService
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Lazy service initialization
+# ---------------------------------------------------------------------------
+_session_service: Optional[SessionService] = None
+_user_service: Optional[UserService] = None
+_api_key_service: Optional[ApiKeyService] = None
+
+
+def _get_services() -> tuple[SessionService, UserService]:
+    global _session_service, _user_service
+    if _session_service is None:
+        s = get_settings()
+        _session_service = SessionService(secret=s.session_secret, max_age=s.session_max_age)
+        _user_service = UserService()
+    return _session_service, _user_service
+
+
+def _get_api_key_service():
+    global _api_key_service
+    if _api_key_service is None:
+        if ApiKeyService is None:
+            return None
+        _api_key_service = ApiKeyService()
+    return _api_key_service
+
+
+# ---------------------------------------------------------------------------
+# User authentication via session cookie
+# ---------------------------------------------------------------------------
+
+async def build_user_response(user_svc, user_id: str) -> dict:
+    """Build the flat user response dict with needs_initialization.
+
+    Shared by /auth/me, /auth/status, and /onboarding/initialize.
+    """
+    user = await user_svc.get_user(user_id)
+    if not user:
+        return None
+
+    credits = user.get("credits")
+    onboarding_completed = user.get("onboarding_completed", False)
+    needs_init = credits is None or not onboarding_completed
+
+    user["needs_initialization"] = needs_init
+
+    # Team credits: if user has org_id, show org pool balance
+    org_id = user.get("org_id")
+    if org_id:
+        org_info = await user_svc.get_org_credits_info(org_id)
+        if org_info:
+            user["credits"] = org_info["balance"]
+            user["team"] = {
+                "org_id": org_id,
+                "org_name": org_info["org_name"],
+                "seat_count": org_info["seated_count"],
+            }
+        else:
+            # ORG# record gone (cancelled) — clear stale org_id
+            user["org_id"] = None
+            user["team"] = None
+    else:
+        user["team"] = None
+
+    # Add upgrade URLs for frontend (config-driven, avoids frontend env vars)
+    s = get_settings()
+    upgrade_url = s.muckrock_pro_plan_url
+    if upgrade_url and "?" not in upgrade_url:
+        upgrade_url = f"{upgrade_url}?source=cojournalist"
+    elif upgrade_url and "source=" not in upgrade_url:
+        upgrade_url = f"{upgrade_url}&source=cojournalist"
+    user["upgrade_url"] = upgrade_url
+
+    team_upgrade_url = s.muckrock_team_plan_url
+    if team_upgrade_url and "?" not in team_upgrade_url:
+        team_upgrade_url = f"{team_upgrade_url}?source=cojournalist"
+    elif team_upgrade_url and "source=" not in team_upgrade_url:
+        team_upgrade_url = f"{team_upgrade_url}&source=cojournalist"
+    user["team_upgrade_url"] = team_upgrade_url
+
+    return user
+
+
+async def get_current_user(request: Request) -> dict:
+    """
+    Dependency to get the current authenticated user via session cookie.
+
+    Extracts the "session" cookie, validates the JWT via SessionService,
+    then fetches the user profile from DynamoDB via UserService.
+
+    Returns:
+        User dict with user_id, muckrock_id, credits, timezone, etc.
+
+    Raises:
+        HTTPException 401: If no cookie, invalid session, or user not found.
+    """
+    session_service, user_service = _get_services()
+
+    token = request.cookies.get("session")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing session cookie",
+        )
+
+    claims = session_service.validate_session(token)
+    if claims is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session",
+        )
+
+    user_id = claims.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid session: missing user ID",
+        )
+
+    user = await build_user_response(user_service, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    # org_id comes from build_user_response (DynamoDB PROFILE = source of truth).
+    # Do NOT override from JWT — stale sessions would bypass cancellation cleanup.
+
+    return user
+
+
+async def get_optional_user(request: Request) -> Optional[dict]:
+    """
+    Dependency to get the current user if authenticated, otherwise None.
+    Use this for endpoints that support both authenticated and anonymous access.
+
+    Returns:
+        User dict or None if not authenticated.
+    """
+    try:
+        return await get_current_user(request)
+    except HTTPException:
+        return None
+
+
+# =============================================================================
+# Lambda Service Key Verification
+# =============================================================================
+
+def verify_service_key(
+    x_service_key: Optional[str] = Header(None, alias="X-Service-Key")
+) -> None:
+    """
+    Verify Lambda service key for internal API calls.
+
+    Use as a FastAPI dependency to protect endpoints called by AWS Lambda.
+
+    Args:
+        x_service_key: Service key from X-Service-Key header
+
+    Raises:
+        HTTPException: If service key is invalid
+    """
+    settings = get_settings()
+
+    if not settings.internal_service_key:
+        logger.error("INTERNAL_SERVICE_KEY not configured - rejecting request")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Service configuration error"
+        )
+
+    if not x_service_key or not secrets.compare_digest(x_service_key, settings.internal_service_key):
+        logger.warning("Invalid service key attempted")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid service key"
+        )
+
+
+# =============================================================================
+# External API Key Verification
+# =============================================================================
+
+async def verify_api_key(request: Request) -> dict:
+    """
+    Verify an external API key for programmatic access.
+
+    Extracts the Bearer token from the Authorization header, validates it
+    via ApiKeyService, then fetches the user profile from DynamoDB.
+
+    Returns:
+        User dict (same shape as get_current_user).
+
+    Raises:
+        HTTPException 401: If no key, invalid format, invalid key, or user not found.
+    """
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer cj_"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid API key",
+        )
+
+    raw_key = auth.removeprefix("Bearer ")
+    api_key_service = _get_api_key_service()
+    if api_key_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key auth not available",
+        )
+    user_id = api_key_service.validate_key(raw_key)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
+
+    _, user_service = _get_services()
+    user = await build_user_response(user_service, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    return user
+
+
+# =============================================================================
+# User Utility Functions (Async)
+# =============================================================================
+
+async def get_user_email(user_id: str) -> Optional[str]:
+    """Fetch user's email from MuckRock API on-demand.
+
+    Does NOT read from DynamoDB — email is not stored locally to protect
+    journalist PII. Calls MuckRock's user data endpoint using the user's
+    MuckRock UUID.
+
+    Args:
+        user_id: MuckRock UUID (same as user_id in our system).
+
+    Returns:
+        User's email address or None if not found.
+    """
+    try:
+        from app.services.muckrock_client import MuckRockClient
+    except ImportError:
+        return None  # OSS: email from Supabase Auth, not MuckRock
+    try:
+        settings = get_settings()
+        client = MuckRockClient(
+            settings.muckrock_client_id,
+            settings.muckrock_client_secret,
+            settings.muckrock_base_url,
+        )
+        user_data = await client.fetch_user_data(user_id)
+        return user_data.get("email")
+    except Exception as e:
+        logger.error(f"Failed to fetch email from MuckRock for {user_id}: {e}")
+        return None

@@ -1,0 +1,43 @@
+# coJournalist
+
+> AI-powered local news monitoring platform for journalists and newsrooms.
+
+coJournalist helps journalists monitor websites, government sources, social media, and local news on automated schedules. When something matches, it sends an email alert.
+
+## What it does
+
+- **Page Scout** — Monitors any URL for content changes. Detects new text, documents, or updates and checks them against your criteria using AI.
+- **Smart Scout** — AI-curated local news digest. Searches across sources in your area or topic, filters for relevance, and deduplicates across runs.
+- **Social Scout** — Monitors social media profiles (Instagram, X, Facebook, LinkedIn, TikTok) for new or removed posts matching your criteria.
+- **Civic Scout** — Monitors local council websites for new meeting minutes and extracts commitments and promises with due dates.
+- **Scrape** — On-demand extraction from any URL, returning structured data in JSON, markdown, or CSV.
+- **Feed & Export** — Aggregates findings into an atomic knowledge base; generates article drafts from collected units.
+
+## API
+
+coJournalist exposes a REST API for programmatic access. API keys can be created from the dashboard.
+
+Base URL: `https://www.cojournalist.ai/api/v1`
+
+Key endpoints:
+- `GET /v1/units` — retrieve information units from your feed
+- `GET /v1/scouts` — list your active scouts
+- `POST /v1/scouts/{name}/run` — trigger a scout run
+- `GET /v1/feed/export` — export feed as markdown or JSON
+
+Authentication: `Authorization: Bearer <api_key>`
+
+Full API documentation is available in the dashboard under **Agents → API**.
+
+## Intended users
+
+Journalists, researchers, newsrooms, and civic watchdogs who need to monitor public sources systematically without writing scrapers.
+
+## Tech
+
+SvelteKit frontend, FastAPI backend, DynamoDB, AWS EventBridge scheduling, Gemini 2.5 Flash-Lite for AI analysis, Firecrawl for web scraping, Apify for social media.
+
+## Links
+
+- App: https://www.cojournalist.ai
+- Pricing: https://www.cojournalist.ai/pricing

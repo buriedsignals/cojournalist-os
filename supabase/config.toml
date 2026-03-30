@@ -1,0 +1,8 @@
+[project]
+id = "cojournalist"
+
+[functions.execute-scout]
+verify_jwt = false
+
+[functions.manage-schedule]
+verify_jwt = false

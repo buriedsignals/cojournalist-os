@@ -1,0 +1,3 @@
+"""
+coJournalist backend application.
+"""

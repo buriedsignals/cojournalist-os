@@ -1,0 +1,69 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    env_file:
+      - ./.env
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    container_name: cojournalist-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/requirements.txt:/app/requirements.txt
+    environment:
+      - ENVIRONMENT=development
+      - DEFAULT_USER_CREDITS=100
+      - DEFAULT_USER_TIMEZONE=UTC
+      - DEBUG=True
+      - PYTHONUNBUFFERED=1
+      - APIFY_API_TOKEN=${APIFY_API_TOKEN}
+      - LLM_MODEL=${LLM_MODEL:-qwen/qwen3.5-flash-02-23}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-eu-central-1}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level info
+    networks:
+      - cojournalist-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    env_file:
+      - ./.env
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    container_name: cojournalist-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/static:/app/static
+      - ./frontend/messages:/app/messages
+      - ./frontend/project.inlang:/app/project.inlang
+      - ./frontend/package.json:/app/package.json
+      - ./frontend/svelte.config.js:/app/svelte.config.js
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+      - ./frontend/tsconfig.json:/app/tsconfig.json
+      - ./frontend/tailwind.config.js:/app/tailwind.config.js
+      - ./frontend/postcss.config.js:/app/postcss.config.js
+      - /app/node_modules
+    environment:
+      - BACKEND_URL=http://backend:8000
+      # PUBLIC_* vars must be explicit for SvelteKit's $env/dynamic/public
+      - PUBLIC_MAPTILER_API_KEY=${PUBLIC_MAPTILER_API_KEY}
+    command: npm run dev -- --host 0.0.0.0
+    depends_on:
+      - backend
+    networks:
+      - cojournalist-network
+
+networks:
+  cojournalist-network:
+    driver: bridge

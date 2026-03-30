@@ -1,0 +1,73 @@
+# Frontend Tests
+
+## Running Tests
+
+```bash
+cd frontend
+
+# All tests
+npm test
+
+# Watch mode
+npm run test:watch
+
+# Single file
+npx vitest run src/tests/utils/scouts.test.ts
+```
+
+## Structure
+
+```
+src/tests/
+├── setup.ts                   # Global setup (jest-dom matchers)
+├── api-client.test.ts         # API client contract tests
+├── utils/
+│   ├── scouts.test.ts         # ScoutsPanel pure logic
+│   └── feed.test.ts            # FeedView pure logic
+└── mocks/
+    ├── app-environment.ts     # Mock $app/environment
+    ├── app-stores.ts          # Mock $app/stores
+    └── env-dynamic-public.ts  # Mock $env/dynamic/public
+```
+
+## Testing Strategy
+
+We test **logic pipelines**, not Svelte component rendering:
+
+1. **Pure utility functions** (`$lib/utils/`) — extracted from Svelte components, tested directly
+2. **API client contract** (`$lib/api-client.ts`) — mocked `fetch`, verifies URLs, methods, bodies, auth headers, error handling
+
+Svelte 5 component rendering in jsdom is not tested due to Paraglide barrel export incompatibility. Visual behavior is verified manually.
+
+## Utility Modules
+
+Logic extracted from Svelte components into testable `.ts` files:
+
+| Module | Source Component | Functions |
+|--------|-----------------|-----------|
+| `$lib/utils/scouts.ts` | `ScoutsPanel.svelte` | `SCOUT_COSTS`, `formatRegularity`, `truncateUrl`, `stripMarkdown`, `getCriteriaStatusVariant` |
+| `$lib/utils/feed.ts` | `FeedView.svelte` | `parseLocationKey`, `deriveScoutNames`, `filterUnits`, `countByType`, `canExport` |
+
+## Mock Strategy
+
+### API Client Tests
+
+- Mock `$lib/stores/auth` — `authStore.getToken` returns test token
+- Mock `$lib/config/api` — `buildApiUrl` returns predictable paths
+- `vi.stubGlobal('fetch', ...)` — control response bodies and status codes
+
+### SvelteKit Module Aliases (vitest.config.ts)
+
+| Alias | Mock File | Purpose |
+|-------|-----------|---------|
+| `$lib` | `src/lib` | Standard SvelteKit alias |
+| `$app/environment` | `mocks/app-environment.ts` | `browser = true` |
+| `$app/stores` | `mocks/app-stores.ts` | Mock `page` store |
+| `$env/dynamic/public` | `mocks/env-dynamic-public.ts` | Empty `PUBLIC_*` vars |
+
+## Adding New Tests
+
+1. Extract logic from `.svelte` into `$lib/utils/<name>.ts`
+2. Create test at `src/tests/utils/<name>.test.ts`
+3. Import functions directly — no Svelte rendering needed
+4. Run `npm test` to verify

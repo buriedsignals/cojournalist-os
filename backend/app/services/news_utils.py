@@ -1,0 +1,1046 @@
+"""
+Shared utilities for news search orchestrators.
+
+PURPOSE: Central library of constants, models, and helper functions used by
+pulse_orchestrator and scout_service for Firecrawl search, date parsing,
+embedding-based deduplication, AI filtering, and summary generation.
+
+Also provides pre-AI-filter heuristics:
+  - is_index_or_homepage(): rejects bare homepage / section landing URLs
+  - is_likely_standing_page(): rejects institutional/section pages with short
+    paths and no article identifiers (dates, numeric IDs)
+  - is_likely_tourism_content(): rejects travel blogs and tourism guides
+    (applied only for niche + location + news searches)
+
+DEPENDS ON: http_client (connection pooling), locale_data (language mappings),
+    openrouter (LLM calls), embedding_utils (batch embeddings, cosine_similarity),
+    schemas/common (AINewsArticle), filter_prompts (prompt templates)
+USED BY: services/pulse_orchestrator.py, services/execute_pipeline.py,
+    services/scout_service.py, routers/pulse.py
+
+CRITICAL: The UNSUPPORTED_DOMAINS list prevents scraping social media sites
+that return empty/useless content. The deduplicate_by_embedding() function
+uses a 0.80 cosine similarity threshold for clustering — this is intentionally
+lower than the cross-run dedup threshold (0.85) to catch within-batch duplicates
+from different source URLs covering the same story.
+"""
+import asyncio
+import json
+import logging
+import re
+import string
+from collections import Counter
+from datetime import datetime, timedelta
+from typing import Optional, List, Literal
+from urllib.parse import urlparse
+from pydantic import BaseModel, Field
+
+from langdetect import detect, LangDetectException
+from langdetect import DetectorFactory
+DetectorFactory.seed = 0  # Deterministic language detection
+
+from app.services.http_client import get_http_client
+from app.services.locale_data import LANGUAGE_NAMES
+from app.services.openrouter import openrouter_chat
+from app.services.embedding_utils import cosine_similarity, generate_embeddings_batch
+from app.schemas.common import AINewsArticle
+from app.services.filter_prompts import (
+    build_filter_prompt,
+    sanitize_filter_prompt,
+    PromptInjectionError,
+)
+
+logger = logging.getLogger(__name__)
+
+
+# Domain blacklist - sites that can't be scraped effectively
+UNSUPPORTED_DOMAINS = [
+    'facebook.com',
+    'twitter.com',
+    'x.com',
+    'instagram.com',
+    'linkedin.com',
+    'tiktok.com',
+    'youtube.com',
+    'reddit.com',
+    'pinterest.com',
+    'snapchat.com',
+    'whatsapp.com',
+    'telegram.org',
+    'discord.com',
+    'twitch.tv',
+]
+
+# Country name to ISO code mapping
+COUNTRY_NAME_TO_CODE = {
+    "switzerland": "CH", "germany": "DE", "austria": "AT",
+    "france": "FR", "italy": "IT", "spain": "ES",
+    "united states": "US", "usa": "US", "united kingdom": "GB", "uk": "GB",
+    "netherlands": "NL", "brazil": "BR", "mexico": "MX",
+    "canada": "CA", "australia": "AU", "japan": "JP",
+    "belgium": "BE", "portugal": "PT", "poland": "PL",
+    "sweden": "SE", "norway": "NO", "denmark": "DK", "finland": "FI",
+    "russia": "RU", "china": "CN", "south korea": "KR", "turkey": "TR",
+    "argentina": "AR", "colombia": "CO", "chile": "CL", "peru": "PE",
+}
+
+# Reverse mapping: ISO code → display name
+# Built from COUNTRY_NAME_TO_CODE, preferring full names over abbreviations
+CODE_TO_COUNTRY_NAME = {}
+for _name, _code in COUNTRY_NAME_TO_CODE.items():
+    # Skip abbreviations (usa, uk) — prefer full names
+    if len(_name) <= 3 and _code in CODE_TO_COUNTRY_NAME:
+        continue
+    CODE_TO_COUNTRY_NAME[_code] = _name.title()
+# Fix title-case edge cases
+CODE_TO_COUNTRY_NAME["US"] = "United States"
+CODE_TO_COUNTRY_NAME["GB"] = "United Kingdom"
+CODE_TO_COUNTRY_NAME["KR"] = "South Korea"
+
+
+LANDING_SEGMENTS = {
+    "blog", "blogs", "news", "articles", "press", "media",
+    "resources", "publications", "stories", "updates",
+    "posts", "archive", "archives", "category", "categories",
+    "topics", "tag", "tags",
+}
+
+TOURISM_DOMAIN_PATTERNS = [
+    "travel", "tourism", "tourist", "vacation", "hotel",
+    "tripadvisor", "lonelyplanet", "visit-", "wanderlust",
+    "nomad", "backpack",
+]
+
+TOURISM_TITLE_PATTERNS = [
+    "things to do in", "best places to", "travel guide",
+    "where to stay", "top attractions", "must-see",
+]
+
+
+def is_index_or_homepage(url: str) -> bool:
+    """Detect bare homepage and section landing URLs with no article content.
+
+    Rejects URLs whose path is "/" or a single segment matching a known
+    landing page pattern (e.g., "/blog", "/news", "/articles").
+    """
+    try:
+        path = urlparse(url).path.rstrip("/")
+    except Exception:
+        return False
+    if not path:
+        return True  # bare homepage "/"
+    segments = [s for s in path.split("/") if s]
+    if len(segments) == 1 and segments[0].lower() in LANDING_SEGMENTS:
+        return True
+    return False
+
+
+def is_likely_standing_page(url: str) -> bool:
+    """Detect standing/section pages by URL structure.
+
+    Standing pages (gov landing pages, stats dashboards, agenda indexes)
+    typically have short paths with no numeric identifiers. Real articles
+    almost always contain a date or article ID in the URL.
+
+    Returns True (standing page) when ALL of these hold:
+    - Path has <= 2 non-empty segments
+    - No digit appears anywhere in the path (no date, no article ID)
+    - Every segment is <= 40 chars (article title slugs are typically longer)
+
+    Returns False for bare homepages (handled by is_index_or_homepage).
+    """
+    try:
+        path = urlparse(url).path.rstrip("/")
+    except Exception:
+        return False
+    if not path:
+        return False  # bare homepage — handled by is_index_or_homepage
+    segments = [s for s in path.split("/") if s]
+    if len(segments) > 2:
+        return False
+    # Digits in path → article ID or date → not a standing page
+    if any(re.search(r"\d", seg) for seg in segments):
+        return False
+    # Long slugs are article titles, not section names
+    if any(len(seg) > 40 for seg in segments):
+        return False
+    return True
+
+
+def is_likely_tourism_content(article: dict) -> bool:
+    """Heuristic check for tourism/travel content based on domain and title.
+
+    Used as a pre-AI-filter gate for niche + location + news searches to
+    remove travel blogs and tourism guides before the LLM filter.
+    """
+    url = article.get("url", "").lower()
+    domain = urlparse(url).netloc.lower()
+    for pattern in TOURISM_DOMAIN_PATTERNS:
+        if pattern in domain:
+            return True
+    title = article.get("title", "").lower()
+    description = article.get("description", "").lower()
+    text = f"{title} {description}"
+    for pattern in TOURISM_TITLE_PATTERNS:
+        if pattern in text:
+            return True
+    return False
+
+
+def cap_articles_per_domain(articles: list[dict], max_per_domain: int = 2) -> list[dict]:
+    """Cap the number of articles from any single domain.
+
+    Preserves the input ordering (AI relevance ranking).
+    Keeps the first `max_per_domain` articles per domain and drops the rest.
+    """
+    domain_counts: dict[str, int] = {}
+    capped: list[dict] = []
+    for article in articles:
+        domain = urlparse(article.get("url", "")).netloc.replace("www.", "")
+        if domain_counts.get(domain, 0) < max_per_domain:
+            capped.append(article)
+            domain_counts[domain] = domain_counts.get(domain, 0) + 1
+    return capped
+
+
+def get_country_code(country_input: str) -> Optional[str]:
+    """Convert country name OR code to ISO code.
+
+    Handles both:
+    - Full names: "Switzerland" -> "CH"
+    - ISO codes: "CH" -> "CH", "US" -> "US"
+    """
+    if not country_input:
+        return None
+
+    cleaned = country_input.strip().upper()
+
+    # If it's already a 2-letter alpha code, return it directly.
+    # The frontend always sends ISO 3166-1 alpha-2 codes (e.g., "US", "GB", "DE").
+    # Previously this only accepted codes present in COUNTRY_LANGUAGES, which
+    # excluded English-speaking countries (US, GB, CA, AU, IE, NZ), silently
+    # breaking government/municipal queries for those locations.
+    if len(cleaned) == 2 and cleaned.isalpha():
+        return cleaned
+
+    # Otherwise, try to look up by name
+    return COUNTRY_NAME_TO_CODE.get(country_input.lower().strip())
+
+
+def is_blacklisted_domain(url: str) -> bool:
+    """Check if a URL is from a blacklisted domain."""
+    try:
+        hostname = urlparse(url).hostname
+        if not hostname:
+            return False
+        hostname = hostname.lower()
+        return any(
+            hostname == domain or hostname.endswith(f'.{domain}')
+            for domain in UNSUPPORTED_DOMAINS
+        )
+    except Exception:
+        return False
+
+
+def parse_published_date(date_str: Optional[str]) -> Optional[datetime]:
+    """Parse various date formats from search results."""
+    if not date_str:
+        return None
+
+    # Handle relative dates like "2 days ago", "1 week ago"
+    date_str_lower = date_str.lower().strip()
+    now = datetime.now()
+
+    if "ago" in date_str_lower:
+        # Parse relative dates
+        if "hour" in date_str_lower:
+            hours = int(''.join(filter(str.isdigit, date_str_lower)) or 1)
+            return now - timedelta(hours=hours)
+        elif "day" in date_str_lower:
+            days = int(''.join(filter(str.isdigit, date_str_lower)) or 1)
+            return now - timedelta(days=days)
+        elif "week" in date_str_lower:
+            weeks = int(''.join(filter(str.isdigit, date_str_lower)) or 1)
+            return now - timedelta(weeks=weeks)
+        elif "month" in date_str_lower:
+            months = int(''.join(filter(str.isdigit, date_str_lower)) or 1)
+            return now - timedelta(days=months * 30)
+        elif "yesterday" in date_str_lower:
+            return now - timedelta(days=1)
+
+    # Try ISO format and common date formats
+    formats = [
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d",
+        "%B %d, %Y",  # January 1, 2025
+        "%b %d, %Y",  # Jan 1, 2025
+        "%d %B %Y",   # 1 January 2025
+        "%d %b %Y",   # 1 Jan 2025
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except ValueError:
+            continue
+
+    return None
+
+
+def normalize_date_to_iso(date_str: Optional[str]) -> Optional[str]:
+    """Convert various date formats to ISO string for frontend compatibility."""
+    parsed = parse_published_date(date_str)
+    return parsed.isoformat() if parsed else None
+
+
+# Regex: match years 2000-2029, excluding port numbers (preceded by ':')
+# and long numeric IDs (adjacent digits).
+_YEAR_PATTERN = re.compile(r"(?<!\d)(?<!:)(20[0-2]\d)(?!\d)")
+
+
+def extract_content_year(url: str = "", title: str = "") -> Optional[int]:
+    """Extract the most recent year (2000-2029) from a URL path and/or title.
+
+    Uses heuristics to avoid false positives from port numbers and long
+    numeric IDs. Returns the most recent year found, or None.
+    """
+    candidates: List[int] = []
+
+    # Search URL path (not domain/port) for year patterns
+    if url:
+        try:
+            parsed = urlparse(url)
+            # Combine path and query — skip netloc to avoid port numbers
+            url_text = parsed.path + ("?" + parsed.query if parsed.query else "")
+            candidates.extend(int(m) for m in _YEAR_PATTERN.findall(url_text))
+        except Exception:
+            pass
+
+    # Search title for year patterns
+    if title:
+        candidates.extend(int(m) for m in _YEAR_PATTERN.findall(title))
+
+    return max(candidates) if candidates else None
+
+
+def is_stale_content(url: str = "", title: str = "", max_age_years: int = 1) -> bool:
+    """Return True if URL/title heuristics indicate the content is too old.
+
+    Returns False when no year can be detected (benefit of the doubt).
+    """
+    year = extract_content_year(url, title)
+    if year is None:
+        return False
+    current_year = datetime.now().year
+    return (current_year - year) > max_age_years
+
+
+async def deduplicate_by_embedding(
+    articles: List[dict],
+    threshold: float = 0.80,
+    local_tlds: List[str] = None,
+    primary_language: str = None
+) -> List[dict]:
+    """
+    Remove semantically similar articles using embeddings.
+    Keeps one representative per cluster, preferring:
+    1. Articles with dates
+    2. Articles from local TLD domains
+    3. Articles matching the primary language (for non-English locales)
+    4. Articles with longer descriptions
+    """
+    if len(articles) <= 1:
+        return articles
+
+    # Create text for embedding: title + description
+    texts = []
+    for article in articles:
+        title = article.get("title", "")
+        desc = article.get("description", "")[:200]
+        texts.append(f"{title}. {desc}")
+
+    # Generate embeddings
+    embeddings = await generate_embeddings_batch(texts, "SEMANTIC_SIMILARITY")
+    if not embeddings or len(embeddings) != len(articles):
+        logger.warning(f"Embedding failed, returning original {len(articles)} articles")
+        return articles
+
+    # Compute domain frequency across the entire batch for rarity scoring
+    domain_freq = Counter(
+        urlparse(a.get("url", "")).netloc.replace("www.", "")
+        for a in articles
+    )
+
+    # Score articles for preference (higher = keep)
+    def score_article(article: dict) -> float:
+        score = 0.0
+        # Has date (+5), undated news gets penalty (-5), discovery undated: neutral (0)
+        if article.get("date"):
+            score += 5
+        elif article.get("_pass") != "discovery":
+            score -= 5
+        # Discovery undated: 0 (neutral) — web content inherently lacks dates
+        # Local TLD (+5)
+        url = article.get("url", "")
+        if local_tlds:
+            for tld in local_tlds:
+                if tld in url:
+                    score += 5
+                    break
+        # Domain rarity bonus (niche sources get boosted)
+        domain = urlparse(url).netloc.replace("www.", "")
+        freq = domain_freq.get(domain, 0)
+        if freq == 1:
+            score += 8   # Genuine rarity
+        elif freq == 2:
+            score += 6
+        elif freq <= 4:
+            score += 4
+        # 5+ occurrences: mainstream, no bonus
+        # Discovery pass bonus (blog/community version wins over news)
+        if article.get("_pass") == "discovery":
+            score += 6
+        # Language match bonus (+8 for primary language, non-English only)
+        if primary_language and primary_language != "en":
+            title = article.get("title", "")
+            desc = article.get("description", "")
+            text = f"{title} {desc}".strip()
+            if len(text) >= 50:  # Need enough text for reliable detection
+                try:
+                    if detect(text) == primary_language:
+                        score += 8  # Significant boost for local language
+                except LangDetectException:
+                    pass
+        # Longer description (+0 to +3)
+        desc = article.get("description", "")
+        score += min(len(desc) / 100, 3)  # Max 3 points for description length
+        return score
+
+    scores = [score_article(a) for a in articles]
+
+    # Cluster similar articles
+    used = [False] * len(articles)
+    deduplicated = []
+
+    for i in range(len(articles)):
+        if used[i]:
+            continue
+
+        # Find all similar articles
+        cluster = [i]
+        for j in range(i + 1, len(articles)):
+            if used[j]:
+                continue
+            similarity = cosine_similarity(embeddings[i], embeddings[j])
+            if similarity >= threshold:
+                cluster.append(j)
+                used[j] = True
+
+        # Pick best from cluster
+        best_idx = max(cluster, key=lambda idx: scores[idx])
+        articles[best_idx]["_cluster_size"] = len(cluster)
+        deduplicated.append(articles[best_idx])
+        used[i] = True
+
+    logger.info(f"Dedup: {len(articles)} -> {len(deduplicated)} articles (removed {len(articles) - len(deduplicated)} duplicates)")
+    return deduplicated
+
+
+# Government-related keywords for category assignment
+GOV_KEYWORDS = {
+    "council", "mayor", "municipal", "policy", "regulation", "budget",
+    "zoning", "permit", "election", "ordinance", "commissioner",
+    "government", "legislature", "city hall", "public works",
+}
+
+
+async def cross_category_dedup(
+    news_articles: List[dict],
+    gov_articles: List[dict],
+    threshold: float = 0.90,
+) -> tuple:
+    """
+    Remove duplicate articles that appear in both news and government categories.
+
+    For each overlapping pair (cosine similarity >= threshold), keep the article
+    in its more natural category: government-keyword articles stay in government,
+    everything else stays in news.
+
+    Returns (filtered_news, filtered_gov).
+    """
+    if not news_articles or not gov_articles:
+        return news_articles, gov_articles
+
+    all_articles = news_articles + gov_articles
+    texts = [f"{a.get('title', '')} {a.get('summary', a.get('description', ''))}" for a in all_articles]
+
+    embeddings = await generate_embeddings_batch(texts, "SEMANTIC_SIMILARITY")
+    if not embeddings or len(embeddings) != len(all_articles):
+        logger.warning("Cross-category dedup: embedding failed, returning original lists")
+        return news_articles, gov_articles
+
+    n_news = len(news_articles)
+    news_to_remove = set()
+    gov_to_remove = set()
+
+    for i in range(n_news):
+        for j in range(len(gov_articles)):
+            sim = cosine_similarity(embeddings[i], embeddings[n_news + j])
+            if sim >= threshold:
+                gov_text = f"{gov_articles[j].get('title', '')} {gov_articles[j].get('summary', gov_articles[j].get('description', ''))}".lower()
+                has_gov_keywords = any(kw in gov_text for kw in GOV_KEYWORDS)
+
+                if has_gov_keywords:
+                    news_to_remove.add(i)
+                    logger.info(f"Cross-category dedup: removing news[{i}] (duplicate of gov[{j}], sim={sim:.3f})")
+                else:
+                    gov_to_remove.add(j)
+                    logger.info(f"Cross-category dedup: removing gov[{j}] (duplicate of news[{i}], sim={sim:.3f})")
+
+    filtered_news = [a for i, a in enumerate(news_articles) if i not in news_to_remove]
+    filtered_gov = [a for j, a in enumerate(gov_articles) if j not in gov_to_remove]
+
+    removed = len(news_to_remove) + len(gov_to_remove)
+    if removed:
+        logger.info(f"Cross-category dedup removed {removed} duplicates ({len(news_to_remove)} from news, {len(gov_to_remove)} from gov)")
+
+    return filtered_news, filtered_gov
+
+
+def lang_name(code: str) -> str:
+    """Convert ISO 639-1 code to language name, defaulting to English."""
+    return LANGUAGE_NAMES.get(code, "English")
+
+
+async def generate_news_summary(
+    articles: List[dict],
+    city: str,
+    api_key: str,
+    category: str = "news",
+    language: str = "en"
+) -> str:
+    """Generate a bullet-point summary of the top news stories with hyperlinks."""
+    if not articles:
+        return ""
+
+    # Take top 5-6 articles for summary
+    top_articles = articles[:6]
+    articles_info = "\n".join([
+        f"{i+1}. Title: {a.get('title', 'Untitled')}\n   URL: {a.get('url', '#')}\n   Summary: {a.get('summary', a.get('description', ''))[:150]}"
+        for i, a in enumerate(top_articles)
+    ])
+
+    category_label = "government and municipal" if category == "government" else ("analysis and insights" if category == "analysis" else "news")
+
+    prompt = f"""Summarize the key {category_label} news for {city}.
+
+ARTICLES:
+{articles_info}
+
+FORMAT:
+- Use emoji bullets (📰, 🏛️, ⚽, 💼, 🚨, 🏗️, 🎭, etc.) for each story
+- Each bullet: 1 descriptive sentence explaining what happened and why it matters
+- Include [source](url) links inline
+- 3-5 bullets maximum
+- NO introduction or preface - start directly with the first bullet
+
+Example:
+📰 City council approved a CHF 2B transit expansion affecting 200k commuters [Tages-Anzeiger](url)
+🏛️ Mayor announced new housing policy targeting affordable units in northern districts [NZZ](url)
+
+"""
+    # Always add explicit language instruction (even for English) to prevent
+    # GPT from echoing the source language when articles are non-English
+    language_name = LANGUAGE_NAMES.get(language, language)
+    prompt += f"\nIMPORTANT: Write the summary in {language_name}, regardless of the language of the source articles. Translate all content into {language_name}.\n"
+
+    prompt += """Start directly with the first bullet point (•). Do not write any introduction."""
+
+    try:
+        result = await openrouter_chat(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=500,
+            temperature=0.2,
+        )
+
+        summary = result["content"].strip()
+        # Remove any leading text before the first bullet if present
+        if "•" in summary:
+            first_bullet = summary.find("•")
+            if first_bullet > 0:
+                summary = summary[first_bullet:]
+        logger.info(f"Generated {len(summary)} char {category} summary for {city}")
+        return summary
+
+    except Exception as e:
+        logger.error(f"Summary generation error: {e}")
+        return ""
+
+
+async def ai_filter_results(
+    results: List[dict],
+    city_name: str,
+    country_name: str,
+    openrouter_key: str,
+    max_results: int = 20,
+    local_language: str = None,
+    category: str = "news",
+    custom_filter_prompt: str = None,
+    topic: str = None,
+    excluded_domains: Optional[List[str]] = None,
+    source_mode: str = "niche",
+    criteria: Optional[str] = None,
+) -> List[dict]:
+    """
+    Use AI to filter search results for local journalism relevance.
+    Removes corporate news, wrong locations, and irrelevant matches.
+    Prioritizes local language articles when local_language is provided.
+
+    Args:
+        results: List of search results to filter
+        city_name: Name of the city
+        country_name: Name of the country
+        openrouter_key: OpenRouter API key
+        max_results: Maximum number of results to return
+        local_language: Local language code (e.g., "de", "fr")
+        category: "news" for general news, "government" for municipal
+        custom_filter_prompt: User-provided custom prompt (overrides default)
+        topic: Topic string for topic-only mode (no location)
+        excluded_domains: List of domains to exclude (user's "My Sources")
+    """
+    if not results:
+        return []
+
+    # Remove articles from excluded domains before AI filtering
+    if excluded_domains:
+        excluded_set = {d for d in excluded_domains if d}
+        results = [r for r in results if not any(
+            urlparse(r.get("url", "")).netloc.replace("www.", "").endswith(d)
+            for d in excluded_set
+        )]
+        logger.info(f"Excluded domains filter: {len(results)} articles remain after removing {len(excluded_set)} domains")
+
+    # Take top 60 results to score (balancing coverage vs token cost)
+    candidates = results[:60]
+
+    # Build the scoring prompt
+    articles_list = []
+    for i, item in enumerate(candidates):
+        title = item.get("title", "No title")
+        desc = (item.get("description") or "")[:150]
+        url = item.get("url", "")
+        articles_list.append(f"{i}. {title}\n   {desc}\n   URL: {url}")
+
+    articles_text = chr(10).join(articles_list)
+
+    # Sanitize custom prompt if provided (prevents prompt injection)
+    try:
+        custom_filter_prompt = sanitize_filter_prompt(custom_filter_prompt)
+    except (ValueError, PromptInjectionError) as e:
+        logger.warning(f"AI filter custom prompt rejected: {e}")
+        custom_filter_prompt = None  # Fall back to default prompt
+
+    # Detect scope mode
+    has_location = bool(city_name or country_name)
+    has_topic = bool(topic)
+    scope = "combined" if (has_topic and has_location) else ("topic" if has_topic else "location")
+
+    # Resolve country TLDs and language name for location-aware prompts
+    country_tlds_map = {
+        "Switzerland": ".ch", "Germany": ".de", "Austria": ".at",
+        "France": ".fr", "Italy": ".it", "Spain": ".es",
+        "Netherlands": ".nl", "Belgium": ".be", "Portugal": ".pt",
+        "Poland": ".pl", "Sweden": ".se", "Norway": ".no", "Denmark": ".dk",
+    }
+    country_tlds = country_tlds_map.get(country_name, "local country TLD")
+    local_language_name = LANGUAGE_NAMES.get(local_language, "English") if local_language else "English"
+
+    if custom_filter_prompt:
+        # Safe format: only substitute known placeholders, ignore unknown keys
+        ALLOWED_KEYS = {"articles_text", "topic", "city_name", "country_name", "country_tlds", "local_language"}
+        kwargs = {"articles_text": articles_text}
+        if scope == "topic":
+            kwargs["topic"] = topic
+        elif scope == "location":
+            kwargs.update(city_name=city_name, country_name=country_name,
+                          country_tlds=country_tlds, local_language=local_language_name)
+        else:  # combined
+            kwargs.update(city_name=city_name, country_name=country_name,
+                          country_tlds=country_tlds, local_language=local_language_name, topic=topic)
+        try:
+            # Validate that format string only uses allowed placeholders
+            field_names = {fname for _, fname, _, _ in string.Formatter().parse(custom_filter_prompt) if fname is not None}
+            if not field_names.issubset(ALLOWED_KEYS):
+                disallowed = field_names - ALLOWED_KEYS
+                logger.warning(f"Custom prompt contains disallowed placeholders: {disallowed}, falling back to default")
+                prompt = build_filter_prompt(
+                    scope=scope, category=category, source_mode=source_mode,
+                    city_name=city_name, country_name=country_name,
+                    country_tlds=country_tlds, local_language=local_language_name,
+                    topic=topic or "", articles_text=articles_text, criteria=criteria,
+                )
+            else:
+                prompt = custom_filter_prompt.format(**kwargs)
+        except (KeyError, ValueError, IndexError) as e:
+            logger.warning(f"Custom prompt format error: {e}, falling back to default")
+            prompt = build_filter_prompt(
+                scope=scope, category=category, source_mode=source_mode,
+                city_name=city_name, country_name=country_name,
+                country_tlds=country_tlds, local_language=local_language_name,
+                topic=topic or "", articles_text=articles_text, criteria=criteria,
+            )
+    else:
+        prompt = build_filter_prompt(
+            scope=scope,
+            category=category,
+            source_mode=source_mode,
+            city_name=city_name,
+            country_name=country_name,
+            country_tlds=country_tlds,
+            local_language=local_language_name,
+            topic=topic or "",
+            articles_text=articles_text,
+            criteria=criteria,
+        )
+
+    try:
+        result = await openrouter_chat(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200,
+            temperature=0.1,
+            response_format={"type": "json_object"},
+        )
+
+        content = result["content"]
+
+        # Parse the JSON array of indices
+        # Clean up response
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        content = content.strip()
+
+        relevant_indices = json.loads(content)
+        # Coerce string indices to int (LLM sometimes returns ["2", "4"] instead of [2, 4])
+        relevant_indices = [int(i) for i in relevant_indices]
+        logger.info(f"AI filter selected {len(relevant_indices)} relevant articles from {len(candidates)}")
+
+        # Return the filtered results with domain cap applied
+        filtered = [candidates[i] for i in relevant_indices if i < len(candidates)]
+        domain_cap = 3 if source_mode == "reliable" else 2
+        filtered = cap_articles_per_domain(filtered, max_per_domain=domain_cap)
+        return filtered[:max_results]
+
+    except Exception as e:
+        logger.error(f"AI filter error: {e}")
+        # Fall back to unfiltered results — still apply domain cap
+        domain_cap = 3 if source_mode == "reliable" else 2
+        fallback = cap_articles_per_domain(results, max_per_domain=domain_cap)
+        return fallback[:max_results]
+
+
+class AgentResponse(BaseModel):
+    """Response from the AI agent orchestration."""
+
+    status: Literal["completed", "partial", "not_found", "failed"] = "completed"
+    mode: Literal["pulse"] = "pulse"
+    category: Literal["news", "government", "analysis"] = "news"  # Category of search
+    task_completed: bool = False
+    response_markdown: str = ""
+    articles: List[AINewsArticle] = Field(default_factory=list)
+    total_results: int = 0
+    search_queries_used: List[str] = Field(default_factory=list)
+    urls_scraped: List[str] = Field(default_factory=list)
+    processing_time_ms: Optional[int] = None
+    summary: str = ""  # AI-generated summary of top news
+
+
+# Max PDFs to scrape per search (limits cost/latency)
+MAX_PDFS_PER_SEARCH = 3
+# Max pages to extract per PDF (limits credit cost — 1 credit/page)
+MAX_PAGES_PER_PDF = 5
+
+# Date patterns for extracting publication dates from PDF text content.
+# Ordered from most specific to least. Searches the first ~2000 chars.
+_PDF_DATE_PATTERNS = [
+    # ISO: 2026-03-06
+    re.compile(r"(20[2-3]\d-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))"),
+    # English: March 6, 2026 / Mar 6, 2026
+    re.compile(
+        r"((?:January|February|March|April|May|June|July|August|September|October|November|December|"
+        r"Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2},?\s+20[2-3]\d)",
+        re.IGNORECASE,
+    ),
+    # European: 6 March 2026 / 6. März 2026 / 6 mars 2026
+    re.compile(
+        r"(\d{1,2}\.?\s+(?:"
+        r"January|February|March|April|May|June|July|August|September|October|November|December|"
+        r"Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|"
+        r"janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre|"
+        r"januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december"
+        r")\.?\s+20[2-3]\d)",
+        re.IGNORECASE,
+    ),
+    # Dot-separated: 06.03.2026 or 03/06/2026
+    re.compile(r"(\d{1,2}[./]\d{1,2}[./]20[2-3]\d)"),
+]
+
+
+def extract_date_from_pdf_text(text: str, max_chars: int = 2000) -> Optional[str]:
+    """Extract the first plausible publication date from PDF text content.
+
+    Searches only the first `max_chars` characters (dates are typically
+    near the top of official documents). Returns an ISO-ish date string
+    or None.
+    """
+    snippet = text[:max_chars]
+    for pattern in _PDF_DATE_PATTERNS:
+        match = pattern.search(snippet)
+        if match:
+            return match.group(1)
+    return None
+
+
+async def enrich_pdf_results(
+    results: list[dict],
+    firecrawl_tools: "FirecrawlTools",
+    max_pdfs: int = MAX_PDFS_PER_SEARCH,
+    max_pages: int = MAX_PAGES_PER_PDF,
+) -> list[dict]:
+    """Detect PDF URLs in search results and scrape them via Firecrawl OCR.
+
+    Enriches PDF articles in-place with:
+    - Descriptions: extracted text replaces empty/short (<50 char) descriptions
+    - Dates: from PDF metadata (publishedDate) or text extraction fallback
+    - Titles: from PDF metadata when the article has no title
+
+    Caps the number of PDFs scraped per call to `max_pdfs` to control cost.
+    Non-PDF articles pass through unchanged.
+    """
+    pdf_indices = [
+        i for i, r in enumerate(results)
+        if ".pdf" in r.get("url", "").lower()
+    ]
+    if not pdf_indices:
+        return results
+
+    # Cap to avoid excessive cost
+    pdf_indices = pdf_indices[:max_pdfs]
+    logger.info(f"PDF enrichment: scraping {len(pdf_indices)} PDFs (of {sum(1 for r in results if '.pdf' in r.get('url', '').lower())} detected)")
+
+    # Scrape PDFs concurrently
+    tasks = [
+        firecrawl_tools.scrape_pdf(results[i]["url"], max_pages=max_pages)
+        for i in pdf_indices
+    ]
+    pdf_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for idx, pdf_data in zip(pdf_indices, pdf_results):
+        if isinstance(pdf_data, Exception):
+            logger.warning(f"PDF scrape failed for {results[idx].get('url', '')}: {pdf_data}")
+            continue
+        if not pdf_data or pdf_data.get("error"):
+            continue
+
+        markdown = pdf_data.get("markdown", "")
+        metadata = pdf_data.get("metadata", {})
+
+        # Enrich description with extracted text
+        current_desc = results[idx].get("description", "")
+        if markdown and len(current_desc) < 50:
+            # Use first meaningful chunk as description
+            clean = markdown.strip()[:300]
+            if len(clean) > len(current_desc):
+                results[idx]["description"] = clean
+
+        # Enrich title from metadata
+        if metadata.get("title") and not results[idx].get("title"):
+            results[idx]["title"] = metadata["title"]
+
+        # Enrich date — priority: metadata > text extraction
+        if not results[idx].get("date"):
+            if metadata.get("publishedDate"):
+                results[idx]["date"] = metadata["publishedDate"]
+                logger.info(f"PDF date from metadata: {metadata['publishedDate']} for {results[idx].get('url', '')}")
+            elif markdown:
+                extracted_date = extract_date_from_pdf_text(markdown)
+                if extracted_date:
+                    results[idx]["date"] = extracted_date
+                    logger.info(f"PDF date from text: {extracted_date} for {results[idx].get('url', '')}")
+
+    return results
+
+
+class FirecrawlTools:
+    """Tool implementations for AI agent using Firecrawl API."""
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://api.firecrawl.dev/v2"
+        self.timeout = 60.0
+
+    async def scrape_pdf(
+        self,
+        url: str,
+        max_pages: int = MAX_PAGES_PER_PDF,
+    ) -> dict:
+        """Scrape a PDF URL using Firecrawl's document parsing with OCR.
+
+        Returns dict with 'markdown' (extracted text) and 'metadata' keys,
+        or {'error': ...} on failure.
+        """
+        try:
+            payload = {
+                "url": url,
+                "formats": ["markdown"],
+                "parsers": [{"type": "pdf", "mode": "auto", "maxPages": max_pages}],
+            }
+
+            client = await get_http_client()
+            response = await client.post(
+                f"{self.base_url}/scrape",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=self.timeout,
+            )
+
+            if not response.is_success:
+                error_text = response.text[:200]
+                logger.warning(f"PDF scrape error for {url}: {response.status_code} - {error_text}")
+                return {"error": f"PDF scrape failed: {response.status_code}"}
+
+            data = response.json()
+            result_data = data.get("data", {})
+            return {
+                "markdown": result_data.get("markdown", ""),
+                "metadata": result_data.get("metadata", {}),
+            }
+
+        except asyncio.TimeoutError:
+            return {"error": f"PDF scrape timed out for {url}"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def search_web(
+        self,
+        query: str,
+        location: Optional[str] = None,
+        country: Optional[str] = None,
+        tbs: Optional[str] = None,
+        limit: int = 20,
+        sources: Optional[List[str]] = None,
+        lang: Optional[str] = None,
+    ) -> dict:
+        """Execute web search using Firecrawl /v2/search."""
+        try:
+            payload = {
+                "query": query,
+                "limit": limit,
+                "ignoreInvalidURLs": True,
+                "scrapeOptions": {
+                    "maxAge": 3600000  # 1 hour cache
+                }
+            }
+
+            # Add time filter if provided
+            if tbs:
+                payload["tbs"] = tbs
+
+            # Add location for geo-targeting
+            if location:
+                # Format: "City,State,Country" or "City,Country"
+                if ',' not in location:
+                    payload["location"] = f"{location}"
+                else:
+                    payload["location"] = location
+
+            # Add country code if provided
+            if country:
+                payload["country"] = country.upper()
+
+            # Add language for non-geo searches
+            if lang:
+                payload["lang"] = lang
+
+            # Add sources parameter (web, news) - news returns better results for news searches
+            if sources:
+                payload["sources"] = [{"type": s} for s in sources]
+
+            logger.info(f"Search: query='{query}', location={location or 'none'}, tbs={tbs or 'none'}, sources={sources or 'default'}")
+
+            client = await get_http_client()
+            response = await client.post(
+                f"{self.base_url}/search",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json=payload
+            )
+
+            if not response.is_success:
+                error_text = response.text[:200]
+                logger.error(f"Search error: {response.status_code} - {error_text}")
+                return {"error": f"Search failed: {response.status_code}", "query": query, "results": []}
+
+            data = response.json()
+
+            # V2 response: { success: true, data: { web: [...], images: [...], news: [...] } }
+            response_data = data.get("data", {})
+            web_results = response_data.get("web", [])
+            news_results = response_data.get("news", [])
+
+            # Combine results - prioritize news results (better metadata)
+            all_results = []
+
+            # News results first (have publication dates and better titles)
+            for item in news_results:
+                all_results.append({
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "description": item.get("snippet", item.get("description", "")),
+                    "date": item.get("date"),
+                    "favicon": item.get("imageUrl"),
+                    "source_type": "news"
+                })
+
+            # Then web results
+            for item in web_results:
+                all_results.append({
+                    "title": item.get("title", item.get("url", "")),
+                    "url": item.get("url", ""),
+                    "description": item.get("description", ""),
+                    "date": item.get("date"),
+                    "favicon": item.get("favicon"),
+                    "source_type": "web"
+                })
+
+            logger.info(f"Search found {len(news_results)} news + {len(web_results)} web results")
+
+            # Filter blacklisted domains
+            results = [r for r in all_results if not is_blacklisted_domain(r["url"])]
+            filtered_count = len(all_results) - len(results)
+
+            if filtered_count > 0:
+                logger.info(f"Search filtered {filtered_count} blacklisted URLs")
+
+            return {
+                "query": query,
+                "count": len(results),
+                "results": results,
+                "location": payload.get("location"),
+                "tbs": tbs
+            }
+
+        except asyncio.TimeoutError:
+            return {"error": "Search timed out after 60 seconds", "query": query, "results": []}
+        except Exception as e:
+            return {"error": str(e), "query": query, "results": []}
+
