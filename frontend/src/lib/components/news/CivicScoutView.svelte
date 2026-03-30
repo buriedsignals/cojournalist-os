@@ -175,7 +175,7 @@
 </script>
 
 <div class="panel-view">
-	<div class="two-column-layout civic-layout">
+	<div class="two-column-layout">
 		<!-- Left Column: Form -->
 		<div class="query-column">
 			<FormPanel
@@ -346,10 +346,6 @@
 />
 
 <style>
-	/* Override global align-items: start which causes the FormPanel to shift
-	   down when the results column grows tall with promise cards */
-	.civic-layout { align-items: stretch; }
-
 	.form-spacer { height: 6rem; }
 
 	.field-group { margin-bottom: 0.75rem; }

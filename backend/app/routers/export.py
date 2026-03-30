@@ -3,7 +3,8 @@ Export Router — API endpoints for feed export features.
 
 PURPOSE: Generate article drafts from selected atomic units (POST /export/generate),
 auto-select best units for a topic (POST /export/auto-select), and push
-drafts to external CMS via API (POST /export/cms). Each export costs 1 credit.
+drafts to external CMS via API (POST /export/to-cms). Draft generation and
+auto-select each cost 1 credit; CMS delivery is free (forwarding only).
 
 DEPENDS ON: dependencies (session cookie auth, credit decrement),
     utils/credits (credit validation)
@@ -307,7 +308,7 @@ async def export_to_cms(
         headers["Authorization"] = f"Bearer {cms_token}"
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
             response = await client.post(cms_url, json=export_payload, headers=headers)
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="CMS endpoint timed out")

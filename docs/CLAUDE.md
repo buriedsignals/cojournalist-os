@@ -7,24 +7,36 @@ This directory contains detailed architecture and feature documentation for coJo
 ```
 docs/
 ├── CLAUDE.md                              # This file
-├── architecture/
-│   ├── adapter-pattern.md                 # How the adapter pattern works (port/adapter)
-│   ├── developer-guide.md                 # How to develop and extend coJournalist
-│   ├── edge-functions.md                  # Supabase Edge Function reference
+├── architecture/                          # Shared / SaaS-specific
+│   ├── aws-architecture.md               # SaaS: DynamoDB, EventBridge, Lambda
+│   ├── developer-guide.md                 # Local setup, extending scouts, contributing
 │   ├── fastapi-endpoints.md               # All REST endpoints with examples
-│   └── supabase-schema.md                 # PostgreSQL schema (tables, indexes, RLS)
-├── features/
-│   ├── civic.md                           # Civic Scout: council monitoring, promise extraction
+│   └── records-and-deduplication.md       # DynamoDB record types, dedup layers
+├── features/                              # What each feature does
+│   ├── civic.md                           # Civic Scout: council monitoring, promises (incl. design ref)
 │   ├── export.md                          # CMS export + Markdown download
 │   ├── feed.md                            # Feed panel, export generation from units
 │   ├── pulse.md                           # Smart Scout type `pulse` (news digest)
 │   ├── scrape.md                          # Firecrawl extraction
 │   ├── social.md                          # Social media monitoring (Apify)
 │   └── web-scouts.md                      # Website change detection
-├── specs/
-│   └── oss-architecture.md                # OSS architecture design spec
-└── deploy/
-    └── SETUP.md                           # Self-host setup guide
+├── oss/                                   # Everything OSS / self-hosted
+│   ├── architecture.md                    # Strategy: two-repo model, licensing, what ships
+│   ├── adapter-pattern.md                 # Port/adapter design, DI wiring, async patterns
+│   ├── supabase-schema.md                 # PostgreSQL tables, indexes, RLS, migrations
+│   ├── edge-functions.md                  # Supabase Edge Functions reference
+│   ├── license-key.md                     # Stripe integration, key format, validation
+│   ├── deployment-and-mirror.md           # Docker, Render, GitHub mirror CI
+│   └── automation.md                      # setup.sh, sync-upstream, agent instructions
+├── muckrock/                              # MuckRock integration (auth + billing)
+│   ├── oauth-integration.md               # OpenID flow, scopes, session cookies
+│   ├── userinfo-and-orgs.md               # Userinfo schema, org structure
+│   ├── webhooks.md                        # Webhook payloads, signature verification
+│   ├── plans-and-entitlements.md          # Tier definitions (Free/Pro/Team), credit costs
+│   ├── entitlements-pro-design.md         # Pro tier design: resolution, pricing, webhooks
+│   └── entitlements-team-design.md        # Team plan: shared credit pools, ORG# records, seats
+├── benchmarks/                            # LLM model benchmarks
+└── research/                              # LLM model research
 ```
 
 ## Key Documentation by Topic
@@ -33,52 +45,33 @@ docs/
 - **Page Scout** (type `web`): `features/web-scouts.md` - Firecrawl changeTracking, per-scout baselines
 - **Smart Scout** (type `pulse`): `features/pulse.md` - Multi-language search, AI filtering
 - **Social Scout** (type `social`): `features/social.md` - Social media monitoring, Apify scraping
-- **Civic Scout** (type `civic`): `features/civic.md` - Council website monitoring, promise extraction
+- **Civic Scout** (type `civic`): `features/civic.md` - Council monitoring, promise extraction, design reference
 
 ### Feed & Export
 - **Feed & Export**: `features/feed.md` - Feed panel and export generation from units
 - **Export (CMS)**: `features/export.md` - CMS API export + Markdown download
 
-### Architecture & Development
-- **Adapter Pattern**: `architecture/adapter-pattern.md` - Port/adapter design, how to add new adapters
-- **Developer Guide**: `architecture/developer-guide.md` - Local setup, extending scouts, contributing
-- **Edge Functions**: `architecture/edge-functions.md` - Supabase Edge Function reference
+### Architecture
 - **API Endpoints**: `architecture/fastapi-endpoints.md` - All REST endpoints
-- **Supabase Schema**: `architecture/supabase-schema.md` - PostgreSQL tables, indexes, RLS policies
+- **AWS Architecture**: `architecture/aws-architecture.md` - DynamoDB, EventBridge, Lambda (SaaS-only)
+- **Records & Dedup**: `architecture/records-and-deduplication.md` - DynamoDB record types, dedup layers
+- **Developer Guide**: `architecture/developer-guide.md` - Local setup, extending scouts, contributing
 
-## Writing Documentation
+### OSS / Self-Hosted
+- **Strategy**: `oss/architecture.md` - Two-repo model, licensing, what ships in the OSS mirror
+- **Adapter Pattern**: `oss/adapter-pattern.md` - Port/adapter design, DI wiring, how to add adapters
+- **Supabase Schema**: `oss/supabase-schema.md` - PostgreSQL tables, indexes, RLS policies
+- **Edge Functions**: `oss/edge-functions.md` - Supabase Edge Function reference
+- **License Key**: `oss/license-key.md` - Stripe integration, key format, validation, webhooks
+- **Deployment & Mirror**: `oss/deployment-and-mirror.md` - Docker, Render, GitHub mirror CI
+- **Automation**: `oss/automation.md` - setup.sh, sync-upstream, agent instructions
 
-### Format Guidelines
-
-1. **Start with overview** - Brief description and flow diagram
-2. **Include code examples** - Request/response JSON, API calls
-3. **Document edge cases** - Error handling, rate limits
-4. **Link related docs** - Cross-reference other files
-
-### Diagram Style
-
-Use ASCII flow diagrams:
-```
-User Action → Frontend → Backend → External API
-                ↓
-           DynamoDB (record storage)
-```
-
-### Code Block Labels
-
-Always specify language:
-```json
-{"example": "response"}
-```
-
-```python
-def example_function():
-    pass
-```
-
-```bash
-curl -X POST https://api.example.com
-```
+### MuckRock / Billing
+- **OAuth**: `muckrock/oauth-integration.md` - OpenID flow, session cookies
+- **Plans & Credits**: `muckrock/plans-and-entitlements.md` - Tier definitions, credit costs
+- **Pro Design**: `muckrock/entitlements-pro-design.md` - Pro tier resolution, pricing page
+- **Team Design**: `muckrock/entitlements-team-design.md` - Shared credit pools, seats
+- **Webhooks**: `muckrock/webhooks.md` - Webhook payloads, processing flow
 
 ## Updating Documentation
 
@@ -86,16 +79,8 @@ When making code changes:
 
 1. **New feature**: Create doc in `features/`
 2. **API change**: Update `architecture/fastapi-endpoints.md`
-3. **Schema change**: Update `architecture/supabase-schema.md`
-4. **Adapter change**: Update `architecture/adapter-pattern.md`
-5. **Edge Function change**: Update `architecture/edge-functions.md`
-6. **New integration**: Document within relevant feature doc in `features/`
-
-### Documentation Checklist
-
-- [ ] Overview section with flow diagram
-- [ ] API endpoints with request/response examples
-- [ ] Error handling section
-- [ ] Rate limits documented
-- [ ] Related docs linked
-- [ ] Root CLAUDE.md updated if new major feature
+3. **Schema change**: Update `oss/supabase-schema.md`
+4. **Adapter change**: Update `oss/adapter-pattern.md`
+5. **Edge Function change**: Update `oss/edge-functions.md`
+6. **Billing change**: Update `muckrock/plans-and-entitlements.md`
+7. **New integration**: Document within relevant feature doc in `features/`

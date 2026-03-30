@@ -160,6 +160,9 @@ class TestMarkUsed:
     async def test_marks_units_as_used(self, storage, mock_pool):
         mock_pool.execute = AsyncMock(return_value="UPDATE 3")
 
-        unit_ids = [str(uuid.uuid4()) for _ in range(3)]
-        await storage.mark_used(unit_ids)
+        unit_keys = [
+            (f"USER#u1#LOC#US#CA#LA", f"UNIT#1234#{uuid.uuid4()}")
+            for _ in range(3)
+        ]
+        await storage.mark_used(unit_keys)
         mock_pool.execute.assert_called_once()

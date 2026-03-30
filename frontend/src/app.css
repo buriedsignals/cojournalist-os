@@ -396,7 +396,6 @@
 		display: grid;
 		grid-template-columns: 480px 1fr;
 		gap: var(--space-6);
-		align-items: start;
 		max-width: 1400px;
 		margin: 0 auto;
 		width: 100%;

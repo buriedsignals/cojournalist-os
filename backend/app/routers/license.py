@@ -11,14 +11,16 @@ USED BY: automation/setup.sh, automation/sync-upstream.yml
 No authentication required on /license/validate — the key IS the credential.
 The /license/webhook endpoint is secured by Stripe signature verification.
 """
+import functools
 import hashlib
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import stripe
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -103,6 +105,70 @@ async def validate_license(request: Request):
         "expires_at": record["expires_at"],
         "customer_email": record.get("customer_email"),
     }
+
+
+@functools.lru_cache(maxsize=1)
+def _load_setup_guide() -> str:
+    """Load setup-skill.md from disk (cached for process lifetime)."""
+    # Docker path: /workspace/backend/app/setup-skill.md
+    docker_path = Path(__file__).resolve().parent.parent / "setup-skill.md"
+    if docker_path.exists():
+        return docker_path.read_text()
+
+    # Local dev: repo_root/automation/setup-skill.md
+    local_path = Path(__file__).resolve().parent.parent.parent.parent / "automation" / "setup-skill.md"
+    if local_path.exists():
+        return local_path.read_text()
+
+    return ""
+
+
+@router.post("/license/setup-guide")
+@limiter.limit("5/minute")
+async def download_setup_guide(request: Request):
+    """Download the setup guide after license key validation.
+
+    Accepts JSON body: {"key": "cjl_..."}
+
+    Returns the setup-skill.md content as text/markdown on success.
+    Rate limited to 5/minute per IP.
+    """
+    body = await request.json()
+    key = body.get("key", "")
+    service = LicenseKeyService()
+    record = service.validate_key(key)
+
+    if not record:
+        return JSONResponse(
+            status_code=403,
+            content={"valid": False, "error": "Invalid license key"},
+        )
+
+    expires_at = datetime.fromisoformat(record["expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        return JSONResponse(
+            status_code=403,
+            content={"valid": False, "error": "License expired"},
+        )
+
+    status = record.get("status", "active")
+    if status == "revoked":
+        return JSONResponse(
+            status_code=403,
+            content={"valid": False, "error": "License revoked"},
+        )
+
+    content = _load_setup_guide()
+    if not content:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Setup guide not available"},
+        )
+
+    return Response(
+        content=content,
+        media_type="text/markdown",
+    )
 
 
 @router.post("/license/webhook")
@@ -247,76 +313,72 @@ async def _handle_payment_failed(invoice: dict):
 
 
 async def _send_license_email(email: str, license_key: str):
-    """Send the license key to the customer via Resend.
-
-    Uses the same Resend HTTP API pattern as notification_service.py.
-    """
+    """Send the license key to the customer via Resend SDK."""
     settings = get_settings()
     if not settings.resend_api_key:
         logger.warning("RESEND_API_KEY not set, skipping license email")
         return
 
-    import httpx
+    import resend
+
+    resend.api_key = settings.resend_api_key
 
     html_body = f"""
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background: #f5f5f5;">
-    <div style="max-width: 600px; margin: 0 auto;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f4;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f4;">
         <!-- Header -->
-        <div style="background: #f5f5f4; padding: 32px 24px; border-radius: 12px 12px 0 0; border: 1px solid #e7e5e4; border-bottom: none; text-align: center;">
-            <img src="https://www.cojournalist.ai/logo-cojournalist.png" alt="coJournalist" style="height: 32px; margin-bottom: 16px;" />
+        <div style="padding: 32px 24px; text-align: center; border-bottom: 1px solid rgba(0, 0, 0, 0.06);">
+            <img src="https://www.cojournalist.ai/static/logo-cojournalist.png" alt="coJournalist" style="height: 32px; width: 126px; margin-bottom: 16px;">
             <h1 style="color: #1a1917; margin: 0; font-size: 22px; font-weight: 600;">Your License Key</h1>
             <p style="color: #57534e; margin: 8px 0 0 0; font-size: 14px;">Self-Hosted Newsroom Edition</p>
         </div>
 
         <!-- Body -->
-        <div style="background: white; padding: 32px 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <div style="padding: 32px 24px;">
             <p style="margin: 0 0 20px 0; font-size: 15px; color: #555;">Thank you for your purchase. Here is your license key:</p>
 
             <!-- License key box -->
-            <div style="background: #f8f9fa; border-left: 4px solid #4f46e5; border-radius: 8px; padding: 20px; margin: 0 0 24px 0;">
-                <p style="margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #4f46e5; font-weight: 600;">LICENSE KEY</p>
+            <div style="background: #ffffff; border-left: 4px solid #968bdf; border-radius: 8px; padding: 20px; margin: 0 0 24px 0;">
+                <p style="margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #7c6fc7; font-weight: 600;">LICENSE KEY</p>
                 <code style="font-family: 'SF Mono', 'Fira Code', Consolas, monospace; font-size: 15px; color: #1a1a1a; word-break: break-all; line-height: 1.8;">{license_key}</code>
             </div>
 
-            <p style="margin: 0 0 24px 0; font-size: 13px; color: #888;">Save this key somewhere safe. It will not be shown again.</p>
+            <p style="margin: 0 0 32px 0; font-size: 13px; color: #888;">Save this key somewhere safe. It will not be shown again.</p>
 
             <!-- Getting started -->
-            <div style="border-top: 1px solid #e5e7eb; padding-top: 24px; margin-bottom: 24px;">
-                <h2 style="margin: 0 0 16px 0; font-size: 16px; color: #1a1a1a;">Getting Started</h2>
+            <div style="border-top: 1px solid rgba(0, 0, 0, 0.06); padding-top: 28px;">
+                <h2 style="margin: 0 0 20px 0; font-size: 16px; color: #1a1a1a;">Getting Started</h2>
 
-                <div style="margin-bottom: 12px; padding: 12px 16px; background: #f8f9fa; border-radius: 6px;">
-                    <p style="margin: 0; font-size: 14px;"><strong style="color: #4f46e5;">1.</strong> Clone the repo</p>
-                    <code style="font-size: 12px; color: #666;">git clone https://github.com/buriedsignals/cojournalist-os</code>
+                <!-- Step 1: Open Setup Guide (primary CTA) -->
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <a href="https://www.cojournalist.ai/setup"
+                       style="display: inline-block; width: 100%; max-width: 360px; padding: 16px 32px; background-color: #d97706; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-sizing: border-box;">
+                        1. Open Setup Guide
+                    </a>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: #78716c;">Use your license key to unlock the guide</p>
                 </div>
 
-                <div style="margin-bottom: 12px; padding: 12px 16px; background: #f8f9fa; border-radius: 6px;">
-                    <p style="margin: 0; font-size: 14px;"><strong style="color: #4f46e5;">2.</strong> Open in your AI coding agent (Claude Code, Codex, Cursor, etc.)</p>
+                <div style="margin-bottom: 12px; padding: 12px 16px; background: #ffffff; border-radius: 6px;">
+                    <p style="margin: 0; font-size: 14px;"><strong style="color: #7c6fc7;">2.</strong> Paste the command into your AI coding agent</p>
+                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #78716c;">Works with Claude Code, Cursor, Windsurf, Codex, or any AI agent</p>
                 </div>
 
-                <div style="margin-bottom: 12px; padding: 12px 16px; background: #f8f9fa; border-radius: 6px;">
-                    <p style="margin: 0; font-size: 14px;"><strong style="color: #4f46e5;">3.</strong> Load the setup skill and follow the prompts</p>
-                    <code style="font-size: 12px; color: #666;">Read automation/setup-skill.md and set up coJournalist</code>
+                <div style="margin-bottom: 0; padding: 12px 16px; background: #ffffff; border-radius: 6px;">
+                    <p style="margin: 0; font-size: 14px;"><strong style="color: #7c6fc7;">3.</strong> Clone the repository <span style="font-size: 11px; color: #a8a29e;">(optional &mdash; your agent handles this)</span></p>
+                    <code style="font-size: 12px; color: #78716c;">git clone <a href="https://github.com/buriedsignals/cojournalist-os" style="color: #968bdf; text-decoration: none;">github.com/buriedsignals/cojournalist-os</a></code>
                 </div>
             </div>
-
-            <!-- CTA button -->
-            <div style="text-align: center; margin-bottom: 8px;">
-                <a href="https://github.com/buriedsignals/cojournalist-os/blob/main/automation/setup-skill.md"
-                   style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #4f46e5, #4338ca); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
-                    View Setup Guide
-                </a>
-            </div>
-            <p style="text-align: center; margin: 8px 0 0 0; font-size: 12px; color: #999;">
-                <a href="https://github.com/buriedsignals/cojournalist-os" style="color: #4f46e5; text-decoration: none;">github.com/buriedsignals/cojournalist-os</a>
-            </p>
         </div>
 
         <!-- Footer -->
-        <div style="text-align: center; padding: 24px 0;">
-            <p style="margin: 0; font-size: 12px; color: #999;">Buried Signals &mdash; coJournalist</p>
+        <div style="padding: 24px; text-align: center; border-top: 1px solid rgba(0, 0, 0, 0.06);">
+            <p style="margin: 0; font-size: 12px; color: #a8a29e;">Buried Signals &mdash; coJournalist</p>
         </div>
     </div>
 </body>
@@ -324,24 +386,12 @@ async def _send_license_email(email: str, license_key: str):
     """
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.resend.com/emails",
-                headers={
-                    "Authorization": f"Bearer {settings.resend_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "from": "coJournalist <noreply@cojournalist.ai>",
-                    "to": [email],
-                    "subject": "Your coJournalist License Key",
-                    "html": html_body,
-                },
-                timeout=10.0,
-            )
-            if response.status_code == 200:
-                logger.info(f"License key emailed to {email}")
-            else:
-                logger.error(f"Failed to email license key: {response.status_code} {response.text}")
+        resend.Emails.send({
+            "from": "coJournalist <noreply@cojournalist.ai>",
+            "to": [email],
+            "subject": "Your coJournalist License Key",
+            "html": html_body,
+        })
+        logger.info(f"License key emailed to {email}")
     except Exception as e:
         logger.error(f"Failed to send license email: {e}")

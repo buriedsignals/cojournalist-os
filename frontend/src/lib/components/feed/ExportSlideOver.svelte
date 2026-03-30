@@ -306,6 +306,18 @@
 	:global(.citation-link:hover) {
 		color: #6366f1;
 	}
+	:global(.citation-ref) {
+		color: #6366f1;
+		text-decoration: none;
+		cursor: pointer;
+	}
+	:global(.citation-ref:hover) {
+		text-decoration: underline;
+	}
+	:global(.citation-ref sup) {
+		font-size: 0.7em;
+		font-weight: 600;
+	}
 
 	.backdrop {
 		position: fixed;

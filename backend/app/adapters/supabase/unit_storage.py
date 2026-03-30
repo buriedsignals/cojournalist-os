@@ -244,11 +244,16 @@ class SupabaseUnitStorage(UnitStoragePort):
         )
         return [row["topic"] for row in rows]
 
-    async def mark_used(self, unit_ids: list[str]) -> None:
+    async def mark_used(self, unit_keys: list[tuple[str, str]]) -> None:
         """Mark information units as used in an article."""
         await self._ensure_pool()
-        if not unit_ids:
+        if not unit_keys:
             return
+        # Extract unit_ids from SK: UNIT#{timestamp}#{unit_id}
+        unit_ids = []
+        for _pk, sk in unit_keys:
+            parts = sk.split("#")
+            unit_ids.append(parts[-1] if len(parts) >= 3 else sk)
         # Build parameterized IN clause with UUID casts
         placeholders = ", ".join(f"${i+1}::uuid" for i in range(len(unit_ids)))
         await self.pool.execute(

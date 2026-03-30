@@ -105,11 +105,11 @@ class TestGetCmsConfig:
         assert result["cms_api_url"] == "https://cms.example.com/api"
 
     @pytest.mark.asyncio
-    async def test_returns_empty_dict_when_not_found(self, storage, mock_pool):
+    async def test_returns_default_when_not_found(self, storage, mock_pool):
         mock_pool.fetchrow = AsyncMock(return_value=None)
 
         result = await storage.get_cms_config(str(uuid.uuid4()))
-        assert result == {}
+        assert result == {"cms_api_url": None, "cms_api_token": None}
 
 
 class TestCreditMethods:

@@ -235,3 +235,74 @@ Enables `promise-checker-lambda` to efficiently query promises by due date.
 - `docs/architecture/records-and-deduplication.md` - DynamoDB record types
 - `docs/architecture/aws-architecture.md` - Lambda functions, DynamoDB, EventBridge
 - `docs/architecture/fastapi-endpoints.md` - Full endpoint reference
+
+---
+
+## Design Reference
+
+### Data Model
+
+#### SCRAPER# Record
+
+```
+PK:  user_xxx
+SK:  SCRAPER#{scout_name}
+
+scout_type:         "civic"
+root_domain:        "grosserrat.bs.ch"
+tracked_urls:       ["https://grosserrat.bs.ch/ratsbetrieb/ratsprotokolle?all=1"]
+criteria:           "housing policy, budget commitments"  (optional)
+content_hash:       "abc123..."
+processed_pdf_urls: ["https://...vollprotokoll_2025-03-19.pdf", ...]  (cap at 100)
+regularity:         "weekly" | "monthly"
+```
+
+**Note:** `user_email` is NOT stored — journalist PII is never persisted in DynamoDB. Email is fetched on-demand via `get_user_email(user_id)` at notification time.
+
+#### PROMISE# Record
+
+```
+PK:  user_xxx
+SK:  PROMISE#{scout_name}#{promise_id}
+
+promise_text:       "Address parking reform by July 2025"
+context:            "During budget debate, Councillor X stated..."
+source_url:         "https://...vollprotokoll_2025-03-19.pdf"
+source_date:        "2025-03-19"
+due_date:           "2025-07-01"          (null if undatable)
+date_confidence:    "exact" | "month" | "quarter" | "vague"
+criteria_match:     true
+status:             "pending" | "notified" | "resolved"
+ttl:                <90 days after due_date; 180 days if undated>
+```
+
+**`promise_id`:** Deterministic — `sha256(source_url + promise_text)[:16]`. Re-processing the same PDF produces idempotent overwrites.
+
+#### GSI for Daily Promise Checker
+
+```
+GSI Name:  GSI2-DueDate
+GSI2PK:    "DUEDATE#2025-07-01"  (or "DUEDATE#UNDATED")
+GSI2SK:    "user_xxx#{promise_id}"
+Projection: ALL
+```
+
+### Promise Extraction Rules
+
+- **Datable promises** (exact, month, quarter): stored with `due_date`, trigger future notification
+- **Vague promises** ("in the coming months"): `date_confidence: "vague"`, `due_date: null`, no auto-notification
+- **Criteria filtering**: if criteria set, only extract matching promises; otherwise extract all
+
+### Credit Structure
+
+| Operation | Credits | Cost basis |
+|---|---|---|
+| Discovery crawl (setup) | 10 | Firecrawl crawl + AI classification |
+| Per execution (up to 2 PDFs) | 20 | LlamaParse + Gemini extraction |
+| Promise notification (daily) | 0 | Already paid at extraction |
+
+### Promise Checker Lambda
+
+- **Trigger:** Daily 08:00 UTC via EventBridge
+- **Logic:** Query GSI2 for `DUEDATE#{today}`, group by user, send digest emails
+- **Audit:** Stores operational TIME# under `PK=SYSTEM, SK=TIME#...#_promise-checker`

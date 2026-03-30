@@ -732,8 +732,15 @@ async def run_audit_scenario(scenario: dict) -> dict:
     candidates = [
         CandidateUrl(**c) for c in record["candidates"]
     ]
+    promise_defaults = {
+        "context": "",
+        "source_url": record.get("pdf_url") or "",
+        "source_date": "",
+        "date_confidence": "unknown",
+        "criteria_match": False,
+    }
     promises = [
-        Promise(**{**p, "context": "", "source_url": record.get("pdf_url") or ""})
+        Promise(**{**promise_defaults, **p})
         for p in record["promises"]
     ]
     record["quality_checks"] = run_quality_checks(candidates, promises, url)

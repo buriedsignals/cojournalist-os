@@ -179,6 +179,9 @@ app.include_router(v1.router, prefix="/api/v1")
 FRONTEND_DIST = Path(__file__).resolve().parent / "frontend_client"
 if FRONTEND_DIST.exists():
     logger.info("Serving frontend assets from %s", FRONTEND_DIST)
+    # Dedicated static mount for email images (standard StaticFiles, not SPA fallback)
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIST)), name="static")
+    # SPA fallback for all other routes
     app.mount("/", SPAStaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
 else:
     logger.info("Frontend assets directory not found at %s (skipping mount).", FRONTEND_DIST)

@@ -25,13 +25,15 @@ export function boldify(text: string): string {
  *
  * Handles two formats:
  * 1. Full markdown links: [link text](https://url) → <a href="url">link text</a>
- * 2. Citation brackets: [domain.com] → looked up in source list, wrapped in <a>
+ * 2. Citation brackets: [domain.com] → superscript numbered reference matching source list
  */
 export function linkifySources(text: string, sources: { url: string; domain?: string }[]): string {
-	const urlMap = new Map<string, string>();
-	for (const s of sources) {
+	// Build domain → {url, index} map (1-based index matching the source list)
+	const sourceMap = new Map<string, { url: string; index: number }>();
+	for (let i = 0; i < sources.length; i++) {
+		const s = sources[i];
 		const domain = s.domain || new URL(s.url).hostname.replace('www.', '');
-		if (!urlMap.has(domain)) urlMap.set(domain, s.url);
+		if (!sourceMap.has(domain)) sourceMap.set(domain, { url: s.url, index: i + 1 });
 	}
 
 	const escapeAttr = (str: string) =>
@@ -43,14 +45,13 @@ export function linkifySources(text: string, sources: { url: string; domain?: st
 		return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="citation-link">${linkText}</a>`;
 	});
 
-	// Pass 2: bare citation brackets [domain.com] — look up in source list
+	// Pass 2: bare citation brackets [domain.com] → superscript numbered reference
 	return withLinks.replace(/\[([^\]]+)\]/g, (match, domain) => {
 		const normalizedDomain = domain.replace(/^www\./, '');
-		const url = urlMap.get(domain) || urlMap.get(normalizedDomain);
-		if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-			const safeUrl = escapeAttr(url);
-			const safeDomain = escapeAttr(domain);
-			return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="citation-link">[${safeDomain}]</a>`;
+		const entry = sourceMap.get(domain) || sourceMap.get(normalizedDomain);
+		if (entry && entry.url.startsWith('http')) {
+			const safeUrl = escapeAttr(entry.url);
+			return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="citation-ref"><sup>${entry.index}</sup></a>`;
 		}
 		return match;
 	});

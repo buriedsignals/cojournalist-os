@@ -202,19 +202,10 @@ class FeedSearchService:
         """Mark units as used in article (sets 60-day TTL)."""
         if not unit_keys:
             return 0
-        # Extract unit_ids from (pk, sk) pairs — unit_id is the last component of SK
-        unit_ids = []
-        for pk, sk in unit_keys:
-            # SK format: UNIT#{timestamp}#{unit_id}
-            parts = sk.split("#")
-            if len(parts) >= 3:
-                unit_ids.append(parts[-1])
-            else:
-                unit_ids.append(sk)
 
         try:
-            await self.storage.mark_used(unit_ids)
-            marked_count = len(unit_ids)
+            await self.storage.mark_used(unit_keys)
+            marked_count = len(unit_keys)
             logger.info(f"Marked {marked_count}/{len(unit_keys)} units as used (60-day TTL)")
             return marked_count
         except Exception as e:

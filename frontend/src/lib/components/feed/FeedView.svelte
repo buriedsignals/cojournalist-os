@@ -293,15 +293,21 @@
 	async function handleDeleteSelected() {
 		if ($feedStore.selectedUnitIds.size === 0) return;
 
-		const selectedUnits = units.filter(u => $feedStore.selectedUnitIds.has(u.unit_id));
+		const selectedIds = new Set($feedStore.selectedUnitIds);
+		const selectedUnits = units.filter(u => selectedIds.has(u.unit_id));
 		const unitKeys = selectedUnits.map(u => ({ pk: u.pk, sk: u.sk }));
 
-		units = units.filter(u => !$feedStore.selectedUnitIds.has(u.unit_id));
+		// Optimistic update
+		units = units.filter(u => !selectedIds.has(u.unit_id));
 		feedStore.deselectAll();
 
-		apiClient.markUnitsUsed(unitKeys).catch(err => {
-			console.warn('Failed to delete units:', err);
-		});
+		try {
+			await apiClient.markUnitsUsed(unitKeys);
+		} catch (err) {
+			// Restore on failure
+			units = [...units, ...selectedUnits];
+			console.error('Failed to delete units:', err);
+		}
 	}
 
 	// Generate article draft

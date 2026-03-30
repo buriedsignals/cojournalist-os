@@ -54,7 +54,7 @@ function markTimezoneVerified(userId?: string | null) {
 			if (cancelled) return;
 
 			unsubscribe = authStore.subscribe(async (state) => {
-				if (!state.authenticated && !['/login', '/pricing'].includes($page.url.pathname)) {
+				if (!state.authenticated && !['/login', '/pricing', '/setup'].includes($page.url.pathname)) {
 					// Redirect to login if not authenticated
 					await goto('/login');
 					return;

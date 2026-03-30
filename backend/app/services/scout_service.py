@@ -15,6 +15,7 @@ CRITICAL: Uses Firecrawl changeTracking with user-scoped tags
 See CLAUDE.md "Page Scout Change Detection" for full rationale.
 Do NOT remove the tag parameter or change its format.
 """
+import asyncio
 import hashlib
 import json
 import logging
@@ -351,44 +352,52 @@ class ScoutService:
     async def _firecrawl_scrape(self, url: str, tag: Optional[str] = None, timeout: float = 30.0) -> Optional[dict]:
         """Scrape URL via Firecrawl. If tag provided, includes changeTracking format.
 
+        Retries once on timeout with a longer deadline (45s).
+
         CRITICAL: The changeTracking object MUST be inside the formats array,
         NOT in a separate changeTrackingOptions field (Firecrawl returns 400
         for that). The tag MUST include user_id for per-user baselines.
         """
-        try:
-            formats: list = ["markdown"]
-            if tag:
-                # Tag goes inside the formats array object — see CLAUDE.md
-                formats.append({"type": "changeTracking", "tag": tag})
+        formats: list = ["markdown"]
+        if tag:
+            # Tag goes inside the formats array object — see CLAUDE.md
+            formats.append({"type": "changeTracking", "tag": tag})
 
-            client = await get_http_client()
-            response = await client.post(
-                self.FIRECRAWL_URL,
-                headers={
-                    "Authorization": f"Bearer {settings.firecrawl_api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "url": url,
-                    "formats": formats,
-                    "onlyMainContent": True
-                },
-                timeout=timeout
-            )
+        payload = {"url": url, "formats": formats, "onlyMainContent": True}
+        headers = {
+            "Authorization": f"Bearer {settings.firecrawl_api_key}",
+            "Content-Type": "application/json",
+        }
 
-            if response.status_code == 200:
-                result = response.json()
-                if not result.get("success", True):
-                    logger.error(f"Firecrawl error: {result.get('error')} - {result.get('details')}")
-                    return None
-                return result.get("data", {})
+        for attempt, t in enumerate([timeout, 45.0], 1):
+            try:
+                client = await get_http_client()
+                response = await client.post(
+                    self.FIRECRAWL_URL, headers=headers, json=payload, timeout=t,
+                )
 
-            logger.error(f"Firecrawl error: {response.status_code} - {response.text}")
-            return None
+                if response.status_code == 200:
+                    result = response.json()
+                    if not result.get("success", True):
+                        logger.error(f"Firecrawl error: {result.get('error')} - {result.get('details')}")
+                        return None
+                    return result.get("data", {})
 
-        except Exception as e:
-            logger.error(f"Firecrawl request failed: {e}")
-            return None
+                logger.error(f"Firecrawl error: {response.status_code} - {response.text}")
+                return None  # non-timeout HTTP errors are not retried
+
+            except asyncio.TimeoutError:
+                if attempt == 1:
+                    logger.warning(f"Firecrawl timeout for {url} ({t}s), retrying with 45s")
+                    continue
+                logger.error(f"Firecrawl timeout for {url} after retry (45s)")
+                return None
+
+            except Exception as e:
+                logger.error(f"Firecrawl request failed: {e}")
+                return None
+
+        return None
 
     async def _summarize_page(self, content: str, url: str, change_status: str = "new", language_name: str = "English") -> str:
         """Generate a brief page summary when no criteria are set."""

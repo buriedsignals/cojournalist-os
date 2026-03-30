@@ -76,7 +76,8 @@ AI-powered local news monitoring platform. Users create "scouts" that monitor we
 - **Records & Dedup**: `docs/architecture/records-and-deduplication.md` - DynamoDB records, dedup layers
 - **Entitlements & Credits**: `docs/muckrock/plans-and-entitlements.md` - MuckRock entitlement tiers, credit costs
 - **MuckRock Integration**: `docs/muckrock/oauth-integration.md` - OAuth flow, session management
-- **Team Plan**: `docs/superpowers/specs/2026-03-28-team-plan-design.md` - Shared credit pool, ORG# records, seat management
+- **Team Plan**: `docs/muckrock/entitlements-team-design.md` - Shared credit pool, ORG# records, seat management
+- **OSS / Self-Hosted**: `docs/oss/` - Architecture, adapters, Supabase, licensing, deployment, automation
 - **AWS Deployment**: `aws/README.md` - Lambda deployment commands
 
 ## Service Documentation

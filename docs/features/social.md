@@ -291,4 +291,3 @@ Tests profile validation, Apify scraping, post normalization, ID-based diffing, 
 ## Related Docs
 
 - `docs/architecture/records-and-deduplication.md` - DynamoDB record types and dedup layers
-- `docs/superpowers/plans/2026-03-16-social-media-monitoring.md` - Implementation plan

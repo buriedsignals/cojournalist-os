@@ -140,7 +140,7 @@ class SupabaseUserStorage(UserStoragePort):
             user_id,
         )
         if row is None:
-            return {}
+            return {"cms_api_url": None, "cms_api_token": None}
         return dict(row)
 
     # ------------------------------------------------------------------
