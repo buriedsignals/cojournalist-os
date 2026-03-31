@@ -1,5 +1,5 @@
 # Smart Scout (Pulse) Audit Results
-Generated: 2026-03-18T08:28:16+00:00
+Generated: 2026-03-30T20:22:57+00:00
 
 **Searches:** 20 (10 permutations x 2 categories)
 
@@ -7,26 +7,26 @@ Generated: 2026-03-18T08:28:16+00:00
 
 | Permutation | Category | Source Mode | Scope | Queries | Raw | Final | Time (ms) | Status |
 |-------------|----------|-------------|-------|---------|-----|-------|-----------|--------|
-| niche: Bozeman | news | niche | location | 12 | 211 | 6 | 7951 | OK |
-| niche: Bozeman | government | niche | location | 12 | 246 | 6 | 15426 | OK |
-| niche: Flagstaff | news | niche | location | 12 | 205 | 6 | 17199 | OK |
-| niche: Flagstaff | government | niche | location | 12 | 254 | 5 | 26923 | OK |
-| reliable: Bozeman | news | reliable | location | 7 | 138 | 6 | 3889 | OK |
-| reliable: Bozeman | government | reliable | location | 12 | 178 | 6 | 19449 | OK |
-| reliable: Flagstaff | news | reliable | location | 7 | 125 | 4 | 3079 | OK |
-| reliable: Flagstaff | government | reliable | location | 12 | 180 | 6 | 4618 | OK |
-| reliable+criteria: Bozeman+housing | news | reliable | location+topic | 8 | 128 | 1 | 2835 | WARN (1) |
-| reliable+criteria: Bozeman+housing | government | reliable | location+topic | 13 | 188 | 8 | 28153 | OK |
-| reliable+criteria: Flagstaff+water | news | reliable | location+topic | 8 | 79 | 1 | 3996 | WARN (1) |
-| reliable+criteria: Flagstaff+water | government | reliable | location+topic | 13 | 118 | 6 | 17197 | OK |
-| beat+niche: housing policy | news | niche | topic | 5 | 148 | 6 | 19350 | OK |
-| beat+niche: housing policy | analysis | niche | topic | 5 | 159 | 6 | 13615 | OK |
-| beat+niche: renewable energy | news | niche | topic | 5 | 138 | 6 | 12484 | OK |
-| beat+niche: renewable energy | analysis | niche | topic | 5 | 172 | 6 | 43303 | OK |
-| beat+reliable: housing policy | news | reliable | topic | 5 | 94 | 8 | 5115 | OK |
-| beat+reliable: housing policy | analysis | reliable | topic | 5 | 105 | 5 | 3374 | OK |
-| beat+reliable: renewable energy | news | reliable | topic | 5 | 103 | 8 | 4600 | OK |
-| beat+reliable: renewable energy | analysis | reliable | topic | 5 | 115 | 6 | 3785 | OK |
+| niche: Bozeman | news | niche | location | 12 | 193 | 5 | 12312 | OK |
+| niche: Bozeman | government | niche | location | 12 | 250 | 5 | 18819 | OK |
+| niche: Flagstaff | news | niche | location | 12 | 195 | 4 | 11125 | OK |
+| niche: Flagstaff | government | niche | location | 12 | 263 | 5 | 21162 | OK |
+| reliable: Bozeman | news | reliable | location | 7 | 125 | 4 | 3582 | OK |
+| reliable: Bozeman | government | reliable | location | 12 | 175 | 6 | 11689 | OK |
+| reliable: Flagstaff | news | reliable | location | 7 | 105 | 5 | 6467 | OK |
+| reliable: Flagstaff | government | reliable | location | 12 | 192 | 6 | 3990 | OK |
+| reliable+criteria: Bozeman+housing | news | reliable | location+topic | 8 | 128 | 2 | 7326 | OK |
+| reliable+criteria: Bozeman+housing | government | reliable | location+topic | 13 | 187 | 7 | 32054 | OK |
+| reliable+criteria: Flagstaff+water | news | reliable | location+topic | 8 | 78 | 1 | 6312 | WARN (1) |
+| reliable+criteria: Flagstaff+water | government | reliable | location+topic | 13 | 86 | 7 | 24173 | OK |
+| beat+niche: housing policy | news | niche | topic | 5 | 162 | 6 | 19260 | OK |
+| beat+niche: housing policy | analysis | niche | topic | 5 | 157 | 6 | 13288 | OK |
+| beat+niche: renewable energy | news | niche | topic | 5 | 133 | 6 | 7756 | OK |
+| beat+niche: renewable energy | analysis | niche | topic | 5 | 136 | 6 | 24068 | OK |
+| beat+reliable: housing policy | news | reliable | topic | 5 | 97 | 8 | 3859 | OK |
+| beat+reliable: housing policy | analysis | reliable | topic | 5 | 106 | 6 | 3247 | OK |
+| beat+reliable: renewable energy | news | reliable | topic | 5 | 108 | 8 | 5729 | OK |
+| beat+reliable: renewable energy | analysis | reliable | topic | 5 | 92 | 6 | 3378 | OK |
 
 ## Detailed Results
 
@@ -35,154 +35,141 @@ Generated: 2026-03-18T08:28:16+00:00
 - **Source mode:** niche
 - **Scope:** location
 - **Queries:** 12
-- **Raw results:** 211
-- **Final articles:** 6
-- **Time:** 7951ms
+- **Raw results:** 193
+- **Final articles:** 5
+- **Time:** 12312ms
 
 **Queries (12):**
 - `Bozeman local events this weekend`
-- `Bozeman city council meeting agenda`
+- `City of Bozeman council meeting agenda`
 - `Bozeman community news updates`
 - `What's happening in Bozeman culture`
-- `Bozeman neighborhood forum discussions`
-- `Local artists in Bozeman blog`
-- `Bozeman public school news`
+- `Bozeman local blogs and discussions`
+- `Community projects in Bozeman`
+- `Bozeman local government initiatives`
 - `Bozeman community calendar`
 - `Bozeman neighborhood groups online`
 - `Bozeman volunteer opportunities`
 - `Bozeman farmers market schedule`
 - `Bozeman resident blogs`
 
-**Articles (6):**
-1. **Bozeman Curling Club hosts 'Learn to Curl' event to grow community interest**
-   - Source: montanarightnow.com | Published: 2026-03-11T09:24:05.579337
-   - URL: https://www.montanarightnow.com/bozeman/bozeman-curling-club-hosts-learn-to-curl-event-to-grow-community-interest/article_e67d12f9-45d8-4d1f-976d-034c07033f57.html
-2. **Bozeman Health Seeks Community Input Through Health Needs Survey**
-   - Source: montanarightnow.com | Published: 2026-03-11T09:24:05.579508
-   - URL: https://www.montanarightnow.com/bozeman/bozeman-health-seeks-community-input-through-health-needs-survey/article_a8ccf8cb-2692-43ca-b939-66e23dfb9df9.html
-3. **Controversial Trump nominee from Bozeman withdraws after lack of GOP support in U.S. Senate**
-   - Source: dailymontanan.com | Published: 2026-03-12T09:24:05.579529
-   - URL: https://dailymontanan.com/2026/03/11/controversial-trump-nominee-from-bozeman-withdraws-after-lack-of-gop-support-in-u-s-senate/
-4. **Daniel Carty, Angie Kociolek & Linda Semones: Only you can save Bozeman’s historical character, sense of place**
-   - Source: fairfieldsuntimes.com | Published: 2026-03-17T09:24:05.579549
-   - URL: https://www.fairfieldsuntimes.com/news/state/daniel-carty-angie-kociolek-linda-semones-only-you-can-save-bozeman-s-historical-character-sense/article_56a6c9f8-9fb6-5cdd-82bc-c2d1702c3213.html
-5. **Sean Maddox named new head football coach at Bozeman**
-   - Source: newsherald.com | Published: 2026-03-04T09:24:05.579561
-   - URL: https://www.newsherald.com/story/sports/high-school/football/2026/03/06/bozeman-high-football-names-sean-maddox-new-coach/89027799007/
-6. **Bozeman Town Events - BeLocal**
-   - Source: belocalpub.com | Published: undated
-   - URL: https://www.belocalpub.com/locations/bozeman-belocal-b585/articles/bozeman-town-events-8cee3d/
+**Articles (5):**
+1. **A third No Kings Day protest is coming to Bozeman on Saturday**
+   - Source: bozemandailychronicle.com | Published: 2026-03-25T22:19:08.384233
+   - URL: https://www.bozemandailychronicle.com/news/a-third-no-kings-day-protest-is-coming-to-bozeman-on-saturday/article_adfabba8-8ec3-4278-af25-3821c9b5f903.html
+2. **Bozeman Residents Preparing for Big Event on Saturday**
+   - Source: mooseradio.com | Published: 2026-03-24T22:19:08.384252
+   - URL: https://mooseradio.com/bozeman-no-kings-2026/
+3. **New Mural At Museum Of The Rockies Celebrates Indigenous Culture**
+   - Source: montanarightnow.com | Published: 2026-03-26T22:19:08.384258
+   - URL: https://www.montanarightnow.com/bozeman/new-mural-at-museum-of-the-rockies-celebrates-indigenous-culture/article_f73a182f-fca5-4ef8-ae85-09f7c1b2bd20.html
+4. **Republican legislator rolls out new property tax cap initiative**
+   - Source: kulr8.com | Published: 2026-03-24T22:19:08.384261
+   - URL: https://www.kulr8.com/news/state/republican-legislator-rolls-out-new-property-tax-cap-initiative/article_97602887-6897-521e-874a-e4d130a91d5d.html
+5. **Montana industries sue to block ballot initiative on corporate spending in elections**
+   - Source: bozemandailychronicle.com | Published: 2026-03-23T22:19:08.384264
+   - URL: https://www.bozemandailychronicle.com/news/montana-industries-sue-to-block-ballot-initiative-on-corporate-spending-in-elections/article_849d98a0-b2f8-5f78-bf86-a33cb1f0b814.html
 
-**Summary:** • The Bozeman Curling Club is hosting "Learn to Curl" events to increase community interest in the sport as the winter season concludes [Montana Right Now](https://www.montanarightnow.com/bozeman/bozeman-curling-club-hosts-learn-to-curl-event-to-grow-community-interest/article_e67d12f9-45d8-4d1f-976
+**Summary:** 📰 Bozeman will host a third "No Kings Day" protest this Saturday, part of a nationwide movement with over 3000 registered events [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/a-third-no-kings-day-protest-is-coming-to-bozeman-on-saturday/article_adfabba8-8ec3-4278-af25-3821c9b5
 
 ### niche: Bozeman / government
 
 - **Source mode:** niche
 - **Scope:** location
 - **Queries:** 12
-- **Raw results:** 246
-- **Final articles:** 6
-- **Time:** 15426ms
+- **Raw results:** 250
+- **Final articles:** 5
+- **Time:** 18819ms
 
 **Queries (12):**
 - `Bozeman city council meeting minutes`
-- `Bozeman municipal services updates`
+- `Bozeman public works projects updates`
 - `Bozeman local election results`
-- `Bozeman zoning permits news`
-- `Bozeman mayor official announcements`
-- `Bozeman public works projects`
-- `Bozeman city government news`
+- `Bozeman zoning permit applications`
+- `Mayor of Bozeman official statements`
+- `Bozeman municipal services news`
+- `Bozeman city planning decisions`
 - `City of Bozeman official website`
 - `Bozeman Police Department`
 - `Bozeman Public Schools`
 - `Bozeman Community Hospital`
 - `Bozeman Public Library`
 
-**Articles (6):**
-1. **[PDF] bozeman, montana**
-   - Source: bloximages.chicago2.vip.townnews.com | Published: 2026-03-10T00:00:00
-   - URL: https://bloximages.chicago2.vip.townnews.com/bozemandailychronicle.com/content/tncms/assets/v3/classifieds/2/b7/2b7a334d-3064-5a08-81c2-175f2f998a03/69abbf2266e68.pdf.pdf
-2. **Request for Proposals (RFP)**
-   - Source: bozemandailychronicle.com | Published: 2026-03-15T09:24:21.654305
-   - URL: https://www.bozemandailychronicle.com/classifieds/legals/legals/request-for-proposals-rfp/pdfdisplayad_fba4de23-27da-5c89-9df7-8294dc6eda39.html
-3. **Bozeman City Commission approves revised Affordable ...**
-   - Source: nbcmontana.com | Published: undated
-   - URL: https://nbcmontana.com/news/local/bozeman-city-commission-approves-revised-affordable-housing-ordinance
-4. **[PDF] Statistics - Gallatin County**
-   - Source: gallatinmt.gov | Published: undated
-   - URL: https://www.gallatinmt.gov/sites/g/files/vyhlif606/f/uploads/11.4.25_final_unofficial_results.pdf
-5. **Weekly Community Development Projects on Public Notice | City of ...**
+**Articles (5):**
+1. **Bozeman commission to hold meeting about leaked video | City**
+   - Source: bozemandailychronicle.com | Published: undated
+   - URL: https://www.bozemandailychronicle.com/news/city/bozeman-commission-to-hold-meeting-about-leaked-video/article_0a9c8422-c05c-11ee-aed9-43072228b4d6.html
+2. **[PDF] City Commission 2/11/25 https://bozeman.granicus.com/player/clip ...**
+   - Source: thegvsentinel.com | Published: undated
+   - URL: https://www.thegvsentinel.com/wp-content/uploads/2025/04/City-Commission-Meeting-Notes-2.11.25.pdf
+3. **City of Bozeman - Transportation and Engineering Capital Projects**
    - Source: bozeman.net | Published: undated
-   - URL: https://www.bozeman.net/Home/Components/News/News/8912/
-6. **Bozeman provisionally adopts UDC increasing zoning density**
-   - Source: kulr8.com | Published: undated
-   - URL: https://www.kulr8.com/news/state/bozeman-provisionally-adopts-udc-increasing-zoning-density/article_050ab567-5266-512c-969b-a59c6ce185f4.html
+   - URL: https://www.bozeman.net/departments/transportation-engineering/transportation-and-engineering-projects
+4. **Planning Projects | Bozeman Open Data - ArcGIS Online**
+   - Source: public-bozeman.opendata.arcgis.com | Published: undated
+   - URL: https://public-bozeman.opendata.arcgis.com/maps/4b96dc8d9a6a4163b902b5ccf32df58c
+5. **Gallatin County finalizes local election results - Explore Big Sky**
+   - Source: explorebigsky.com | Published: undated
+   - URL: https://www.explorebigsky.com/gallatin-county-finalizes-local-election-results/55458
 
-**Summary:** 🏛️ The Bozeman City Commission has provisionally adopted changes to the Unified Development Code (UDC) that will increase zoning density by removing minimum lot sizes and allowing quadplexes in residential districts, aiming to address housing needs [KULR8](https://www.kulr8.com/news/state/bozeman-pr
+**Summary:** 🚨 The Bozeman Commission will hold a meeting to discuss a leaked video of City Manager Jeff Mihelich in a private conversation with a city staff member, raising concerns about city operations and transparency [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/city/bozeman-commissio
 
 ### niche: Flagstaff / news
 
 - **Source mode:** niche
 - **Scope:** location
 - **Queries:** 12
-- **Raw results:** 205
-- **Final articles:** 6
-- **Time:** 17199ms
+- **Raw results:** 195
+- **Final articles:** 4
+- **Time:** 11125ms
 
 **Queries (12):**
-- `What's happening in Flagstaff this weekend?`
+- `Flagstaff local events this weekend`
+- `What's happening in Flagstaff today`
 - `Flagstaff city council meeting agenda`
-- `Local Flagstaff community news updates`
-- `Arts and culture events in Flagstaff`
-- `Flagstaff neighborhood watch groups`
-- `Best local restaurants Flagstaff reviews`
-- `Flagstaff community projects forum`
-- `Flagstaff community calendar events`
-- `Flagstaff neighborhood associations online`
-- `Volunteer opportunities Flagstaff locals`
-- `New businesses opening Flagstaff community`
+- `Community news Flagstaff AZ`
+- `Flagstaff local music scene blog`
+- `Upcoming festivals in Flagstaff`
+- `Flagstaff neighborhood watch updates`
+- `Flagstaff community calendar`
+- `Flagstaff neighborhood groups online`
+- `Volunteer opportunities Flagstaff AZ`
+- `New businesses opening Flagstaff`
 - `Flagstaff resident blogs`
 
-**Articles (6):**
+**Articles (4):**
 1. **New year brings new business closures and openings around ...**
    - Source: azdailysun.com | Published: undated
    - URL: https://azdailysun.com/news/local/new-year-brings-new-business-closures-and-openings-around-downtown-flagstaff/article_b678d03a-e7f6-11ef-8b5c-57354a221abe.html
-2. **Chick-fil-A Announces New Flagstaff Restaurant, Opening Feb. 1**
-   - Source: chick-fil-a.com | Published: undated
-   - URL: https://www.chick-fil-a.com/press-room/announcing-chick-fil-a-flagstaff-route-66
-3. **Autopsy details NAU student’s alcohol poisoning death at rush event in Flagstaff**
-   - Source: azfamily.com | Published: 2026-03-12T09:24:38.754138
-   - URL: https://www.azfamily.com/2026/03/10/autopsy-details-nau-students-alcohol-poisoning-death-rush-event-flagstaff/
-4. **Flagstaff City Council Reviews Federal Interaction Protocols**
-   - Source: signalsaz.com | Published: 2026-03-11T09:24:38.754160
-   - URL: https://www.signalsaz.com/articles/flagstaff-city-council-reviews-federal-interaction-protocols/
-5. **Flagstaff updating Community Wildfire Protection Plan and will seek public participation in process**
-   - Source: azdailysun.com | Published: 2026-03-17T09:24:38.754174
-   - URL: https://azdailysun.com/news/local/environment/flagstaff-updating-community-wildfire-protection-plan-and-will-seek-public-participation-in-process/article_0df2411d-42ce-4123-a0d1-f1d119c2d017.html
-6. **[PDF] CITY OF FLAGSTAFF WORKING CALENDAR – 2026**
-   - Source: flagstaff.az.gov | Published: undated
-   - URL: https://www.flagstaff.az.gov/DocumentCenter/View/46325
+2. **Third “No Kings” Protest Scheduled for March 28 – KAFF News – Flagstaff | Prescott News**
+   - Source: gcmaz.com | Published: 2026-03-27T22:19:38.867635
+   - URL: https://gcmaz.com/kaff-news/kaff_news/third-no-kings-protest-scheduled-for-march-28/
+3. **Flagstaff Marks Economic Development Week With Events, Tours, Community Partnerships**
+   - Source: flagstaffbusinessnews.com | Published: 2026-03-27T22:19:38.867646
+   - URL: https://www.flagstaffbusinessnews.com/flagstaff-marks-economic-development-week-with-events-tours-community-partnerships/
+4. **Flagstaff to host first city council primary in 12 years; mayor’s race uncontested as Barotz again drops bid**
+   - Source: azdailysun.com | Published: 2026-03-26T22:19:38.867650
+   - URL: https://azdailysun.com/news/local/flagstaff-to-host-first-city-council-primary-in-12-years-mayor-s-race-uncontested-as/article_956bc7cd-e42a-4453-9825-eeecb8028611.html
 
-**Summary:** • A new Chick-fil-A restaurant is set to open on February 1st at 2401 E. Route 66, offering dine-in, drive-thru, and carry-out options [Chick-fil-A](https://www.chick-fil-a.com/press-room/announcing-chick-fil-a-flagstaff-route-66).
-• The Flagstaff City Council reviewed protocols for interactions wit
+**Summary:** • Flagstaff is experiencing a shift in its downtown business landscape with new openings and closures marking the new year [AZ Daily Sun](https://azdailysun.com/news/local/new-year-brings-new-business-closures-and-openings-around-downtown-flagstaff/article_b678d03a-e7f6-11ef-8b5c-57354a221abe.html).
 
 ### niche: Flagstaff / government
 
 - **Source mode:** niche
 - **Scope:** location
 - **Queries:** 12
-- **Raw results:** 254
+- **Raw results:** 263
 - **Final articles:** 5
-- **Time:** 26923ms
+- **Time:** 21162ms
 
 **Queries (12):**
-- `Flagstaff city council meeting minutes`
+- `Flagstaff city council meeting agenda`
 - `Flagstaff municipal services updates`
 - `Flagstaff local election news`
-- `Flagstaff zoning and permit information`
-- `Flagstaff mayor's official announcements`
+- `Flagstaff zoning regulations changes`
+- `Flagstaff mayor's office announcements`
 - `Flagstaff public works projects`
-- `Flagstaff city government news`
+- `Flagstaff city government decisions`
 - `City of Flagstaff official website`
 - `Flagstaff Police Department`
 - `Flagstaff Unified School District`
@@ -190,81 +177,76 @@ Generated: 2026-03-18T08:28:16+00:00
 - `Flagstaff Public Library`
 
 **Articles (5):**
-1. **Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road**
-   - Source: azdailysun.com | Published: 2026-03-13T09:25:05.688353
-   - URL: https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html
-2. **Planning and Zoning Commission Discusses Proposed Zoning Amendment Regulating Data Centers in Flagstaff**
-   - Source: gcmaz.com | Published: 2026-03-12T09:25:05.688437
-   - URL: https://gcmaz.com/kaff-news/kaff_news/planning-and-zoning-commission-discusses-proposed-zoning-amendment-regulating-data-centers-in-flagstaff/
-3. **Flagstaff council approves downtown enhanced services contract ...**
+1. **Flagstaff council approves downtown enhanced services contract ...**
    - Source: citizenportal.ai | Published: undated
    - URL: https://citizenportal.ai/articles/7439981/Arizona/Coconino-County/Flagstaff-City/Flagstaff-council-approves-downtown-enhanced-services-contract-and-delays-parking-rate-hike
-4. **Flagstaff to Adopt New Rates for Water, Wastewater, and Reclaimed ...**
+2. **Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road**
+   - Source: azdailysun.com | Published: 2026-03-16T22:20:00.096672
+   - URL: https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html
+3. **Flagstaff to Adopt New Rates for Water, Wastewater, and Reclaimed ...**
    - Source: signalsaz.com | Published: undated
    - URL: https://www.signalsaz.com/articles/flagstaff-to-adopt-new-rates-for-water-wastewater-and-reclaimed-water-services/
-5. **City of Flagstaff Public Works Department affirms changes to trash ...**
-   - Source: azdailysun.com | Published: undated
-   - URL: https://azdailysun.com/news/local/city-of-flagstaff-public-works-department-affirms-changes-to-trash-services-for-2025/article_f6198f5e-e02b-11ef-8935-1bf6302481e6.html
+4. **FLAGSTAFF UPDATE: Potential ICE Presence & Know Your Rights**
+   - Source: opvp.navajo-nsn.gov | Published: 2026-03-28T22:20:00.096684
+   - URL: https://opvp.navajo-nsn.gov/260328-potential-ice-presence-know-your-rights/
+5. **Coconino County Public Works provides mid-fiscal year update on revenue and projects**
+   - Source: azdailysun.com | Published: 2026-03-27T22:20:00.096688
+   - URL: https://azdailysun.com/news/local/coconino-county-public-works-provides-mid-fiscal-year-update-on-revenue-and-projects/article_645b7165-8127-4c35-b417-20795d5dc9e3.html
 
-**Summary:** 🏗️ The Flagstaff City Council has approved the rezoning for the Lone Tree Ranch project, a 168-unit affordable housing development on a 1.67-acre parcel, moving forward with plans to increase housing options [AZ Daily Sun](https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-re
+**Summary:** 🏛️ The Flagstaff City Council approved a three-year contract for enhanced downtown services with the Flagstaff Downtown Business Alliance, costing approximately $667,000 annually, and also delayed a parking rate hike [Citizen Portal](https://citizenportal.ai/articles/7439981/Arizona/Coconino-County/
 
 ### reliable: Bozeman / news
 
 - **Source mode:** reliable
 - **Scope:** location
 - **Queries:** 7
-- **Raw results:** 138
-- **Final articles:** 6
-- **Time:** 3889ms
+- **Raw results:** 125
+- **Final articles:** 4
+- **Time:** 3582ms
 
 **Queries (7):**
 - `Bozeman local events this weekend`
-- `Bozeman city council meeting agenda`
+- `City of Bozeman council meeting agenda`
 - `Bozeman community news updates`
 - `What's happening in Bozeman culture`
-- `Bozeman neighborhood forum discussions`
-- `Local artists in Bozeman blog`
-- `Bozeman public school news`
+- `Bozeman local blogs and discussions`
+- `Community projects in Bozeman`
+- `Bozeman local government initiatives`
 
-**Articles (6):**
-1. **State halts permitting on all weekend rallies at Capitol, thwarts upcoming ‘No Kings’ event**
-   - Source: bozemandailychronicle.com | Published: 2026-03-13T09:25:09.067750
-   - URL: https://www.bozemandailychronicle.com/news/state-halts-permitting-on-all-weekend-rallies-at-capitol-thwarts-upcoming-no-kings-event/article_883a4cb7-b071-4a08-981e-eb8fa6b845c6.html
-2. **Bozeman Curling Club hosts 'Learn to Curl' event to grow community interest**
-   - Source: montanarightnow.com | Published: 2026-03-11T09:25:09.067829
-   - URL: https://www.montanarightnow.com/bozeman/bozeman-curling-club-hosts-learn-to-curl-event-to-grow-community-interest/article_e67d12f9-45d8-4d1f-976d-034c07033f57.html
-3. **Bozeman Health Seeks Community Input Through Health Needs Survey**
-   - Source: montanarightnow.com | Published: 2026-03-11T09:25:09.067850
-   - URL: https://www.montanarightnow.com/bozeman/bozeman-health-seeks-community-input-through-health-needs-survey/article_a8ccf8cb-2692-43ca-b939-66e23dfb9df9.html
-4. **Bozeman community marks 17 years since gas explosion**
-   - Source: montanarightnow.com | Published: 2026-03-11T09:25:09.067864
-   - URL: https://www.montanarightnow.com/bozeman/bozeman-community-marks-17-years-since-gas-explosion/article_41162b84-9b5c-40cc-9aca-e13ea2090c8c.html
-5. **Controversial Trump nominee from Bozeman withdraws after lack of GOP support in U.S. Senate**
-   - Source: dailymontanan.com | Published: 2026-03-12T09:25:09.067878
-   - URL: https://dailymontanan.com/2026/03/11/controversial-trump-nominee-from-bozeman-withdraws-after-lack-of-gop-support-in-u-s-senate/
-6. **Daniel Carty, Angie Kociolek & Linda Semones: Only you can save Bozeman’s historical character, sense of place**
-   - Source: fairfieldsuntimes.com | Published: 2026-03-17T09:25:09.067892
-   - URL: https://www.fairfieldsuntimes.com/news/state/daniel-carty-angie-kociolek-linda-semones-only-you-can-save-bozeman-s-historical-character-sense/article_56a6c9f8-9fb6-5cdd-82bc-c2d1702c3213.html
+**Articles (4):**
+1. **Bozeman Arts & Culture for April 2026**
+   - Source: bozemandailychronicle.com | Published: 2026-03-27T22:20:03.126572
+   - URL: https://www.bozemandailychronicle.com/news/bozeman-arts-culture-for-april-2026/article_d78384f5-6330-4773-a83b-d14635efe744.amp.html
+2. **A third No Kings Day protest is coming to Bozeman on Saturday**
+   - Source: bozemandailychronicle.com | Published: 2026-03-25T22:20:03.126592
+   - URL: https://www.bozemandailychronicle.com/news/a-third-no-kings-day-protest-is-coming-to-bozeman-on-saturday/article_adfabba8-8ec3-4278-af25-3821c9b5f903.html
+3. **New Mural At Museum Of The Rockies Celebrates Indigenous Culture**
+   - Source: montanarightnow.com | Published: 2026-03-26T22:20:03.126596
+   - URL: https://www.montanarightnow.com/bozeman/new-mural-at-museum-of-the-rockies-celebrates-indigenous-culture/article_f73a182f-fca5-4ef8-ae85-09f7c1b2bd20.html
+4. **Montana industries sue to block ballot initiative on corporate spending in elections**
+   - Source: bozemandailychronicle.com | Published: 2026-03-23T22:20:03.126600
+   - URL: https://www.bozemandailychronicle.com/news/montana-industries-sue-to-block-ballot-initiative-on-corporate-spending-in-elections/article_849d98a0-b2f8-5f78-bf86-a33cb1f0b814.html
 
-**Summary:** • A new state rule halting permits for weekend rallies at the Capitol has thwarted an upcoming "No Kings" event in Helena, impacting organizers' ability to gather [Bozeman Chronicle](https://www.bozemandailychronicle.com/news/state-halts-permitting-on-all-weekend-rallies-at-capitol-thwarts-upcoming-
+**Summary:** 🎭 Bozeman's arts and culture scene is highlighted in a monthly roundup for April 2026, featuring various community events and happenings [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/bozeman-arts-culture-for-april-2026/article_d78384f5-6330-4773-a83b-d14635efe744.amp.html).
+🚨 
 
 ### reliable: Bozeman / government
 
 - **Source mode:** reliable
 - **Scope:** location
 - **Queries:** 12
-- **Raw results:** 178
+- **Raw results:** 175
 - **Final articles:** 6
-- **Time:** 19449ms
+- **Time:** 11689ms
 
 **Queries (12):**
 - `Bozeman city council meeting minutes`
-- `Bozeman municipal services updates`
+- `Bozeman public works projects updates`
 - `Bozeman local election results`
-- `Bozeman zoning permits news`
-- `Bozeman mayor official announcements`
-- `Bozeman public works projects`
-- `Bozeman city government news`
+- `Bozeman zoning permit applications`
+- `Mayor of Bozeman official statements`
+- `Bozeman municipal services news`
+- `Bozeman city planning decisions`
 - `City of Bozeman official website`
 - `Bozeman Police Department`
 - `Bozeman Public Schools`
@@ -272,80 +254,83 @@ Generated: 2026-03-18T08:28:16+00:00
 - `Bozeman Public Library`
 
 **Articles (6):**
-1. **Request for Proposals (RFP)**
-   - Source: bozemandailychronicle.com | Published: 2026-03-15T09:25:29.853463
-   - URL: https://www.bozemandailychronicle.com/classifieds/legals/legals/request-for-proposals-rfp/pdfdisplayad_fba4de23-27da-5c89-9df7-8294dc6eda39.html
-2. **13 Bozeman Police officers caught playing 'crime bingo' ...**
+1. **13 Bozeman Police officers caught playing 'crime bingo' ...**
    - Source: kbzk.com | Published: undated
    - URL: https://www.kbzk.com/news/local-news/13-bozeman-police-officers-caught-playing-crime-bingo-while-on-duty
-3. **Police Department News | City Of Bozeman**
+2. **Police Department News | City Of Bozeman**
    - Source: bozeman.net | Published: undated
-   - URL: https://www.bozeman.net/Home/Components/News/News/8531/3493
-4. **Rage, suspicion, fear: Why Laurel’s ultra-organized residents are determined to stop a new state psychiatric facility**
-   - Source: bozemandailychronicle.com | Published: 2026-03-14T09:25:29.853518
-   - URL: https://www.bozemandailychronicle.com/news/rage-suspicion-fear-why-laurel-s-ultra-organized-residents-are-determined-to-stop-a-new/article_500f0693-5de5-4b1d-b9eb-6934faa1b28a.html
-5. **[PDF] 2024-2025 School Year Calendar**
-   - Source: resources.finalsite.net | Published: undated
-   - URL: https://resources.finalsite.net/images/v1723229557/bsd7org/kewv542fjqcskbfcuj0d/2024-2025SchoolYearCalendar.pdf
-6. **Search for Public School Districts - District Detail for**
-   - Source: nces.ed.gov | Published: undated
-   - URL: https://nces.ed.gov/ccd/districtsearch/district_detail.asp?Search=2&details=1&DistrictID=3004560&ID2=3004560
+   - URL: https://www.bozeman.net/departments/police/advanced-components/police-department-news
+3. **City leaders contemplate a short-term rental policy similar to Bozeman’s**
+   - Source: hungryhorsenews.com | Published: 2026-03-25T22:20:15.878276
+   - URL: https://hungryhorsenews.com/news/2026/mar/25/city-leaders-contemplate-a-short-term-rental-policy-similar-to-bozemans/
+4. **Billings city council sad city administrator is leaving, but happy for him and his family**
+   - Source: ktvq.com | Published: 2026-03-23T22:20:15.878286
+   - URL: https://www.ktvq.com/news/local-news/billings-city-council-sad-city-administrator-is-leaving-but-happy-for-him-and-his-family
+5. **Hamilton City Council March 17 Agenda Packet**
+   - Source: montanarightnow.com | Published: 2026-03-24T22:20:15.878291
+   - URL: https://www.montanarightnow.com/news/state/hamilton-city-council-march-17-agenda-packet/article_624acd06-8a3f-5182-b2f1-b4a85eb09233.html?mode=nowapp
+6. **Inside Montana's conflict with its capital city over immigration enforcement**
+   - Source: washingtonpost.com | Published: 2026-03-27T22:20:15.878295
+   - URL: https://www.washingtonpost.com/national/2026/03/25/montana-immigration-enforcement-sanctuary-helena/f5cc3800-288f-11f1-a0f2-3ba4c9fe08ac_story.html
 
-**Summary:** 🚨 Thirteen Bozeman Police officers, including two sergeants, were caught playing "crime bingo" while on duty, raising concerns about departmental conduct [KBZK](https://www.kbzk.com/news/local-news/13-bozeman-police-officers-caught-playing-crime-bingo-while-on-duty).
-🏛️ The City of Bozeman is seekin
+**Summary:** 🚨 Thirteen Bozeman Police officers were disciplined after being caught playing "crime bingo" while on duty, raising concerns about departmental conduct and accountability [KBZK](https://www.kbzk.com/news/local-news/13-bozeman-police-officers-caught-playing-crime-bingo-while-on-duty).
+🏛️ The City of 
 
 ### reliable: Flagstaff / news
 
 - **Source mode:** reliable
 - **Scope:** location
 - **Queries:** 7
-- **Raw results:** 125
-- **Final articles:** 4
-- **Time:** 3079ms
+- **Raw results:** 105
+- **Final articles:** 5
+- **Time:** 6467ms
 
 **Queries (7):**
-- `What's happening in Flagstaff this weekend?`
+- `Flagstaff local events this weekend`
+- `What's happening in Flagstaff today`
 - `Flagstaff city council meeting agenda`
-- `Local Flagstaff community news updates`
-- `Arts and culture events in Flagstaff`
-- `Flagstaff neighborhood watch groups`
-- `Best local restaurants Flagstaff reviews`
-- `Flagstaff community projects forum`
+- `Community news Flagstaff AZ`
+- `Flagstaff local music scene blog`
+- `Upcoming festivals in Flagstaff`
+- `Flagstaff neighborhood watch updates`
 
-**Articles (4):**
-1. **Autopsy details NAU student’s alcohol poisoning death at rush event in Flagstaff**
-   - Source: azfamily.com | Published: 2026-03-12T09:25:32.418169
-   - URL: https://www.azfamily.com/2026/03/10/autopsy-details-nau-students-alcohol-poisoning-death-rush-event-flagstaff/
-2. **Flagstaff City Council Reviews Federal Interaction Protocols**
-   - Source: signalsaz.com | Published: 2026-03-11T09:25:32.418226
-   - URL: https://www.signalsaz.com/articles/flagstaff-city-council-reviews-federal-interaction-protocols/
-3. **Flagstaff updating Community Wildfire Protection Plan and will seek public participation in process**
-   - Source: azdailysun.com | Published: 2026-03-17T09:25:32.418245
-   - URL: https://azdailysun.com/news/local/environment/flagstaff-updating-community-wildfire-protection-plan-and-will-seek-public-participation-in-process/article_0df2411d-42ce-4123-a0d1-f1d119c2d017.html
-4. **Flagstaff packed with festivals celebrating Route 66, Dark Skies, Pride and more**
-   - Source: themalaysianreserve.com | Published: 2026-03-13T09:25:32.418259
-   - URL: https://themalaysianreserve.com/2026/03/13/flagstaff-packed-with-festivals-celebrating-route-66-dark-skies-pride-and-more/
+**Articles (5):**
+1. **Third “No Kings” Protest Scheduled for March 28 – KAFF News – Flagstaff | Prescott News**
+   - Source: gcmaz.com | Published: 2026-03-27T22:20:21.841173
+   - URL: https://gcmaz.com/kaff-news/kaff_news/third-no-kings-protest-scheduled-for-march-28/
+2. **Flagstaff Marks Economic Development Week With Events, Tours, Community Partnerships**
+   - Source: flagstaffbusinessnews.com | Published: 2026-03-27T22:20:21.841191
+   - URL: https://www.flagstaffbusinessnews.com/flagstaff-marks-economic-development-week-with-events-tours-community-partnerships/
+3. **Flagstaff to host first city council primary in 12 years; mayor’s race uncontested as Barotz again drops bid**
+   - Source: azdailysun.com | Published: 2026-03-26T22:20:21.841196
+   - URL: https://azdailysun.com/news/local/flagstaff-to-host-first-city-council-primary-in-12-years-mayor-s-race-uncontested-as/article_956bc7cd-e42a-4453-9825-eeecb8028611.html
+4. **Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road**
+   - Source: azdailysun.com | Published: 2026-03-16T22:20:21.841199
+   - URL: https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html
+5. **Flagstaff Event Almanac for March 28**
+   - Source: azdailysun.com | Published: 2026-03-28T22:20:21.841203
+   - URL: https://azdailysun.com/news/local/flagstaff-event-almanac-for-march-28/article_8a08dfdd-2af8-4c99-a018-16cbc5181574.html
 
-**Summary:** 📰 An autopsy revealed that a Northern Arizona University student died from alcohol poisoning at a fraternity rush event in Flagstaff [azfamily.com](https://www.azfamily.com/2026/03/10/autopsy-details-nau-students-alcohol-poisoning-death-rush-event-flagstaff/)
-🏛️ The Flagstaff City Council reviewed p
+**Summary:** • A third "No Kings" Protest is scheduled for March 28 in Flagstaff, part of a nationwide event [KAFF News](https://gcmaz.com/kaff-news/kaff_news/third-no-kings-protest-scheduled-for-march-28/).
+• Flagstaff celebrated Economic Development Week with various events, tours, and community partnerships a
 
 ### reliable: Flagstaff / government
 
 - **Source mode:** reliable
 - **Scope:** location
 - **Queries:** 12
-- **Raw results:** 180
+- **Raw results:** 192
 - **Final articles:** 6
-- **Time:** 4618ms
+- **Time:** 3990ms
 
 **Queries (12):**
-- `Flagstaff city council meeting minutes`
+- `Flagstaff city council meeting agenda`
 - `Flagstaff municipal services updates`
 - `Flagstaff local election news`
-- `Flagstaff zoning and permit information`
-- `Flagstaff mayor's official announcements`
+- `Flagstaff zoning regulations changes`
+- `Flagstaff mayor's office announcements`
 - `Flagstaff public works projects`
-- `Flagstaff city government news`
+- `Flagstaff city government decisions`
 - `City of Flagstaff official website`
 - `Flagstaff Police Department`
 - `Flagstaff Unified School District`
@@ -353,27 +338,26 @@ Generated: 2026-03-18T08:28:16+00:00
 - `Flagstaff Public Library`
 
 **Articles (6):**
-1. **Flagstaff City Council Reviews Protocols For City Interactions With Federal Agencies**
-   - Source: gcmaz.com | Published: 2026-03-04T09:25:36.771335
-   - URL: https://gcmaz.com/kaff-news/kaff_news/flagstaff-city-council-reviews-protocols-for-city-interactions-with-federal-agencies/
-2. **Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road**
-   - Source: azdailysun.com | Published: 2026-03-13T09:25:36.771549
+1. **Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road**
+   - Source: azdailysun.com | Published: 2026-03-16T22:20:25.973648
    - URL: https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html
-3. **Flagstaff Unified School District discusses possible budget override in November election**
-   - Source: azdailysun.com | Published: 2026-03-11T09:25:36.771626
-   - URL: https://azdailysun.com/news/local/education/flagstaff-unified-school-district-discusses-possible-budget-override-in-november-election/article_2d3085ad-8fe4-4580-9494-52c0f3482d6e.html
-4. **Planning and Zoning Commission Discusses Proposed Zoning Amendment Regulating Data Centers in Flagstaff**
-   - Source: gcmaz.com | Published: 2026-03-12T09:25:36.771647
-   - URL: https://gcmaz.com/kaff-news/kaff_news/planning-and-zoning-commission-discusses-proposed-zoning-amendment-regulating-data-centers-in-flagstaff/
-5. **Records | City of Flagstaff Official Website**
-   - Source: flagstaff.az.gov | Published: undated
-   - URL: https://www.flagstaff.az.gov/3594/Records
-6. **Flagstaff Police Department - 719 updates**
-   - Source: nextdoor.com | Published: undated
-   - URL: https://nextdoor.com/agency-detail/az/flagstaff/flagstaff-police-department/
+2. **FLAGSTAFF UPDATE: Potential ICE Presence & Know Your Rights**
+   - Source: opvp.navajo-nsn.gov | Published: 2026-03-28T22:20:25.973667
+   - URL: https://opvp.navajo-nsn.gov/260328-potential-ice-presence-know-your-rights/
+3. **Coconino County Public Works provides mid-fiscal year update on revenue and projects**
+   - Source: azdailysun.com | Published: 2026-03-27T22:20:25.973672
+   - URL: https://azdailysun.com/news/local/coconino-county-public-works-provides-mid-fiscal-year-update-on-revenue-and-projects/article_645b7165-8127-4c35-b417-20795d5dc9e3.html
+4. **Fiber Deployment Project to Inject $100M into Flagstaff Economy via Public-Private Partnership**
+   - Source: businesswire.com | Published: 2026-03-23T22:20:25.973676
+   - URL: https://www.businesswire.com/news/home/20260319938614/en/Fiber-Deployment-Project-to-Inject-%24100M-into-Flagstaff-Economy-via-Public-Private-Partnership
+5. **Flagstaff to host first city council primary in 12 years; mayor’s race uncontested as Barotz again drops bid**
+   - Source: azdailysun.com | Published: 2026-03-26T22:20:25.973679
+   - URL: https://azdailysun.com/news/local/flagstaff-to-host-first-city-council-primary-in-12-years-mayor-s-race-uncontested-as/article_956bc7cd-e42a-4453-9825-eeecb8028611.html
+6. **Flagstaff Marks Economic Development Week With Events, Tours, Community Partnerships**
+   - Source: flagstaffbusinessnews.com | Published: 2026-03-27T22:20:25.973682
+   - URL: https://www.flagstaffbusinessnews.com/flagstaff-marks-economic-development-week-with-events-tours-community-partnerships/
 
-**Summary:** 🏛️ The Flagstaff City Council reviewed and is updating its protocols for interactions with federal agencies to ensure clear communication and collaboration [KAFF News](https://gcmaz.com/kaff-news/kaff_news/flagstaff-city-council-reviews-protocols-for-city-interactions-with-federal-agencies/).
-🏗️ Fla
+**Summary:** 🏛️ The Flagstaff City Council has approved the first reading of a rezoning proposal for the Lone Tree Ranch project, which will bring 168 units of affordable housing to the city [AZ Daily Sun](https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-d
 
 ### reliable+criteria: Bozeman+housing / news
 
@@ -381,158 +365,161 @@ Generated: 2026-03-18T08:28:16+00:00
 - **Scope:** location+topic
 - **Queries:** 8
 - **Raw results:** 128
-- **Final articles:** 1
-- **Time:** 2835ms
+- **Final articles:** 2
+- **Time:** 7326ms
 
 **Queries (8):**
 - `Bozeman housing development projects`
-- `new housing construction Bozeman`
-- `Bozeman affordable housing initiatives`
-- `impact of housing development on Bozeman`
-- `Bozeman zoning laws housing development`
-- `Bozeman real estate development housing trends`
-- `community perspectives on Bozeman housing development`
+- `new housing developments Bozeman`
+- `Bozeman affordable housing development initiatives`
+- `impact of housing development on Bozeman community`
+- `Bozeman zoning laws and housing development`
+- `Bozeman real estate housing development trends`
+- `local perspectives on housing development in Bozeman`
 - `housing development" "Bozeman" US`
 
-**Articles (1):**
-1. **Proposed Low-Income Housing ‘Rocky Mountain Flats’ Draws Pushback in Rural Bozeman Neighborhood**
-   - Source: kbzk.com | Published: 2026-03-12T09:25:40.505488
-   - URL: https://www.kbzk.com/news/local-news/proposed-low-income-housing-rocky-mountain-flats-draws-pushback-in-rural-bozeman-neighborhood
+**Articles (2):**
+1. **Montana Supreme Court rules against Bozeman group on housing reform**
+   - Source: bozemandailychronicle.com | Published: 2026-03-23T22:20:33.359975
+   - URL: https://www.bozemandailychronicle.com/news/montana-supreme-court-rules-against-bozeman-group-on-housing-reform/article_9269c53b-fb1a-40ed-972f-5f077c11fa33.html
+2. **‘Tell me where to sign': Proposed Big Bend border wall hits close to home in Bozeman**
+   - Source: bozemandailychronicle.com | Published: 2026-03-26T22:20:33.359997
+   - URL: https://www.bozemandailychronicle.com/news/tell-me-where-to-sign-proposed-big-bend-border-wall-hits-close-to-home-in/article_091ac61b-9f57-487d-bbc0-fd78da50679c.html
 
-**Summary:** 🏗️ Residents in a rural Bozeman neighborhood are pushing back against a proposed 296-unit affordable housing development named Rocky Mountain Flats, raising concerns about its impact on their community [KBZK](https://www.kbzk.com/news/local-news/proposed-low-income-housing-rocky-mountain-flats-draws
+**Summary:** 🏛️ The Montana Supreme Court ruled against a Bozeman group on housing reform, a decision Governor Greg Gianforte hailed as a "landmark victory" [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/montana-supreme-court-rules-against-bozeman-group-on-housing-reform/article_9269c53b-fb
 
 ### reliable+criteria: Bozeman+housing / government
 
 - **Source mode:** reliable
 - **Scope:** location+topic
 - **Queries:** 13
-- **Raw results:** 188
-- **Final articles:** 8
-- **Time:** 28153ms
+- **Raw results:** 187
+- **Final articles:** 7
+- **Time:** 32054ms
 
 **Queries (13):**
 - `Bozeman city council housing development decisions`
-- `Bozeman municipal housing projects news`
-- `Bozeman zoning changes for new housing`
+- `Bozeman municipal planning housing projects`
+- `Bozeman zoning laws new housing construction`
 - `Bozeman mayor housing development initiatives`
 - `Bozeman public works housing infrastructure`
 - `Bozeman local elections housing policy`
-- `Bozeman housing development permits and regulations`
+- `Bozeman housing development permits and approvals`
 - `housing development" "Bozeman" US`
 - `Bozeman Planning and Community Development Department housing`
-- `Bozeman city government housing development permits`
-- `Bozeman municipal code zoning housing`
-- `Bozeman housing authority public records`
-- `City of Bozeman official plan housing development`
+- `Bozeman City Council meeting minutes housing development`
+- `Bozeman housing development permits public records`
+- `Bozeman zoning ordinance housing development`
+- `Bozeman affordable housing initiatives government resources`
 
-**Articles (8):**
-1. **Community Housing Program | City Of ...**
-   - Source: bozeman.net | Published: undated
-   - URL: https://www.bozeman.net/departments/economic-development/community-housing
-2. **Gallatin County Affordable Housing**
-   - Source: gallatinmt.gov | Published: undated
-   - URL: https://www.gallatinmt.gov/communications/pages/gallatin-county-affordable-housing
-3. **Bozeman Community Development Board considers ...**
-   - Source: nbcmontana.com | Published: undated
-   - URL: https://nbcmontana.com/news/local/bozeman-community-development-board-considers-changes-to-affordable-housing-ordinance
-4. **Bozeman moving forward on HUD housing plan | News**
+**Articles (7):**
+1. **Bozeman City Commission to consider resolution updating ...**
+   - Source: montanarightnow.com | Published: undated
+   - URL: https://www.montanarightnow.com/bozeman/bozeman-city-commission-to-consider-resolution-updating-affordable-housing-ordinance-cash-in-lieu-system/article_76da8fa5-62fd-448f-b6b7-caea8a3f0c3a.html
+2. **Bozeman commissioners amend, approve affordable ...**
+   - Source: bozemandailychronicle.com | Published: undated
+   - URL: https://www.bozemandailychronicle.com/news/developers-delight-bozeman-commissioners-amend-approve-affordable-housing-policy/article_06033e9c-de74-11ef-b73a-bfa9d201b840.html
+3. **Bozeman moving forward on HUD housing plan | News**
    - Source: bozemandailychronicle.com | Published: undated
    - URL: https://www.bozemandailychronicle.com/news/bozeman-moving-forward-on-hud-housing-plan/article_b983bbac-4aa1-11ef-9da1-7f221bad20c2.html
-5. **Bozeman officials outline Unified Development Code rewrite to ...**
+4. **Bozeman officials outline Unified Development Code rewrite to ...**
    - Source: citizenportal.ai | Published: undated
    - URL: https://citizenportal.ai/articles/6074077/Montana/Gallatin-County/Bozeman-City/Bozeman-officials-outline-Unified-Development-Code-rewrite-to-simplify-zoning-support-housing
-6. **Bozeman Code Audit To Create and Preserve Housing**
+5. **Fowler Housing Project | City Of Bozeman**
    - Source: bozeman.net | Published: undated
-   - URL: https://www.bozeman.net/our-city/city-projects/code-audit-to-create-and-preserve-housing
-7. **Bozeman launches public building-permit and affordable-housing ...**
-   - Source: citizenportal.ai | Published: undated
-   - URL: https://citizenportal.ai/articles/6034318/Bozeman-City/Gallatin-County/Montana/Bozeman-launches-public-building-permit-and-affordable-housing-dashboards-to-improve-transparency
-8. **Bozeman city commissioners approve change to city development ...**
-   - Source: bozemandailychronicle.com | Published: undated
-   - URL: https://www.bozemandailychronicle.com/news/city/bozeman-city-commissioners-approve-change-to-city-development-review/article_6e0eb5ce-4593-11ed-ae01-7306926d2c13.html
+   - URL: https://www.bozeman.net/departments/economic-development/community-housing/fowler-housing-project
+6. **Community Housing Action Plan | City Of Bozeman**
+   - Source: bozeman.net | Published: undated
+   - URL: https://www.bozeman.net/departments/economic-development/community-housing/community-housing-action-plan
+7. **Active Projects and Initiatives | Gallatin County, MT**
+   - Source: gallatinmt.gov | Published: undated
+   - URL: https://www.gallatinmt.gov/planning-community-development/pages/active-projects-and-initiatives
 
-**Summary:** 🏗️ Bozeman is moving forward with a consolidated housing plan, open for public comment until the end of July, which will enable the city to access federal funding from the U.S. Department of Housing and Urban Development (HUD) [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/boze
+**Summary:** 🏗️ The Bozeman City Commission has amended and approved an updated affordable housing ordinance, increasing the affordability period for units to 50 years and offering options for units at 60% of area median income [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/developers-delig
 
 ### reliable+criteria: Flagstaff+water / news
 
 - **Source mode:** reliable
 - **Scope:** location+topic
 - **Queries:** 8
-- **Raw results:** 79
+- **Raw results:** 78
 - **Final articles:** 1
-- **Time:** 3996ms
+- **Time:** 6312ms
 
 **Queries (8):**
 - `Flagstaff water supply drought impact on residents`
+- `Arizona drought conditions affecting Flagstaff water`
 - `Flagstaff water conservation efforts during drought`
-- `Arizona drought affecting Flagstaff water resources`
-- `Flagstaff water management strategies for drought resilience`
-- `Impact of climate change on Flagstaff water supply drought`
-- `Local news Flagstaff water shortage due to drought`
-- `Community perspectives on Flagstaff drought and water supply`
+- `City of Flagstaff drought management plan`
+- `Impact of drought on Flagstaff's water resources`
+- `Flagstaff water supply challenges and drought solutions`
+- `Local perspectives on Flagstaff water shortage due to drought`
 - `water supply drought" "Flagstaff" US`
 
 **Articles (1):**
-1. **Colorado River outlook 'not a pretty picture' after warm, dry winter**
-   - Source: azcentral.com | Published: 2026-03-11T09:26:12.654547
-   - URL: https://www.azcentral.com/story/news/local/arizona-environment/2026/03/07/snow-drought-complicates-colorado-river-outlook/88760869007/
+1. **How Prepared is Flagstaff for More Warm, Dry Weather?**
+   - Source: flagstaffbusinessnews.com | Published: 2026-03-27T22:21:12.348451
+   - URL: https://www.flagstaffbusinessnews.com/how-prepared-is-flagstaff-for-more-warm-dry-weather/
 
-**Summary:** 📰 A severe snow drought in the West is negatively impacting the Colorado River's outlook, which is crucial for Arizona's water supplies [azcentral.com](https://www.azcentral.com/story/news/local/arizona-environment/2026/03/07/snow-drought-complicates-colorado-river-outlook/88760869007/)
+**Summary:** 📰 Flagstaff is facing increased concerns about its preparedness for continued warm and dry weather following a dry winter, highlighting potential impacts on the community [Flagstaff Business News](https://www.flagstaffbusinessnews.com/how-prepared-is-flagstaff-for-more-warm-dry-weather/).
 
 ### reliable+criteria: Flagstaff+water / government
 
 - **Source mode:** reliable
 - **Scope:** location+topic
 - **Queries:** 13
-- **Raw results:** 118
-- **Final articles:** 6
-- **Time:** 17197ms
+- **Raw results:** 86
+- **Final articles:** 7
+- **Time:** 24173ms
 
 **Queries (13):**
-- `Flagstaff city council water supply drought decisions`
-- `Flagstaff municipal water services drought management`
-- `Flagstaff local elections water policy drought`
-- `Flagstaff zoning regulations water drought`
+- `Flagstaff city council water drought decisions`
+- `Flagstaff municipal water supply public works drought`
+- `Flagstaff local elections water drought policy`
+- `Flagstaff zoning regulations water restrictions drought`
 - `Flagstaff mayor announcement water shortage`
-- `Flagstaff public works drought mitigation plan`
-- `Flagstaff government news water supply issues`
+- `Flagstaff city government drought response plan`
+- `Flagstaff public works drought management strategies`
 - `water supply drought" "Flagstaff" US`
-- `Flagstaff water resources department drought information`
-- `City of Flagstaff drought management plan public records`
-- `Flagstaff municipal water commission meeting minutes drought`
-- `Flagstaff government reports water conservation drought`
-- `Flagstaff official website water supply drought projects`
+- `Flagstaff water conservation commission drought reports`
+- `City of Flagstaff public records water supply drought`
+- `Flagstaff municipal water department drought minutes`
+- `Flagstaff government studies water drought impact`
+- `Flagstaff official water resource management drought portal`
 
-**Articles (6):**
-1. **Flagstaff council signals support for revised water-rate plan after ...**
-   - Source: citizenportal.ai | Published: undated
-   - URL: https://citizenportal.ai/articles/6138438/Flagstaff-City/Coconino-County/Arizona/Flagstaff-council-signals-support-for-revised-water-rate-plan-after-weeks-of-debate
-2. **Adequate Water Supply Designation**
+**Articles (7):**
+1. **[DOC] https://www.flagstaff.az.gov/DocumentCenter/View/8583**
    - Source: flagstaff.az.gov | Published: undated
-   - URL: https://www.flagstaff.az.gov/2263/Adequate-Water-Supply-Designation
-3. **Water Commission | City of Flagstaff Official Website**
-   - Source: flagstaff.az.gov | Published: undated
-   - URL: https://www.flagstaff.az.gov/2821/Water-Commission
-4. **Water Conservation | City of Flagstaff Official Website**
-   - Source: flagstaff.az.gov | Published: undated
-   - URL: https://www.flagstaff.az.gov/31/Water-Conservation
-5. **Water Conservation - Coconino County**
+   - URL: https://www.flagstaff.az.gov/DocumentCenter/View/8583
+2. **Flagstaff's drought worsens despite rain; Upper Lake Mary filled ...**
+   - Source: azdailysun.com | Published: undated
+   - URL: https://azdailysun.com/news/local/weather/flagstaff-s-drought-worsens-despite-rain-upper-lake-mary-filled-above-average/article_cfd6252e-f759-5930-9b08-669fb147f37f.html
+3. **[PDF] National Weather Service Flagstaff Drought Information Statement**
+   - Source: weather.gov | Published: undated
+   - URL: https://www.weather.gov/media/fgz/DGT/DGT_FGZ_02172024.pdf
+4. **Drought Information Statement April 20, 2025**
+   - Source: weather.gov | Published: undated
+   - URL: https://www.weather.gov/media/fgz/DGT/DGT_FGZ_04202025.pdf
+5. **Water Conservation System**
+   - Source: coconino.az.gov | Published: undated
+   - URL: https://www.coconino.az.gov/2783/Water-Conservation-System
+6. **Water Conservation - Coconino.az.gov**
    - Source: coconino.az.gov | Published: undated
    - URL: https://www.coconino.az.gov/2807/Water-Conservation
-6. **[PDF] Keeping Arizona's Water Glass Full (pdf) - WRRC**
-   - Source: wrrc.arizona.edu | Published: undated
-   - URL: https://wrrc.arizona.edu/sites/default/files/2025-01/Keeping-Arizonas-Water-Glass-Full-FINAL-Report.pdf
+7. **Adequate Water Supply Designation | City of Flagstaff Official Website**
+   - Source: flagstaff.az.gov | Published: undated
+   - URL: https://www.flagstaff.az.gov/2263/Adequate-Water-Supply-Designation
 
-**Summary:** 🏛️ Flagstaff City Council has signaled support for a revised water-rate plan after weeks of debate, indicating a move towards a new strategy for managing water resources [Citizen Portal](https://citizenportal.ai/articles/6138438/Flagstaff-City/Coconino-County/Arizona/Flagstaff-council-signals-suppor
+**Summary:** 💧 Flagstaff's water system is drought-sensitive, with the city utilizing reclaimed water to supplement supplies, a crucial measure given the arid climate and groundwater depletion concerns in Northern Arizona [Flagstaff.az.gov](https://www.flagstaff.az.gov/DocumentCenter/View/8583), [Coconino.az.gov
 
 ### beat+niche: housing policy / news
 
 - **Source mode:** niche
 - **Scope:** topic
 - **Queries:** 5
-- **Raw results:** 148
+- **Raw results:** 162
 - **Final articles:** 6
-- **Time:** 19350ms
+- **Time:** 19260ms
 
 **Queries (5):**
 - `housing policy`
@@ -542,36 +529,36 @@ Generated: 2026-03-18T08:28:16+00:00
 - `housing policy" report`
 
 **Articles (6):**
-1. **Election year blues for housing bills – 2026 Utah Legislative wrap-up**
-   - Source: buildingsaltlake.com | Published: 2026-03-18T00:26:47.888069
-   - URL: https://buildingsaltlake.com/election-year-blues-for-housing-bills-2026-utah-legislative-wrap-up/
-2. **NYC’s Community Opportunity to Purchase Act: A New Era in Housing Policy**
-   - Source: law.com | Published: 2026-03-17T09:26:47.888152
-   - URL: https://www.law.com/newyorklawjournal/2026/03/16/nycs-community-opportunity-to-purchase-act-a-new-era-in-housing-policy/
-3. **A successful USDA program that has supported more than 533,000 affordable rental homes in rural America is being phased out**
-   - Source: pbs.org | Published: 2026-03-17T09:26:47.888169
+1. **State Titling Policies and the Future of Manufactured Home Financing**
+   - Source: pew.org | Published: 2026-03-30T14:21:55.072175
+   - URL: https://www.pew.org/about/events/2026/state-titling-policies-and-the-future-of-manufactured-home-financing
+2. **Mayor Quinton Lucas proposes major rollback of Kansas City’s landmark affordable housing policy**
+   - Source: thebeaconnews.org | Published: 2026-03-26T22:21:55.072193
+   - URL: https://thebeaconnews.org/stories/2026/03/25/kansas-city-affordable-housing-set-aside/
+3. **S.F. restored a Chinatown building for low-income tenants. It shows what housing policy often misses**
+   - Source: sfchronicle.com | Published: 2026-03-27T22:21:55.072198
+   - URL: https://www.sfchronicle.com/sf/article/housing-preservation-chinatown-san-francisco-22094757.php
+4. **A Proposed Change in Federal Housing Policy Could Mean Instability for Santa Barbara Families**
+   - Source: independent.com | Published: 2026-03-23T22:21:55.072201
+   - URL: https://www.independent.com/2026/03/23/a-proposed-change-in-federal-housing-policy-could-mean-instability-for-santa-barbara-families/
+5. **A successful USDA program that has supported more than 533,000 affordable rental homes in rural America is being phased out**
+   - Source: pbs.org | Published: 2026-03-16T22:21:55.072205
    - URL: https://www.pbs.org/newshour/economy/a-successful-usda-program-that-has-supported-more-than-533000-affordable-rental-homes-in-rural-america-is-being-phased-out
-4. **What’s Next for Housing Policy After the Bursting of the Bubble?**
-   - Source: newamerica.org | Published: 2026-03-12T09:26:47.888182
-   - URL: https://www.newamerica.org/insights/whats-next-for-housing-policy-after-the-bursting-of-the-bubble/
-5. **CREF Policy Update: Senate Continues Consideration of Housing Package –Including Single-Family Rental Investor Ban**
-   - Source: newslink.mba.org | Published: 2026-03-14T09:26:47.888196
-   - URL: https://newslink.mba.org/cmf-newslinks/2026/march/mba-commercial-multifamily-newslink-thursday-march-12-2026/cref-policy-update-senate-continues-consideration-of-housing-package-including-single-family-rental-investor-ban/
-6. **Senate passes Elizabeth Warren's housing policy - AOL.com**
-   - Source: aol.com | Published: undated
-   - URL: https://www.aol.com/articles/senate-passes-elizabeth-warren-housing-164040201.html
+6. **Purpose-Built, Policy-Broken: Student Housing, the latest to feel the uncertainty of government policy**
+   - Source: thekoalanews.com | Published: 2026-03-30T00:21:55.072208
+   - URL: https://thekoalanews.com/purpose-built-policy-broken-student-housing-the-latest-to-feel-the-uncertainty-of-government-policy/
 
-**Summary:** 🏛️ In Utah, housing experts suggest the legislature's consolidation of housing programs indicates a waning appetite for new housing policies in an election year [Building Salt Lake](https://buildingsaltlake.com/election-year-blues-for-housing-bills-2026-utah-legislative-wrap-up/).
-🎭 New York City's 
+**Summary:** • State-level titling policies are being examined to reduce barriers and expand mortgage access for manufactured homes [Pew Research Center](https://www.pew.org/about/events/2026/state-titling-policies-and-the-future-of-manufactured-home-financing).
+• Kansas City is considering a significant rollbac
 
 ### beat+niche: housing policy / analysis
 
 - **Source mode:** niche
 - **Scope:** topic
 - **Queries:** 5
-- **Raw results:** 159
+- **Raw results:** 157
 - **Final articles:** 6
-- **Time:** 13615ms
+- **Time:** 13288ms
 
 **Queries (5):**
 - `housing policy" blog`
@@ -581,36 +568,36 @@ Generated: 2026-03-18T08:28:16+00:00
 - `housing policy" research report`
 
 **Articles (6):**
-1. **[Insight & Opinion]The Three Key Conditions for Housing Policy**
-   - Source: asiae.co.kr | Published: 2026-03-17T09:27:02.367212
-   - URL: https://www.asiae.co.kr/en/article/opinion-column/2026031609261881548
-2. **Affordable Housing's Next Chapter: Navigating Policy Shifts**
+1. **Austin’s Surge of New Housing Construction Drove Down Rents**
+   - Source: pew.org | Published: 2026-03-16T22:22:08.643809
+   - URL: https://www.pew.org/en/research-and-analysis/articles/2026/03/18/austins-surge-of-new-housing-construction-drove-down-rents
+2. **Affordable housing is possible, if we stop ignoring the obvious | Opinion**
+   - Source: usatoday.com | Published: 2026-03-23T22:22:08.643836
+   - URL: https://www.usatoday.com/story/opinion/2026/03/23/affordable-housing-vacant-offices-remote-work/89085433007/
+3. **Universities are the structural lever America’s housing policy is missing**
+   - Source: multifamilydive.com | Published: 2026-03-23T22:22:08.643841
+   - URL: https://www.multifamilydive.com/news/universities-help-housing-shortage/815232/
+4. **Opinion | Elizabeth Warren tries to jam the House with a flawed housing bill**
+   - Source: washingtonpost.com | Published: 2026-03-26T22:22:08.643845
+   - URL: https://www.washingtonpost.com/opinions/2026/03/25/housing-bill-elizabeth-warren-rent-to-build/
+5. **Affordable Housing's Next Chapter: Navigating Policy Shifts - AppFolio**
    - Source: appfolio.com | Published: undated
    - URL: https://www.appfolio.com/blog/affordable-housing-navigating-policy-shifts
-3. **14 Housing Policies Critics Say Hurt First-Time Buyers**
-   - Source: wicproject.com | Published: undated
-   - URL: https://wicproject.com/home/14-housing-policies-critics-say-hurt-first-time-buyers/
-4. **Housing | Economic Policy Institute - EPI.org**
+6. **Housing | Economic Policy Institute**
    - Source: epi.org | Published: undated
    - URL: https://www.epi.org/research/housing-2/
-5. **The Searchlight Approach to the Housing Crisis**
-   - Source: searchlightinstitute.org | Published: undated
-   - URL: https://www.searchlightinstitute.org/research/the-searchlight-approach-to-the-housing-crisis/
-6. **Housing Policy: What is the biggest fix the U.S. needs?**
-   - Source: notus.org | Published: undated
-   - URL: https://www.notus.org/perspectives/what-is-the-biggest-fix-the-u-s-needs-when-it-comes-to-housing-policy
 
-**Summary:** 🏗️ A proposed "One Big Beautiful Bill" (OBBB) in 2025 signals significant federal, state, and local policy shifts aimed at reshaping the affordable housing landscape [AppFolio](https://www.appfolio.com/blog/affordable-housing-navigating-policy-shifts).
-🚨 Critics argue that numerous housing policies,
+**Summary:** 🏗️ Austin's surge in new housing construction in the 2010s demonstrably drove down rents, highlighting the impact of increased supply on affordability [Pew Research Center](https://www.pew.org/en/research-and-analysis/articles/2026/03/18/austins-surge-of-new-housing-construction-drove-down-rents).
+🎭
 
 ### beat+niche: renewable energy / news
 
 - **Source mode:** niche
 - **Scope:** topic
 - **Queries:** 5
-- **Raw results:** 138
+- **Raw results:** 133
 - **Final articles:** 6
-- **Time:** 12484ms
+- **Time:** 7756ms
 
 **Queries (5):**
 - `renewable energy`
@@ -620,36 +607,36 @@ Generated: 2026-03-18T08:28:16+00:00
 - `renewable energy" report`
 
 **Articles (6):**
-1. **NY clean energy projects that could power 2 million homes on hold because of tariffs**
-   - Source: gothamist.com | Published: 2026-03-18T05:27:14.748205
-   - URL: https://gothamist.com/news/ny-clean-energy-projects-that-could-power-2-million-homes-on-hold-because-of-tariffs
-2. **Interior bends on solar, but wind energy on public lands remains stalled**
-   - Source: eenews.net | Published: 2026-03-18T08:27:14.748254
-   - URL: https://www.eenews.net/articles/interior-bends-on-solar-but-wind-energy-on-public-lands-remains-stalled/
-3. **How Ann Arbor, Michigan, is creating its own clean energy utility**
-   - Source: grist.org | Published: 2026-03-17T23:27:14.748266
-   - URL: https://grist.org/cities/ann-arbor-michigan-creating-its-own-renewable-energy-utility/
-4. **Environmentalists say Washington County renewable energy project is too near national wildlife refuge**
-   - Source: opb.org | Published: 2026-03-18T03:27:14.748277
-   - URL: https://www.opb.org/article/2026/03/17/washington-county-oregon-renewable-energy-project-wildlife-refuge/
-5. **Wanted: an electrical grid that runs on 100% renewable energy**
-   - Source: physicsworld.com | Published: 2026-03-18T06:27:14.748287
-   - URL: https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/
-6. **Columbia River data centers threaten renewable energy goals, report says**
-   - Source: nbcrightnow.com | Published: 2026-03-17T21:27:14.748296
-   - URL: https://www.nbcrightnow.com/news/columbia-river-data-centers-threaten-renewable-energy-goals-report-says/article_87441308-71b1-4b09-a69e-4726f4dc32a8.html
+1. **How tiny Kit Carson County has grown into a green energy giant**
+   - Source: coloradosun.com | Published: 2026-03-29T22:22:16.246091
+   - URL: https://coloradosun.com/2026/03/29/kit-carson-county-colorado-renewable-energy-boom-xcel/
+2. **Scientists achieve ‘impossible’ solar efficiency in renewables breakthrough**
+   - Source: independent.co.uk | Published: 2026-03-30T17:22:16.246110
+   - URL: https://www.independent.co.uk/tech/solar-panel-breakthrough-renewable-energy-b2948432.html
+3. **7 Solar Innovations That Made Energy Flexible, Mobile, and Indoor-Compatible**
+   - Source: renewableenergymagazine.com | Published: 2026-03-30T18:22:16.246115
+   - URL: https://www.renewableenergymagazine.com/rose-morrison/7-solar-innovations-that-made-energy-flexible-20260330
+4. **Newly Approved Solar-Plus-Storage Project Will Save Millions for Kauaʻi Co-op**
+   - Source: electric.coop | Published: 2026-03-30T18:22:16.246119
+   - URL: https://www.electric.coop/newly-approved-solar-plus-storage-project-will-save-millions-for-kauai-co-op
+5. **Philippines fast-tracks 1.4GW of renewables amid Iran energy price shock**
+   - Source: pv-tech.org | Published: 2026-03-30T12:22:16.246122
+   - URL: https://www.pv-tech.org/philippines-fast-tracks-1-4gw-of-renewables-amid-iran-energy-price-shock/
+6. **Estonia launches centralised platform for renewable energy services**
+   - Source: ceenergynews.com | Published: 2026-03-30T16:22:16.246126
+   - URL: https://ceenergynews.com/renewables/estonia-centralised-platform-renewable-energy/
 
-**Summary:** 🏗️ Renewable energy projects in New York, capable of powering 2 million homes, are stalled due to rising construction costs linked to tariffs [Gothamist](https://gothamist.com/news/ny-clean-energy-projects-that-could-power-2-million-homes-on-hold-because-of-tariffs).
-🏛️ While the Interior Department
+**Summary:** • Colorado's Kit Carson County is experiencing a significant renewable energy boom, transforming its landscape and economy with new projects [Colorado Sun](https://coloradosun.com/2026/03/29/kit-carson-county-colorado-renewable-energy-boom-xcel/).
+• Scientists have achieved a breakthrough in solar e
 
 ### beat+niche: renewable energy / analysis
 
 - **Source mode:** niche
 - **Scope:** topic
 - **Queries:** 5
-- **Raw results:** 172
+- **Raw results:** 136
 - **Final articles:** 6
-- **Time:** 43303ms
+- **Time:** 24068ms
 
 **Queries (5):**
 - `renewable energy" blog`
@@ -659,36 +646,36 @@ Generated: 2026-03-18T08:28:16+00:00
 - `renewable energy" research report`
 
 **Articles (6):**
-1. **Wanted: an electrical grid that runs on 100% renewable energy**
-   - Source: physicsworld.com | Published: 2026-03-18T06:27:58.029065
-   - URL: https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/
-2. **The Economic Potential of Nuclear-Renewable Hybrid Energy Systems Producing Hydrogen**
-   - Source: energy.gov | Published: 2026-03-17T11:27:58.029102
-   - URL: https://www.energy.gov/cmei/articles/economic-potential-nuclear-renewable-hybrid-energy-systems-producing-hydrogen
+1. **The Strategic Significance Of Renewable Energy – Analysis**
+   - Source: eurasiareview.com | Published: 2026-03-27T22:22:39.956712
+   - URL: https://www.eurasiareview.com/27032026-the-strategic-significance-of-renewable-energy-analysis/
+2. **Energy Shock Reignites Push for Renewables & Electrification | 2026 Analysis - News and Statistics**
+   - Source: indexbox.io | Published: 2026-03-29T22:22:39.956731
+   - URL: https://www.indexbox.io/blog/energy-supply-shock-renews-focus-on-renewables-and-electrification/
 3. **Integrating Variable Renewable Energy in Kenya – Analysis**
-   - Source: iea.org | Published: 2026-03-13T09:27:58.029117
+   - Source: iea.org | Published: 2026-03-16T22:22:39.956736
    - URL: https://www.iea.org/reports/integrating-variable-renewable-energy-in-kenya
-4. **Analysis of different methods to calculate tertiary regulation reserves for renewable energy in Japan**
-   - Source: nature.com | Published: 2026-03-04T09:27:58.029129
-   - URL: https://www.nature.com/articles/s41598-026-37441-x
-5. **OPINION: Our Electric Grid… Our Future…**
-   - Source: pagosadailypost.com | Published: 2026-03-18T01:27:58.029139
-   - URL: https://pagosadailypost.com/2026/03/17/opinion-our-electric-grid-our-future/
-6. **Iran War Sharpens Europe's Renewable Energy Urgency — And Exposes Its Gas Vulnerability**
-   - Source: thedeepdive.ca | Published: 2026-03-17T09:27:58.029149
-   - URL: https://thedeepdive.ca/iran-war-sharpens-europes-renewable-energy-urgency-and-exposes-its-gas-vulnerability/
+4. **Strategic LNG Import Alternatives: Renewable Energy and Green Hydrogen Solutions**
+   - Source: discoveryalert.com.au | Published: 2026-03-29T22:22:39.956740
+   - URL: https://discoveryalert.com.au/strategic-energy-diversification-supply-chain-2026/
+5. **‘Renewable’ Energy Gives Us a Crisis**
+   - Source: wsj.com | Published: 2026-03-27T22:22:39.956744
+   - URL: https://www.wsj.com/opinion/renewable-energy-gives-us-a-crisis-e8426cd8?gaa_at=eafs&gaa_n=AWEtsqdoVcm1xs56OUhWG98ewjku5WGOn-QqTRjADZlDzEDAw2J63DD0DRCb&gaa_ts=69cadeff&gaa_sig=5zHpgl6Cp2c1_Ar8wpkw2B_ZUp58boCugszfnJC3b5xcUlqqph5LQwB1L8foRuoTdOS6MlUsXPAfhYaOJLzqUA%3D%3D
+6. **Opinion | Why China’s space-based solar power is the next frontier of green energy**
+   - Source: scmp.com | Published: 2026-03-28T22:22:39.956747
+   - URL: https://www.scmp.com/opinion/china-opinion/article/3347692/why-chinas-space-based-solar-power-next-frontier-green-energy
 
-**Summary:** 🚨 Global conflicts are increasing the attractiveness of renewable energy, but achieving a 100% renewable grid necessitates solving complex physics challenges alongside technological advancements [Physics World](https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/)
-
+**Summary:** 🚨 An energy supply shock is prompting governments globally to accelerate renewable energy adoption and electrification, highlighting the strategic importance of diversifying energy sources [IndexBox](https://www.indexbox.io/blog/energy-supply-shock-renews-focus-on-renewables-and-electrification/)
+🎭 
 
 ### beat+reliable: housing policy / news
 
 - **Source mode:** reliable
 - **Scope:** topic
 - **Queries:** 5
-- **Raw results:** 94
+- **Raw results:** 97
 - **Final articles:** 8
-- **Time:** 5115ms
+- **Time:** 3859ms
 
 **Queries (5):**
 - `housing policy`
@@ -698,41 +685,41 @@ Generated: 2026-03-18T08:28:16+00:00
 - `housing policy" report`
 
 **Articles (8):**
-1. **Senate passes Elizabeth Warren’s housing policy — with some unlikely conservative allies**
-   - Source: nypost.com | Published: 2026-03-13T09:28:02.834618
-   - URL: https://nypost.com/2026/03/12/us-news/senate-passes-elizabeth-warrens-housing-policy-with-some-unlikely-conservative-allies/
-2. **An Ivy League town faces bitter battle over affordable housing**
-   - Source: washingtonpost.com | Published: 2026-03-18T07:28:02.834647
-   - URL: https://www.washingtonpost.com/nation/2026/03/17/new-jersey-affordable-housing-princeton/
-3. **A successful USDA program that has supported more than 533,000 affordable rental homes in rural America is being phased out**
-   - Source: pbs.org | Published: 2026-03-17T09:28:02.834658
+1. **Coalition of state attorneys general seek to block HUD’s fair housing policy changes**
+   - Source: jdsupra.com | Published: 2026-03-30T16:22:43.993035
+   - URL: https://www.jdsupra.com/legalnews/coalition-of-state-attorneys-general-8156415/
+2. **Trump Wants to End Housing Protections Against Discrimination**
+   - Source: aclu.org | Published: 2026-03-16T22:22:43.993057
+   - URL: https://www.aclu.org/news/womens-rights/trump-is-attacking-a-crucial-fair-housing-rule-that-protects-against-discrimination
+3. **Mayor Quinton Lucas proposes major rollback of Kansas City’s landmark affordable housing policy**
+   - Source: thebeaconnews.org | Published: 2026-03-26T22:22:43.993062
+   - URL: https://thebeaconnews.org/stories/2026/03/25/kansas-city-affordable-housing-set-aside/
+4. **Governor Ferguson signs bills improving housing**
+   - Source: governor.wa.gov | Published: 2026-03-27T22:22:43.993065
+   - URL: https://governor.wa.gov/news/2026/governor-ferguson-signs-bills-improving-housing
+5. **S.F. restored a Chinatown building for low-income tenants. It shows what housing policy often misses**
+   - Source: sfchronicle.com | Published: 2026-03-27T22:22:43.993068
+   - URL: https://www.sfchronicle.com/sf/article/housing-preservation-chinatown-san-francisco-22094757.php
+6. **A Proposed Change in Federal Housing Policy Could Mean Instability for Santa Barbara Families**
+   - Source: independent.com | Published: 2026-03-23T22:22:43.993071
+   - URL: https://www.independent.com/2026/03/23/a-proposed-change-in-federal-housing-policy-could-mean-instability-for-santa-barbara-families/
+7. **Maryland housing chief blasts Salisbury’s ‘Housing First+’ shift**
+   - Source: baltimoresun.com | Published: 2026-03-29T22:22:43.993075
+   - URL: https://www.baltimoresun.com/2026/03/29/day-housing-first-plus-critique/
+8. **A successful USDA program that has supported more than 533,000 affordable rental homes in rural America is being phased out**
+   - Source: pbs.org | Published: 2026-03-16T22:22:43.993078
    - URL: https://www.pbs.org/newshour/economy/a-successful-usda-program-that-has-supported-more-than-533000-affordable-rental-homes-in-rural-america-is-being-phased-out
-4. **NYC’s Community Opportunity to Purchase Act: A New Era in Housing Policy**
-   - Source: law.com | Published: 2026-03-17T09:28:02.834667
-   - URL: https://www.law.com/newyorklawjournal/2026/03/16/nycs-community-opportunity-to-purchase-act-a-new-era-in-housing-policy/
-5. **NFHA Warns Trump’s Orders Could Weaken Fair Housing Protections**
-   - Source: davisvanguard.org | Published: 2026-03-18T01:28:02.834674
-   - URL: https://davisvanguard.org/2026/03/housing-crisis-civil-rights-protections/
-6. **Florida’s Live Local 4.0 flexes state muscle on housing progress**
-   - Source: housingwire.com | Published: 2026-03-18T05:28:02.834682
-   - URL: https://www.housingwire.com/articles/florida-live-local-4/
-7. **Idaho short-term rental bill runs counter to Trump’s housing policy | Opinion**
-   - Source: idahostatesman.com | Published: 2026-03-18T00:28:02.834689
-   - URL: https://www.idahostatesman.com/opinion/readers-opinion/article315078021.html
-8. **California YIMBY Adopts New Tactics for Housing Policy Change**
-   - Source: pro.stateaffairs.com | Published: 2026-03-04T09:28:02.834696
-   - URL: https://pro.stateaffairs.com/ca/housing/california-yimby-housing-bills
 
-**Summary:** 🏛️ The Senate passed a bipartisan bill, championed by Elizabeth Warren, to prevent Wall Street investors from purchasing single-family homes, aiming to curb corporate ownership and potentially increase availability for individual buyers [New York Post](https://nypost.com/2026/03/12/us-news/senate-pa
+**Summary:** 🚨 A coalition of 15 state attorneys general and the District of Columbia are suing to block HUD's changes to fair housing policy, arguing it weakens protections against discrimination [JDSupra](https://jdsupra.com/legalnews/coalition-of-state-attorneys-general-8156415/) and could harm vulnerable pop
 
 ### beat+reliable: housing policy / analysis
 
 - **Source mode:** reliable
 - **Scope:** topic
 - **Queries:** 5
-- **Raw results:** 105
-- **Final articles:** 5
-- **Time:** 3374ms
+- **Raw results:** 106
+- **Final articles:** 6
+- **Time:** 3247ms
 
 **Queries (5):**
 - `housing policy" blog`
@@ -741,34 +728,36 @@ Generated: 2026-03-18T08:28:16+00:00
 - `housing policy" deep dive`
 - `housing policy" research report`
 
-**Articles (5):**
-1. **What’s in the 21st Century ROAD to Housing Act?**
-   - Source: bipartisanpolicy.org | Published: 2026-03-18T01:28:06.345228
-   - URL: https://bipartisanpolicy.org/explainer/whats-in-the-21st-century-road-to-housing-act/
-2. **Idaho short-term rental bill runs counter to Trump’s housing policy | Opinion**
-   - Source: idahostatesman.com | Published: 2026-03-18T00:28:06.345307
-   - URL: https://www.idahostatesman.com/opinion/readers-opinion/article315078021.html
-3. **[Insight & Opinion]The Three Key Conditions for Housing Policy**
-   - Source: asiae.co.kr | Published: 2026-03-17T09:28:06.345327
-   - URL: https://www.asiae.co.kr/en/article/opinion-column/2026031609261881548
-4. **Join The Urbanist for June Events, Eastside Forum on July 6th**
-   - Source: theurbanist.org | Published: 2026-03-12T09:28:06.345344
-   - URL: https://www.theurbanist.org/join-the-urbanist-for-june-events-eastside-forum-on-july-6th/
-5. **These 10 charts sum up Fort Collins' housing affordability challenge**
-   - Source: coloradoan.com | Published: 2026-03-18T02:28:06.345357
-   - URL: https://www.coloradoan.com/story/news/local/2026/03/17/why-fort-collins-housing-isnt-affordable-in-10-charts/89100776007/
+**Articles (6):**
+1. **Austin’s Surge of New Housing Construction Drove Down Rents**
+   - Source: pew.org | Published: 2026-03-16T22:22:47.301877
+   - URL: https://www.pew.org/en/research-and-analysis/articles/2026/03/18/austins-surge-of-new-housing-construction-drove-down-rents
+2. **Affordable housing is possible, if we stop ignoring the obvious | Opinion**
+   - Source: usatoday.com | Published: 2026-03-23T22:22:47.301896
+   - URL: https://www.usatoday.com/story/opinion/2026/03/23/affordable-housing-vacant-offices-remote-work/89085433007/
+3. **Universities are the structural lever America’s housing policy is missing**
+   - Source: multifamilydive.com | Published: 2026-03-23T22:22:47.301902
+   - URL: https://www.multifamilydive.com/news/universities-help-housing-shortage/815232/
+4. **Opinion | Elizabeth Warren tries to jam the House with a flawed housing bill**
+   - Source: washingtonpost.com | Published: 2026-03-26T22:22:47.301905
+   - URL: https://www.washingtonpost.com/opinions/2026/03/25/housing-bill-elizabeth-warren-rent-to-build/
+5. **As federal housing policy changes, here’s why Atlanta families will be ready**
+   - Source: ajc.com | Published: 2026-03-16T22:22:47.301909
+   - URL: https://www.ajc.com/opinion/2026/03/as-federal-housing-policy-changes-heres-why-atlanta-families-will-be-ready/
+6. **Government must draw on housing policies elsewhere**
+   - Source: irishexaminer.com | Published: 2026-03-30T02:22:47.301912
+   - URL: https://www.irishexaminer.com/opinion/ourview/arid-41818886.html
 
-**Summary:** • The 21st Century ROAD to Housing Act, a combination of House and Senate legislation, was released on March 2, 2026, aiming to address housing challenges with new proposals [Bipartisan Policy Center](https://bipartisanpolicy.org/explainer/whats-in-the-21st-century-road-to-housing-act/).
-• An opinio
+**Summary:** 🏗️ Austin's significant increase in new housing construction in the 2010s demonstrably led to a decrease in rental prices, highlighting the impact of supply on affordability [Pew Research Center](https://www.pew.org/en/research-and-analysis/articles/2026/03/18/austins-surge-of-new-housing-constructi
 
 ### beat+reliable: renewable energy / news
 
 - **Source mode:** reliable
 - **Scope:** topic
 - **Queries:** 5
-- **Raw results:** 103
+- **Raw results:** 108
 - **Final articles:** 8
-- **Time:** 4600ms
+- **Time:** 5729ms
 
 **Queries (5):**
 - `renewable energy`
@@ -778,42 +767,41 @@ Generated: 2026-03-18T08:28:16+00:00
 - `renewable energy" report`
 
 **Articles (8):**
-1. **Oil and gas prices are soaring. Some countries are ready with solar panels and EVs**
-   - Source: npr.org | Published: 2026-03-17T09:28:10.877875
-   - URL: https://www.npr.org/2026/03/16/nx-s1-5732984/energy-iran-war-solar-pakistan-crisis-renewable-evs
-2. **How India Is Powering 1.4 Billion People While Deploying Renewables**
-   - Source: forbes.com | Published: 2026-03-16T09:28:10.877914
-   - URL: https://www.forbes.com/sites/kensilverstein/2026/03/15/how-india-is-powering-14-billion-people-while-deploying-renewables/
-3. **Could a global economy dependent on renewable energy see less war? Experts explain**
-   - Source: abcnews.com | Published: 2026-03-17T23:28:10.877931
-   - URL: https://abcnews.com/Technology/global-economy-dependent-renewable-energy-war-experts-explain/story?id=130969198
-4. **Environmentalists say Washington County renewable energy project is too near national wildlife refuge**
-   - Source: opb.org | Published: 2026-03-18T03:28:10.877946
-   - URL: https://www.opb.org/article/2026/03/17/washington-county-oregon-renewable-energy-project-wildlife-refuge/
-5. **Columbia River data centers threaten renewable energy goals, report says**
-   - Source: nbcrightnow.com | Published: 2026-03-17T21:28:10.877959
-   - URL: https://www.nbcrightnow.com/news/columbia-river-data-centers-threaten-renewable-energy-goals-report-says/article_87441308-71b1-4b09-a69e-4726f4dc32a8.html
-6. **‘A fossil fuel state’: Legislature cuts renewable energy out of long-term energy plan**
-   - Source: wvgazettemail.com | Published: 2026-03-18T00:28:10.877971
-   - URL: https://www.wvgazettemail.com/news/legislative_session/a-fossil-fuel-state-legislature-cuts-renewable-energy-out-of-long-term-energy-plan/article_8cb7ddb8-9af9-4d35-bc9a-31f94906c476.html
-7. **As Fossil Fuel Costs Rise, Renewable Energy & Storage Shine**
-   - Source: cleantechnica.com | Published: 2026-03-18T07:28:10.877982
-   - URL: https://cleantechnica.com/2026/03/17/as-fossil-fuel-costs-rise-renewable-energy-storage-shine/
-8. **Iran War Sharpens Europe's Renewable Energy Urgency — And Exposes Its Gas Vulnerability**
-   - Source: thedeepdive.ca | Published: 2026-03-17T09:28:10.877994
-   - URL: https://thedeepdive.ca/iran-war-sharpens-europes-renewable-energy-urgency-and-exposes-its-gas-vulnerability/?utm_source=rss&utm_medium=rss&utm_campaign=iran-war-sharpens-europes-renewable-energy-urgency-and-exposes-its-gas-vulnerability
+1. **Rachel Reeves to tell G7 accelerating shift to clean energy is best defence against energy price shocks**
+   - Source: theguardian.com | Published: 2026-03-29T23:22:51.881402
+   - URL: https://www.theguardian.com/environment/2026/mar/29/rachel-reeves-to-tell-g7-accelerating-shift-to-clean-energy-is-best-defence-against-energy-price-shocks
+2. **Solar is winning the energy race**
+   - Source: dw.com | Published: 2026-03-28T22:22:51.881420
+   - URL: https://www.dw.com/en/solar-is-winning-the-energy-race/a-76517556
+3. **Sustainable Switch Climate Focus: Europe's renewable energy paradox**
+   - Source: reuters.com | Published: 2026-03-27T22:22:51.881424
+   - URL: https://www.reuters.com/sustainability/the-switch/sustainable-switch-climate-focus-europes-renewable-energy-paradox-2026-03-27/
+4. **China Is Planning Decades Ahead on Clean Energy. The U.S. Has Other Priorities.**
+   - Source: cfr.org | Published: 2026-03-28T22:22:51.881427
+   - URL: https://www.cfr.org/articles/china-is-planning-decades-ahead-on-clean-energy-the-u-s-has-other-priorities
+5. **Scientists achieve ‘impossible’ solar efficiency in renewables breakthrough**
+   - Source: independent.co.uk | Published: 2026-03-30T17:22:51.881430
+   - URL: https://www.independent.co.uk/tech/solar-panel-breakthrough-renewable-energy-b2948432.html
+6. **US government report: The only new energy coming online in 2026 is renewables**
+   - Source: solarpowerworldonline.com | Published: 2026-03-30T14:22:51.881433
+   - URL: https://www.solarpowerworldonline.com/2026/03/us-government-report-the-only-new-energy-coming-online-in-2026-is-renewables/
+7. **Newly Approved Solar-Plus-Storage Project Will Save Millions for Kauaʻi Co-op**
+   - Source: electric.coop | Published: 2026-03-30T18:22:51.881436
+   - URL: https://www.electric.coop/newly-approved-solar-plus-storage-project-will-save-millions-for-kauai-co-op
+8. **‘Renewable’ Energy Gives Us a Crisis**
+   - Source: wsj.com | Published: 2026-03-27T22:22:51.881439
+   - URL: https://www.wsj.com/opinion/renewable-energy-gives-us-a-crisis-e8426cd8?gaa_at=eafs&gaa_n=AWEtsqcRHB2lrTyehNiYm2QVtuNE8KSZ5vp_KMxjhdCCl3IT04iaDvSrZzlr&gaa_ts=69cadef8&gaa_sig=hzJ7vCNEGM6hRFmRWqvv-pNO99C3wXVHEp9gW_5lagUGkqy7b6ayAopdXREqHdKXyeZ8S6r7pNKzC7E6FtRCOg%3D%3D
 
-**Summary:** 📰 Countries like Pakistan are leveraging solar panels and EVs to mitigate the impact of soaring oil and gas prices, demonstrating the resilience of renewable energy in times of crisis [NPR](https://www.npr.org/2026/03/16/nx-s1-5732984/energy-iran-war-solar-pakistan-crisis-renewable-evs)
-💼 India is m
+**Summary:** • Rachel Reeves will tell the G7 that accelerating the shift to clean energy is the most effective defense against energy price shocks, especially amid ongoing geopolitical tensions affecting fossil fuel supplies [The Guardian](https://www.theguardian.com/environment/2026/mar/29/rachel-reeves-to-tel
 
 ### beat+reliable: renewable energy / analysis
 
 - **Source mode:** reliable
 - **Scope:** topic
 - **Queries:** 5
-- **Raw results:** 115
+- **Raw results:** 92
 - **Final articles:** 6
-- **Time:** 3785ms
+- **Time:** 3378ms
 
 **Queries (5):**
 - `renewable energy" blog`
@@ -823,51 +811,51 @@ Generated: 2026-03-18T08:28:16+00:00
 - `renewable energy" research report`
 
 **Articles (6):**
-1. **Wanted: an electrical grid that runs on 100% renewable energy**
-   - Source: physicsworld.com | Published: 2026-03-18T06:28:14.825653
-   - URL: https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/
-2. **The Economic Potential of Nuclear-Renewable Hybrid Energy Systems Producing Hydrogen**
-   - Source: energy.gov | Published: 2026-03-17T11:28:14.825740
-   - URL: https://www.energy.gov/cmei/articles/economic-potential-nuclear-renewable-hybrid-energy-systems-producing-hydrogen
+1. **The Strategic Significance Of Renewable Energy – Analysis**
+   - Source: eurasiareview.com | Published: 2026-03-27T22:22:56.430543
+   - URL: https://www.eurasiareview.com/27032026-the-strategic-significance-of-renewable-energy-analysis/
+2. **Energy Shock Reignites Push for Renewables & Electrification | 2026 Analysis - News and Statistics**
+   - Source: indexbox.io | Published: 2026-03-29T22:22:56.430563
+   - URL: https://www.indexbox.io/blog/energy-supply-shock-renews-focus-on-renewables-and-electrification/
 3. **Integrating Variable Renewable Energy in Kenya – Analysis**
-   - Source: iea.org | Published: 2026-03-13T09:28:14.825766
+   - Source: iea.org | Published: 2026-03-16T22:22:56.430568
    - URL: https://www.iea.org/reports/integrating-variable-renewable-energy-in-kenya
-4. **Analysis of different methods to calculate tertiary regulation reserves for renewable energy in Japan**
-   - Source: nature.com | Published: 2026-03-04T09:28:14.826415
-   - URL: https://www.nature.com/articles/s41598-026-37441-x
-5. **OPINION: Our Electric Grid… Our Future…**
-   - Source: pagosadailypost.com | Published: 2026-03-18T01:28:14.826443
-   - URL: https://pagosadailypost.com/2026/03/17/opinion-our-electric-grid-our-future/
-6. **Iran War Sharpens Europe's Renewable Energy Urgency — And Exposes Its Gas Vulnerability**
-   - Source: thedeepdive.ca | Published: 2026-03-17T09:28:14.826461
-   - URL: https://thedeepdive.ca/iran-war-sharpens-europes-renewable-energy-urgency-and-exposes-its-gas-vulnerability/
+4. **‘Renewable’ Energy Gives Us a Crisis**
+   - Source: wsj.com | Published: 2026-03-27T22:22:56.430572
+   - URL: https://www.wsj.com/opinion/renewable-energy-gives-us-a-crisis-e8426cd8?gaa_at=eafs&gaa_n=AWEtsqdoVcm1xs56OUhWG98ewjku5WGOn-QqTRjADZlDzEDAw2J63DD0DRCb&gaa_ts=69cadeff&gaa_sig=5zHpgl6Cp2c1_Ar8wpkw2B_ZUp58boCugszfnJC3b5xcUlqqph5LQwB1L8foRuoTdOS6MlUsXPAfhYaOJLzqUA%3D%3D
+5. **Opinion | Why China’s space-based solar power is the next frontier of green energy**
+   - Source: scmp.com | Published: 2026-03-28T22:22:56.430576
+   - URL: https://www.scmp.com/opinion/china-opinion/article/3347692/why-chinas-space-based-solar-power-next-frontier-green-energy
+6. **From the Opinions Editor | India’s clean power push needs a missing piece: Energy efficiency**
+   - Source: indianexpress.com | Published: 2026-03-29T22:22:56.430579
+   - URL: https://indianexpress.com/article/opinion/india-clean-power-push-needs-missing-piece-energy-efficiency-10607962/
 
-**Summary:** 🚨 Global conflicts are increasing the attractiveness of renewable energy, but achieving a 100% renewable grid requires overcoming significant physics challenges in addition to technological ones [Physics World](https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/)
-
+**Summary:** 🚨 An energy supply shock is prompting global governments to accelerate renewable energy adoption and electrification, highlighting the strategic importance of diversifying energy sources [IndexBox](https://www.indexbox.io/blog/energy-supply-shock-renews-focus-on-renewables-and-electrification/)
+🎭 Th
 
 
 ## Quality Validation
 
 | Permutation | Category | Language | Date Relevance | Source Diversity | Undated Ratio |
 |-------------|----------|----------|----------------|-----------------|---------------|
-| niche: Bozeman | news | PASS | PASS (0 PDFs) | 5 domains | 1/6 undated (17%) |
-| niche: Bozeman | government | PASS | PASS (2 PDFs) | 6 domains | 4/6 undated (67%) |
-| niche: Flagstaff | news | PASS | PASS (0 PDFs) | 5 domains | 3/6 undated (50%) |
-| niche: Flagstaff | government | PASS | PASS (0 PDFs) | 4 domains | 3/5 undated (60%) |
-| reliable: Bozeman | news | PASS | PASS (0 PDFs) | 4 domains | 0/6 undated (0%) |
-| reliable: Bozeman | government | PASS | PASS (1 PDFs) | 5 domains | 4/6 undated (67%) |
-| reliable: Flagstaff | news | PASS | PASS (0 PDFs) | 4 domains | 0/4 undated (0%) |
-| reliable: Flagstaff | government | PASS | PASS (0 PDFs) | 4 domains | 2/6 undated (33%) |
-| reliable+criteria: Bozeman+housing | news | PASS | PASS (0 PDFs) | 1 domains | 0/1 undated (0%) |
-| reliable+criteria: Bozeman+housing | government | PASS | PASS (0 PDFs) | 5 domains | 8/8 undated (100%) |
+| niche: Bozeman | news | PASS | PASS (0 PDFs) | 4 domains | 0/5 undated (0%) |
+| niche: Bozeman | government | PASS | PASS (1 PDFs) | 5 domains | 5/5 undated (100%) |
+| niche: Flagstaff | news | PASS | PASS (0 PDFs) | 3 domains | 1/4 undated (25%) |
+| niche: Flagstaff | government | PASS | PASS (0 PDFs) | 4 domains | 2/5 undated (40%) |
+| reliable: Bozeman | news | PASS | PASS (0 PDFs) | 2 domains | 0/4 undated (0%) |
+| reliable: Bozeman | government | PASS | PASS (0 PDFs) | 6 domains | 2/6 undated (33%) |
+| reliable: Flagstaff | news | PASS | PASS (0 PDFs) | 3 domains | 0/5 undated (0%) |
+| reliable: Flagstaff | government | PASS | PASS (0 PDFs) | 4 domains | 0/6 undated (0%) |
+| reliable+criteria: Bozeman+housing | news | PASS | PASS (0 PDFs) | 1 domains | 0/2 undated (0%) |
+| reliable+criteria: Bozeman+housing | government | PASS | PASS (0 PDFs) | 5 domains | 7/7 undated (100%) |
 | reliable+criteria: Flagstaff+water | news | PASS | PASS (0 PDFs) | 1 domains | 0/1 undated (0%) |
-| reliable+criteria: Flagstaff+water | government | PASS | PASS (1 PDFs) | 4 domains | 6/6 undated (100%) |
-| beat+niche: housing policy | news | PASS | PASS (0 PDFs) | 6 domains | 1/6 undated (17%) |
-| beat+niche: housing policy | analysis | PASS | PASS (0 PDFs) | 6 domains | 5/6 undated (83%) |
+| reliable+criteria: Flagstaff+water | government | PASS | PASS (2 PDFs) | 4 domains | 7/7 undated (100%) |
+| beat+niche: housing policy | news | PASS | PASS (0 PDFs) | 6 domains | 0/6 undated (0%) |
+| beat+niche: housing policy | analysis | PASS | PASS (0 PDFs) | 6 domains | 2/6 undated (33%) |
 | beat+niche: renewable energy | news | PASS | PASS (0 PDFs) | 6 domains | 0/6 undated (0%) |
 | beat+niche: renewable energy | analysis | PASS | PASS (0 PDFs) | 6 domains | 0/6 undated (0%) |
 | beat+reliable: housing policy | news | PASS | PASS (0 PDFs) | 8 domains | 0/8 undated (0%) |
-| beat+reliable: housing policy | analysis | PASS | PASS (0 PDFs) | 5 domains | 0/5 undated (0%) |
+| beat+reliable: housing policy | analysis | PASS | PASS (0 PDFs) | 6 domains | 0/6 undated (0%) |
 | beat+reliable: renewable energy | news | PASS | PASS (0 PDFs) | 8 domains | 0/8 undated (0%) |
 | beat+reliable: renewable energy | analysis | PASS | PASS (0 PDFs) | 6 domains | 0/6 undated (0%) |
 
@@ -876,19 +864,16 @@ Generated: 2026-03-18T08:28:16+00:00
 Checks whether the same URLs appear in both categories for a permutation.
 Note: In production, `cross_category_dedup()` runs at the router level after both categories complete.
 
-**beat+niche: renewable energy** — news ∩ analysis: 1 shared URLs
-- https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/
-
-**beat+reliable: housing policy** — news ∩ analysis: 1 shared URLs
-- https://www.idahostatesman.com/opinion/readers-opinion/article315078021.html
+**reliable: Flagstaff** — news ∩ government: 3 shared URLs
+- https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html
+- https://azdailysun.com/news/local/flagstaff-to-host-first-city-council-primary-in-12-years-mayor-s-race-uncontested-as/article_956bc7cd-e42a-4453-9825-eeecb8028611.html
+- https://www.flagstaffbusinessnews.com/flagstaff-marks-economic-development-week-with-events-tours-community-partnerships/
 
 ---
 ## Identified Flaws
 
-- **reliable+criteria: Bozeman+housing / news**: Only 1 article (raw=128, queries=8)
-- **reliable+criteria: Flagstaff+water / news**: Only 1 article (raw=79, queries=8)
-- **beat+niche: renewable energy**: URL overlap between news and analysis — 1 shared URLs
-- **beat+reliable: housing policy**: URL overlap between news and analysis — 1 shared URLs
+- **reliable+criteria: Flagstaff+water / news**: Only 1 article (raw=78, queries=8)
+- **reliable: Flagstaff**: URL overlap between news and government — 3 shared URLs
 
 ## Test Inputs
 
@@ -917,60 +902,823 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
     "queries_generated": 12,
     "queries_list": [
       "Bozeman local events this weekend",
-      "Bozeman city council meeting agenda",
+      "City of Bozeman council meeting agenda",
       "Bozeman community news updates",
       "What's happening in Bozeman culture",
-      "Bozeman neighborhood forum discussions",
-      "Local artists in Bozeman blog",
-      "Bozeman public school news",
+      "Bozeman local blogs and discussions",
+      "Community projects in Bozeman",
+      "Bozeman local government initiatives",
       "Bozeman community calendar",
       "Bozeman neighborhood groups online",
       "Bozeman volunteer opportunities",
       "Bozeman farmers market schedule",
       "Bozeman resident blogs"
     ],
-    "raw_results": 211,
-    "final_articles": 6,
+    "raw_results": 193,
+    "final_articles": 5,
     "articles": [
       {
-        "title": "Bozeman Curling Club hosts 'Learn to Curl' event to grow community interest",
-        "url": "https://www.montanarightnow.com/bozeman/bozeman-curling-club-hosts-learn-to-curl-event-to-grow-community-interest/article_e67d12f9-45d8-4d1f-976d-034c07033f57.html",
+        "title": "A third No Kings Day protest is coming to Bozeman on Saturday",
+        "url": "https://www.bozemandailychronicle.com/news/a-third-no-kings-day-protest-is-coming-to-bozeman-on-saturday/article_adfabba8-8ec3-4278-af25-3821c9b5f903.html",
+        "source": "bozemandailychronicle.com",
+        "date": "2026-03-25T22:19:08.384233"
+      },
+      {
+        "title": "Bozeman Residents Preparing for Big Event on Saturday",
+        "url": "https://mooseradio.com/bozeman-no-kings-2026/",
+        "source": "mooseradio.com",
+        "date": "2026-03-24T22:19:08.384252"
+      },
+      {
+        "title": "New Mural At Museum Of The Rockies Celebrates Indigenous Culture",
+        "url": "https://www.montanarightnow.com/bozeman/new-mural-at-museum-of-the-rockies-celebrates-indigenous-culture/article_f73a182f-fca5-4ef8-ae85-09f7c1b2bd20.html",
         "source": "montanarightnow.com",
-        "date": "2026-03-11T09:24:05.579337"
+        "date": "2026-03-26T22:19:08.384258"
       },
       {
-        "title": "Bozeman Health Seeks Community Input Through Health Needs Survey",
-        "url": "https://www.montanarightnow.com/bozeman/bozeman-health-seeks-community-input-through-health-needs-survey/article_a8ccf8cb-2692-43ca-b939-66e23dfb9df9.html",
-        "source": "montanarightnow.com",
-        "date": "2026-03-11T09:24:05.579508"
+        "title": "Republican legislator rolls out new property tax cap initiative",
+        "url": "https://www.kulr8.com/news/state/republican-legislator-rolls-out-new-property-tax-cap-initiative/article_97602887-6897-521e-874a-e4d130a91d5d.html",
+        "source": "kulr8.com",
+        "date": "2026-03-24T22:19:08.384261"
       },
       {
-        "title": "Controversial Trump nominee from Bozeman withdraws after lack of GOP support in U.S. Senate",
-        "url": "https://dailymontanan.com/2026/03/11/controversial-trump-nominee-from-bozeman-withdraws-after-lack-of-gop-support-in-u-s-senate/",
-        "source": "dailymontanan.com",
-        "date": "2026-03-12T09:24:05.579529"
+        "title": "Montana industries sue to block ballot initiative on corporate spending in elections",
+        "url": "https://www.bozemandailychronicle.com/news/montana-industries-sue-to-block-ballot-initiative-on-corporate-spending-in-elections/article_849d98a0-b2f8-5f78-bf86-a33cb1f0b814.html",
+        "source": "bozemandailychronicle.com",
+        "date": "2026-03-23T22:19:08.384264"
+      }
+    ],
+    "summary": "\ud83d\udcf0 Bozeman will host a third \"No Kings Day\" protest this Saturday, part of a nationwide movement with over 3000 registered events [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/a-third-no-kings-day-protest-is-coming-to-bozeman-on-saturday/article_adfabba8-8ec3-4278-af25-3821c9b5",
+    "processing_time_ms": 12312,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
       },
       {
-        "title": "Daniel Carty, Angie Kociolek & Linda Semones: Only you can save Bozeman\u2019s historical character, sense of place",
-        "url": "https://www.fairfieldsuntimes.com/news/state/daniel-carty-angie-kociolek-linda-semones-only-you-can-save-bozeman-s-historical-character-sense/article_56a6c9f8-9fb6-5cdd-82bc-c2d1702c3213.html",
-        "source": "fairfieldsuntimes.com",
-        "date": "2026-03-17T09:24:05.579549"
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
       },
       {
-        "title": "Sean Maddox named new head football coach at Bozeman",
-        "url": "https://www.newsherald.com/story/sports/high-school/football/2026/03/06/bozeman-high-football-names-sean-maddox-new-coach/89027799007/",
-        "source": "newsherald.com",
-        "date": "2026-03-04T09:24:05.579561"
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "4 domains",
+        "unique_domains": 4,
+        "violations": {}
       },
       {
-        "title": "Bozeman Town Events - BeLocal",
-        "url": "https://www.belocalpub.com/locations/bozeman-belocal-b585/articles/bozeman-town-events-8cee3d/",
-        "source": "belocalpub.com",
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "0/5 undated (0%)",
+        "ratio": 0.0
+      }
+    ]
+  },
+  {
+    "permutation": "niche: Bozeman",
+    "category": "government",
+    "source_mode": "niche",
+    "scope": "location",
+    "queries_generated": 12,
+    "queries_list": [
+      "Bozeman city council meeting minutes",
+      "Bozeman public works projects updates",
+      "Bozeman local election results",
+      "Bozeman zoning permit applications",
+      "Mayor of Bozeman official statements",
+      "Bozeman municipal services news",
+      "Bozeman city planning decisions",
+      "City of Bozeman official website",
+      "Bozeman Police Department",
+      "Bozeman Public Schools",
+      "Bozeman Community Hospital",
+      "Bozeman Public Library"
+    ],
+    "raw_results": 250,
+    "final_articles": 5,
+    "articles": [
+      {
+        "title": "Bozeman commission to hold meeting about leaked video | City",
+        "url": "https://www.bozemandailychronicle.com/news/city/bozeman-commission-to-hold-meeting-about-leaked-video/article_0a9c8422-c05c-11ee-aed9-43072228b4d6.html",
+        "source": "bozemandailychronicle.com",
+        "date": null
+      },
+      {
+        "title": "[PDF] City Commission 2/11/25 https://bozeman.granicus.com/player/clip ...",
+        "url": "https://www.thegvsentinel.com/wp-content/uploads/2025/04/City-Commission-Meeting-Notes-2.11.25.pdf",
+        "source": "thegvsentinel.com",
+        "date": null
+      },
+      {
+        "title": "City of Bozeman - Transportation and Engineering Capital Projects",
+        "url": "https://www.bozeman.net/departments/transportation-engineering/transportation-and-engineering-projects",
+        "source": "bozeman.net",
+        "date": null
+      },
+      {
+        "title": "Planning Projects | Bozeman Open Data - ArcGIS Online",
+        "url": "https://public-bozeman.opendata.arcgis.com/maps/4b96dc8d9a6a4163b902b5ccf32df58c",
+        "source": "public-bozeman.opendata.arcgis.com",
+        "date": null
+      },
+      {
+        "title": "Gallatin County finalizes local election results - Explore Big Sky",
+        "url": "https://www.explorebigsky.com/gallatin-county-finalizes-local-election-results/55458",
+        "source": "explorebigsky.com",
         "date": null
       }
     ],
-    "summary": "\u2022 The Bozeman Curling Club is hosting \"Learn to Curl\" events to increase community interest in the sport as the winter season concludes [Montana Right Now](https://www.montanarightnow.com/bozeman/bozeman-curling-club-hosts-learn-to-curl-event-to-grow-community-interest/article_e67d12f9-45d8-4d1f-976",
-    "processing_time_ms": 7951,
+    "summary": "\ud83d\udea8 The Bozeman Commission will hold a meeting to discuss a leaked video of City Manager Jeff Mihelich in a private conversation with a city staff member, raising concerns about city operations and transparency [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/city/bozeman-commissio",
+    "processing_time_ms": 18819,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 1 PDFs",
+        "stale_articles": [],
+        "pdf_count": 1,
+        "pdfs": [
+          {
+            "title": "[PDF] City Commission 2/11/25 https://bozeman.granicus.com/player/clip ...",
+            "url": "https://www.thegvsentinel.com/wp-content/uploads/2025/04/City-Commission-Meeting-Notes-2.11.25.pdf"
+          }
+        ]
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "5 domains",
+        "unique_domains": 5,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "WARN",
+        "detail": "5/5 undated (100%)",
+        "ratio": 1.0
+      }
+    ]
+  },
+  {
+    "permutation": "niche: Flagstaff",
+    "category": "news",
+    "source_mode": "niche",
+    "scope": "location",
+    "queries_generated": 12,
+    "queries_list": [
+      "Flagstaff local events this weekend",
+      "What's happening in Flagstaff today",
+      "Flagstaff city council meeting agenda",
+      "Community news Flagstaff AZ",
+      "Flagstaff local music scene blog",
+      "Upcoming festivals in Flagstaff",
+      "Flagstaff neighborhood watch updates",
+      "Flagstaff community calendar",
+      "Flagstaff neighborhood groups online",
+      "Volunteer opportunities Flagstaff AZ",
+      "New businesses opening Flagstaff",
+      "Flagstaff resident blogs"
+    ],
+    "raw_results": 195,
+    "final_articles": 4,
+    "articles": [
+      {
+        "title": "New year brings new business closures and openings around ...",
+        "url": "https://azdailysun.com/news/local/new-year-brings-new-business-closures-and-openings-around-downtown-flagstaff/article_b678d03a-e7f6-11ef-8b5c-57354a221abe.html",
+        "source": "azdailysun.com",
+        "date": null
+      },
+      {
+        "title": "Third \u201cNo Kings\u201d Protest Scheduled for March 28 \u2013 KAFF News \u2013 Flagstaff | Prescott News",
+        "url": "https://gcmaz.com/kaff-news/kaff_news/third-no-kings-protest-scheduled-for-march-28/",
+        "source": "gcmaz.com",
+        "date": "2026-03-27T22:19:38.867635"
+      },
+      {
+        "title": "Flagstaff Marks Economic Development Week With Events, Tours, Community Partnerships",
+        "url": "https://www.flagstaffbusinessnews.com/flagstaff-marks-economic-development-week-with-events-tours-community-partnerships/",
+        "source": "flagstaffbusinessnews.com",
+        "date": "2026-03-27T22:19:38.867646"
+      },
+      {
+        "title": "Flagstaff to host first city council primary in 12 years; mayor\u2019s race uncontested as Barotz again drops bid",
+        "url": "https://azdailysun.com/news/local/flagstaff-to-host-first-city-council-primary-in-12-years-mayor-s-race-uncontested-as/article_956bc7cd-e42a-4453-9825-eeecb8028611.html",
+        "source": "azdailysun.com",
+        "date": "2026-03-26T22:19:38.867650"
+      }
+    ],
+    "summary": "\u2022 Flagstaff is experiencing a shift in its downtown business landscape with new openings and closures marking the new year [AZ Daily Sun](https://azdailysun.com/news/local/new-year-brings-new-business-closures-and-openings-around-downtown-flagstaff/article_b678d03a-e7f6-11ef-8b5c-57354a221abe.html).",
+    "processing_time_ms": 11125,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "3 domains",
+        "unique_domains": 3,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "1/4 undated (25%)",
+        "ratio": 0.25
+      }
+    ]
+  },
+  {
+    "permutation": "niche: Flagstaff",
+    "category": "government",
+    "source_mode": "niche",
+    "scope": "location",
+    "queries_generated": 12,
+    "queries_list": [
+      "Flagstaff city council meeting agenda",
+      "Flagstaff municipal services updates",
+      "Flagstaff local election news",
+      "Flagstaff zoning regulations changes",
+      "Flagstaff mayor's office announcements",
+      "Flagstaff public works projects",
+      "Flagstaff city government decisions",
+      "City of Flagstaff official website",
+      "Flagstaff Police Department",
+      "Flagstaff Unified School District",
+      "Flagstaff public health services",
+      "Flagstaff Public Library"
+    ],
+    "raw_results": 263,
+    "final_articles": 5,
+    "articles": [
+      {
+        "title": "Flagstaff council approves downtown enhanced services contract ...",
+        "url": "https://citizenportal.ai/articles/7439981/Arizona/Coconino-County/Flagstaff-City/Flagstaff-council-approves-downtown-enhanced-services-contract-and-delays-parking-rate-hike",
+        "source": "citizenportal.ai",
+        "date": null
+      },
+      {
+        "title": "Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road",
+        "url": "https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html",
+        "source": "azdailysun.com",
+        "date": "2026-03-16T22:20:00.096672"
+      },
+      {
+        "title": "Flagstaff to Adopt New Rates for Water, Wastewater, and Reclaimed ...",
+        "url": "https://www.signalsaz.com/articles/flagstaff-to-adopt-new-rates-for-water-wastewater-and-reclaimed-water-services/",
+        "source": "signalsaz.com",
+        "date": null
+      },
+      {
+        "title": "FLAGSTAFF UPDATE: Potential ICE Presence & Know Your Rights",
+        "url": "https://opvp.navajo-nsn.gov/260328-potential-ice-presence-know-your-rights/",
+        "source": "opvp.navajo-nsn.gov",
+        "date": "2026-03-28T22:20:00.096684"
+      },
+      {
+        "title": "Coconino County Public Works provides mid-fiscal year update on revenue and projects",
+        "url": "https://azdailysun.com/news/local/coconino-county-public-works-provides-mid-fiscal-year-update-on-revenue-and-projects/article_645b7165-8127-4c35-b417-20795d5dc9e3.html",
+        "source": "azdailysun.com",
+        "date": "2026-03-27T22:20:00.096688"
+      }
+    ],
+    "summary": "\ud83c\udfdb\ufe0f The Flagstaff City Council approved a three-year contract for enhanced downtown services with the Flagstaff Downtown Business Alliance, costing approximately $667,000 annually, and also delayed a parking rate hike [Citizen Portal](https://citizenportal.ai/articles/7439981/Arizona/Coconino-County/",
+    "processing_time_ms": 21162,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "4 domains",
+        "unique_domains": 4,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "2/5 undated (40%)",
+        "ratio": 0.4
+      }
+    ]
+  },
+  {
+    "permutation": "reliable: Bozeman",
+    "category": "news",
+    "source_mode": "reliable",
+    "scope": "location",
+    "queries_generated": 7,
+    "queries_list": [
+      "Bozeman local events this weekend",
+      "City of Bozeman council meeting agenda",
+      "Bozeman community news updates",
+      "What's happening in Bozeman culture",
+      "Bozeman local blogs and discussions",
+      "Community projects in Bozeman",
+      "Bozeman local government initiatives"
+    ],
+    "raw_results": 125,
+    "final_articles": 4,
+    "articles": [
+      {
+        "title": "Bozeman Arts & Culture for April 2026",
+        "url": "https://www.bozemandailychronicle.com/news/bozeman-arts-culture-for-april-2026/article_d78384f5-6330-4773-a83b-d14635efe744.amp.html",
+        "source": "bozemandailychronicle.com",
+        "date": "2026-03-27T22:20:03.126572"
+      },
+      {
+        "title": "A third No Kings Day protest is coming to Bozeman on Saturday",
+        "url": "https://www.bozemandailychronicle.com/news/a-third-no-kings-day-protest-is-coming-to-bozeman-on-saturday/article_adfabba8-8ec3-4278-af25-3821c9b5f903.html",
+        "source": "bozemandailychronicle.com",
+        "date": "2026-03-25T22:20:03.126592"
+      },
+      {
+        "title": "New Mural At Museum Of The Rockies Celebrates Indigenous Culture",
+        "url": "https://www.montanarightnow.com/bozeman/new-mural-at-museum-of-the-rockies-celebrates-indigenous-culture/article_f73a182f-fca5-4ef8-ae85-09f7c1b2bd20.html",
+        "source": "montanarightnow.com",
+        "date": "2026-03-26T22:20:03.126596"
+      },
+      {
+        "title": "Montana industries sue to block ballot initiative on corporate spending in elections",
+        "url": "https://www.bozemandailychronicle.com/news/montana-industries-sue-to-block-ballot-initiative-on-corporate-spending-in-elections/article_849d98a0-b2f8-5f78-bf86-a33cb1f0b814.html",
+        "source": "bozemandailychronicle.com",
+        "date": "2026-03-23T22:20:03.126600"
+      }
+    ],
+    "summary": "\ud83c\udfad Bozeman's arts and culture scene is highlighted in a monthly roundup for April 2026, featuring various community events and happenings [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/bozeman-arts-culture-for-april-2026/article_d78384f5-6330-4773-a83b-d14635efe744.amp.html).\n\ud83d\udea8 ",
+    "processing_time_ms": 3582,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "2 domains",
+        "unique_domains": 2,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "0/4 undated (0%)",
+        "ratio": 0.0
+      }
+    ]
+  },
+  {
+    "permutation": "reliable: Bozeman",
+    "category": "government",
+    "source_mode": "reliable",
+    "scope": "location",
+    "queries_generated": 12,
+    "queries_list": [
+      "Bozeman city council meeting minutes",
+      "Bozeman public works projects updates",
+      "Bozeman local election results",
+      "Bozeman zoning permit applications",
+      "Mayor of Bozeman official statements",
+      "Bozeman municipal services news",
+      "Bozeman city planning decisions",
+      "City of Bozeman official website",
+      "Bozeman Police Department",
+      "Bozeman Public Schools",
+      "Bozeman Community Hospital",
+      "Bozeman Public Library"
+    ],
+    "raw_results": 175,
+    "final_articles": 6,
+    "articles": [
+      {
+        "title": "13 Bozeman Police officers caught playing 'crime bingo' ...",
+        "url": "https://www.kbzk.com/news/local-news/13-bozeman-police-officers-caught-playing-crime-bingo-while-on-duty",
+        "source": "kbzk.com",
+        "date": null
+      },
+      {
+        "title": "Police Department News | City Of Bozeman",
+        "url": "https://www.bozeman.net/departments/police/advanced-components/police-department-news",
+        "source": "bozeman.net",
+        "date": null
+      },
+      {
+        "title": "City leaders contemplate a short-term rental policy similar to Bozeman\u2019s",
+        "url": "https://hungryhorsenews.com/news/2026/mar/25/city-leaders-contemplate-a-short-term-rental-policy-similar-to-bozemans/",
+        "source": "hungryhorsenews.com",
+        "date": "2026-03-25T22:20:15.878276"
+      },
+      {
+        "title": "Billings city council sad city administrator is leaving, but happy for him and his family",
+        "url": "https://www.ktvq.com/news/local-news/billings-city-council-sad-city-administrator-is-leaving-but-happy-for-him-and-his-family",
+        "source": "ktvq.com",
+        "date": "2026-03-23T22:20:15.878286"
+      },
+      {
+        "title": "Hamilton City Council March 17 Agenda Packet",
+        "url": "https://www.montanarightnow.com/news/state/hamilton-city-council-march-17-agenda-packet/article_624acd06-8a3f-5182-b2f1-b4a85eb09233.html?mode=nowapp",
+        "source": "montanarightnow.com",
+        "date": "2026-03-24T22:20:15.878291"
+      },
+      {
+        "title": "Inside Montana's conflict with its capital city over immigration enforcement",
+        "url": "https://www.washingtonpost.com/national/2026/03/25/montana-immigration-enforcement-sanctuary-helena/f5cc3800-288f-11f1-a0f2-3ba4c9fe08ac_story.html",
+        "source": "washingtonpost.com",
+        "date": "2026-03-27T22:20:15.878295"
+      }
+    ],
+    "summary": "\ud83d\udea8 Thirteen Bozeman Police officers were disciplined after being caught playing \"crime bingo\" while on duty, raising concerns about departmental conduct and accountability [KBZK](https://www.kbzk.com/news/local-news/13-bozeman-police-officers-caught-playing-crime-bingo-while-on-duty).\n\ud83c\udfdb\ufe0f The City of ",
+    "processing_time_ms": 11689,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "6 domains",
+        "unique_domains": 6,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "2/6 undated (33%)",
+        "ratio": 0.333
+      }
+    ]
+  },
+  {
+    "permutation": "reliable: Flagstaff",
+    "category": "news",
+    "source_mode": "reliable",
+    "scope": "location",
+    "queries_generated": 7,
+    "queries_list": [
+      "Flagstaff local events this weekend",
+      "What's happening in Flagstaff today",
+      "Flagstaff city council meeting agenda",
+      "Community news Flagstaff AZ",
+      "Flagstaff local music scene blog",
+      "Upcoming festivals in Flagstaff",
+      "Flagstaff neighborhood watch updates"
+    ],
+    "raw_results": 105,
+    "final_articles": 5,
+    "articles": [
+      {
+        "title": "Third \u201cNo Kings\u201d Protest Scheduled for March 28 \u2013 KAFF News \u2013 Flagstaff | Prescott News",
+        "url": "https://gcmaz.com/kaff-news/kaff_news/third-no-kings-protest-scheduled-for-march-28/",
+        "source": "gcmaz.com",
+        "date": "2026-03-27T22:20:21.841173"
+      },
+      {
+        "title": "Flagstaff Marks Economic Development Week With Events, Tours, Community Partnerships",
+        "url": "https://www.flagstaffbusinessnews.com/flagstaff-marks-economic-development-week-with-events-tours-community-partnerships/",
+        "source": "flagstaffbusinessnews.com",
+        "date": "2026-03-27T22:20:21.841191"
+      },
+      {
+        "title": "Flagstaff to host first city council primary in 12 years; mayor\u2019s race uncontested as Barotz again drops bid",
+        "url": "https://azdailysun.com/news/local/flagstaff-to-host-first-city-council-primary-in-12-years-mayor-s-race-uncontested-as/article_956bc7cd-e42a-4453-9825-eeecb8028611.html",
+        "source": "azdailysun.com",
+        "date": "2026-03-26T22:20:21.841196"
+      },
+      {
+        "title": "Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road",
+        "url": "https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html",
+        "source": "azdailysun.com",
+        "date": "2026-03-16T22:20:21.841199"
+      },
+      {
+        "title": "Flagstaff Event Almanac for March 28",
+        "url": "https://azdailysun.com/news/local/flagstaff-event-almanac-for-march-28/article_8a08dfdd-2af8-4c99-a018-16cbc5181574.html",
+        "source": "azdailysun.com",
+        "date": "2026-03-28T22:20:21.841203"
+      }
+    ],
+    "summary": "\u2022 A third \"No Kings\" Protest is scheduled for March 28 in Flagstaff, part of a nationwide event [KAFF News](https://gcmaz.com/kaff-news/kaff_news/third-no-kings-protest-scheduled-for-march-28/).\n\u2022 Flagstaff celebrated Economic Development Week with various events, tours, and community partnerships a",
+    "processing_time_ms": 6467,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "2 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "3 domains",
+        "unique_domains": 3,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "0/5 undated (0%)",
+        "ratio": 0.0
+      }
+    ]
+  },
+  {
+    "permutation": "reliable: Flagstaff",
+    "category": "government",
+    "source_mode": "reliable",
+    "scope": "location",
+    "queries_generated": 12,
+    "queries_list": [
+      "Flagstaff city council meeting agenda",
+      "Flagstaff municipal services updates",
+      "Flagstaff local election news",
+      "Flagstaff zoning regulations changes",
+      "Flagstaff mayor's office announcements",
+      "Flagstaff public works projects",
+      "Flagstaff city government decisions",
+      "City of Flagstaff official website",
+      "Flagstaff Police Department",
+      "Flagstaff Unified School District",
+      "Flagstaff public health services",
+      "Flagstaff Public Library"
+    ],
+    "raw_results": 192,
+    "final_articles": 6,
+    "articles": [
+      {
+        "title": "Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road",
+        "url": "https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html",
+        "source": "azdailysun.com",
+        "date": "2026-03-16T22:20:25.973648"
+      },
+      {
+        "title": "FLAGSTAFF UPDATE: Potential ICE Presence & Know Your Rights",
+        "url": "https://opvp.navajo-nsn.gov/260328-potential-ice-presence-know-your-rights/",
+        "source": "opvp.navajo-nsn.gov",
+        "date": "2026-03-28T22:20:25.973667"
+      },
+      {
+        "title": "Coconino County Public Works provides mid-fiscal year update on revenue and projects",
+        "url": "https://azdailysun.com/news/local/coconino-county-public-works-provides-mid-fiscal-year-update-on-revenue-and-projects/article_645b7165-8127-4c35-b417-20795d5dc9e3.html",
+        "source": "azdailysun.com",
+        "date": "2026-03-27T22:20:25.973672"
+      },
+      {
+        "title": "Fiber Deployment Project to Inject $100M into Flagstaff Economy via Public-Private Partnership",
+        "url": "https://www.businesswire.com/news/home/20260319938614/en/Fiber-Deployment-Project-to-Inject-%24100M-into-Flagstaff-Economy-via-Public-Private-Partnership",
+        "source": "businesswire.com",
+        "date": "2026-03-23T22:20:25.973676"
+      },
+      {
+        "title": "Flagstaff to host first city council primary in 12 years; mayor\u2019s race uncontested as Barotz again drops bid",
+        "url": "https://azdailysun.com/news/local/flagstaff-to-host-first-city-council-primary-in-12-years-mayor-s-race-uncontested-as/article_956bc7cd-e42a-4453-9825-eeecb8028611.html",
+        "source": "azdailysun.com",
+        "date": "2026-03-26T22:20:25.973679"
+      },
+      {
+        "title": "Flagstaff Marks Economic Development Week With Events, Tours, Community Partnerships",
+        "url": "https://www.flagstaffbusinessnews.com/flagstaff-marks-economic-development-week-with-events-tours-community-partnerships/",
+        "source": "flagstaffbusinessnews.com",
+        "date": "2026-03-27T22:20:25.973682"
+      }
+    ],
+    "summary": "\ud83c\udfdb\ufe0f The Flagstaff City Council has approved the first reading of a rezoning proposal for the Lone Tree Ranch project, which will bring 168 units of affordable housing to the city [AZ Daily Sun](https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-d",
+    "processing_time_ms": 3990,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "4 domains",
+        "unique_domains": 4,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "0/6 undated (0%)",
+        "ratio": 0.0
+      }
+    ]
+  },
+  {
+    "permutation": "reliable+criteria: Bozeman+housing",
+    "category": "news",
+    "source_mode": "reliable",
+    "scope": "location+topic",
+    "queries_generated": 8,
+    "queries_list": [
+      "Bozeman housing development projects",
+      "new housing developments Bozeman",
+      "Bozeman affordable housing development initiatives",
+      "impact of housing development on Bozeman community",
+      "Bozeman zoning laws and housing development",
+      "Bozeman real estate housing development trends",
+      "local perspectives on housing development in Bozeman",
+      "housing development\" \"Bozeman\" US"
+    ],
+    "raw_results": 128,
+    "final_articles": 2,
+    "articles": [
+      {
+        "title": "Montana Supreme Court rules against Bozeman group on housing reform",
+        "url": "https://www.bozemandailychronicle.com/news/montana-supreme-court-rules-against-bozeman-group-on-housing-reform/article_9269c53b-fb1a-40ed-972f-5f077c11fa33.html",
+        "source": "bozemandailychronicle.com",
+        "date": "2026-03-23T22:20:33.359975"
+      },
+      {
+        "title": "\u2018Tell me where to sign': Proposed Big Bend border wall hits close to home in Bozeman",
+        "url": "https://www.bozemandailychronicle.com/news/tell-me-where-to-sign-proposed-big-bend-border-wall-hits-close-to-home-in/article_091ac61b-9f57-487d-bbc0-fd78da50679c.html",
+        "source": "bozemandailychronicle.com",
+        "date": "2026-03-26T22:20:33.359997"
+      }
+    ],
+    "summary": "\ud83c\udfdb\ufe0f The Montana Supreme Court ruled against a Bozeman group on housing reform, a decision Governor Greg Gianforte hailed as a \"landmark victory\" [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/montana-supreme-court-rules-against-bozeman-group-on-housing-reform/article_9269c53b-fb",
+    "processing_time_ms": 7326,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "1 domains",
+        "unique_domains": 1,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "0/2 undated (0%)",
+        "ratio": 0.0
+      }
+    ]
+  },
+  {
+    "permutation": "reliable+criteria: Bozeman+housing",
+    "category": "government",
+    "source_mode": "reliable",
+    "scope": "location+topic",
+    "queries_generated": 13,
+    "queries_list": [
+      "Bozeman city council housing development decisions",
+      "Bozeman municipal planning housing projects",
+      "Bozeman zoning laws new housing construction",
+      "Bozeman mayor housing development initiatives",
+      "Bozeman public works housing infrastructure",
+      "Bozeman local elections housing policy",
+      "Bozeman housing development permits and approvals",
+      "housing development\" \"Bozeman\" US",
+      "Bozeman Planning and Community Development Department housing",
+      "Bozeman City Council meeting minutes housing development",
+      "Bozeman housing development permits public records",
+      "Bozeman zoning ordinance housing development",
+      "Bozeman affordable housing initiatives government resources"
+    ],
+    "raw_results": 187,
+    "final_articles": 7,
+    "articles": [
+      {
+        "title": "Bozeman City Commission to consider resolution updating ...",
+        "url": "https://www.montanarightnow.com/bozeman/bozeman-city-commission-to-consider-resolution-updating-affordable-housing-ordinance-cash-in-lieu-system/article_76da8fa5-62fd-448f-b6b7-caea8a3f0c3a.html",
+        "source": "montanarightnow.com",
+        "date": null
+      },
+      {
+        "title": "Bozeman commissioners amend, approve affordable ...",
+        "url": "https://www.bozemandailychronicle.com/news/developers-delight-bozeman-commissioners-amend-approve-affordable-housing-policy/article_06033e9c-de74-11ef-b73a-bfa9d201b840.html",
+        "source": "bozemandailychronicle.com",
+        "date": null
+      },
+      {
+        "title": "Bozeman moving forward on HUD housing plan | News",
+        "url": "https://www.bozemandailychronicle.com/news/bozeman-moving-forward-on-hud-housing-plan/article_b983bbac-4aa1-11ef-9da1-7f221bad20c2.html",
+        "source": "bozemandailychronicle.com",
+        "date": null
+      },
+      {
+        "title": "Bozeman officials outline Unified Development Code rewrite to ...",
+        "url": "https://citizenportal.ai/articles/6074077/Montana/Gallatin-County/Bozeman-City/Bozeman-officials-outline-Unified-Development-Code-rewrite-to-simplify-zoning-support-housing",
+        "source": "citizenportal.ai",
+        "date": null
+      },
+      {
+        "title": "Fowler Housing Project | City Of Bozeman",
+        "url": "https://www.bozeman.net/departments/economic-development/community-housing/fowler-housing-project",
+        "source": "bozeman.net",
+        "date": null
+      },
+      {
+        "title": "Community Housing Action Plan | City Of Bozeman",
+        "url": "https://www.bozeman.net/departments/economic-development/community-housing/community-housing-action-plan",
+        "source": "bozeman.net",
+        "date": null
+      },
+      {
+        "title": "Active Projects and Initiatives | Gallatin County, MT",
+        "url": "https://www.gallatinmt.gov/planning-community-development/pages/active-projects-and-initiatives",
+        "source": "gallatinmt.gov",
+        "date": null
+      }
+    ],
+    "summary": "\ud83c\udfd7\ufe0f The Bozeman City Commission has amended and approved an updated affordable housing ordinance, increasing the affordability period for units to 50 years and offering options for units at 60% of area median income [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/developers-delig",
+    "processing_time_ms": 32054,
     "error": null,
     "quality_checks": [
       {
@@ -996,74 +1744,140 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
       },
       {
         "check": "undated_ratio",
-        "status": "PASS",
-        "detail": "1/6 undated (17%)",
-        "ratio": 0.167
+        "status": "WARN",
+        "detail": "7/7 undated (100%)",
+        "ratio": 1.0
       }
     ]
   },
   {
-    "permutation": "niche: Bozeman",
-    "category": "government",
-    "source_mode": "niche",
-    "scope": "location",
-    "queries_generated": 12,
+    "permutation": "reliable+criteria: Flagstaff+water",
+    "category": "news",
+    "source_mode": "reliable",
+    "scope": "location+topic",
+    "queries_generated": 8,
     "queries_list": [
-      "Bozeman city council meeting minutes",
-      "Bozeman municipal services updates",
-      "Bozeman local election results",
-      "Bozeman zoning permits news",
-      "Bozeman mayor official announcements",
-      "Bozeman public works projects",
-      "Bozeman city government news",
-      "City of Bozeman official website",
-      "Bozeman Police Department",
-      "Bozeman Public Schools",
-      "Bozeman Community Hospital",
-      "Bozeman Public Library"
+      "Flagstaff water supply drought impact on residents",
+      "Arizona drought conditions affecting Flagstaff water",
+      "Flagstaff water conservation efforts during drought",
+      "City of Flagstaff drought management plan",
+      "Impact of drought on Flagstaff's water resources",
+      "Flagstaff water supply challenges and drought solutions",
+      "Local perspectives on Flagstaff water shortage due to drought",
+      "water supply drought\" \"Flagstaff\" US"
     ],
-    "raw_results": 246,
-    "final_articles": 6,
+    "raw_results": 78,
+    "final_articles": 1,
     "articles": [
       {
-        "title": "[PDF] bozeman, montana",
-        "url": "https://bloximages.chicago2.vip.townnews.com/bozemandailychronicle.com/content/tncms/assets/v3/classifieds/2/b7/2b7a334d-3064-5a08-81c2-175f2f998a03/69abbf2266e68.pdf.pdf",
-        "source": "bloximages.chicago2.vip.townnews.com",
-        "date": "2026-03-10T00:00:00"
+        "title": "How Prepared is Flagstaff for More Warm, Dry Weather?",
+        "url": "https://www.flagstaffbusinessnews.com/how-prepared-is-flagstaff-for-more-warm-dry-weather/",
+        "source": "flagstaffbusinessnews.com",
+        "date": "2026-03-27T22:21:12.348451"
+      }
+    ],
+    "summary": "\ud83d\udcf0 Flagstaff is facing increased concerns about its preparedness for continued warm and dry weather following a dry winter, highlighting potential impacts on the community [Flagstaff Business News](https://www.flagstaffbusinessnews.com/how-prepared-is-flagstaff-for-more-warm-dry-weather/).",
+    "processing_time_ms": 6312,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
       },
       {
-        "title": "Request for Proposals (RFP)",
-        "url": "https://www.bozemandailychronicle.com/classifieds/legals/legals/request-for-proposals-rfp/pdfdisplayad_fba4de23-27da-5c89-9df7-8294dc6eda39.html",
-        "source": "bozemandailychronicle.com",
-        "date": "2026-03-15T09:24:21.654305"
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
       },
       {
-        "title": "Bozeman City Commission approves revised Affordable ...",
-        "url": "https://nbcmontana.com/news/local/bozeman-city-commission-approves-revised-affordable-housing-ordinance",
-        "source": "nbcmontana.com",
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "1 domains",
+        "unique_domains": 1,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "0/1 undated (0%)",
+        "ratio": 0.0
+      }
+    ]
+  },
+  {
+    "permutation": "reliable+criteria: Flagstaff+water",
+    "category": "government",
+    "source_mode": "reliable",
+    "scope": "location+topic",
+    "queries_generated": 13,
+    "queries_list": [
+      "Flagstaff city council water drought decisions",
+      "Flagstaff municipal water supply public works drought",
+      "Flagstaff local elections water drought policy",
+      "Flagstaff zoning regulations water restrictions drought",
+      "Flagstaff mayor announcement water shortage",
+      "Flagstaff city government drought response plan",
+      "Flagstaff public works drought management strategies",
+      "water supply drought\" \"Flagstaff\" US",
+      "Flagstaff water conservation commission drought reports",
+      "City of Flagstaff public records water supply drought",
+      "Flagstaff municipal water department drought minutes",
+      "Flagstaff government studies water drought impact",
+      "Flagstaff official water resource management drought portal"
+    ],
+    "raw_results": 86,
+    "final_articles": 7,
+    "articles": [
+      {
+        "title": "[DOC] https://www.flagstaff.az.gov/DocumentCenter/View/8583",
+        "url": "https://www.flagstaff.az.gov/DocumentCenter/View/8583",
+        "source": "flagstaff.az.gov",
         "date": null
       },
       {
-        "title": "[PDF] Statistics - Gallatin County",
-        "url": "https://www.gallatinmt.gov/sites/g/files/vyhlif606/f/uploads/11.4.25_final_unofficial_results.pdf",
-        "source": "gallatinmt.gov",
+        "title": "Flagstaff's drought worsens despite rain; Upper Lake Mary filled ...",
+        "url": "https://azdailysun.com/news/local/weather/flagstaff-s-drought-worsens-despite-rain-upper-lake-mary-filled-above-average/article_cfd6252e-f759-5930-9b08-669fb147f37f.html",
+        "source": "azdailysun.com",
         "date": null
       },
       {
-        "title": "Weekly Community Development Projects on Public Notice | City of ...",
-        "url": "https://www.bozeman.net/Home/Components/News/News/8912/",
-        "source": "bozeman.net",
+        "title": "[PDF] National Weather Service Flagstaff Drought Information Statement",
+        "url": "https://www.weather.gov/media/fgz/DGT/DGT_FGZ_02172024.pdf",
+        "source": "weather.gov",
         "date": null
       },
       {
-        "title": "Bozeman provisionally adopts UDC increasing zoning density",
-        "url": "https://www.kulr8.com/news/state/bozeman-provisionally-adopts-udc-increasing-zoning-density/article_050ab567-5266-512c-969b-a59c6ce185f4.html",
-        "source": "kulr8.com",
+        "title": "Drought Information Statement April 20, 2025",
+        "url": "https://www.weather.gov/media/fgz/DGT/DGT_FGZ_04202025.pdf",
+        "source": "weather.gov",
+        "date": null
+      },
+      {
+        "title": "Water Conservation System",
+        "url": "https://www.coconino.az.gov/2783/Water-Conservation-System",
+        "source": "coconino.az.gov",
+        "date": null
+      },
+      {
+        "title": "Water Conservation - Coconino.az.gov",
+        "url": "https://www.coconino.az.gov/2807/Water-Conservation",
+        "source": "coconino.az.gov",
+        "date": null
+      },
+      {
+        "title": "Adequate Water Supply Designation | City of Flagstaff Official Website",
+        "url": "https://www.flagstaff.az.gov/2263/Adequate-Water-Supply-Designation",
+        "source": "flagstaff.az.gov",
         "date": null
       }
     ],
-    "summary": "\ud83c\udfdb\ufe0f The Bozeman City Commission has provisionally adopted changes to the Unified Development Code (UDC) that will increase zoning density by removing minimum lot sizes and allowing quadplexes in residential districts, aiming to address housing needs [KULR8](https://www.kulr8.com/news/state/bozeman-pr",
-    "processing_time_ms": 15426,
+    "summary": "\ud83d\udca7 Flagstaff's water system is drought-sensitive, with the city utilizing reclaimed water to supplement supplies, a crucial measure given the arid climate and groundwater depletion concerns in Northern Arizona [Flagstaff.az.gov](https://www.flagstaff.az.gov/DocumentCenter/View/8583), [Coconino.az.gov",
+    "processing_time_ms": 24173,
     "error": null,
     "quality_checks": [
       {
@@ -1080,14 +1894,100 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
         "pdf_count": 2,
         "pdfs": [
           {
-            "title": "[PDF] bozeman, montana",
-            "url": "https://bloximages.chicago2.vip.townnews.com/bozemandailychronicle.com/content/tncms/assets/v3/classifieds/2/b7/2b7a334d-3064-5a08-81c2-175f2f998a03/69abbf2266e68.pdf.pdf"
+            "title": "[PDF] National Weather Service Flagstaff Drought Information Statement",
+            "url": "https://www.weather.gov/media/fgz/DGT/DGT_FGZ_02172024.pdf"
           },
           {
-            "title": "[PDF] Statistics - Gallatin County",
-            "url": "https://www.gallatinmt.gov/sites/g/files/vyhlif606/f/uploads/11.4.25_final_unofficial_results.pdf"
+            "title": "Drought Information Statement April 20, 2025",
+            "url": "https://www.weather.gov/media/fgz/DGT/DGT_FGZ_04202025.pdf"
           }
         ]
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "4 domains",
+        "unique_domains": 4,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "WARN",
+        "detail": "7/7 undated (100%)",
+        "ratio": 1.0
+      }
+    ]
+  },
+  {
+    "permutation": "beat+niche: housing policy",
+    "category": "news",
+    "source_mode": "niche",
+    "scope": "topic",
+    "queries_generated": 5,
+    "queries_list": [
+      "housing policy",
+      "housing policy\" news",
+      "latest housing policy",
+      "housing policy\" update",
+      "housing policy\" report"
+    ],
+    "raw_results": 162,
+    "final_articles": 6,
+    "articles": [
+      {
+        "title": "State Titling Policies and the Future of Manufactured Home Financing",
+        "url": "https://www.pew.org/about/events/2026/state-titling-policies-and-the-future-of-manufactured-home-financing",
+        "source": "pew.org",
+        "date": "2026-03-30T14:21:55.072175"
+      },
+      {
+        "title": "Mayor Quinton Lucas proposes major rollback of Kansas City\u2019s landmark affordable housing policy",
+        "url": "https://thebeaconnews.org/stories/2026/03/25/kansas-city-affordable-housing-set-aside/",
+        "source": "thebeaconnews.org",
+        "date": "2026-03-26T22:21:55.072193"
+      },
+      {
+        "title": "S.F. restored a Chinatown building for low-income tenants. It shows what housing policy often misses",
+        "url": "https://www.sfchronicle.com/sf/article/housing-preservation-chinatown-san-francisco-22094757.php",
+        "source": "sfchronicle.com",
+        "date": "2026-03-27T22:21:55.072198"
+      },
+      {
+        "title": "A Proposed Change in Federal Housing Policy Could Mean Instability for Santa Barbara Families",
+        "url": "https://www.independent.com/2026/03/23/a-proposed-change-in-federal-housing-policy-could-mean-instability-for-santa-barbara-families/",
+        "source": "independent.com",
+        "date": "2026-03-23T22:21:55.072201"
+      },
+      {
+        "title": "A successful USDA program that has supported more than 533,000 affordable rental homes in rural America is being phased out",
+        "url": "https://www.pbs.org/newshour/economy/a-successful-usda-program-that-has-supported-more-than-533000-affordable-rental-homes-in-rural-america-is-being-phased-out",
+        "source": "pbs.org",
+        "date": "2026-03-16T22:21:55.072205"
+      },
+      {
+        "title": "Purpose-Built, Policy-Broken: Student Housing, the latest to feel the uncertainty of government policy",
+        "url": "https://thekoalanews.com/purpose-built-policy-broken-student-housing-the-latest-to-feel-the-uncertainty-of-government-policy/",
+        "source": "thekoalanews.com",
+        "date": "2026-03-30T00:21:55.072208"
+      }
+    ],
+    "summary": "\u2022 State-level titling policies are being examined to reduce barriers and expand mortgage access for manufactured homes [Pew Research Center](https://www.pew.org/about/events/2026/state-titling-policies-and-the-future-of-manufactured-home-financing).\n\u2022 Kansas City is considering a significant rollbac",
+    "processing_time_ms": 19260,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "2 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
       },
       {
         "check": "source_diversity",
@@ -1099,515 +1999,66 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
       {
         "check": "undated_ratio",
         "status": "PASS",
-        "detail": "4/6 undated (67%)",
-        "ratio": 0.667
-      }
-    ]
-  },
-  {
-    "permutation": "niche: Flagstaff",
-    "category": "news",
-    "source_mode": "niche",
-    "scope": "location",
-    "queries_generated": 12,
-    "queries_list": [
-      "What's happening in Flagstaff this weekend?",
-      "Flagstaff city council meeting agenda",
-      "Local Flagstaff community news updates",
-      "Arts and culture events in Flagstaff",
-      "Flagstaff neighborhood watch groups",
-      "Best local restaurants Flagstaff reviews",
-      "Flagstaff community projects forum",
-      "Flagstaff community calendar events",
-      "Flagstaff neighborhood associations online",
-      "Volunteer opportunities Flagstaff locals",
-      "New businesses opening Flagstaff community",
-      "Flagstaff resident blogs"
-    ],
-    "raw_results": 205,
-    "final_articles": 6,
-    "articles": [
-      {
-        "title": "New year brings new business closures and openings around ...",
-        "url": "https://azdailysun.com/news/local/new-year-brings-new-business-closures-and-openings-around-downtown-flagstaff/article_b678d03a-e7f6-11ef-8b5c-57354a221abe.html",
-        "source": "azdailysun.com",
-        "date": null
-      },
-      {
-        "title": "Chick-fil-A Announces New Flagstaff Restaurant, Opening Feb. 1",
-        "url": "https://www.chick-fil-a.com/press-room/announcing-chick-fil-a-flagstaff-route-66",
-        "source": "chick-fil-a.com",
-        "date": null
-      },
-      {
-        "title": "Autopsy details NAU student\u2019s alcohol poisoning death at rush event in Flagstaff",
-        "url": "https://www.azfamily.com/2026/03/10/autopsy-details-nau-students-alcohol-poisoning-death-rush-event-flagstaff/",
-        "source": "azfamily.com",
-        "date": "2026-03-12T09:24:38.754138"
-      },
-      {
-        "title": "Flagstaff City Council Reviews Federal Interaction Protocols",
-        "url": "https://www.signalsaz.com/articles/flagstaff-city-council-reviews-federal-interaction-protocols/",
-        "source": "signalsaz.com",
-        "date": "2026-03-11T09:24:38.754160"
-      },
-      {
-        "title": "Flagstaff updating Community Wildfire Protection Plan and will seek public participation in process",
-        "url": "https://azdailysun.com/news/local/environment/flagstaff-updating-community-wildfire-protection-plan-and-will-seek-public-participation-in-process/article_0df2411d-42ce-4123-a0d1-f1d119c2d017.html",
-        "source": "azdailysun.com",
-        "date": "2026-03-17T09:24:38.754174"
-      },
-      {
-        "title": "[PDF] CITY OF FLAGSTAFF WORKING CALENDAR \u2013 2026",
-        "url": "https://www.flagstaff.az.gov/DocumentCenter/View/46325",
-        "source": "flagstaff.az.gov",
-        "date": null
-      }
-    ],
-    "summary": "\u2022 A new Chick-fil-A restaurant is set to open on February 1st at 2401 E. Route 66, offering dine-in, drive-thru, and carry-out options [Chick-fil-A](https://www.chick-fil-a.com/press-room/announcing-chick-fil-a-flagstaff-route-66).\n\u2022 The Flagstaff City Council reviewed protocols for interactions wit",
-    "processing_time_ms": 17199,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "2 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "5 domains",
-        "unique_domains": 5,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "PASS",
-        "detail": "3/6 undated (50%)",
-        "ratio": 0.5
-      }
-    ]
-  },
-  {
-    "permutation": "niche: Flagstaff",
-    "category": "government",
-    "source_mode": "niche",
-    "scope": "location",
-    "queries_generated": 12,
-    "queries_list": [
-      "Flagstaff city council meeting minutes",
-      "Flagstaff municipal services updates",
-      "Flagstaff local election news",
-      "Flagstaff zoning and permit information",
-      "Flagstaff mayor's official announcements",
-      "Flagstaff public works projects",
-      "Flagstaff city government news",
-      "City of Flagstaff official website",
-      "Flagstaff Police Department",
-      "Flagstaff Unified School District",
-      "Flagstaff public health services",
-      "Flagstaff Public Library"
-    ],
-    "raw_results": 254,
-    "final_articles": 5,
-    "articles": [
-      {
-        "title": "Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road",
-        "url": "https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html",
-        "source": "azdailysun.com",
-        "date": "2026-03-13T09:25:05.688353"
-      },
-      {
-        "title": "Planning and Zoning Commission Discusses Proposed Zoning Amendment Regulating Data Centers in Flagstaff",
-        "url": "https://gcmaz.com/kaff-news/kaff_news/planning-and-zoning-commission-discusses-proposed-zoning-amendment-regulating-data-centers-in-flagstaff/",
-        "source": "gcmaz.com",
-        "date": "2026-03-12T09:25:05.688437"
-      },
-      {
-        "title": "Flagstaff council approves downtown enhanced services contract ...",
-        "url": "https://citizenportal.ai/articles/7439981/Arizona/Coconino-County/Flagstaff-City/Flagstaff-council-approves-downtown-enhanced-services-contract-and-delays-parking-rate-hike",
-        "source": "citizenportal.ai",
-        "date": null
-      },
-      {
-        "title": "Flagstaff to Adopt New Rates for Water, Wastewater, and Reclaimed ...",
-        "url": "https://www.signalsaz.com/articles/flagstaff-to-adopt-new-rates-for-water-wastewater-and-reclaimed-water-services/",
-        "source": "signalsaz.com",
-        "date": null
-      },
-      {
-        "title": "City of Flagstaff Public Works Department affirms changes to trash ...",
-        "url": "https://azdailysun.com/news/local/city-of-flagstaff-public-works-department-affirms-changes-to-trash-services-for-2025/article_f6198f5e-e02b-11ef-8935-1bf6302481e6.html",
-        "source": "azdailysun.com",
-        "date": null
-      }
-    ],
-    "summary": "\ud83c\udfd7\ufe0f The Flagstaff City Council has approved the rezoning for the Lone Tree Ranch project, a 168-unit affordable housing development on a 1.67-acre parcel, moving forward with plans to increase housing options [AZ Daily Sun](https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-re",
-    "processing_time_ms": 26923,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "1 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "4 domains",
-        "unique_domains": 4,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "PASS",
-        "detail": "3/5 undated (60%)",
-        "ratio": 0.6
-      }
-    ]
-  },
-  {
-    "permutation": "reliable: Bozeman",
-    "category": "news",
-    "source_mode": "reliable",
-    "scope": "location",
-    "queries_generated": 7,
-    "queries_list": [
-      "Bozeman local events this weekend",
-      "Bozeman city council meeting agenda",
-      "Bozeman community news updates",
-      "What's happening in Bozeman culture",
-      "Bozeman neighborhood forum discussions",
-      "Local artists in Bozeman blog",
-      "Bozeman public school news"
-    ],
-    "raw_results": 138,
-    "final_articles": 6,
-    "articles": [
-      {
-        "title": "State halts permitting on all weekend rallies at Capitol, thwarts upcoming \u2018No Kings\u2019 event",
-        "url": "https://www.bozemandailychronicle.com/news/state-halts-permitting-on-all-weekend-rallies-at-capitol-thwarts-upcoming-no-kings-event/article_883a4cb7-b071-4a08-981e-eb8fa6b845c6.html",
-        "source": "bozemandailychronicle.com",
-        "date": "2026-03-13T09:25:09.067750"
-      },
-      {
-        "title": "Bozeman Curling Club hosts 'Learn to Curl' event to grow community interest",
-        "url": "https://www.montanarightnow.com/bozeman/bozeman-curling-club-hosts-learn-to-curl-event-to-grow-community-interest/article_e67d12f9-45d8-4d1f-976d-034c07033f57.html",
-        "source": "montanarightnow.com",
-        "date": "2026-03-11T09:25:09.067829"
-      },
-      {
-        "title": "Bozeman Health Seeks Community Input Through Health Needs Survey",
-        "url": "https://www.montanarightnow.com/bozeman/bozeman-health-seeks-community-input-through-health-needs-survey/article_a8ccf8cb-2692-43ca-b939-66e23dfb9df9.html",
-        "source": "montanarightnow.com",
-        "date": "2026-03-11T09:25:09.067850"
-      },
-      {
-        "title": "Bozeman community marks 17 years since gas explosion",
-        "url": "https://www.montanarightnow.com/bozeman/bozeman-community-marks-17-years-since-gas-explosion/article_41162b84-9b5c-40cc-9aca-e13ea2090c8c.html",
-        "source": "montanarightnow.com",
-        "date": "2026-03-11T09:25:09.067864"
-      },
-      {
-        "title": "Controversial Trump nominee from Bozeman withdraws after lack of GOP support in U.S. Senate",
-        "url": "https://dailymontanan.com/2026/03/11/controversial-trump-nominee-from-bozeman-withdraws-after-lack-of-gop-support-in-u-s-senate/",
-        "source": "dailymontanan.com",
-        "date": "2026-03-12T09:25:09.067878"
-      },
-      {
-        "title": "Daniel Carty, Angie Kociolek & Linda Semones: Only you can save Bozeman\u2019s historical character, sense of place",
-        "url": "https://www.fairfieldsuntimes.com/news/state/daniel-carty-angie-kociolek-linda-semones-only-you-can-save-bozeman-s-historical-character-sense/article_56a6c9f8-9fb6-5cdd-82bc-c2d1702c3213.html",
-        "source": "fairfieldsuntimes.com",
-        "date": "2026-03-17T09:25:09.067892"
-      }
-    ],
-    "summary": "\u2022 A new state rule halting permits for weekend rallies at the Capitol has thwarted an upcoming \"No Kings\" event in Helena, impacting organizers' ability to gather [Bozeman Chronicle](https://www.bozemandailychronicle.com/news/state-halts-permitting-on-all-weekend-rallies-at-capitol-thwarts-upcoming-",
-    "processing_time_ms": 3889,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "1 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "4 domains",
-        "unique_domains": 4,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "PASS",
         "detail": "0/6 undated (0%)",
         "ratio": 0.0
       }
     ]
   },
   {
-    "permutation": "reliable: Bozeman",
-    "category": "government",
-    "source_mode": "reliable",
-    "scope": "location",
-    "queries_generated": 12,
+    "permutation": "beat+niche: housing policy",
+    "category": "analysis",
+    "source_mode": "niche",
+    "scope": "topic",
+    "queries_generated": 5,
     "queries_list": [
-      "Bozeman city council meeting minutes",
-      "Bozeman municipal services updates",
-      "Bozeman local election results",
-      "Bozeman zoning permits news",
-      "Bozeman mayor official announcements",
-      "Bozeman public works projects",
-      "Bozeman city government news",
-      "City of Bozeman official website",
-      "Bozeman Police Department",
-      "Bozeman Public Schools",
-      "Bozeman Community Hospital",
-      "Bozeman Public Library"
+      "housing policy\" blog",
+      "housing policy\" analysis",
+      "housing policy\" opinion",
+      "housing policy\" deep dive",
+      "housing policy\" research report"
     ],
-    "raw_results": 178,
+    "raw_results": 157,
     "final_articles": 6,
     "articles": [
       {
-        "title": "Request for Proposals (RFP)",
-        "url": "https://www.bozemandailychronicle.com/classifieds/legals/legals/request-for-proposals-rfp/pdfdisplayad_fba4de23-27da-5c89-9df7-8294dc6eda39.html",
-        "source": "bozemandailychronicle.com",
-        "date": "2026-03-15T09:25:29.853463"
+        "title": "Austin\u2019s Surge of New Housing Construction Drove Down Rents",
+        "url": "https://www.pew.org/en/research-and-analysis/articles/2026/03/18/austins-surge-of-new-housing-construction-drove-down-rents",
+        "source": "pew.org",
+        "date": "2026-03-16T22:22:08.643809"
       },
       {
-        "title": "13 Bozeman Police officers caught playing 'crime bingo' ...",
-        "url": "https://www.kbzk.com/news/local-news/13-bozeman-police-officers-caught-playing-crime-bingo-while-on-duty",
-        "source": "kbzk.com",
+        "title": "Affordable housing is possible, if we stop ignoring the obvious | Opinion",
+        "url": "https://www.usatoday.com/story/opinion/2026/03/23/affordable-housing-vacant-offices-remote-work/89085433007/",
+        "source": "usatoday.com",
+        "date": "2026-03-23T22:22:08.643836"
+      },
+      {
+        "title": "Universities are the structural lever America\u2019s housing policy is missing",
+        "url": "https://www.multifamilydive.com/news/universities-help-housing-shortage/815232/",
+        "source": "multifamilydive.com",
+        "date": "2026-03-23T22:22:08.643841"
+      },
+      {
+        "title": "Opinion | Elizabeth Warren tries to jam the House with a flawed housing bill",
+        "url": "https://www.washingtonpost.com/opinions/2026/03/25/housing-bill-elizabeth-warren-rent-to-build/",
+        "source": "washingtonpost.com",
+        "date": "2026-03-26T22:22:08.643845"
+      },
+      {
+        "title": "Affordable Housing's Next Chapter: Navigating Policy Shifts - AppFolio",
+        "url": "https://www.appfolio.com/blog/affordable-housing-navigating-policy-shifts",
+        "source": "appfolio.com",
         "date": null
       },
       {
-        "title": "Police Department News | City Of Bozeman",
-        "url": "https://www.bozeman.net/Home/Components/News/News/8531/3493",
-        "source": "bozeman.net",
-        "date": null
-      },
-      {
-        "title": "Rage, suspicion, fear: Why Laurel\u2019s ultra-organized residents are determined to stop a new state psychiatric facility",
-        "url": "https://www.bozemandailychronicle.com/news/rage-suspicion-fear-why-laurel-s-ultra-organized-residents-are-determined-to-stop-a-new/article_500f0693-5de5-4b1d-b9eb-6934faa1b28a.html",
-        "source": "bozemandailychronicle.com",
-        "date": "2026-03-14T09:25:29.853518"
-      },
-      {
-        "title": "[PDF] 2024-2025 School Year Calendar",
-        "url": "https://resources.finalsite.net/images/v1723229557/bsd7org/kewv542fjqcskbfcuj0d/2024-2025SchoolYearCalendar.pdf",
-        "source": "resources.finalsite.net",
-        "date": null
-      },
-      {
-        "title": "Search for Public School Districts - District Detail for",
-        "url": "https://nces.ed.gov/ccd/districtsearch/district_detail.asp?Search=2&details=1&DistrictID=3004560&ID2=3004560",
-        "source": "nces.ed.gov",
-        "date": null
-      }
-    ],
-    "summary": "\ud83d\udea8 Thirteen Bozeman Police officers, including two sergeants, were caught playing \"crime bingo\" while on duty, raising concerns about departmental conduct [KBZK](https://www.kbzk.com/news/local-news/13-bozeman-police-officers-caught-playing-crime-bingo-while-on-duty).\n\ud83c\udfdb\ufe0f The City of Bozeman is seekin",
-    "processing_time_ms": 19449,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "2 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 1 PDFs",
-        "stale_articles": [],
-        "pdf_count": 1,
-        "pdfs": [
-          {
-            "title": "[PDF] 2024-2025 School Year Calendar",
-            "url": "https://resources.finalsite.net/images/v1723229557/bsd7org/kewv542fjqcskbfcuj0d/2024-2025SchoolYearCalendar.pdf"
-          }
-        ]
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "5 domains",
-        "unique_domains": 5,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "PASS",
-        "detail": "4/6 undated (67%)",
-        "ratio": 0.667
-      }
-    ]
-  },
-  {
-    "permutation": "reliable: Flagstaff",
-    "category": "news",
-    "source_mode": "reliable",
-    "scope": "location",
-    "queries_generated": 7,
-    "queries_list": [
-      "What's happening in Flagstaff this weekend?",
-      "Flagstaff city council meeting agenda",
-      "Local Flagstaff community news updates",
-      "Arts and culture events in Flagstaff",
-      "Flagstaff neighborhood watch groups",
-      "Best local restaurants Flagstaff reviews",
-      "Flagstaff community projects forum"
-    ],
-    "raw_results": 125,
-    "final_articles": 4,
-    "articles": [
-      {
-        "title": "Autopsy details NAU student\u2019s alcohol poisoning death at rush event in Flagstaff",
-        "url": "https://www.azfamily.com/2026/03/10/autopsy-details-nau-students-alcohol-poisoning-death-rush-event-flagstaff/",
-        "source": "azfamily.com",
-        "date": "2026-03-12T09:25:32.418169"
-      },
-      {
-        "title": "Flagstaff City Council Reviews Federal Interaction Protocols",
-        "url": "https://www.signalsaz.com/articles/flagstaff-city-council-reviews-federal-interaction-protocols/",
-        "source": "signalsaz.com",
-        "date": "2026-03-11T09:25:32.418226"
-      },
-      {
-        "title": "Flagstaff updating Community Wildfire Protection Plan and will seek public participation in process",
-        "url": "https://azdailysun.com/news/local/environment/flagstaff-updating-community-wildfire-protection-plan-and-will-seek-public-participation-in-process/article_0df2411d-42ce-4123-a0d1-f1d119c2d017.html",
-        "source": "azdailysun.com",
-        "date": "2026-03-17T09:25:32.418245"
-      },
-      {
-        "title": "Flagstaff packed with festivals celebrating Route 66, Dark Skies, Pride and more",
-        "url": "https://themalaysianreserve.com/2026/03/13/flagstaff-packed-with-festivals-celebrating-route-66-dark-skies-pride-and-more/",
-        "source": "themalaysianreserve.com",
-        "date": "2026-03-13T09:25:32.418259"
-      }
-    ],
-    "summary": "\ud83d\udcf0 An autopsy revealed that a Northern Arizona University student died from alcohol poisoning at a fraternity rush event in Flagstaff [azfamily.com](https://www.azfamily.com/2026/03/10/autopsy-details-nau-students-alcohol-poisoning-death-rush-event-flagstaff/)\n\ud83c\udfdb\ufe0f The Flagstaff City Council reviewed p",
-    "processing_time_ms": 3079,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "2 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "4 domains",
-        "unique_domains": 4,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "PASS",
-        "detail": "0/4 undated (0%)",
-        "ratio": 0.0
-      }
-    ]
-  },
-  {
-    "permutation": "reliable: Flagstaff",
-    "category": "government",
-    "source_mode": "reliable",
-    "scope": "location",
-    "queries_generated": 12,
-    "queries_list": [
-      "Flagstaff city council meeting minutes",
-      "Flagstaff municipal services updates",
-      "Flagstaff local election news",
-      "Flagstaff zoning and permit information",
-      "Flagstaff mayor's official announcements",
-      "Flagstaff public works projects",
-      "Flagstaff city government news",
-      "City of Flagstaff official website",
-      "Flagstaff Police Department",
-      "Flagstaff Unified School District",
-      "Flagstaff public health services",
-      "Flagstaff Public Library"
-    ],
-    "raw_results": 180,
-    "final_articles": 6,
-    "articles": [
-      {
-        "title": "Flagstaff City Council Reviews Protocols For City Interactions With Federal Agencies",
-        "url": "https://gcmaz.com/kaff-news/kaff_news/flagstaff-city-council-reviews-protocols-for-city-interactions-with-federal-agencies/",
-        "source": "gcmaz.com",
-        "date": "2026-03-04T09:25:36.771335"
-      },
-      {
-        "title": "Flagstaff City Council approves rezoning reading for affordable housing development on Lone Tree Road",
-        "url": "https://azdailysun.com/news/local/flagstaff-city-council-approves-rezoning-reading-for-affordable-housing-development-on-lone-tree-road/article_43c2de6d-72b6-45b7-be14-282b7a7124ed.html",
-        "source": "azdailysun.com",
-        "date": "2026-03-13T09:25:36.771549"
-      },
-      {
-        "title": "Flagstaff Unified School District discusses possible budget override in November election",
-        "url": "https://azdailysun.com/news/local/education/flagstaff-unified-school-district-discusses-possible-budget-override-in-november-election/article_2d3085ad-8fe4-4580-9494-52c0f3482d6e.html",
-        "source": "azdailysun.com",
-        "date": "2026-03-11T09:25:36.771626"
-      },
-      {
-        "title": "Planning and Zoning Commission Discusses Proposed Zoning Amendment Regulating Data Centers in Flagstaff",
-        "url": "https://gcmaz.com/kaff-news/kaff_news/planning-and-zoning-commission-discusses-proposed-zoning-amendment-regulating-data-centers-in-flagstaff/",
-        "source": "gcmaz.com",
-        "date": "2026-03-12T09:25:36.771647"
-      },
-      {
-        "title": "Records | City of Flagstaff Official Website",
-        "url": "https://www.flagstaff.az.gov/3594/Records",
-        "source": "flagstaff.az.gov",
-        "date": null
-      },
-      {
-        "title": "Flagstaff Police Department - 719 updates",
-        "url": "https://nextdoor.com/agency-detail/az/flagstaff/flagstaff-police-department/",
-        "source": "nextdoor.com",
+        "title": "Housing | Economic Policy Institute",
+        "url": "https://www.epi.org/research/housing-2/",
+        "source": "epi.org",
         "date": null
       }
     ],
-    "summary": "\ud83c\udfdb\ufe0f The Flagstaff City Council reviewed and is updating its protocols for interactions with federal agencies to ensure clear communication and collaboration [KAFF News](https://gcmaz.com/kaff-news/kaff_news/flagstaff-city-council-reviews-protocols-for-city-interactions-with-federal-agencies/).\n\ud83c\udfd7\ufe0f Fla",
-    "processing_time_ms": 4618,
+    "summary": "\ud83c\udfd7\ufe0f Austin's surge in new housing construction in the 2010s demonstrably drove down rents, highlighting the impact of increased supply on affordability [Pew Research Center](https://www.pew.org/en/research-and-analysis/articles/2026/03/18/austins-surge-of-new-housing-construction-drove-down-rents).\n\ud83c\udfad",
+    "processing_time_ms": 13288,
     "error": null,
     "quality_checks": [
       {
@@ -1627,8 +2078,8 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
       {
         "check": "source_diversity",
         "status": "PASS",
-        "detail": "4 domains",
-        "unique_domains": 4,
+        "detail": "6 domains",
+        "unique_domains": 6,
         "violations": {}
       },
       {
@@ -1640,501 +2091,6 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
     ]
   },
   {
-    "permutation": "reliable+criteria: Bozeman+housing",
-    "category": "news",
-    "source_mode": "reliable",
-    "scope": "location+topic",
-    "queries_generated": 8,
-    "queries_list": [
-      "Bozeman housing development projects",
-      "new housing construction Bozeman",
-      "Bozeman affordable housing initiatives",
-      "impact of housing development on Bozeman",
-      "Bozeman zoning laws housing development",
-      "Bozeman real estate development housing trends",
-      "community perspectives on Bozeman housing development",
-      "housing development\" \"Bozeman\" US"
-    ],
-    "raw_results": 128,
-    "final_articles": 1,
-    "articles": [
-      {
-        "title": "Proposed Low-Income Housing \u2018Rocky Mountain Flats\u2019 Draws Pushback in Rural Bozeman Neighborhood",
-        "url": "https://www.kbzk.com/news/local-news/proposed-low-income-housing-rocky-mountain-flats-draws-pushback-in-rural-bozeman-neighborhood",
-        "source": "kbzk.com",
-        "date": "2026-03-12T09:25:40.505488"
-      }
-    ],
-    "summary": "\ud83c\udfd7\ufe0f Residents in a rural Bozeman neighborhood are pushing back against a proposed 296-unit affordable housing development named Rocky Mountain Flats, raising concerns about its impact on their community [KBZK](https://www.kbzk.com/news/local-news/proposed-low-income-housing-rocky-mountain-flats-draws",
-    "processing_time_ms": 2835,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "1 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "1 domains",
-        "unique_domains": 1,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "PASS",
-        "detail": "0/1 undated (0%)",
-        "ratio": 0.0
-      }
-    ]
-  },
-  {
-    "permutation": "reliable+criteria: Bozeman+housing",
-    "category": "government",
-    "source_mode": "reliable",
-    "scope": "location+topic",
-    "queries_generated": 13,
-    "queries_list": [
-      "Bozeman city council housing development decisions",
-      "Bozeman municipal housing projects news",
-      "Bozeman zoning changes for new housing",
-      "Bozeman mayor housing development initiatives",
-      "Bozeman public works housing infrastructure",
-      "Bozeman local elections housing policy",
-      "Bozeman housing development permits and regulations",
-      "housing development\" \"Bozeman\" US",
-      "Bozeman Planning and Community Development Department housing",
-      "Bozeman city government housing development permits",
-      "Bozeman municipal code zoning housing",
-      "Bozeman housing authority public records",
-      "City of Bozeman official plan housing development"
-    ],
-    "raw_results": 188,
-    "final_articles": 8,
-    "articles": [
-      {
-        "title": "Community Housing Program | City Of ...",
-        "url": "https://www.bozeman.net/departments/economic-development/community-housing",
-        "source": "bozeman.net",
-        "date": null
-      },
-      {
-        "title": "Gallatin County Affordable Housing",
-        "url": "https://www.gallatinmt.gov/communications/pages/gallatin-county-affordable-housing",
-        "source": "gallatinmt.gov",
-        "date": null
-      },
-      {
-        "title": "Bozeman Community Development Board considers ...",
-        "url": "https://nbcmontana.com/news/local/bozeman-community-development-board-considers-changes-to-affordable-housing-ordinance",
-        "source": "nbcmontana.com",
-        "date": null
-      },
-      {
-        "title": "Bozeman moving forward on HUD housing plan | News",
-        "url": "https://www.bozemandailychronicle.com/news/bozeman-moving-forward-on-hud-housing-plan/article_b983bbac-4aa1-11ef-9da1-7f221bad20c2.html",
-        "source": "bozemandailychronicle.com",
-        "date": null
-      },
-      {
-        "title": "Bozeman officials outline Unified Development Code rewrite to ...",
-        "url": "https://citizenportal.ai/articles/6074077/Montana/Gallatin-County/Bozeman-City/Bozeman-officials-outline-Unified-Development-Code-rewrite-to-simplify-zoning-support-housing",
-        "source": "citizenportal.ai",
-        "date": null
-      },
-      {
-        "title": "Bozeman Code Audit To Create and Preserve Housing",
-        "url": "https://www.bozeman.net/our-city/city-projects/code-audit-to-create-and-preserve-housing",
-        "source": "bozeman.net",
-        "date": null
-      },
-      {
-        "title": "Bozeman launches public building-permit and affordable-housing ...",
-        "url": "https://citizenportal.ai/articles/6034318/Bozeman-City/Gallatin-County/Montana/Bozeman-launches-public-building-permit-and-affordable-housing-dashboards-to-improve-transparency",
-        "source": "citizenportal.ai",
-        "date": null
-      },
-      {
-        "title": "Bozeman city commissioners approve change to city development ...",
-        "url": "https://www.bozemandailychronicle.com/news/city/bozeman-city-commissioners-approve-change-to-city-development-review/article_6e0eb5ce-4593-11ed-ae01-7306926d2c13.html",
-        "source": "bozemandailychronicle.com",
-        "date": null
-      }
-    ],
-    "summary": "\ud83c\udfd7\ufe0f Bozeman is moving forward with a consolidated housing plan, open for public comment until the end of July, which will enable the city to access federal funding from the U.S. Department of Housing and Urban Development (HUD) [Bozeman Daily Chronicle](https://www.bozemandailychronicle.com/news/boze",
-    "processing_time_ms": 28153,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "1 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "5 domains",
-        "unique_domains": 5,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "WARN",
-        "detail": "8/8 undated (100%)",
-        "ratio": 1.0
-      }
-    ]
-  },
-  {
-    "permutation": "reliable+criteria: Flagstaff+water",
-    "category": "news",
-    "source_mode": "reliable",
-    "scope": "location+topic",
-    "queries_generated": 8,
-    "queries_list": [
-      "Flagstaff water supply drought impact on residents",
-      "Flagstaff water conservation efforts during drought",
-      "Arizona drought affecting Flagstaff water resources",
-      "Flagstaff water management strategies for drought resilience",
-      "Impact of climate change on Flagstaff water supply drought",
-      "Local news Flagstaff water shortage due to drought",
-      "Community perspectives on Flagstaff drought and water supply",
-      "water supply drought\" \"Flagstaff\" US"
-    ],
-    "raw_results": 79,
-    "final_articles": 1,
-    "articles": [
-      {
-        "title": "Colorado River outlook 'not a pretty picture' after warm, dry winter",
-        "url": "https://www.azcentral.com/story/news/local/arizona-environment/2026/03/07/snow-drought-complicates-colorado-river-outlook/88760869007/",
-        "source": "azcentral.com",
-        "date": "2026-03-11T09:26:12.654547"
-      }
-    ],
-    "summary": "\ud83d\udcf0 A severe snow drought in the West is negatively impacting the Colorado River's outlook, which is crucial for Arizona's water supplies [azcentral.com](https://www.azcentral.com/story/news/local/arizona-environment/2026/03/07/snow-drought-complicates-colorado-river-outlook/88760869007/)",
-    "processing_time_ms": 3996,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "1 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "1 domains",
-        "unique_domains": 1,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "PASS",
-        "detail": "0/1 undated (0%)",
-        "ratio": 0.0
-      }
-    ]
-  },
-  {
-    "permutation": "reliable+criteria: Flagstaff+water",
-    "category": "government",
-    "source_mode": "reliable",
-    "scope": "location+topic",
-    "queries_generated": 13,
-    "queries_list": [
-      "Flagstaff city council water supply drought decisions",
-      "Flagstaff municipal water services drought management",
-      "Flagstaff local elections water policy drought",
-      "Flagstaff zoning regulations water drought",
-      "Flagstaff mayor announcement water shortage",
-      "Flagstaff public works drought mitigation plan",
-      "Flagstaff government news water supply issues",
-      "water supply drought\" \"Flagstaff\" US",
-      "Flagstaff water resources department drought information",
-      "City of Flagstaff drought management plan public records",
-      "Flagstaff municipal water commission meeting minutes drought",
-      "Flagstaff government reports water conservation drought",
-      "Flagstaff official website water supply drought projects"
-    ],
-    "raw_results": 118,
-    "final_articles": 6,
-    "articles": [
-      {
-        "title": "Flagstaff council signals support for revised water-rate plan after ...",
-        "url": "https://citizenportal.ai/articles/6138438/Flagstaff-City/Coconino-County/Arizona/Flagstaff-council-signals-support-for-revised-water-rate-plan-after-weeks-of-debate",
-        "source": "citizenportal.ai",
-        "date": null
-      },
-      {
-        "title": "Adequate Water Supply Designation",
-        "url": "https://www.flagstaff.az.gov/2263/Adequate-Water-Supply-Designation",
-        "source": "flagstaff.az.gov",
-        "date": null
-      },
-      {
-        "title": "Water Commission | City of Flagstaff Official Website",
-        "url": "https://www.flagstaff.az.gov/2821/Water-Commission",
-        "source": "flagstaff.az.gov",
-        "date": null
-      },
-      {
-        "title": "Water Conservation | City of Flagstaff Official Website",
-        "url": "https://www.flagstaff.az.gov/31/Water-Conservation",
-        "source": "flagstaff.az.gov",
-        "date": null
-      },
-      {
-        "title": "Water Conservation - Coconino County",
-        "url": "https://www.coconino.az.gov/2807/Water-Conservation",
-        "source": "coconino.az.gov",
-        "date": null
-      },
-      {
-        "title": "[PDF] Keeping Arizona's Water Glass Full (pdf) - WRRC",
-        "url": "https://wrrc.arizona.edu/sites/default/files/2025-01/Keeping-Arizonas-Water-Glass-Full-FINAL-Report.pdf",
-        "source": "wrrc.arizona.edu",
-        "date": null
-      }
-    ],
-    "summary": "\ud83c\udfdb\ufe0f Flagstaff City Council has signaled support for a revised water-rate plan after weeks of debate, indicating a move towards a new strategy for managing water resources [Citizen Portal](https://citizenportal.ai/articles/6138438/Flagstaff-City/Coconino-County/Arizona/Flagstaff-council-signals-suppor",
-    "processing_time_ms": 17197,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "1 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 1 PDFs",
-        "stale_articles": [],
-        "pdf_count": 1,
-        "pdfs": [
-          {
-            "title": "[PDF] Keeping Arizona's Water Glass Full (pdf) - WRRC",
-            "url": "https://wrrc.arizona.edu/sites/default/files/2025-01/Keeping-Arizonas-Water-Glass-Full-FINAL-Report.pdf"
-          }
-        ]
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "4 domains",
-        "unique_domains": 4,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "WARN",
-        "detail": "6/6 undated (100%)",
-        "ratio": 1.0
-      }
-    ]
-  },
-  {
-    "permutation": "beat+niche: housing policy",
-    "category": "news",
-    "source_mode": "niche",
-    "scope": "topic",
-    "queries_generated": 5,
-    "queries_list": [
-      "housing policy",
-      "housing policy\" news",
-      "latest housing policy",
-      "housing policy\" update",
-      "housing policy\" report"
-    ],
-    "raw_results": 148,
-    "final_articles": 6,
-    "articles": [
-      {
-        "title": "Election year blues for housing bills \u2013 2026 Utah Legislative wrap-up",
-        "url": "https://buildingsaltlake.com/election-year-blues-for-housing-bills-2026-utah-legislative-wrap-up/",
-        "source": "buildingsaltlake.com",
-        "date": "2026-03-18T00:26:47.888069"
-      },
-      {
-        "title": "NYC\u2019s Community Opportunity to Purchase Act: A New Era in Housing Policy",
-        "url": "https://www.law.com/newyorklawjournal/2026/03/16/nycs-community-opportunity-to-purchase-act-a-new-era-in-housing-policy/",
-        "source": "law.com",
-        "date": "2026-03-17T09:26:47.888152"
-      },
-      {
-        "title": "A successful USDA program that has supported more than 533,000 affordable rental homes in rural America is being phased out",
-        "url": "https://www.pbs.org/newshour/economy/a-successful-usda-program-that-has-supported-more-than-533000-affordable-rental-homes-in-rural-america-is-being-phased-out",
-        "source": "pbs.org",
-        "date": "2026-03-17T09:26:47.888169"
-      },
-      {
-        "title": "What\u2019s Next for Housing Policy After the Bursting of the Bubble?",
-        "url": "https://www.newamerica.org/insights/whats-next-for-housing-policy-after-the-bursting-of-the-bubble/",
-        "source": "newamerica.org",
-        "date": "2026-03-12T09:26:47.888182"
-      },
-      {
-        "title": "CREF Policy Update: Senate Continues Consideration of Housing Package \u2013Including Single-Family Rental Investor Ban",
-        "url": "https://newslink.mba.org/cmf-newslinks/2026/march/mba-commercial-multifamily-newslink-thursday-march-12-2026/cref-policy-update-senate-continues-consideration-of-housing-package-including-single-family-rental-investor-ban/",
-        "source": "newslink.mba.org",
-        "date": "2026-03-14T09:26:47.888196"
-      },
-      {
-        "title": "Senate passes Elizabeth Warren's housing policy - AOL.com",
-        "url": "https://www.aol.com/articles/senate-passes-elizabeth-warren-housing-164040201.html",
-        "source": "aol.com",
-        "date": null
-      }
-    ],
-    "summary": "\ud83c\udfdb\ufe0f In Utah, housing experts suggest the legislature's consolidation of housing programs indicates a waning appetite for new housing policies in an election year [Building Salt Lake](https://buildingsaltlake.com/election-year-blues-for-housing-bills-2026-utah-legislative-wrap-up/).\n\ud83c\udfad New York City's ",
-    "processing_time_ms": 19350,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "1 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "6 domains",
-        "unique_domains": 6,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "PASS",
-        "detail": "1/6 undated (17%)",
-        "ratio": 0.167
-      }
-    ]
-  },
-  {
-    "permutation": "beat+niche: housing policy",
-    "category": "analysis",
-    "source_mode": "niche",
-    "scope": "topic",
-    "queries_generated": 5,
-    "queries_list": [
-      "housing policy\" blog",
-      "housing policy\" analysis",
-      "housing policy\" opinion",
-      "housing policy\" deep dive",
-      "housing policy\" research report"
-    ],
-    "raw_results": 159,
-    "final_articles": 6,
-    "articles": [
-      {
-        "title": "[Insight & Opinion]The Three Key Conditions for Housing Policy",
-        "url": "https://www.asiae.co.kr/en/article/opinion-column/2026031609261881548",
-        "source": "asiae.co.kr",
-        "date": "2026-03-17T09:27:02.367212"
-      },
-      {
-        "title": "Affordable Housing's Next Chapter: Navigating Policy Shifts",
-        "url": "https://www.appfolio.com/blog/affordable-housing-navigating-policy-shifts",
-        "source": "appfolio.com",
-        "date": null
-      },
-      {
-        "title": "14 Housing Policies Critics Say Hurt First-Time Buyers",
-        "url": "https://wicproject.com/home/14-housing-policies-critics-say-hurt-first-time-buyers/",
-        "source": "wicproject.com",
-        "date": null
-      },
-      {
-        "title": "Housing | Economic Policy Institute - EPI.org",
-        "url": "https://www.epi.org/research/housing-2/",
-        "source": "epi.org",
-        "date": null
-      },
-      {
-        "title": "The Searchlight Approach to the Housing Crisis",
-        "url": "https://www.searchlightinstitute.org/research/the-searchlight-approach-to-the-housing-crisis/",
-        "source": "searchlightinstitute.org",
-        "date": null
-      },
-      {
-        "title": "Housing Policy: What is the biggest fix the U.S. needs?",
-        "url": "https://www.notus.org/perspectives/what-is-the-biggest-fix-the-u-s-needs-when-it-comes-to-housing-policy",
-        "source": "notus.org",
-        "date": null
-      }
-    ],
-    "summary": "\ud83c\udfd7\ufe0f A proposed \"One Big Beautiful Bill\" (OBBB) in 2025 signals significant federal, state, and local policy shifts aimed at reshaping the affordable housing landscape [AppFolio](https://www.appfolio.com/blog/affordable-housing-navigating-policy-shifts).\n\ud83d\udea8 Critics argue that numerous housing policies,",
-    "processing_time_ms": 13615,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "2 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "6 domains",
-        "unique_domains": 6,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "WARN",
-        "detail": "5/6 undated (83%)",
-        "ratio": 0.833
-      }
-    ]
-  },
-  {
     "permutation": "beat+niche: renewable energy",
     "category": "news",
     "source_mode": "niche",
@@ -2147,48 +2103,48 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
       "renewable energy\" update",
       "renewable energy\" report"
     ],
-    "raw_results": 138,
+    "raw_results": 133,
     "final_articles": 6,
     "articles": [
       {
-        "title": "NY clean energy projects that could power 2 million homes on hold because of tariffs",
-        "url": "https://gothamist.com/news/ny-clean-energy-projects-that-could-power-2-million-homes-on-hold-because-of-tariffs",
-        "source": "gothamist.com",
-        "date": "2026-03-18T05:27:14.748205"
+        "title": "How tiny Kit Carson County has grown into a green energy giant",
+        "url": "https://coloradosun.com/2026/03/29/kit-carson-county-colorado-renewable-energy-boom-xcel/",
+        "source": "coloradosun.com",
+        "date": "2026-03-29T22:22:16.246091"
       },
       {
-        "title": "Interior bends on solar, but wind energy on public lands remains stalled",
-        "url": "https://www.eenews.net/articles/interior-bends-on-solar-but-wind-energy-on-public-lands-remains-stalled/",
-        "source": "eenews.net",
-        "date": "2026-03-18T08:27:14.748254"
+        "title": "Scientists achieve \u2018impossible\u2019 solar efficiency in renewables breakthrough",
+        "url": "https://www.independent.co.uk/tech/solar-panel-breakthrough-renewable-energy-b2948432.html",
+        "source": "independent.co.uk",
+        "date": "2026-03-30T17:22:16.246110"
       },
       {
-        "title": "How Ann Arbor, Michigan, is creating its own clean energy utility",
-        "url": "https://grist.org/cities/ann-arbor-michigan-creating-its-own-renewable-energy-utility/",
-        "source": "grist.org",
-        "date": "2026-03-17T23:27:14.748266"
+        "title": "7 Solar Innovations That Made Energy Flexible, Mobile, and Indoor-Compatible",
+        "url": "https://www.renewableenergymagazine.com/rose-morrison/7-solar-innovations-that-made-energy-flexible-20260330",
+        "source": "renewableenergymagazine.com",
+        "date": "2026-03-30T18:22:16.246115"
       },
       {
-        "title": "Environmentalists say Washington County renewable energy project is too near national wildlife refuge",
-        "url": "https://www.opb.org/article/2026/03/17/washington-county-oregon-renewable-energy-project-wildlife-refuge/",
-        "source": "opb.org",
-        "date": "2026-03-18T03:27:14.748277"
+        "title": "Newly Approved Solar-Plus-Storage Project Will Save Millions for Kaua\u02bbi Co-op",
+        "url": "https://www.electric.coop/newly-approved-solar-plus-storage-project-will-save-millions-for-kauai-co-op",
+        "source": "electric.coop",
+        "date": "2026-03-30T18:22:16.246119"
       },
       {
-        "title": "Wanted: an electrical grid that runs on 100% renewable energy",
-        "url": "https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/",
-        "source": "physicsworld.com",
-        "date": "2026-03-18T06:27:14.748287"
+        "title": "Philippines fast-tracks 1.4GW of renewables amid Iran energy price shock",
+        "url": "https://www.pv-tech.org/philippines-fast-tracks-1-4gw-of-renewables-amid-iran-energy-price-shock/",
+        "source": "pv-tech.org",
+        "date": "2026-03-30T12:22:16.246122"
       },
       {
-        "title": "Columbia River data centers threaten renewable energy goals, report says",
-        "url": "https://www.nbcrightnow.com/news/columbia-river-data-centers-threaten-renewable-energy-goals-report-says/article_87441308-71b1-4b09-a69e-4726f4dc32a8.html",
-        "source": "nbcrightnow.com",
-        "date": "2026-03-17T21:27:14.748296"
+        "title": "Estonia launches centralised platform for renewable energy services",
+        "url": "https://ceenergynews.com/renewables/estonia-centralised-platform-renewable-energy/",
+        "source": "ceenergynews.com",
+        "date": "2026-03-30T16:22:16.246126"
       }
     ],
-    "summary": "\ud83c\udfd7\ufe0f Renewable energy projects in New York, capable of powering 2 million homes, are stalled due to rising construction costs linked to tariffs [Gothamist](https://gothamist.com/news/ny-clean-energy-projects-that-could-power-2-million-homes-on-hold-because-of-tariffs).\n\ud83c\udfdb\ufe0f While the Interior Department",
-    "processing_time_ms": 12484,
+    "summary": "\u2022 Colorado's Kit Carson County is experiencing a significant renewable energy boom, transforming its landscape and economy with new projects [Colorado Sun](https://coloradosun.com/2026/03/29/kit-carson-county-colorado-renewable-energy-boom-xcel/).\n\u2022 Scientists have achieved a breakthrough in solar e",
+    "processing_time_ms": 7756,
     "error": null,
     "quality_checks": [
       {
@@ -2233,48 +2189,48 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
       "renewable energy\" deep dive",
       "renewable energy\" research report"
     ],
-    "raw_results": 172,
+    "raw_results": 136,
     "final_articles": 6,
     "articles": [
       {
-        "title": "Wanted: an electrical grid that runs on 100% renewable energy",
-        "url": "https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/",
-        "source": "physicsworld.com",
-        "date": "2026-03-18T06:27:58.029065"
+        "title": "The Strategic Significance Of Renewable Energy \u2013 Analysis",
+        "url": "https://www.eurasiareview.com/27032026-the-strategic-significance-of-renewable-energy-analysis/",
+        "source": "eurasiareview.com",
+        "date": "2026-03-27T22:22:39.956712"
       },
       {
-        "title": "The Economic Potential of Nuclear-Renewable Hybrid Energy Systems Producing Hydrogen",
-        "url": "https://www.energy.gov/cmei/articles/economic-potential-nuclear-renewable-hybrid-energy-systems-producing-hydrogen",
-        "source": "energy.gov",
-        "date": "2026-03-17T11:27:58.029102"
+        "title": "Energy Shock Reignites Push for Renewables & Electrification | 2026 Analysis - News and Statistics",
+        "url": "https://www.indexbox.io/blog/energy-supply-shock-renews-focus-on-renewables-and-electrification/",
+        "source": "indexbox.io",
+        "date": "2026-03-29T22:22:39.956731"
       },
       {
         "title": "Integrating Variable Renewable Energy in Kenya \u2013 Analysis",
         "url": "https://www.iea.org/reports/integrating-variable-renewable-energy-in-kenya",
         "source": "iea.org",
-        "date": "2026-03-13T09:27:58.029117"
+        "date": "2026-03-16T22:22:39.956736"
       },
       {
-        "title": "Analysis of different methods to calculate tertiary regulation reserves for renewable energy in Japan",
-        "url": "https://www.nature.com/articles/s41598-026-37441-x",
-        "source": "nature.com",
-        "date": "2026-03-04T09:27:58.029129"
+        "title": "Strategic LNG Import Alternatives: Renewable Energy and Green Hydrogen Solutions",
+        "url": "https://discoveryalert.com.au/strategic-energy-diversification-supply-chain-2026/",
+        "source": "discoveryalert.com.au",
+        "date": "2026-03-29T22:22:39.956740"
       },
       {
-        "title": "OPINION: Our Electric Grid\u2026 Our Future\u2026",
-        "url": "https://pagosadailypost.com/2026/03/17/opinion-our-electric-grid-our-future/",
-        "source": "pagosadailypost.com",
-        "date": "2026-03-18T01:27:58.029139"
+        "title": "\u2018Renewable\u2019 Energy Gives Us a Crisis",
+        "url": "https://www.wsj.com/opinion/renewable-energy-gives-us-a-crisis-e8426cd8?gaa_at=eafs&gaa_n=AWEtsqdoVcm1xs56OUhWG98ewjku5WGOn-QqTRjADZlDzEDAw2J63DD0DRCb&gaa_ts=69cadeff&gaa_sig=5zHpgl6Cp2c1_Ar8wpkw2B_ZUp58boCugszfnJC3b5xcUlqqph5LQwB1L8foRuoTdOS6MlUsXPAfhYaOJLzqUA%3D%3D",
+        "source": "wsj.com",
+        "date": "2026-03-27T22:22:39.956744"
       },
       {
-        "title": "Iran War Sharpens Europe's Renewable Energy Urgency \u2014 And Exposes Its Gas Vulnerability",
-        "url": "https://thedeepdive.ca/iran-war-sharpens-europes-renewable-energy-urgency-and-exposes-its-gas-vulnerability/",
-        "source": "thedeepdive.ca",
-        "date": "2026-03-17T09:27:58.029149"
+        "title": "Opinion | Why China\u2019s space-based solar power is the next frontier of green energy",
+        "url": "https://www.scmp.com/opinion/china-opinion/article/3347692/why-chinas-space-based-solar-power-next-frontier-green-energy",
+        "source": "scmp.com",
+        "date": "2026-03-28T22:22:39.956747"
       }
     ],
-    "summary": "\ud83d\udea8 Global conflicts are increasing the attractiveness of renewable energy, but achieving a 100% renewable grid necessitates solving complex physics challenges alongside technological advancements [Physics World](https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/)\n",
-    "processing_time_ms": 43303,
+    "summary": "\ud83d\udea8 An energy supply shock is prompting governments globally to accelerate renewable energy adoption and electrification, highlighting the strategic importance of diversifying energy sources [IndexBox](https://www.indexbox.io/blog/energy-supply-shock-renews-focus-on-renewables-and-electrification/)\n\ud83c\udfad ",
+    "processing_time_ms": 24068,
     "error": null,
     "quality_checks": [
       {
@@ -2319,60 +2275,146 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
       "housing policy\" update",
       "housing policy\" report"
     ],
-    "raw_results": 94,
+    "raw_results": 97,
     "final_articles": 8,
     "articles": [
       {
-        "title": "Senate passes Elizabeth Warren\u2019s housing policy \u2014 with some unlikely conservative allies",
-        "url": "https://nypost.com/2026/03/12/us-news/senate-passes-elizabeth-warrens-housing-policy-with-some-unlikely-conservative-allies/",
-        "source": "nypost.com",
-        "date": "2026-03-13T09:28:02.834618"
+        "title": "Coalition of state attorneys general seek to block HUD\u2019s fair housing policy changes",
+        "url": "https://www.jdsupra.com/legalnews/coalition-of-state-attorneys-general-8156415/",
+        "source": "jdsupra.com",
+        "date": "2026-03-30T16:22:43.993035"
       },
       {
-        "title": "An Ivy League town faces bitter battle over affordable housing",
-        "url": "https://www.washingtonpost.com/nation/2026/03/17/new-jersey-affordable-housing-princeton/",
+        "title": "Trump Wants to End Housing Protections Against Discrimination",
+        "url": "https://www.aclu.org/news/womens-rights/trump-is-attacking-a-crucial-fair-housing-rule-that-protects-against-discrimination",
+        "source": "aclu.org",
+        "date": "2026-03-16T22:22:43.993057"
+      },
+      {
+        "title": "Mayor Quinton Lucas proposes major rollback of Kansas City\u2019s landmark affordable housing policy",
+        "url": "https://thebeaconnews.org/stories/2026/03/25/kansas-city-affordable-housing-set-aside/",
+        "source": "thebeaconnews.org",
+        "date": "2026-03-26T22:22:43.993062"
+      },
+      {
+        "title": "Governor Ferguson signs bills improving housing",
+        "url": "https://governor.wa.gov/news/2026/governor-ferguson-signs-bills-improving-housing",
+        "source": "governor.wa.gov",
+        "date": "2026-03-27T22:22:43.993065"
+      },
+      {
+        "title": "S.F. restored a Chinatown building for low-income tenants. It shows what housing policy often misses",
+        "url": "https://www.sfchronicle.com/sf/article/housing-preservation-chinatown-san-francisco-22094757.php",
+        "source": "sfchronicle.com",
+        "date": "2026-03-27T22:22:43.993068"
+      },
+      {
+        "title": "A Proposed Change in Federal Housing Policy Could Mean Instability for Santa Barbara Families",
+        "url": "https://www.independent.com/2026/03/23/a-proposed-change-in-federal-housing-policy-could-mean-instability-for-santa-barbara-families/",
+        "source": "independent.com",
+        "date": "2026-03-23T22:22:43.993071"
+      },
+      {
+        "title": "Maryland housing chief blasts Salisbury\u2019s \u2018Housing First+\u2019 shift",
+        "url": "https://www.baltimoresun.com/2026/03/29/day-housing-first-plus-critique/",
+        "source": "baltimoresun.com",
+        "date": "2026-03-29T22:22:43.993075"
+      },
+      {
+        "title": "A successful USDA program that has supported more than 533,000 affordable rental homes in rural America is being phased out",
+        "url": "https://www.pbs.org/newshour/economy/a-successful-usda-program-that-has-supported-more-than-533000-affordable-rental-homes-in-rural-america-is-being-phased-out",
+        "source": "pbs.org",
+        "date": "2026-03-16T22:22:43.993078"
+      }
+    ],
+    "summary": "\ud83d\udea8 A coalition of 15 state attorneys general and the District of Columbia are suing to block HUD's changes to fair housing policy, arguing it weakens protections against discrimination [JDSupra](https://jdsupra.com/legalnews/coalition-of-state-attorneys-general-8156415/) and could harm vulnerable pop",
+    "processing_time_ms": 3859,
+    "error": null,
+    "quality_checks": [
+      {
+        "check": "language",
+        "status": "PASS",
+        "detail": "1 bullets OK (en)",
+        "mismatches": []
+      },
+      {
+        "check": "date_relevance",
+        "status": "PASS",
+        "detail": "0 stale, 0 PDFs",
+        "stale_articles": [],
+        "pdf_count": 0,
+        "pdfs": []
+      },
+      {
+        "check": "source_diversity",
+        "status": "PASS",
+        "detail": "8 domains",
+        "unique_domains": 8,
+        "violations": {}
+      },
+      {
+        "check": "undated_ratio",
+        "status": "PASS",
+        "detail": "0/8 undated (0%)",
+        "ratio": 0.0
+      }
+    ]
+  },
+  {
+    "permutation": "beat+reliable: housing policy",
+    "category": "analysis",
+    "source_mode": "reliable",
+    "scope": "topic",
+    "queries_generated": 5,
+    "queries_list": [
+      "housing policy\" blog",
+      "housing policy\" analysis",
+      "housing policy\" opinion",
+      "housing policy\" deep dive",
+      "housing policy\" research report"
+    ],
+    "raw_results": 106,
+    "final_articles": 6,
+    "articles": [
+      {
+        "title": "Austin\u2019s Surge of New Housing Construction Drove Down Rents",
+        "url": "https://www.pew.org/en/research-and-analysis/articles/2026/03/18/austins-surge-of-new-housing-construction-drove-down-rents",
+        "source": "pew.org",
+        "date": "2026-03-16T22:22:47.301877"
+      },
+      {
+        "title": "Affordable housing is possible, if we stop ignoring the obvious | Opinion",
+        "url": "https://www.usatoday.com/story/opinion/2026/03/23/affordable-housing-vacant-offices-remote-work/89085433007/",
+        "source": "usatoday.com",
+        "date": "2026-03-23T22:22:47.301896"
+      },
+      {
+        "title": "Universities are the structural lever America\u2019s housing policy is missing",
+        "url": "https://www.multifamilydive.com/news/universities-help-housing-shortage/815232/",
+        "source": "multifamilydive.com",
+        "date": "2026-03-23T22:22:47.301902"
+      },
+      {
+        "title": "Opinion | Elizabeth Warren tries to jam the House with a flawed housing bill",
+        "url": "https://www.washingtonpost.com/opinions/2026/03/25/housing-bill-elizabeth-warren-rent-to-build/",
         "source": "washingtonpost.com",
-        "date": "2026-03-18T07:28:02.834647"
+        "date": "2026-03-26T22:22:47.301905"
       },
       {
-        "title": "A successful USDA program that has supported more than 533,000 affordable rental homes in rural America is being phased out",
-        "url": "https://www.pbs.org/newshour/economy/a-successful-usda-program-that-has-supported-more-than-533000-affordable-rental-homes-in-rural-america-is-being-phased-out",
-        "source": "pbs.org",
-        "date": "2026-03-17T09:28:02.834658"
+        "title": "As federal housing policy changes, here\u2019s why Atlanta families will be ready",
+        "url": "https://www.ajc.com/opinion/2026/03/as-federal-housing-policy-changes-heres-why-atlanta-families-will-be-ready/",
+        "source": "ajc.com",
+        "date": "2026-03-16T22:22:47.301909"
       },
       {
-        "title": "NYC\u2019s Community Opportunity to Purchase Act: A New Era in Housing Policy",
-        "url": "https://www.law.com/newyorklawjournal/2026/03/16/nycs-community-opportunity-to-purchase-act-a-new-era-in-housing-policy/",
-        "source": "law.com",
-        "date": "2026-03-17T09:28:02.834667"
-      },
-      {
-        "title": "NFHA Warns Trump\u2019s Orders Could Weaken Fair Housing Protections",
-        "url": "https://davisvanguard.org/2026/03/housing-crisis-civil-rights-protections/",
-        "source": "davisvanguard.org",
-        "date": "2026-03-18T01:28:02.834674"
-      },
-      {
-        "title": "Florida\u2019s Live Local 4.0 flexes state muscle on housing progress",
-        "url": "https://www.housingwire.com/articles/florida-live-local-4/",
-        "source": "housingwire.com",
-        "date": "2026-03-18T05:28:02.834682"
-      },
-      {
-        "title": "Idaho short-term rental bill runs counter to Trump\u2019s housing policy | Opinion",
-        "url": "https://www.idahostatesman.com/opinion/readers-opinion/article315078021.html",
-        "source": "idahostatesman.com",
-        "date": "2026-03-18T00:28:02.834689"
-      },
-      {
-        "title": "California YIMBY Adopts New Tactics for Housing Policy Change",
-        "url": "https://pro.stateaffairs.com/ca/housing/california-yimby-housing-bills",
-        "source": "pro.stateaffairs.com",
-        "date": "2026-03-04T09:28:02.834696"
+        "title": "Government must draw on housing policies elsewhere",
+        "url": "https://www.irishexaminer.com/opinion/ourview/arid-41818886.html",
+        "source": "irishexaminer.com",
+        "date": "2026-03-30T02:22:47.301912"
       }
     ],
-    "summary": "\ud83c\udfdb\ufe0f The Senate passed a bipartisan bill, championed by Elizabeth Warren, to prevent Wall Street investors from purchasing single-family homes, aiming to curb corporate ownership and potentially increase availability for individual buyers [New York Post](https://nypost.com/2026/03/12/us-news/senate-pa",
-    "processing_time_ms": 5115,
+    "summary": "\ud83c\udfd7\ufe0f Austin's significant increase in new housing construction in the 2010s demonstrably led to a decrease in rental prices, highlighting the impact of supply on affordability [Pew Research Center](https://www.pew.org/en/research-and-analysis/articles/2026/03/18/austins-surge-of-new-housing-constructi",
+    "processing_time_ms": 3247,
     "error": null,
     "quality_checks": [
       {
@@ -2392,94 +2434,14 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
       {
         "check": "source_diversity",
         "status": "PASS",
-        "detail": "8 domains",
-        "unique_domains": 8,
+        "detail": "6 domains",
+        "unique_domains": 6,
         "violations": {}
       },
       {
         "check": "undated_ratio",
         "status": "PASS",
-        "detail": "0/8 undated (0%)",
-        "ratio": 0.0
-      }
-    ]
-  },
-  {
-    "permutation": "beat+reliable: housing policy",
-    "category": "analysis",
-    "source_mode": "reliable",
-    "scope": "topic",
-    "queries_generated": 5,
-    "queries_list": [
-      "housing policy\" blog",
-      "housing policy\" analysis",
-      "housing policy\" opinion",
-      "housing policy\" deep dive",
-      "housing policy\" research report"
-    ],
-    "raw_results": 105,
-    "final_articles": 5,
-    "articles": [
-      {
-        "title": "What\u2019s in the 21st Century ROAD to Housing Act?",
-        "url": "https://bipartisanpolicy.org/explainer/whats-in-the-21st-century-road-to-housing-act/",
-        "source": "bipartisanpolicy.org",
-        "date": "2026-03-18T01:28:06.345228"
-      },
-      {
-        "title": "Idaho short-term rental bill runs counter to Trump\u2019s housing policy | Opinion",
-        "url": "https://www.idahostatesman.com/opinion/readers-opinion/article315078021.html",
-        "source": "idahostatesman.com",
-        "date": "2026-03-18T00:28:06.345307"
-      },
-      {
-        "title": "[Insight & Opinion]The Three Key Conditions for Housing Policy",
-        "url": "https://www.asiae.co.kr/en/article/opinion-column/2026031609261881548",
-        "source": "asiae.co.kr",
-        "date": "2026-03-17T09:28:06.345327"
-      },
-      {
-        "title": "Join The Urbanist for June Events, Eastside Forum on July 6th",
-        "url": "https://www.theurbanist.org/join-the-urbanist-for-june-events-eastside-forum-on-july-6th/",
-        "source": "theurbanist.org",
-        "date": "2026-03-12T09:28:06.345344"
-      },
-      {
-        "title": "These 10 charts sum up Fort Collins' housing affordability challenge",
-        "url": "https://www.coloradoan.com/story/news/local/2026/03/17/why-fort-collins-housing-isnt-affordable-in-10-charts/89100776007/",
-        "source": "coloradoan.com",
-        "date": "2026-03-18T02:28:06.345357"
-      }
-    ],
-    "summary": "\u2022 The 21st Century ROAD to Housing Act, a combination of House and Senate legislation, was released on March 2, 2026, aiming to address housing challenges with new proposals [Bipartisan Policy Center](https://bipartisanpolicy.org/explainer/whats-in-the-21st-century-road-to-housing-act/).\n\u2022 An opinio",
-    "processing_time_ms": 3374,
-    "error": null,
-    "quality_checks": [
-      {
-        "check": "language",
-        "status": "PASS",
-        "detail": "1 bullets OK (en)",
-        "mismatches": []
-      },
-      {
-        "check": "date_relevance",
-        "status": "PASS",
-        "detail": "0 stale, 0 PDFs",
-        "stale_articles": [],
-        "pdf_count": 0,
-        "pdfs": []
-      },
-      {
-        "check": "source_diversity",
-        "status": "PASS",
-        "detail": "5 domains",
-        "unique_domains": 5,
-        "violations": {}
-      },
-      {
-        "check": "undated_ratio",
-        "status": "PASS",
-        "detail": "0/5 undated (0%)",
+        "detail": "0/6 undated (0%)",
         "ratio": 0.0
       }
     ]
@@ -2497,60 +2459,60 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
       "renewable energy\" update",
       "renewable energy\" report"
     ],
-    "raw_results": 103,
+    "raw_results": 108,
     "final_articles": 8,
     "articles": [
       {
-        "title": "Oil and gas prices are soaring. Some countries are ready with solar panels and EVs",
-        "url": "https://www.npr.org/2026/03/16/nx-s1-5732984/energy-iran-war-solar-pakistan-crisis-renewable-evs",
-        "source": "npr.org",
-        "date": "2026-03-17T09:28:10.877875"
+        "title": "Rachel Reeves to tell G7 accelerating shift to clean energy is best defence against energy price shocks",
+        "url": "https://www.theguardian.com/environment/2026/mar/29/rachel-reeves-to-tell-g7-accelerating-shift-to-clean-energy-is-best-defence-against-energy-price-shocks",
+        "source": "theguardian.com",
+        "date": "2026-03-29T23:22:51.881402"
       },
       {
-        "title": "How India Is Powering 1.4 Billion People While Deploying Renewables",
-        "url": "https://www.forbes.com/sites/kensilverstein/2026/03/15/how-india-is-powering-14-billion-people-while-deploying-renewables/",
-        "source": "forbes.com",
-        "date": "2026-03-16T09:28:10.877914"
+        "title": "Solar is winning the energy race",
+        "url": "https://www.dw.com/en/solar-is-winning-the-energy-race/a-76517556",
+        "source": "dw.com",
+        "date": "2026-03-28T22:22:51.881420"
       },
       {
-        "title": "Could a global economy dependent on renewable energy see less war? Experts explain",
-        "url": "https://abcnews.com/Technology/global-economy-dependent-renewable-energy-war-experts-explain/story?id=130969198",
-        "source": "abcnews.com",
-        "date": "2026-03-17T23:28:10.877931"
+        "title": "Sustainable Switch Climate Focus: Europe's renewable energy paradox",
+        "url": "https://www.reuters.com/sustainability/the-switch/sustainable-switch-climate-focus-europes-renewable-energy-paradox-2026-03-27/",
+        "source": "reuters.com",
+        "date": "2026-03-27T22:22:51.881424"
       },
       {
-        "title": "Environmentalists say Washington County renewable energy project is too near national wildlife refuge",
-        "url": "https://www.opb.org/article/2026/03/17/washington-county-oregon-renewable-energy-project-wildlife-refuge/",
-        "source": "opb.org",
-        "date": "2026-03-18T03:28:10.877946"
+        "title": "China Is Planning Decades Ahead on Clean Energy. The U.S. Has Other Priorities.",
+        "url": "https://www.cfr.org/articles/china-is-planning-decades-ahead-on-clean-energy-the-u-s-has-other-priorities",
+        "source": "cfr.org",
+        "date": "2026-03-28T22:22:51.881427"
       },
       {
-        "title": "Columbia River data centers threaten renewable energy goals, report says",
-        "url": "https://www.nbcrightnow.com/news/columbia-river-data-centers-threaten-renewable-energy-goals-report-says/article_87441308-71b1-4b09-a69e-4726f4dc32a8.html",
-        "source": "nbcrightnow.com",
-        "date": "2026-03-17T21:28:10.877959"
+        "title": "Scientists achieve \u2018impossible\u2019 solar efficiency in renewables breakthrough",
+        "url": "https://www.independent.co.uk/tech/solar-panel-breakthrough-renewable-energy-b2948432.html",
+        "source": "independent.co.uk",
+        "date": "2026-03-30T17:22:51.881430"
       },
       {
-        "title": "\u2018A fossil fuel state\u2019: Legislature cuts renewable energy out of long-term energy plan",
-        "url": "https://www.wvgazettemail.com/news/legislative_session/a-fossil-fuel-state-legislature-cuts-renewable-energy-out-of-long-term-energy-plan/article_8cb7ddb8-9af9-4d35-bc9a-31f94906c476.html",
-        "source": "wvgazettemail.com",
-        "date": "2026-03-18T00:28:10.877971"
+        "title": "US government report: The only new energy coming online in 2026 is renewables",
+        "url": "https://www.solarpowerworldonline.com/2026/03/us-government-report-the-only-new-energy-coming-online-in-2026-is-renewables/",
+        "source": "solarpowerworldonline.com",
+        "date": "2026-03-30T14:22:51.881433"
       },
       {
-        "title": "As Fossil Fuel Costs Rise, Renewable Energy & Storage Shine",
-        "url": "https://cleantechnica.com/2026/03/17/as-fossil-fuel-costs-rise-renewable-energy-storage-shine/",
-        "source": "cleantechnica.com",
-        "date": "2026-03-18T07:28:10.877982"
+        "title": "Newly Approved Solar-Plus-Storage Project Will Save Millions for Kaua\u02bbi Co-op",
+        "url": "https://www.electric.coop/newly-approved-solar-plus-storage-project-will-save-millions-for-kauai-co-op",
+        "source": "electric.coop",
+        "date": "2026-03-30T18:22:51.881436"
       },
       {
-        "title": "Iran War Sharpens Europe's Renewable Energy Urgency \u2014 And Exposes Its Gas Vulnerability",
-        "url": "https://thedeepdive.ca/iran-war-sharpens-europes-renewable-energy-urgency-and-exposes-its-gas-vulnerability/?utm_source=rss&utm_medium=rss&utm_campaign=iran-war-sharpens-europes-renewable-energy-urgency-and-exposes-its-gas-vulnerability",
-        "source": "thedeepdive.ca",
-        "date": "2026-03-17T09:28:10.877994"
+        "title": "\u2018Renewable\u2019 Energy Gives Us a Crisis",
+        "url": "https://www.wsj.com/opinion/renewable-energy-gives-us-a-crisis-e8426cd8?gaa_at=eafs&gaa_n=AWEtsqcRHB2lrTyehNiYm2QVtuNE8KSZ5vp_KMxjhdCCl3IT04iaDvSrZzlr&gaa_ts=69cadef8&gaa_sig=hzJ7vCNEGM6hRFmRWqvv-pNO99C3wXVHEp9gW_5lagUGkqy7b6ayAopdXREqHdKXyeZ8S6r7pNKzC7E6FtRCOg%3D%3D",
+        "source": "wsj.com",
+        "date": "2026-03-27T22:22:51.881439"
       }
     ],
-    "summary": "\ud83d\udcf0 Countries like Pakistan are leveraging solar panels and EVs to mitigate the impact of soaring oil and gas prices, demonstrating the resilience of renewable energy in times of crisis [NPR](https://www.npr.org/2026/03/16/nx-s1-5732984/energy-iran-war-solar-pakistan-crisis-renewable-evs)\n\ud83d\udcbc India is m",
-    "processing_time_ms": 4600,
+    "summary": "\u2022 Rachel Reeves will tell the G7 that accelerating the shift to clean energy is the most effective defense against energy price shocks, especially amid ongoing geopolitical tensions affecting fossil fuel supplies [The Guardian](https://www.theguardian.com/environment/2026/mar/29/rachel-reeves-to-tel",
+    "processing_time_ms": 5729,
     "error": null,
     "quality_checks": [
       {
@@ -2595,48 +2557,48 @@ Note: In production, `cross_category_dedup()` runs at the router level after bot
       "renewable energy\" deep dive",
       "renewable energy\" research report"
     ],
-    "raw_results": 115,
+    "raw_results": 92,
     "final_articles": 6,
     "articles": [
       {
-        "title": "Wanted: an electrical grid that runs on 100% renewable energy",
-        "url": "https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/",
-        "source": "physicsworld.com",
-        "date": "2026-03-18T06:28:14.825653"
+        "title": "The Strategic Significance Of Renewable Energy \u2013 Analysis",
+        "url": "https://www.eurasiareview.com/27032026-the-strategic-significance-of-renewable-energy-analysis/",
+        "source": "eurasiareview.com",
+        "date": "2026-03-27T22:22:56.430543"
       },
       {
-        "title": "The Economic Potential of Nuclear-Renewable Hybrid Energy Systems Producing Hydrogen",
-        "url": "https://www.energy.gov/cmei/articles/economic-potential-nuclear-renewable-hybrid-energy-systems-producing-hydrogen",
-        "source": "energy.gov",
-        "date": "2026-03-17T11:28:14.825740"
+        "title": "Energy Shock Reignites Push for Renewables & Electrification | 2026 Analysis - News and Statistics",
+        "url": "https://www.indexbox.io/blog/energy-supply-shock-renews-focus-on-renewables-and-electrification/",
+        "source": "indexbox.io",
+        "date": "2026-03-29T22:22:56.430563"
       },
       {
         "title": "Integrating Variable Renewable Energy in Kenya \u2013 Analysis",
         "url": "https://www.iea.org/reports/integrating-variable-renewable-energy-in-kenya",
         "source": "iea.org",
-        "date": "2026-03-13T09:28:14.825766"
+        "date": "2026-03-16T22:22:56.430568"
       },
       {
-        "title": "Analysis of different methods to calculate tertiary regulation reserves for renewable energy in Japan",
-        "url": "https://www.nature.com/articles/s41598-026-37441-x",
-        "source": "nature.com",
-        "date": "2026-03-04T09:28:14.826415"
+        "title": "\u2018Renewable\u2019 Energy Gives Us a Crisis",
+        "url": "https://www.wsj.com/opinion/renewable-energy-gives-us-a-crisis-e8426cd8?gaa_at=eafs&gaa_n=AWEtsqdoVcm1xs56OUhWG98ewjku5WGOn-QqTRjADZlDzEDAw2J63DD0DRCb&gaa_ts=69cadeff&gaa_sig=5zHpgl6Cp2c1_Ar8wpkw2B_ZUp58boCugszfnJC3b5xcUlqqph5LQwB1L8foRuoTdOS6MlUsXPAfhYaOJLzqUA%3D%3D",
+        "source": "wsj.com",
+        "date": "2026-03-27T22:22:56.430572"
       },
       {
-        "title": "OPINION: Our Electric Grid\u2026 Our Future\u2026",
-        "url": "https://pagosadailypost.com/2026/03/17/opinion-our-electric-grid-our-future/",
-        "source": "pagosadailypost.com",
-        "date": "2026-03-18T01:28:14.826443"
+        "title": "Opinion | Why China\u2019s space-based solar power is the next frontier of green energy",
+        "url": "https://www.scmp.com/opinion/china-opinion/article/3347692/why-chinas-space-based-solar-power-next-frontier-green-energy",
+        "source": "scmp.com",
+        "date": "2026-03-28T22:22:56.430576"
       },
       {
-        "title": "Iran War Sharpens Europe's Renewable Energy Urgency \u2014 And Exposes Its Gas Vulnerability",
-        "url": "https://thedeepdive.ca/iran-war-sharpens-europes-renewable-energy-urgency-and-exposes-its-gas-vulnerability/",
-        "source": "thedeepdive.ca",
-        "date": "2026-03-17T09:28:14.826461"
+        "title": "From the Opinions Editor | India\u2019s clean power push needs a missing piece: Energy efficiency",
+        "url": "https://indianexpress.com/article/opinion/india-clean-power-push-needs-missing-piece-energy-efficiency-10607962/",
+        "source": "indianexpress.com",
+        "date": "2026-03-29T22:22:56.430579"
       }
     ],
-    "summary": "\ud83d\udea8 Global conflicts are increasing the attractiveness of renewable energy, but achieving a 100% renewable grid requires overcoming significant physics challenges in addition to technological ones [Physics World](https://physicsworld.com/a/wanted-an-electrical-grid-that-runs-on-100-renewable-energy/)\n",
-    "processing_time_ms": 3785,
+    "summary": "\ud83d\udea8 An energy supply shock is prompting global governments to accelerate renewable energy adoption and electrification, highlighting the strategic importance of diversifying energy sources [IndexBox](https://www.indexbox.io/blog/energy-supply-shock-renews-focus-on-renewables-and-electrification/)\n\ud83c\udfad Th",
+    "processing_time_ms": 3378,
     "error": null,
     "quality_checks": [
       {

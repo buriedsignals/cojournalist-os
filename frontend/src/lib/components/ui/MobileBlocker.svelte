@@ -18,11 +18,11 @@
 		}
 	}
 
-	// Skip blocker on login page
-	$: isLoginPage = $page.url.pathname === '/login';
+	// Skip blocker on public pages
+	$: isExemptPage = $page.url.pathname === '/login' || $page.url.pathname === '/pricing' || $page.url.pathname === '/faq';
 </script>
 
-{#if showBlocker && !isLoginPage}
+{#if showBlocker && !isExemptPage}
 	<div class="mobile-blocker">
 		<div class="mobile-blocker-content">
 			<div class="icon-wrapper">

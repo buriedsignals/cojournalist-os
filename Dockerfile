@@ -29,7 +29,11 @@ COPY backend/requirements.txt ./backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend ./backend
-COPY automation/setup-skill.md ./backend/app/setup-skill.md
+COPY automation/SETUP_AGENT.md ./backend/app/SETUP_AGENT.md
+COPY automation/setup.sh ./backend/app/setup.sh
+COPY automation/sync-upstream.yml ./backend/app/sync-upstream.yml
+COPY deploy/render/render.yaml ./backend/app/render.yaml
+COPY deploy/SETUP.md ./backend/app/SETUP.md
 COPY --from=frontend-builder /workspace/frontend/build ./backend/app/frontend_client
 
 ENV HOST=0.0.0.0 \

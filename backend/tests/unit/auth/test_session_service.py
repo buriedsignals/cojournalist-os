@@ -67,7 +67,8 @@ class TestTamperedToken:
         token = service.create_session("user-123")
         parts = token.split(".")
         sig = parts[2]
-        tampered_sig = sig[:-1] + ("A" if sig[-1] != "A" else "B")
+        # Flip multiple characters to ensure decoded bytes actually change
+        tampered_sig = sig[:4] + ("XXXX" if sig[4:8] != "XXXX" else "YYYY") + sig[8:]
         tampered_token = f"{parts[0]}.{parts[1]}.{tampered_sig}"
         assert service.validate_session(tampered_token) is None
 

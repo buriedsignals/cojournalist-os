@@ -13,6 +13,7 @@ The /license/webhook endpoint is secured by Stripe signature verification.
 """
 import functools
 import hashlib
+import json
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -51,6 +52,34 @@ def _generate_license_key() -> str:
     return "cjl_" + "-".join(parts)
 
 
+def _validate_license_key(key: str) -> tuple[dict | None, JSONResponse | None]:
+    """Validate a license key. Returns (record, None) on success or (None, error_response) on failure."""
+    service = LicenseKeyService()
+    record = service.validate_key(key)
+
+    if not record:
+        return None, JSONResponse(
+            status_code=403,
+            content={"valid": False, "error": "Invalid license key"},
+        )
+
+    expires_at = datetime.fromisoformat(record["expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        return None, JSONResponse(
+            status_code=403,
+            content={"valid": False, "error": "License expired", "expired_at": record["expires_at"]},
+        )
+
+    status = record.get("status", "active")
+    if status == "revoked":
+        return None, JSONResponse(
+            status_code=403,
+            content={"valid": False, "error": "License revoked"},
+        )
+
+    return record, None
+
+
 @router.post("/license/validate")
 @limiter.limit("10/minute")
 async def validate_license(request: Request):
@@ -67,108 +96,88 @@ async def validate_license(request: Request):
     """
     body = await request.json()
     key = body.get("key", "")
-    service = LicenseKeyService()
-    record = service.validate_key(key)
+    record, error = _validate_license_key(key)
+    if error:
+        return error
 
-    if not record:
-        return JSONResponse(
-            status_code=403,
-            content={"valid": False, "error": "Invalid license key"},
-        )
-
-    # Check expiry
-    expires_at = datetime.fromisoformat(record["expires_at"])
-    now = datetime.now(timezone.utc)
-
-    if now > expires_at:
-        return JSONResponse(
-            status_code=403,
-            content={
-                "valid": False,
-                "error": "License expired",
-                "expired_at": record["expires_at"],
-            },
-        )
-
-    # Check status
     status = record.get("status", "active")
-    if status == "revoked":
-        return JSONResponse(
-            status_code=403,
-            content={"valid": False, "error": "License revoked"},
-        )
-
-    # Valid — return metadata (useful for setup.sh to display)
     return {
         "valid": True,
-        "status": status,  # "active", "past_due", "cancelled"
+        "status": status,
         "expires_at": record["expires_at"],
         "customer_email": record.get("customer_email"),
     }
 
 
-@functools.lru_cache(maxsize=1)
-def _load_setup_guide() -> str:
-    """Load setup-skill.md from disk (cached for process lifetime)."""
-    # Docker path: /workspace/backend/app/setup-skill.md
-    docker_path = Path(__file__).resolve().parent.parent / "setup-skill.md"
+def _resolve_gated_file(name: str) -> str:
+    """Resolve a gated file path, checking Docker then local dev locations."""
+    # Docker path: /workspace/backend/app/<name>
+    docker_path = Path(__file__).resolve().parent.parent / name
     if docker_path.exists():
         return docker_path.read_text()
 
-    # Local dev: repo_root/automation/setup-skill.md
-    local_path = Path(__file__).resolve().parent.parent.parent.parent / "automation" / "setup-skill.md"
-    if local_path.exists():
+    # Local dev: map filenames to their repo-root locations
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    local_paths = {
+        "SETUP_AGENT.md": repo_root / "automation" / "SETUP_AGENT.md",
+        "setup.sh": repo_root / "automation" / "setup.sh",
+        "sync-upstream.yml": repo_root / "automation" / "sync-upstream.yml",
+        "render.yaml": repo_root / "deploy" / "render" / "render.yaml",
+        "SETUP.md": repo_root / "deploy" / "SETUP.md",
+    }
+    local_path = local_paths.get(name)
+    if local_path and local_path.exists():
         return local_path.read_text()
 
     return ""
 
 
+@functools.lru_cache(maxsize=1)
+def _load_gated_files() -> dict[str, str]:
+    """Load all license-gated files (cached for process lifetime)."""
+    names = ["SETUP_AGENT.md", "render.yaml", "setup.sh", "sync-upstream.yml", "SETUP.md"]
+    return {name: _resolve_gated_file(name) for name in names}
+
+
 @router.post("/license/setup-guide")
 @limiter.limit("5/minute")
 async def download_setup_guide(request: Request):
-    """Download the setup guide after license key validation.
+    """Download license-gated deployment files after license key validation.
 
     Accepts JSON body: {"key": "cjl_..."}
 
-    Returns the setup-skill.md content as text/markdown on success.
+    Query params:
+        ?file=setup-skill.md  — return single file as raw text
+        (no param)            — return all files as JSON bundle
+
     Rate limited to 5/minute per IP.
     """
     body = await request.json()
     key = body.get("key", "")
-    service = LicenseKeyService()
-    record = service.validate_key(key)
+    record, error = _validate_license_key(key)
+    if error:
+        return error
 
-    if not record:
-        return JSONResponse(
-            status_code=403,
-            content={"valid": False, "error": "Invalid license key"},
-        )
+    # Single file mode: return raw content (no jq needed)
+    requested_file = request.query_params.get("file")
+    if requested_file:
+        files = _load_gated_files()
+        if requested_file not in files or not files[requested_file]:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"File not found: {requested_file}"},
+            )
+        return Response(content=files[requested_file], media_type="text/plain")
 
-    expires_at = datetime.fromisoformat(record["expires_at"])
-    if datetime.now(timezone.utc) > expires_at:
-        return JSONResponse(
-            status_code=403,
-            content={"valid": False, "error": "License expired"},
-        )
-
-    status = record.get("status", "active")
-    if status == "revoked":
-        return JSONResponse(
-            status_code=403,
-            content={"valid": False, "error": "License revoked"},
-        )
-
-    content = _load_setup_guide()
-    if not content:
+    # Bundle mode: return all files as JSON (for frontend download button)
+    files = _load_gated_files()
+    if not any(files.values()):
         return JSONResponse(
             status_code=503,
-            content={"error": "Setup guide not available"},
+            content={"error": "Setup files not available"},
         )
 
-    return Response(
-        content=content,
-        media_type="text/markdown",
-    )
+    return {"files": files}
 
 
 @router.post("/license/webhook")
@@ -195,21 +204,26 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     event_type = event["type"]
+    handled = {
+        "checkout.session.completed",
+        "invoice.paid",
+        "customer.subscription.deleted",
+        "invoice.payment_failed",
+    }
+
+    if event_type not in handled:
+        return {"status": "ok"}
+
     # Convert StripeObject to plain dict — .get() doesn't work on StripeObjects
-    import json
     data = json.loads(str(event["data"]["object"]))
 
     if event_type == "checkout.session.completed":
         await _handle_new_purchase(data)
-
     elif event_type == "invoice.paid":
-        invoice = data
-        if invoice.get("billing_reason") == "subscription_cycle":
-            await _handle_renewal(invoice)
-
+        if data.get("billing_reason") == "subscription_cycle":
+            await _handle_renewal(data)
     elif event_type == "customer.subscription.deleted":
         await _handle_cancellation(data)
-
     elif event_type == "invoice.payment_failed":
         await _handle_payment_failed(data)
 
@@ -352,27 +366,14 @@ async def _send_license_email(email: str, license_key: str):
             <p style="margin: 0 0 32px 0; font-size: 13px; color: #888;">Save this key somewhere safe. It will not be shown again.</p>
 
             <!-- Getting started -->
-            <div style="border-top: 1px solid rgba(0, 0, 0, 0.06); padding-top: 28px;">
-                <h2 style="margin: 0 0 20px 0; font-size: 16px; color: #1a1a1a;">Getting Started</h2>
+            <div style="border-top: 1px solid rgba(0, 0, 0, 0.06); padding-top: 28px; text-align: center;">
+                <h2 style="margin: 0 0 16px 0; font-size: 16px; color: #1a1a1a;">Get Started</h2>
 
-                <!-- Step 1: Open Setup Guide (primary CTA) -->
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <a href="https://www.cojournalist.ai/setup"
-                       style="display: inline-block; width: 100%; max-width: 360px; padding: 16px 32px; background-color: #d97706; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-sizing: border-box;">
-                        1. Open Setup Guide
-                    </a>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; color: #78716c;">Use your license key to unlock the guide</p>
-                </div>
-
-                <div style="margin-bottom: 12px; padding: 12px 16px; background: #ffffff; border-radius: 6px;">
-                    <p style="margin: 0; font-size: 14px;"><strong style="color: #7c6fc7;">2.</strong> Paste the command into your AI coding agent</p>
-                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #78716c;">Works with Claude Code, Cursor, Windsurf, Codex, or any AI agent</p>
-                </div>
-
-                <div style="margin-bottom: 0; padding: 12px 16px; background: #ffffff; border-radius: 6px;">
-                    <p style="margin: 0; font-size: 14px;"><strong style="color: #7c6fc7;">3.</strong> Clone the repository <span style="font-size: 11px; color: #a8a29e;">(optional &mdash; your agent handles this)</span></p>
-                    <code style="font-size: 12px; color: #78716c;">git clone <a href="https://github.com/buriedsignals/cojournalist-os" style="color: #968bdf; text-decoration: none;">github.com/buriedsignals/cojournalist-os</a></code>
-                </div>
+                <a href="https://www.cojournalist.ai/setup"
+                   style="display: inline-block; width: 100%; max-width: 360px; padding: 16px 32px; background-color: #7c6fc7; background: linear-gradient(135deg, #968bdf, #7c6fc7); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-sizing: border-box;">
+                    Open Setup Guide
+                </a>
+                <p style="margin: 8px 0 0 0; font-size: 13px; color: #78716c;">Use your license key to unlock the guide</p>
             </div>
         </div>
 

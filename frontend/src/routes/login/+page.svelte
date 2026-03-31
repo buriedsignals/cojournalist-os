@@ -5,6 +5,7 @@
 	import { onMount } from 'svelte';
 
 	let mounted = false;
+	let featureListEl: HTMLElement;
 
 	$: notAvailable = $page.url.searchParams.get('error') === 'not_available';
 
@@ -16,8 +17,30 @@
 			}
 		});
 
+		let observer: IntersectionObserver | null = null;
+
+		function setupScrollHover() {
+			if (window.innerWidth >= 1024 || !featureListEl) return;
+
+			observer = new IntersectionObserver(
+				(entries) => {
+					entries.forEach((entry) => {
+						entry.target.classList.toggle('feature-active', entry.isIntersecting);
+					});
+				},
+				{ rootMargin: '-40% 0px -40% 0px', threshold: 0 }
+			);
+
+			featureListEl.querySelectorAll('.feature-item').forEach((el) => {
+				observer!.observe(el);
+			});
+		}
+
+		setupScrollHover();
+
 		return () => {
 			unsubscribe();
+			observer?.disconnect();
 		};
 	});
 </script>
@@ -81,7 +104,7 @@
 		<div class="story-panel" class:mounted>
 			<div class="badge">
 				<span class="badge-dot"></span>
-				PRIVATE BETA
+				PUBLIC BETA
 			</div>
 
 			<img src="/logo-cojournalist.svg" alt="coJournalist" class="headline-logo" />
@@ -95,10 +118,10 @@
 
 			<div class="description-block">
 				<h2 class="subheadline">
-					AI scouts that track your beats, monitor pages, and surface leads — while you <span class="highlight-accent">focus on reporting</span>.
+					AI scouts that monitor pages, locations, social profiles, and city councils — while you <span class="highlight-accent">focus on reporting</span>.
 				</h2>
 
-				<div class="feature-list">
+				<div class="feature-list" bind:this={featureListEl}>
 					<div class="feature-item">
 						<div class="feature-icon">
 							<svg class="feature-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -159,7 +182,7 @@
 							</svg>
 						</div>
 						<div>
-							<p class="feature-title">Track City Council</p>
+							<p class="feature-title">Track City Councils</p>
 							<p class="feature-desc">Monitor council pages for new documents, extract promises from meeting minutes, and get alerted when deadlines approach.</p>
 						</div>
 					</div>
@@ -206,19 +229,20 @@
 			<div class="footer-badges-container">
 				<div class="footer-group">
 					<p class="footer-label">SUPPORTED BY</p>
-					<img src="/logos/logo_imj_schwarz.svg" alt="IMJ" class="footer-logo footer-logo-imj" />
+					<a href="https://www.imj.ch" target="_blank" rel="noopener noreferrer">
+						<img src="/logos/logo_imj_schwarz.svg" alt="IMJ" class="footer-logo footer-logo-imj footer-logo-desaturated" />
+					</a>
 				</div>
 				<div class="footer-group">
 					<p class="footer-label">IN PARTNERSHIP WITH</p>
 					<div class="footer-logos-inline">
+						<a href="https://www.biglocalnews.org" target="_blank" rel="noopener noreferrer">
 							<img src="/logos/biglocal.png" alt="Big Local" class="footer-logo footer-logo-biglocal footer-logo-desaturated" />
+						</a>
+						<a href="https://www.muckrock.com" target="_blank" rel="noopener noreferrer">
+							<img src="/logos/muckrock.png" alt="MuckRock" class="footer-logo footer-logo-muckrock footer-logo-desaturated" />
+						</a>
 					</div>
-				</div>
-				<div class="footer-group">
-					<span class="footer-label">AUTHENTICATION BY</span>
-					<a href="https://www.muckrock.com" target="_blank" rel="noopener noreferrer">
-						<img src="/logos/muckrock.png" alt="MuckRock" class="footer-logo footer-logo-muckrock footer-logo-desaturated" />
-					</a>
 				</div>
 			</div>
 		</div>
@@ -782,7 +806,8 @@
 		transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
-	.feature-item:hover {
+	.feature-item:hover,
+	.feature-item:global(.feature-active) {
 		background: rgba(255, 255, 255, 0.8);
 		border-color: rgba(150, 139, 223, 0.2);
 		transform: translateX(4px);
@@ -859,19 +884,20 @@
 		display: flex;
 		align-items: center;
 		gap: 1.5rem;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 	}
 
 	.footer-logo-imj {
+		height: 2rem;
 		margin-top: 6px;
 	}
 
 	.footer-logo-biglocal {
-		height: 3rem;
+		height: 2.5rem;
 	}
 
 	.footer-logo-muckrock {
-		height: 2rem;
+		height: 2.25rem;
 		border-radius: 4px;
 	}
 

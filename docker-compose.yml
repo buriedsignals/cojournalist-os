@@ -14,6 +14,11 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/requirements.txt:/app/requirements.txt
+      - ./automation/SETUP_AGENT.md:/app/app/SETUP_AGENT.md:ro
+      - ./automation/setup.sh:/app/app/setup.sh:ro
+      - ./automation/sync-upstream.yml:/app/app/sync-upstream.yml:ro
+      - ./deploy/render/render.yaml:/app/app/render.yaml:ro
+      - ./deploy/SETUP.md:/app/app/SETUP.md:ro
     environment:
       - ENVIRONMENT=development
       - DEFAULT_USER_CREDITS=100

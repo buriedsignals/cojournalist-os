@@ -1,6 +1,6 @@
 # Supabase OSS Architecture Design
 
-Self-hosted, open-source version of coJournalist running on Supabase infrastructure. All code public under Sustainable Use License. License key gates DevOps automation scripts, not features.
+Self-hosted, open-source version of coJournalist running on Supabase infrastructure. All code public under Sustainable Use License. License key gates DevOps automation and deployment convenience files (render.yaml, setup scripts, setup guide), not features. The core app is deployable via docker-compose without a license.
 
 ## Goals
 
@@ -52,8 +52,11 @@ A GitHub Action on the dev repo filters and pushes to the public mirror:
 | Frontend (SvelteKit) | Yes |
 | Backend + Supabase adapter | Yes |
 | Supabase migrations + Edge Functions | Yes |
-| Deploy configs (render.yaml, docker-compose) | Yes |
-| Automation scripts (setup.sh, sync, agent instructions) | Yes |
+| Deploy configs (docker-compose, .env.example) | Yes |
+| Deploy configs (render.yaml, SETUP.md) | No (license-gated via API) |
+| Automation scripts (setup.sh, SETUP_AGENT.md) | No (license-gated via API) |
+| Automation scripts (sync-upstream.yml) | No (license-gated via API) |
+| Agent instructions (AGENT_INSTRUCTIONS.md) | Yes |
 | All scout types (Page, Smart, Social, Civic) | Yes |
 | Export + CMS integration | Yes |
 | v1 API + API key management | Yes |

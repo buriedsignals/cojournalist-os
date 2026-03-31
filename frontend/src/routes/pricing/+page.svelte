@@ -748,7 +748,7 @@
 	.oss-footer-text {
 		font-size: 0.875rem;
 		color: #78716c;
-		margin: 0 0 0.75rem;
+		margin: 0 0 1.25rem;
 	}
 	.oss-footer-link {
 		color: #968bdf;
