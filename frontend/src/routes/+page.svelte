@@ -28,7 +28,7 @@ import PreferencesModal from '$lib/components/modals/PreferencesModal.svelte';
 		<div class="view-container" class:hidden={$sidebarNav.activeView !== 'scouts'}>
 			<ScoutsPanel />
 		</div>
-		<div class="view-container" class:hidden={$sidebarNav.activeView !== 'pulse'}>
+		<div class="view-container" class:hidden={$sidebarNav.activeView !== 'location-scout' && $sidebarNav.activeView !== 'beat-scout'}>
 			<SmartScoutView />
 		</div>
 		<div class="view-container" class:hidden={$sidebarNav.activeView !== 'page-scout'}>

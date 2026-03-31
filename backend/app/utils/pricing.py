@@ -21,10 +21,14 @@ CREDIT_COSTS = {
     "social_monitoring_x": 2,           # $0.009 cost, 66% margin
     "social_monitoring_facebook": 15,   # $0.121 cost, 40% margin
 
+    # Social Scout monitoring — TikTok
+    "social_monitoring_tiktok": 2,      # $0.01 cost, 50% margin
+
     # Data Extractor (Scrape panel) — channel-tiered
     "social_extraction": 2,             # X/Twitter scrape
     "instagram_extraction": 2,          # Instagram scrape
     "facebook_extraction": 15,          # Facebook scrape
+    "tiktok_extraction": 2,             # TikTok scrape
     "instagram_comments_extraction": 15, # IG comments (50 items)
 
     # Feed
@@ -41,6 +45,7 @@ SOCIAL_MONITORING_KEYS = {
     "x": "social_monitoring_x",
     "twitter": "social_monitoring_x",
     "facebook": "social_monitoring_facebook",
+    "tiktok": "social_monitoring_tiktok",
 }
 
 # Channel → credit key mapping for data extraction
@@ -50,6 +55,7 @@ EXTRACTION_KEYS = {
     "instagram": "instagram_extraction",
     "facebook": "facebook_extraction",
     "instagram_comments": "instagram_comments_extraction",
+    "tiktok": "tiktok_extraction",
 }
 
 

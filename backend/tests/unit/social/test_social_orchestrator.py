@@ -16,6 +16,7 @@ from app.services.social_orchestrator import (
     normalize_instagram_posts,
     normalize_x_posts,
     normalize_facebook_posts,
+    normalize_tiktok_posts,
     identify_new_posts,
     identify_removed_posts,
     build_profile_url,
@@ -386,6 +387,119 @@ class TestNormalizeFacebookPosts:
 
 
 # ---------------------------------------------------------------------------
+# TikTok normalization
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeTikTokPosts:
+    def test_basic_video(self):
+        """Test with novi/tiktok-user-api output format."""
+        raw = [
+            {
+                "aweme_id": "7300000000000000000",
+                "desc": "Check out our new project #climate",
+                "create_time": 1704110400,
+                "share_url": "https://www.tiktok.com/@testuser/video/7300000000000000000",
+                "author": {"unique_id": "testuser", "nickname": "Test User"},
+                "video": {
+                    "cover": {"url_list": ["https://cdn.example.com/cover.jpg"]},
+                    "play_addr": {"url_list": ["https://cdn.example.com/video.mp4"]},
+                },
+            }
+        ]
+        posts = normalize_tiktok_posts(raw)
+        assert len(posts) == 1
+        p = posts[0]
+        assert p.id == "7300000000000000000"
+        assert p.text == "Check out our new project #climate"
+        assert p.author == "testuser"
+        assert p.platform == "tiktok"
+        assert p.image_urls == ["https://cdn.example.com/cover.jpg"]
+        assert p.video_url == "https://cdn.example.com/video.mp4"
+        assert p.engagement == {}
+
+    def test_missing_description(self):
+        """Post with empty desc gets empty text."""
+        raw = [
+            {
+                "aweme_id": "123",
+                "desc": "",
+                "create_time": 1704110400,
+                "author": {"unique_id": "user"},
+                "video": {"cover": {}, "play_addr": {}},
+            }
+        ]
+        posts = normalize_tiktok_posts(raw)
+        assert posts[0].text == ""
+
+    def test_url_construction_fallback(self):
+        """URL is constructed from author + id when share_url is missing."""
+        raw = [
+            {
+                "aweme_id": "456",
+                "desc": "Hello",
+                "create_time": 1704110400,
+                "author": {"unique_id": "myuser"},
+                "video": {"cover": {}, "play_addr": {}},
+            }
+        ]
+        posts = normalize_tiktok_posts(raw)
+        assert posts[0].url == "https://www.tiktok.com/@myuser/video/456"
+
+    def test_timestamp_conversion(self):
+        """Unix create_time is converted to ISO 8601."""
+        raw = [
+            {
+                "aweme_id": "789",
+                "desc": "Test",
+                "create_time": 1704110400,
+                "author": {"unique_id": "user"},
+                "video": {"cover": {}, "play_addr": {}},
+            }
+        ]
+        posts = normalize_tiktok_posts(raw)
+        assert "2024-01-01" in posts[0].timestamp
+
+    def test_empty_engagement(self):
+        """Engagement dict is always empty (content-only, no vanity metrics)."""
+        raw = [
+            {
+                "aweme_id": "999",
+                "desc": "Test",
+                "create_time": 1704110400,
+                "author": {"unique_id": "user"},
+                "video": {"cover": {}, "play_addr": {}},
+                "statistics": {
+                    "digg_count": 100,
+                    "comment_count": 50,
+                },
+            }
+        ]
+        posts = normalize_tiktok_posts(raw)
+        assert posts[0].engagement == {}
+
+    def test_skips_items_without_id(self):
+        """Items without aweme_id are skipped."""
+        raw = [{"desc": "No ID", "author": {"unique_id": "user"}}]
+        posts = normalize_tiktok_posts(raw)
+        assert len(posts) == 0
+
+    def test_content_desc_fallback(self):
+        """Falls back to content_desc when desc is missing."""
+        raw = [
+            {
+                "aweme_id": "111",
+                "content_desc": "Fallback text",
+                "create_time": 1704110400,
+                "author": {"unique_id": "user"},
+                "video": {"cover": {}, "play_addr": {}},
+            }
+        ]
+        posts = normalize_tiktok_posts(raw)
+        assert posts[0].text == "Fallback text"
+
+
+# ---------------------------------------------------------------------------
 # Post diffing
 # ---------------------------------------------------------------------------
 
@@ -486,8 +600,16 @@ class TestBuildProfileUrl:
         url = build_profile_url("facebook", "@NASA")
         assert url == "https://www.facebook.com/NASA/"
 
+    def test_tiktok(self):
+        url = build_profile_url("tiktok", "nike")
+        assert url == "https://www.tiktok.com/@nike"
+
+    def test_tiktok_strips_at(self):
+        url = build_profile_url("tiktok", "@nike")
+        assert url == "https://www.tiktok.com/@nike"
+
     def test_unknown_platform(self):
-        url = build_profile_url("tiktok", "user")
+        url = build_profile_url("myspace", "user")
         assert url == ""
 
     def test_handle_with_spaces(self):
@@ -576,3 +698,127 @@ def test_identify_removed_posts_with_empty_snapshot():
     from app.services.social_orchestrator import identify_removed_posts
     result = identify_removed_posts({"post_1", "post_2"}, [])
     assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Schema: topic field
+# ---------------------------------------------------------------------------
+
+
+def test_social_execute_request_accepts_topic():
+    """SocialExecuteRequest accepts optional topic field."""
+    from app.schemas.social import SocialExecuteRequest
+    req = SocialExecuteRequest(
+        userId="user_123",
+        scraperName="Test Scout",
+        platform="instagram",
+        profile_handle="testuser",
+        monitor_mode="summarize",
+        topic="Local Politics",
+    )
+    assert req.topic == "Local Politics"
+
+
+def test_social_execute_request_topic_defaults_none():
+    """SocialExecuteRequest topic defaults to None when not provided."""
+    from app.schemas.social import SocialExecuteRequest
+    req = SocialExecuteRequest(
+        userId="user_123",
+        scraperName="Test Scout",
+        platform="instagram",
+        profile_handle="testuser",
+        monitor_mode="summarize",
+    )
+    assert req.topic is None
+
+
+def test_social_execute_request_topic_max_length():
+    """SocialExecuteRequest rejects topic longer than 200 chars."""
+    from app.schemas.social import SocialExecuteRequest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        SocialExecuteRequest(
+            userId="user_123",
+            scraperName="Test Scout",
+            platform="instagram",
+            profile_handle="testuser",
+            monitor_mode="summarize",
+            topic="x" * 201,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Notification: topic in subject line
+# ---------------------------------------------------------------------------
+
+
+def _make_post(post_id: str, platform: str = "instagram") -> NormalizedPost:
+    return NormalizedPost(
+        id=post_id,
+        url=f"https://example.com/{post_id}",
+        text="Test post content",
+        author="testuser",
+        timestamp="2025-01-01T00:00:00Z",
+        platform=platform,
+    )
+
+
+@pytest.mark.asyncio
+async def test_send_social_notification_with_topic_in_subject():
+    """Topic is included in email subject line when provided."""
+    from unittest.mock import AsyncMock
+    from app.services.social_orchestrator import send_social_notification
+
+    with patch("app.services.social_orchestrator.get_user_email", new_callable=AsyncMock) as mock_email, \
+         patch("app.services.social_orchestrator.NotificationService") as mock_ns_cls:
+
+        mock_email.return_value = "user@example.com"
+        mock_ns = mock_ns_cls.return_value
+        mock_ns._build_email_html.return_value = "<html>test</html>"
+        mock_ns._send_email_with_retry = AsyncMock(return_value=True)
+
+        result = await send_social_notification(
+            user_id="user_123",
+            scout_name="My Scout",
+            platform="instagram",
+            handle="testuser",
+            summary="Test summary",
+            new_posts=[_make_post("p1")],
+            topic="Local Politics",
+        )
+
+        assert result is True
+        call_kwargs = mock_ns._send_email_with_retry.call_args
+        subject = call_kwargs.kwargs.get("subject", call_kwargs[1].get("subject", ""))
+        assert "Local Politics" in subject
+        assert "@testuser" in subject
+        assert "My Scout" in subject
+
+
+@pytest.mark.asyncio
+async def test_send_social_notification_without_topic():
+    """Subject line omits topic when not provided."""
+    from unittest.mock import AsyncMock
+    from app.services.social_orchestrator import send_social_notification
+
+    with patch("app.services.social_orchestrator.get_user_email", new_callable=AsyncMock) as mock_email, \
+         patch("app.services.social_orchestrator.NotificationService") as mock_ns_cls:
+
+        mock_email.return_value = "user@example.com"
+        mock_ns = mock_ns_cls.return_value
+        mock_ns._build_email_html.return_value = "<html>test</html>"
+        mock_ns._send_email_with_retry = AsyncMock(return_value=True)
+
+        result = await send_social_notification(
+            user_id="user_123",
+            scout_name="My Scout",
+            platform="instagram",
+            handle="testuser",
+            summary="Test summary",
+            new_posts=[_make_post("p1")],
+        )
+
+        assert result is True
+        call_kwargs = mock_ns._send_email_with_retry.call_args
+        subject = call_kwargs.kwargs.get("subject", call_kwargs[1].get("subject", ""))
+        assert subject == "[coJournalist] Social Scout: @testuser - My Scout"

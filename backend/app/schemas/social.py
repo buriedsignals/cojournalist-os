@@ -2,7 +2,7 @@
 Pydantic schemas for social media scout endpoints.
 """
 from typing import Optional, List
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.modes import SocialPlatform, SocialMonitorMode
 
@@ -34,6 +34,7 @@ class SocialExecuteRequest(BaseModel):
     monitor_mode: SocialMonitorMode
     track_removals: bool = False
     criteria: Optional[str] = None
+    topic: Optional[str] = Field(None, max_length=200)
     preferred_language: str = "en"
     skip_credit_charge: bool = False
 

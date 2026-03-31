@@ -48,7 +48,7 @@ Svelte stores in `lib/stores/`:
 - `location.ts` - Shared location state (used by Pulse, WebScout)
 - `notifications.ts` - In-app notification state
 - `onboarding-tour.ts` - Onboarding tour progress
-- `pulse.ts` - Smart Scout (type `pulse`) state (supports location and/or topic)
+- `pulse.ts` - Location Scout / Beat Scout (type `pulse`) shared state
 - `recent-locations.ts` - Recently used locations cache
 - `sidebar-nav.ts` - Sidebar navigation state
 - `feed-refresh.ts` - Feed refresh trigger state

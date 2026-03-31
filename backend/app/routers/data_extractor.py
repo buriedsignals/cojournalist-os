@@ -300,6 +300,7 @@ async def poll_extraction_job(job_id: str, service: str, user_id: str, request_u
                         "apify": "social",
                         "apify_instagram": "instagram",
                         "apify_facebook": "facebook",
+                        "apify_tiktok": "tiktok",
                         "apify_instagram_comments": "instagram_comments",
                     }
                     channel = service_to_channel.get(service, "website")

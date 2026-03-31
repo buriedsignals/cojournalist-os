@@ -291,8 +291,10 @@
   "newScout_focusSearchLabel": "Focus search",
   "newScout_profileDescription": "Monitor a social media account for new posts, specific topics, or deleted content.",
   "newScout_profileTitle": "Track a Profile",
-  "newScout_smartMonitorDescription": "Monitorar uma localização ou tema — encontrar matérias e leads automaticamente",
-  "newScout_smartMonitorTitle": "Track a Beat",
+  "newScout_beatScoutDescription": "Monitor any topic or area of coverage from reliable sources.",
+  "newScout_beatScoutTitle": "Track a Beat",
+  "newScout_locationScoutDescription": "Monitor a city, region, or country for under-reported local stories.",
+  "newScout_locationScoutTitle": "Track a Location",
   "newScout_targetedHint": "Definir critérios específicos e ser alertado quando forem atendidos",
   "newScout_targetedLabel": "Direcionado",
   "newScout_trackDescription": "Monitorar um URL para atualizações e ser notificado quando algo mudar",
@@ -702,5 +704,7 @@
   "webScout_stepTest": "Teste",
   "webScout_title": "Page Tracking",
   "webScout_urlPlaceholder": "https://exemplo.com",
-  "webScout_websiteUrl": "URL do website"
+  "webScout_websiteUrl": "URL do website",
+  "dataExtract_tiktok": "TikTok",
+  "dataExtract_tiktokHandle": "TikTok handle"
 }

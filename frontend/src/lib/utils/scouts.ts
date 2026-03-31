@@ -25,7 +25,8 @@ export const SOCIAL_SCOUT_COSTS: Record<string, number> = {
 	instagram: 2,
 	x: 2,
 	twitter: 2,
-	facebook: 15
+	facebook: 15,
+	tiktok: 2
 };
 
 /** Get credit cost for a scout, with platform awareness for social scouts. */
@@ -42,6 +43,7 @@ export const EXTRACT_COSTS: Record<string, number> = {
 	social: 2,
 	instagram: 2,
 	facebook: 15,
+	tiktok: 2,
 	instagram_comments: 15
 };
 

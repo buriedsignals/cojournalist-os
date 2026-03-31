@@ -5,7 +5,7 @@
 The easiest way to deploy is to load the setup skill file into your AI coding agent:
 
 ```
-Read automation/setup-skill.md and set up coJournalist
+Read automation/SETUP_AGENT.md and set up coJournalist
 ```
 
 The skill walks you through the entire process interactively with pre-flight checks, API key collection, and deployment verification.

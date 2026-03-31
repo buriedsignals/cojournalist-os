@@ -208,10 +208,21 @@ async def execute_civic_scout(
         try:
             user_email = await get_user_email(user_id)
             if user_email:
+                blocks = [f"## {result.promises_found} New Promise(s) Found"]
+                for p in result.promises:
+                    block = [f"### {p.promise_text}"]
+                    if p.context:
+                        block.append(p.context)
+                    if p.due_date:
+                        block.append(f"**Due:** {p.due_date}")
+                    if p.source_url:
+                        block.append(f"[View source document]({p.source_url})")
+                    blocks.append("\n".join(block))
+                summary_md = "\n\n".join(blocks)
                 await notification_service.send_civic_alert(
                     to_email=user_email,
                     scout_name=scraper_name,
-                    summary=result.summary,
+                    summary=summary_md,
                     language=payload.language,
                 )
         except Exception as e:
@@ -272,23 +283,23 @@ async def notify_civic_promises(
         return {"notification_sent": False, "reason": "no_email"}
 
     # Build accountability-framed digest
-    lines = [
-        "## Promises Due for Review\n",
+    blocks = [
+        "## Promises Due for Review",
         "The following commitments are approaching their stated deadline. "
-        "Follow up to verify whether they have been delivered.\n",
+        "Follow up to verify whether they have been delivered.",
     ]
     for p in promises:
         text = p.get("promise_text", "")
         due = p.get("due_date", "")
         source = p.get("source_url", "")
-        lines.append(f"### {text}\n")
+        block = [f"### {text}"]
         if due:
-            lines.append(f"**Deadline:** {due}\n")
+            block.append(f"**Deadline:** {due}")
         if source:
-            lines.append(f"> Source: [{source}]({source})\n")
-        lines.append("")
+            block.append(f"[View source document]({source})")
+        blocks.append("\n".join(block))
 
-    digest_markdown = "\n".join(lines)
+    digest_markdown = "\n\n".join(blocks)
 
     # Send notification
     try:

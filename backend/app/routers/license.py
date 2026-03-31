@@ -147,7 +147,7 @@ async def download_setup_guide(request: Request):
     Accepts JSON body: {"key": "cjl_..."}
 
     Query params:
-        ?file=setup-skill.md  — return single file as raw text
+        ?file=SETUP_AGENT.md  — return single file as raw text
         (no param)            — return all files as JSON bundle
 
     Rate limited to 5/minute per IP.

@@ -291,8 +291,10 @@
   "newScout_focusSearchLabel": "Focus search",
   "newScout_profileDescription": "Monitor a social media account for new posts, specific topics, or deleted content.",
   "newScout_profileTitle": "Track a Profile",
-  "newScout_smartMonitorDescription": "Overvåk et sted eller tema — finn saker og leads automatisk",
-  "newScout_smartMonitorTitle": "Track a Beat",
+  "newScout_beatScoutDescription": "Monitor any topic or area of coverage from reliable sources.",
+  "newScout_beatScoutTitle": "Track a Beat",
+  "newScout_locationScoutDescription": "Monitor a city, region, or country for under-reported local stories.",
+  "newScout_locationScoutTitle": "Track a Location",
   "newScout_targetedHint": "Sett spesifikke kriterier og bli varslet når de er oppfylt",
   "newScout_targetedLabel": "Målrettet",
   "newScout_trackDescription": "Overvåk en URL for oppdateringer og bli varslet når noe endrer seg",
@@ -702,5 +704,7 @@
   "webScout_stepTest": "Test",
   "webScout_title": "Page Tracking",
   "webScout_urlPlaceholder": "https://eksempel.no",
-  "webScout_websiteUrl": "Nettside URL"
+  "webScout_websiteUrl": "Nettside URL",
+  "dataExtract_tiktok": "TikTok",
+  "dataExtract_tiktokHandle": "TikTok handle"
 }

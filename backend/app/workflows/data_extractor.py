@@ -222,11 +222,74 @@ def normalize_instagram_comments(items: Any) -> List[Dict[str, Any]]:
     return normalized
 
 
+def normalize_tiktok_results(items: Any) -> List[Dict[str, Any]]:
+    """
+    Normalize novi/tiktok-user-api output into a flat list ready for CSV.
+
+    Content-focused: descriptions and video URLs, no engagement metrics.
+    """
+    normalized: List[Dict[str, Any]] = []
+
+    if not items:
+        return normalized
+
+    if isinstance(items, dict):
+        items = [items]
+
+    for item in items:
+        if not isinstance(item, dict):
+            normalized.append({"description": str(item)})
+            continue
+
+        post_id = item.get("aweme_id") or item.get("id")
+        if not post_id:
+            continue
+
+        author = item.get("author") or {}
+        video = item.get("video") or {}
+        cover = video.get("cover") or {}
+        play_addr = video.get("play_addr") or {}
+
+        # Cover image URL
+        cover_urls = cover.get("url_list") or []
+        cover_url = cover_urls[0] if cover_urls else None
+
+        # Video play URL
+        play_urls = play_addr.get("url_list") or []
+        video_url = play_urls[0] if play_urls else None
+
+        # Timestamp: unix epoch to ISO
+        ts = item.get("create_time")
+        if isinstance(ts, (int, float)):
+            from datetime import datetime, timezone
+            ts = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
+        # URL
+        url = item.get("share_url") or ""
+        author_handle = author.get("unique_id") or ""
+        if not url and author_handle and post_id:
+            url = f"https://www.tiktok.com/@{author_handle}/video/{post_id}"
+
+        normalized.append({
+            "id": str(post_id),
+            "description": item.get("desc") or item.get("content_desc"),
+            "url": url,
+            "created_at": ts,
+            "author_username": author.get("unique_id"),
+            "author_name": author.get("nickname"),
+            "cover_url": cover_url,
+            "video_url": video_url,
+            "video_duration": video.get("duration"),
+        })
+
+    return normalized
+
+
 class DataExtractRequest(BaseModel):
     """Request model for data extraction."""
     url: str = Field(..., description="URL to extract data from")
     target: str = Field(..., description="Description of what data to extract")
-    channel: str = Field(default="website", description="Channel type: website, social, instagram, facebook, or instagram_comments")
+    channel: str = Field(default="website", description="Channel type: website, social, instagram, facebook, tiktok, or instagram_comments")
     criteria: Optional[str] = Field(default=None, description="Criteria or keywords for social extraction")
 
 
@@ -431,6 +494,18 @@ async def start_data_extraction_job(
         )
         return {"job_id": job_id, "service": "apify_instagram"}
 
+    elif request.channel == "tiktok":
+        if not settings.apify_api_token:
+            raise ValueError("Apify API token not configured")
+
+        from .apify_client import start_tiktok_scraper_async
+
+        job_id = await start_tiktok_scraper_async(
+            url=request.url,
+            max_items=20
+        )
+        return {"job_id": job_id, "service": "apify_tiktok"}
+
     elif request.channel == "social":
         if not settings.apify_api_token:
             raise ValueError("Apify API token not configured")
@@ -515,6 +590,25 @@ async def check_data_extraction_job(
         data = result.get("data")
         if normalized_status == "completed":
             data = normalize_instagram_results(data)
+
+        return {
+            "status": normalized_status,
+            "raw_status": result["status"],
+            "data": data,
+            "error": result.get("error"),
+        }
+
+    elif service == "apify_tiktok":
+        if not settings.apify_api_token:
+            raise ValueError("Apify API token not configured")
+
+        from .apify_client import check_tiktok_scraper_status
+
+        result = await check_tiktok_scraper_status(job_id)
+        normalized_status = result["normalized_status"]
+        data = result.get("data")
+        if normalized_status == "completed":
+            data = normalize_tiktok_results(data)
 
         return {
             "status": normalized_status,

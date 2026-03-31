@@ -30,9 +30,14 @@
 		sidebarNav.setView(view);
 	}
 
-	function handleSmartMonitor() {
+	function handleLocationScout() {
 		showNewScoutDropdown = false;
-		sidebarNav.setView('pulse');
+		sidebarNav.setView('location-scout');
+	}
+
+	function handleBeatScout() {
+		showNewScoutDropdown = false;
+		sidebarNav.setView('beat-scout');
 	}
 
 	function handleTrackPage() {
@@ -118,7 +123,8 @@
 			open={showNewScoutDropdown}
 			sidebarCollapsed={collapsed}
 			on:trackPage={handleTrackPage}
-			on:smartMonitor={handleSmartMonitor}
+			on:locationScout={handleLocationScout}
+			on:beatScout={handleBeatScout}
 			on:profileScout={handleProfileScout}
 			on:civicScout={handleCivicScout}
 			on:close={() => showNewScoutDropdown = false}

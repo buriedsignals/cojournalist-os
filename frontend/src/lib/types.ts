@@ -17,7 +17,7 @@
 // Scraper/Scout types
 export type RegularityType = 'daily' | 'weekly' | 'monthly';
 export type MonitoringType = 'EMAIL' | 'SMS' | 'WEBHOOK';
-export type ScrapeChannel = 'website' | 'social' | 'instagram' | 'facebook' | 'instagram_comments';
+export type ScrapeChannel = 'website' | 'social' | 'instagram' | 'facebook' | 'tiktok' | 'instagram_comments';
 export interface MonitoringSetupRequest {
 	name: string;
 	regularity: RegularityType;

@@ -12,7 +12,8 @@ import { writable } from 'svelte/store';
 
 export type SidebarView =
 	| 'scouts'
-	| 'pulse'
+	| 'location-scout'
+	| 'beat-scout'
 	| 'page-scout'
 	| 'social-scout'
 	| 'civic-scout'

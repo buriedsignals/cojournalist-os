@@ -43,6 +43,7 @@ class CivicExecuteResult(BaseModel):
     promises_found: int
     new_pdf_urls: list[str]  # Legacy name; holds both PDF and HTML document URLs
     is_duplicate: bool
+    promises: list["Promise"] = []
 
 
 class Promise(BaseModel):

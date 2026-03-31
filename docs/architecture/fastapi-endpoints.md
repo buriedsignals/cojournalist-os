@@ -458,6 +458,7 @@ Full social scout execution — scrape, diff against baseline, summarize/match c
   "scraperName": "Zurich IG Monitor",
   "mode": "summarize",
   "criteria": null,
+  "topic": null,
   "track_removals": false
 }
 ```

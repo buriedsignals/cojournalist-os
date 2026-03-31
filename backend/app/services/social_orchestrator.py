@@ -41,6 +41,7 @@ APIFY ACTORS:
 from __future__ import annotations
 
 import asyncio
+import html
 import logging
 from typing import Optional
 
@@ -58,6 +59,8 @@ from app.workflows.apify_client import (
     check_twitter_scraper_status,
     start_facebook_scraper_async,
     check_facebook_scraper_status,
+    start_tiktok_scraper_async,
+    check_tiktok_scraper_status,
     ApifyError,
 )
 
@@ -240,6 +243,69 @@ def normalize_facebook_posts(raw_items: list[dict]) -> list[NormalizedPost]:
     return posts
 
 
+def normalize_tiktok_posts(raw_items: list[dict]) -> list[NormalizedPost]:
+    """Map novi/tiktok-user-api output to NormalizedPost.
+
+    Key mapping (from actor output):
+    - aweme_id -> id
+    - desc -> text
+    - create_time (unix) -> timestamp (ISO 8601)
+    - share_url -> url (fallback: constructed from author + id)
+    - author.unique_id -> author
+    - video.cover.url_list[0] -> image_urls (cover thumbnail for embedding)
+    - video.play_addr.url_list[0] -> video_url
+    - No engagement fields — content-only for journalist criteria matching.
+    """
+    posts = []
+    for item in raw_items:
+        post_id = str(item.get("aweme_id") or item.get("id") or "")
+        if not post_id:
+            continue
+
+        # Author
+        author_obj = item.get("author") or {}
+        author = author_obj.get("unique_id") or author_obj.get("nickname") or ""
+
+        # Cover image (for multimodal embedding)
+        image_urls = []
+        video_obj = item.get("video") or {}
+        cover = video_obj.get("cover") or {}
+        cover_urls = cover.get("url_list") or []
+        if cover_urls:
+            image_urls.append(cover_urls[0])
+
+        # Video play URL
+        video_url = None
+        play_addr = video_obj.get("play_addr") or {}
+        play_urls = play_addr.get("url_list") or []
+        if play_urls:
+            video_url = play_urls[0]
+
+        # Timestamp: actor returns unix epoch int
+        ts = item.get("create_time") or ""
+        if isinstance(ts, (int, float)):
+            from datetime import datetime, timezone
+            ts = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
+        # URL: prefer share_url, fallback to constructed URL
+        url = item.get("share_url") or ""
+        if not url and author and post_id:
+            url = f"https://www.tiktok.com/@{author}/video/{post_id}"
+
+        posts.append(NormalizedPost(
+            id=post_id,
+            url=url,
+            text=item.get("desc") or item.get("content_desc") or "",
+            author=author,
+            timestamp=str(ts),
+            image_urls=image_urls,
+            video_url=video_url,
+            platform="tiktok",
+            engagement={},
+        ))
+    return posts
+
+
 # ---------------------------------------------------------------------------
 # Post diffing
 # ---------------------------------------------------------------------------
@@ -290,6 +356,8 @@ def build_profile_url(platform: str, handle: str) -> str:
         return f"https://x.com/{clean}"
     elif platform == "facebook":
         return f"https://www.facebook.com/{clean}/"
+    elif platform == "tiktok":
+        return f"https://www.tiktok.com/@{clean}"
     return ""
 
 
@@ -311,8 +379,8 @@ async def validate_profile(platform: str, handle: str) -> tuple[bool, str]:
 
     try:
         client = await get_http_client()
-        # X/Twitter rejects HEAD requests for logged-out users; use GET instead
-        if platform == "x":
+        # X/Twitter and TikTok reject HEAD requests for logged-out users; use GET instead
+        if platform in ("x", "tiktok"):
             response = await client.get(url, follow_redirects=True, timeout=10.0)
         else:
             response = await client.head(url, follow_redirects=True, timeout=10.0)
@@ -382,6 +450,17 @@ async def scrape_profile(
             if result["normalized_status"] == "failed":
                 raise ApifyError(f"Apify Facebook run {run_id} failed: {result.get('error')}")
         raise ApifyError(f"Apify Facebook run {run_id} timed out after 120s")
+
+    elif platform == "tiktok":
+        run_id = await start_tiktok_scraper_async(url, max_items=max_items)
+        for _ in range(60):
+            await asyncio.sleep(2)
+            result = await check_tiktok_scraper_status(run_id)
+            if result["normalized_status"] == "completed":
+                return normalize_tiktok_posts(result.get("data") or [])
+            if result["normalized_status"] == "failed":
+                raise ApifyError(f"Apify TikTok run {run_id} failed: {result.get('error')}")
+        raise ApifyError(f"Apify TikTok run {run_id} timed out after 120s")
 
     else:
         raise ValueError(f"Unsupported platform: {platform}")
@@ -542,6 +621,7 @@ async def send_social_notification(
     new_posts: list[NormalizedPost],
     removed_posts: list[PostSnapshot] | None = None,
     language: str = "en",
+    topic: str | None = None,
 ) -> bool:
     """Send social scout email notification.
 
@@ -557,6 +637,7 @@ async def send_social_notification(
         new_posts: List of new posts detected
         removed_posts: Optional list of removed posts
         language: Language code
+        topic: Optional topic for email subject context
 
     Returns:
         True if email sent successfully
@@ -586,7 +667,7 @@ async def send_social_notification(
             removal_lines.append(
                 f'<div style="margin-bottom: 8px; padding: 8px; background: #fff3f3; border-radius: 4px;">'
                 f'<span style="color: #dc2626; font-weight: 600;">Removed:</span> '
-                f'{rp.caption_truncated}'
+                f'{html.escape(rp.caption_truncated)}'
                 f'</div>'
             )
         post_content = (
@@ -597,20 +678,23 @@ async def send_social_notification(
         )
 
     profile_url = build_profile_url(platform, handle)
+    safe_handle = html.escape(handle)
+    safe_scout_name = html.escape(scout_name)
+    safe_profile_url = html.escape(profile_url)
 
     html_content = ns._build_email_html(
         header_title=f"Social Scout Update",
-        header_subtitle=scout_name,
+        header_subtitle=safe_scout_name,
         header_gradient=("#e11d48", "#be123c"),
         accent_color="#e11d48",
-        context_label=f"@{handle} on {platform.upper()}",
+        context_label=f"@{safe_handle} on {platform.upper()}",
         summary=summary,
         articles=articles,
         articles_section_title="New Posts",
         extra_content=(
             f'<div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px;">'
             f'<p style="margin: 0 0 4px 0; font-size: 12px; color: #666; text-transform: uppercase;">PROFILE</p>'
-            f'<a href="{profile_url}" style="color: #e11d48; text-decoration: none;">{profile_url}</a>'
+            f'<a href="{safe_profile_url}" style="color: #e11d48; text-decoration: none;">{safe_profile_url}</a>'
             f'</div>'
         ),
         cta_text="",
@@ -619,6 +703,10 @@ async def send_social_notification(
 
     return await ns._send_email_with_retry(
         to_email=email,
-        subject=f"[coJournalist] Social Scout: @{handle} - {scout_name}",
+        subject=(
+            f"[coJournalist] Social Scout: {topic} - @{handle} - {scout_name}"
+            if topic
+            else f"[coJournalist] Social Scout: @{handle} - {scout_name}"
+        ),
         html_content=html_content,
     )

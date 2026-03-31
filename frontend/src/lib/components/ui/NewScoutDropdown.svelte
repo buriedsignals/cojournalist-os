@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { Crosshair, Radar, Users, Landmark } from 'lucide-svelte';
+	import { Crosshair, MapPin, Radar, Users, Landmark } from 'lucide-svelte';
 	import { authStore } from '$lib/stores/auth';
 	import * as m from '$lib/paraglide/messages';
 
@@ -12,7 +12,8 @@
 
 	const dispatch = createEventDispatcher<{
 		trackPage: void;
-		smartMonitor: void;
+		locationScout: void;
+		beatScout: void;
 		profileScout: void;
 		civicScout: void;
 		close: void;
@@ -23,8 +24,13 @@
 		dispatch('close');
 	}
 
-	function handleSmartMonitor() {
-		dispatch('smartMonitor');
+	function handleLocationScout() {
+		dispatch('locationScout');
+		dispatch('close');
+	}
+
+	function handleBeatScout() {
+		dispatch('beatScout');
 		dispatch('close');
 	}
 
@@ -68,13 +74,25 @@
 
 			<div class="option-divider"></div>
 
-			<button class="scout-option" on:click={handleSmartMonitor}>
+			<button class="scout-option" on:click={handleLocationScout}>
+				<div class="option-icon">
+					<MapPin size={20} />
+				</div>
+				<div class="option-content">
+					<span class="option-title">{m.newScout_locationScoutTitle()}</span>
+					<span class="option-description">{m.newScout_locationScoutDescription()}</span>
+				</div>
+			</button>
+
+			<div class="option-divider"></div>
+
+			<button class="scout-option" on:click={handleBeatScout}>
 				<div class="option-icon">
 					<Radar size={20} />
 				</div>
 				<div class="option-content">
-					<span class="option-title">{m.newScout_smartMonitorTitle()}</span>
-					<span class="option-description">{m.newScout_smartMonitorDescription()}</span>
+					<span class="option-title">{m.newScout_beatScoutTitle()}</span>
+					<span class="option-description">{m.newScout_beatScoutDescription()}</span>
 				</div>
 			</button>
 

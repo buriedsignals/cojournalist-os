@@ -376,6 +376,68 @@ async def check_facebook_scraper_status(run_id: str) -> Dict[str, Any]:
     return result
 
 
+# --- TikTok Profile Videos ---
+
+TIKTOK_ACTOR_ID = "novi~tiktok-user-api"
+
+
+async def start_tiktok_scraper_async(
+    url: str,
+    max_items: int = 20
+) -> str:
+    """
+    Start the TikTok profile videos scraper actor asynchronously.
+    Uses novi/tiktok-user-api which scrapes a user's recent videos.
+    Returns the run ID.
+    """
+    settings = get_settings()
+    if not settings.apify_api_token:
+        raise ApifyError("APIFY_API_TOKEN not configured")
+
+    client = ApifyClient(settings.apify_api_token)
+
+    run_input = {
+        "urls": [url],
+        "limit": min(max_items, 100),
+    }
+
+    run_id = await client.start_actor_run(TIKTOK_ACTOR_ID, run_input)
+    logger.info(f"Started Apify TikTok run {run_id} for URL {url}")
+    return run_id
+
+
+async def check_tiktok_scraper_status(run_id: str) -> Dict[str, Any]:
+    """
+    Check the status of a TikTok scraper run.
+    Returns dict with status and data (if completed).
+    """
+    settings = get_settings()
+    if not settings.apify_api_token:
+        raise ApifyError("APIFY_API_TOKEN not configured")
+
+    client = ApifyClient(settings.apify_api_token)
+
+    run_info = await client.get_run(run_id)
+    status = run_info["status"]
+    normalized_status = APIFY_STATUS_MAP.get(status, "running")
+
+    result = {
+        "status": status,
+        "normalized_status": normalized_status,
+        "data": None,
+        "error": None,
+    }
+
+    if status == "SUCCEEDED":
+        dataset_id = run_info["defaultDatasetId"]
+        items = await client.get_dataset_items(dataset_id)
+        result["data"] = items
+    elif status in ("FAILED", "ABORTED", "TIMED-OUT"):
+        result["error"] = f"Run failed with status: {status}"
+
+    return result
+
+
 # --- Instagram Comments ---
 
 INSTAGRAM_COMMENTS_ACTOR_ID = "apify~instagram-comment-scraper"

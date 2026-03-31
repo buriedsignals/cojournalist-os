@@ -35,7 +35,6 @@
 
 	// Internal state
 	let topicInput = '';
-	let investigationType: 'location' | 'beat' = 'location';
 
 	let progress = 0;
 	let progressMessage = '';
@@ -52,21 +51,22 @@
 	let editedNewsPrompt = '';
 	let editedGovPrompt = '';
 
-	// Source mode
-	let sourceMode: 'reliable' | 'niche' = 'reliable';
+	// Derive mode from sidebar nav
+	$: mode = $sidebarNav.activeView === 'beat-scout' ? 'beat' : 'location' as 'location' | 'beat';
 
-	function handleInvestigationTypeChange() {
-		if (investigationType === 'beat') {
-			locationStore.clear();
-		} else if (sourceMode === 'niche') {
-			topicInput = '';
-		}
+	// Source mode — default depends on panel mode
+	let sourceMode: 'reliable' | 'niche' = 'niche';
+	let lastMode: 'location' | 'beat' = 'location';
+
+	// Reset state when switching between panels
+	$: if (mode !== lastMode) {
+		lastMode = mode;
+		sourceMode = mode === 'beat' ? 'reliable' : 'niche';
+		topicInput = '';
 		searchCompleted = false;
-	}
-
-	function handleSourceModeChange() {
-		if (investigationType === 'location' && sourceMode === 'niche') {
-			topicInput = '';
+		pulseStore.reset();
+		if (mode === 'beat') {
+			locationStore.clear();
 		}
 	}
 
@@ -111,7 +111,7 @@
 	});
 
 	// isTopicOnly drives category selection (analysis vs government) and AI settings labels
-	$: isTopicOnly = investigationType === 'beat';
+	$: isTopicOnly = mode === 'beat';
 
 	// Default prompts based on scope
 	const DEFAULT_NEWS_PROMPT = `Surface niche content a local journalist wouldn't find on their own. AIM FOR 5-6 ARTICLES.
@@ -237,7 +237,7 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	}
 
 	// canSearch: location mode needs location, beat mode needs criteria
-	$: canSearch = investigationType === 'location'
+	$: canSearch = mode === 'location'
 		? !!selectedLocation
 		: !!topicInput.trim();
 
@@ -248,8 +248,10 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 		try {
 			startProgress();
 
-			const location = investigationType === 'location' ? (selectedLocation || undefined) : undefined;
-			const criteriaValue = topicInput.trim() || undefined;
+			const location = mode === 'location' ? (selectedLocation || undefined) : undefined;
+			const criteriaValue = (mode === 'location' && sourceMode === 'niche')
+				? undefined
+				: topicInput.trim() || undefined;
 
 			await pulseStore.fetchBothCategories(location, sourceMode, criteriaValue, parsedExcludedDomains.length ? parsedExcludedDomains : undefined);
 
@@ -280,13 +282,13 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	// Dynamic title/subtitle
 	$: formTitle = isTopicOnly
 		? m.pulse_titleTopic()
-		: (!!topicInput.trim() && sourceMode === 'reliable')
+		: !!topicInput.trim()
 			? m.pulse_titleBoth()
 			: m.pulse_titleLocation();
 
 	$: formSubtitle = isTopicOnly
 		? m.pulse_subtitleTopic()
-		: (!!topicInput.trim() && sourceMode === 'reliable')
+		: !!topicInput.trim()
 			? m.pulse_subtitleBoth()
 			: m.pulse_subtitleLocation();
 </script>
@@ -300,21 +302,8 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 				title={formTitle}
 				subtitle={formSubtitle}
 			>
-				<!-- Investigation Type Toggle -->
-				<div class="field-group">
-					<label class="field-label">{m.smartScout_investigationType_label()}</label>
-					<TogglePicker
-						bind:value={investigationType}
-						options={[
-							{ value: 'location', label: m.smartScout_investigationType_location(), description: m.smartScout_investigationType_locationDesc() },
-							{ value: 'beat', label: m.smartScout_investigationType_beat(), description: m.smartScout_investigationType_beatDesc() }
-						]}
-						on:change={handleInvestigationTypeChange}
-					/>
-				</div>
-
-				<!-- Location (location mode only) -->
-				{#if investigationType === 'location'}
+				{#if mode === 'location'}
+					<!-- Location (required) -->
 					<div class="field-group">
 						<label class="field-label">{m.filter_locationLabel()}</label>
 						<LocationAutocomplete
@@ -323,10 +312,8 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 							on:clear={handleLocationClear}
 						/>
 					</div>
-				{/if}
-
-				<!-- Criteria: beat mode — shown before sources -->
-				{#if investigationType === 'beat'}
+				{:else}
+					<!-- Criteria (required for beat mode) -->
 					<div class="field-group">
 						<label for="smart-criteria" class="field-label">
 							{m.smartScout_criteriaLabel()}
@@ -353,12 +340,11 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 							{ value: 'reliable', label: m.sourceMode_reliable(), description: m.sourceMode_reliableDesc() },
 							{ value: 'niche', label: m.sourceMode_niche(), description: m.sourceMode_nicheDesc() }
 						]}
-						on:change={handleSourceModeChange}
 					/>
 				</div>
 
-				<!-- Criteria: location+reliable — shown after sources, optional -->
-				{#if investigationType === 'location' && sourceMode === 'reliable'}
+				<!-- Optional criteria for location mode (hidden when niche: results are poor with niche + criteria) -->
+				{#if mode === 'location' && sourceMode !== 'niche'}
 					<div class="field-group">
 						<label for="smart-criteria" class="field-label">
 							{m.smartScout_criteriaLabel()}
@@ -410,7 +396,7 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 								></textarea>
 							</div>
 
-							{#if !(investigationType === 'location' && sourceMode === 'niche')}
+							{#if !(mode === 'location' && sourceMode === 'niche')}
 							<div class="prompt-group">
 								<label class="prompt-label">
 									{#if isTopicOnly}

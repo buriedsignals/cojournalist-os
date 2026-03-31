@@ -192,6 +192,7 @@ class CivicOrchestrator:
             promises_found=len(all_promises),
             new_pdf_urls=batch,
             is_duplicate=False,
+            promises=all_promises,
         )
 
     async def test(

@@ -16,7 +16,7 @@ docs/
 │   ├── civic.md                           # Civic Scout: council monitoring, promises (incl. design ref)
 │   ├── export.md                          # CMS export + Markdown download
 │   ├── feed.md                            # Feed panel, export generation from units
-│   ├── pulse.md                           # Smart Scout type `pulse` (news digest)
+│   ├── pulse.md                           # Location Scout / Beat Scout (type `pulse`)
 │   ├── scrape.md                          # Firecrawl extraction
 │   ├── social.md                          # Social media monitoring (Apify)
 │   └── web-scouts.md                      # Website change detection
@@ -43,7 +43,7 @@ docs/
 
 ### Scout System
 - **Page Scout** (type `web`): `features/web-scouts.md` - Firecrawl changeTracking, per-scout baselines
-- **Smart Scout** (type `pulse`): `features/pulse.md` - Multi-language search, AI filtering
+- **Location Scout / Beat Scout** (type `pulse`): `features/pulse.md` - Multi-language search, AI filtering
 - **Social Scout** (type `social`): `features/social.md` - Social media monitoring, Apify scraping
 - **Civic Scout** (type `civic`): `features/civic.md` - Council monitoring, promise extraction, design reference
 

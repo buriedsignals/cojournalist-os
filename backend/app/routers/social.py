@@ -212,6 +212,7 @@ async def execute_social_scout(
                     new_posts=new_posts,
                     removed_posts=removed_posts if payload.track_removals else None,
                     language=payload.preferred_language,
+                    topic=payload.topic,
                 )
             else:
                 summary = "No new posts since last check."
@@ -219,6 +220,7 @@ async def execute_social_scout(
         elif payload.monitor_mode == "criteria":
             # TODO(Phase 3): Add notification for criteria matches.
             # Currently detects matches but does not email the user.
+            # When adding notification here, include topic=payload.topic.
             matched = await match_criteria(new_posts, payload.criteria or "", payload.platform)
             criteria_status = len(matched) > 0
             if matched:

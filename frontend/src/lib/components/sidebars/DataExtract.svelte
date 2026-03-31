@@ -26,6 +26,7 @@ type ExtractResultPayload = {
 	let instagramHandle = '';
 	let xHandle = '';
 	let facebookHandle = '';
+	let tiktokHandle = '';
 	let instagramCommentsUrl = '';
 let dataTarget = '';
 let isExtracting = false;
@@ -33,6 +34,7 @@ let extractError = '';
 	const socialDefaultTarget = 'tweets';
 	const instagramDefaultTarget = 'posts';
 	const facebookDefaultTarget = 'posts';
+	const tiktokDefaultTarget = 'videos';
 	const instagramCommentsDefaultTarget = 'comments';
 	let lastDownloadUrl: string | null = null;
 	let isCompleted = false;
@@ -57,10 +59,11 @@ let extractError = '';
 		{ label: m.dataExtract_x(), value: 'social' as ScrapeChannel },
 		{ label: m.dataExtract_instagram(), value: 'instagram' as ScrapeChannel },
 		{ label: m.dataExtract_facebook(), value: 'facebook' as ScrapeChannel },
+		{ label: m.dataExtract_tiktok(), value: 'tiktok' as ScrapeChannel },
 		{ label: m.dataExtract_instagramComments(), value: 'instagram_comments' as ScrapeChannel }
 	];
 
-$: scrapeCost = ({ website: 1, social: 2, instagram: 2, facebook: 15, instagram_comments: 15 } as Record<string, number>)[scrapeChannel] ?? 1;
+$: scrapeCost = ({ website: 1, social: 2, instagram: 2, facebook: 15, tiktok: 2, instagram_comments: 15 } as Record<string, number>)[scrapeChannel] ?? 1;
 $: urlPlaceholder =
 	scrapeChannel === 'instagram'
 		? 'https://instagram.com/username'
@@ -68,9 +71,11 @@ $: urlPlaceholder =
 			? 'https://x.com/username'
 			: scrapeChannel === 'facebook'
 				? 'https://facebook.com/profilename'
-				: scrapeChannel === 'instagram_comments'
-					? 'https://instagram.com/p/ABC123/'
-					: 'https://example.com';
+				: scrapeChannel === 'tiktok'
+					? 'https://tiktok.com/@username'
+					: scrapeChannel === 'instagram_comments'
+						? 'https://instagram.com/p/ABC123/'
+						: 'https://example.com';
 
 	function triggerDownload(blob: Blob, filename: string) {
 		if (lastDownloadUrl) {
@@ -117,9 +122,11 @@ $: urlPlaceholder =
 				? instagramDefaultTarget
 				: scrapeChannel === 'facebook'
 					? facebookDefaultTarget
-					: scrapeChannel === 'instagram_comments'
-						? instagramCommentsDefaultTarget
-						: dataTarget.trim();
+					: scrapeChannel === 'tiktok'
+						? tiktokDefaultTarget
+						: scrapeChannel === 'instagram_comments'
+							? instagramCommentsDefaultTarget
+							: dataTarget.trim();
 
 		// Construct URL from handle or direct input
 		const targetUrl = scrapeChannel === 'instagram'
@@ -128,9 +135,11 @@ $: urlPlaceholder =
 				? `https://x.com/${xHandle.replace('@', '').trim()}`
 				: scrapeChannel === 'facebook'
 					? `https://www.facebook.com/${facebookHandle.replace('@', '').trim()}/`
-					: scrapeChannel === 'instagram_comments'
-						? instagramCommentsUrl.trim()
-						: url;
+					: scrapeChannel === 'tiktok'
+						? `https://www.tiktok.com/@${tiktokHandle.replace('@', '').trim()}`
+						: scrapeChannel === 'instagram_comments'
+							? instagramCommentsUrl.trim()
+							: url;
 
 	// Flip UI state immediately for instant feedback
 	isExtracting = true;
@@ -376,6 +385,22 @@ $: urlPlaceholder =
 				/>
 			</div>
 		</div>
+	{:else if scrapeChannel === 'tiktok'}
+		<div class="form-group">
+			<label for="extract-tiktok-handle" class="field-label">{m.dataExtract_tiktokHandle()}</label>
+			<div class="input-prefix-wrapper">
+				<span class="input-prefix">tiktok.com/@</span>
+				<input
+					id="extract-tiktok-handle"
+					type="text"
+					class="form-input prefixed-input"
+					bind:value={tiktokHandle}
+					placeholder="username"
+					required
+					disabled={isExtracting}
+				/>
+			</div>
+		</div>
 	{:else if scrapeChannel === 'instagram_comments'}
 		<div class="form-group">
 			<label for="extract-ig-comments-url" class="field-label">{m.dataExtract_postUrl()}</label>
@@ -430,6 +455,7 @@ $: urlPlaceholder =
 			(scrapeChannel === 'instagram' ? !instagramHandle.trim() :
 			 scrapeChannel === 'social' ? !xHandle.trim() :
 			 scrapeChannel === 'facebook' ? !facebookHandle.trim() :
+			 scrapeChannel === 'tiktok' ? !tiktokHandle.trim() :
 			 scrapeChannel === 'instagram_comments' ? !instagramCommentsUrl.trim() :
 			 !url.trim()) ||
 			(scrapeChannel === 'website' && !dataTarget.trim())}

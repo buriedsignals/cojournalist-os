@@ -87,8 +87,8 @@ Detailed docs for each sidebar service in `docs/features/`:
 | Service | File | Description |
 |---------|------|-------------|
 | Page Scout (type `web`) | `web-scouts.md` | Firecrawl changeTracking, per-scout baselines, criteria analysis |
-| Smart Scout (type `pulse`) | `pulse.md` | Multi-language search, content dedup, AI filtering, quality filters |
-| Smart Scout (criteria) | `pulse.md` | Criteria-narrowed search via pulse pipeline |
+| Location Scout (type `pulse`) | `pulse.md` | Location-based monitoring — niche local sources by default |
+| Beat Scout (type `pulse`) | `pulse.md` | Topic/criteria monitoring — reliable sources by default |
 | Scrape | `scrape.md` | Firecrawl extraction, format options |
 | Social Scout (type `social`) | `social.md` | Social media monitoring, post diffing, Apify scraping |
 | Civic Scout (type `civic`) | `civic.md` | Council website monitoring, PDF parsing, promise extraction |
@@ -99,7 +99,8 @@ Detailed docs for each sidebar service in `docs/features/`:
 | View | Internal Type | Router | Orchestrator |
 |------|---------------|--------|--------------|
 | Page Scout | `web` | `scouts.py` | `scout_service.py` |
-| Smart Scout | `pulse` | `pulse.py` | `pulse_orchestrator.py` |
+| Location Scout | `pulse` | `pulse.py` | `pulse_orchestrator.py` |
+| Beat Scout | `pulse` | `pulse.py` | `pulse_orchestrator.py` |
 | Social Scout | `social` | `social.py` | `social_orchestrator.py` |
 | Civic Scout | `civic` | `civic.py` | `civic_orchestrator.py` |
 | Scrape | N/A | `data_extractor.py` | `firecrawl_client.py` |
@@ -117,11 +118,12 @@ Detailed docs for each sidebar service in `docs/features/`:
 | Type | UI Name | Purpose | Scope | Notification |
 |------|---------|---------|-------|--------------|
 | `web` | Page Scout | Monitor URL for content changes | URL (+ optional topic) | When criteria match |
-| `pulse` | Smart Scout | AI-curated news digest | Location and/or criteria | Always |
+| `pulse` | Location Scout | Location-based news monitoring | Location (+ optional criteria) | Always |
+| `pulse` | Beat Scout | Topic/criteria news monitoring | Criteria (no location) | Always |
 | `social` | Social Scout | Monitor social media profiles | Platform + handle | Always |
 | `civic` | Civic Scout | Monitor council meetings for promises | Domain + confirmed URLs | When promises found |
 
-**Scope modes:** Smart Scout supports location-only, criteria-only, or combined location+criteria searches. `criteria` is the search driver (keywords, topic, or specific criteria); `topic` is a separate organizational tag. At least one of location or criteria is required.
+**Location Scout vs Beat Scout:** Both use the same backend `pulse` pipeline. Location Scout defaults to **niche** sources (local blogs, community sites); Beat Scout defaults to **reliable** sources (established outlets). Source mode is togglable in both. Location Scout requires a location and optionally accepts criteria; Beat Scout requires criteria only.
 
 **Page Scout change detection:** Uses Firecrawl `changeTracking` with per-scout `tag` parameter. Each scout has its own baseline. See `docs/features/web-scouts.md`.
 

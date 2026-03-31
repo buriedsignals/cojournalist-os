@@ -291,8 +291,10 @@
   "newScout_focusSearchLabel": "Focus search",
   "newScout_profileDescription": "Monitor a social media account for new posts, specific topics, or deleted content.",
   "newScout_profileTitle": "Track a Profile",
-  "newScout_smartMonitorDescription": "Overvåg en lokation eller et emne — find historier og leads automatisk",
-  "newScout_smartMonitorTitle": "Track a Beat",
+  "newScout_beatScoutDescription": "Monitor any topic or area of coverage from reliable sources.",
+  "newScout_beatScoutTitle": "Track a Beat",
+  "newScout_locationScoutDescription": "Monitor a city, region, or country for under-reported local stories.",
+  "newScout_locationScoutTitle": "Track a Location",
   "newScout_targetedHint": "Sæt specifikke kriterier og bliv adviseret når de er opfyldt",
   "newScout_targetedLabel": "Målrettet",
   "newScout_trackDescription": "Overvåg en URL for opdateringer og bliv notificeret når noget ændrer sig",
@@ -702,5 +704,7 @@
   "webScout_stepTest": "Test",
   "webScout_title": "Page Tracking",
   "webScout_urlPlaceholder": "https://eksempel.dk",
-  "webScout_websiteUrl": "Hjemmeside URL"
+  "webScout_websiteUrl": "Hjemmeside URL",
+  "dataExtract_tiktok": "TikTok",
+  "dataExtract_tiktokHandle": "TikTok handle"
 }

@@ -74,7 +74,7 @@
 						<img src="/logo-cojournalist.svg" alt="coJournalist" class="auth-logo" />
 						<p class="coming-soon-title">Coming Soon</p>
 						<p class="coming-soon-text">
-							coJournalist will be available by the end of March 2026. We'll notify you when access opens up.
+							coJournalist is not currently available for new signups. We'll notify you when access opens up.
 						</p>
 					{:else}
 						<span class="brand-dot"></span>

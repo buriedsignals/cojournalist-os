@@ -10,7 +10,7 @@
 	import { buildApiUrl } from '$lib/config/api';
 
 	// Form state
-	let platform: 'instagram' | 'x' | 'facebook' = 'instagram';
+	let platform: 'instagram' | 'x' | 'facebook' | 'tiktok' = 'instagram';
 	let handle = '';
 	let monitorMode: 'summarize' | 'criteria' = 'summarize';
 	let criteria = '';
@@ -161,6 +161,7 @@
 						<option value="instagram">Instagram</option>
 						<option value="x">X</option>
 						<option value="facebook">Facebook Profile</option>
+						<option value="tiktok">TikTok</option>
 					</select>
 				</div>
 

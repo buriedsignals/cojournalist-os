@@ -24,7 +24,7 @@ backend/app/
 │   └── v1.py            # External API (v1)
 ├── services/            # Business logic
 │   ├── scout_service.py              # Page Scout execution
-│   ├── pulse_orchestrator.py         # Smart Scout (type `pulse`) orchestration
+│   ├── pulse_orchestrator.py         # Location/Beat Scout (type `pulse`) orchestration
 │   ├── social_orchestrator.py        # Social Scout orchestration (Apify scrapers)
 │   ├── civic_orchestrator.py         # Civic Scout orchestration (council monitoring)
 │   ├── query_generator.py            # LLM-powered search query generation
@@ -57,7 +57,7 @@ backend/app/
 
 **Auth:** `X-Service-Key` header (Lambda → FastAPI)
 
-### `/api/pulse/*` - Smart Scout type `pulse` (UI + Lambda)
+### `/api/pulse/*` - Location/Beat Scout type `pulse` (UI + Lambda)
 - `POST /pulse/search` - AI news search (UI, rate limited)
 - `POST /pulse/execute` - Lambda-triggered execution
 
@@ -135,7 +135,7 @@ See `docs/architecture/fastapi-endpoints.md` for full v1 API documentation.
 | Service | Purpose |
 |---------|---------|
 | `scout_service.py` | Scrape URLs, AI criteria check |
-| `pulse_orchestrator.py` | Smart Scout - direct search, dedup, filter, summary (location and/or topic, optional criteria) |
+| `pulse_orchestrator.py` | Location/Beat Scout - direct search, dedup, filter, summary (location and/or topic, optional criteria) |
 | `query_generator.py` | LLM-powered search query + discovery query generation (local language) |
 | `news_utils.py` | Shared utilities (FirecrawlTools, embedding dedup, homepage/tourism filters) |
 | `filter_prompts.py` | AI filter prompts for news, government, and topic analysis categories |
@@ -151,7 +151,7 @@ See `docs/architecture/fastapi-endpoints.md` for full v1 API documentation.
 | `schedule_service.py` | EventBridge schedule management (create/delete/run-now) |
 | `embedding_utils.py` | Centralized embedding functions (text, multimodal, cosine similarity) |
 | `api_key_service.py` | API key generation, validation, storage (v1 API) |
-| `execute_pipeline.py` | Post-orchestrator pipeline for Smart Scout (fact dedup, EXEC#, notifications) |
+| `execute_pipeline.py` | Post-orchestrator pipeline for Location/Beat Scout (fact dedup, EXEC#, notifications) |
 | `export_generator.py` | Article draft generation from atomic units via LLM |
 | `cron.py` | AWS EventBridge cron expression building |
 | `http_client.py` | Shared HTTP clients with connection pooling |
@@ -163,7 +163,7 @@ Two-layer deduplication prevents duplicate notifications:
 
 ### Layer 1: Fact-Level Deduplication (`atomic_unit_service.py`)
 
-For Smart Scout (type `pulse`), operates at the individual fact level:
+For Location/Beat Scout (type `pulse`), operates at the individual fact level:
 1. Extract 1-3 atomic facts per article using configurable LLM (settings.llm_model)
 2. Embed each fact and compare against recent facts from previous runs
 3. Only store NEW facts; duplicates are discarded
@@ -221,7 +221,7 @@ The `notification_service.py` provides unified email formatting with localizatio
 
 ## Pulse Pipeline Quality Filters
 
-The Smart Scout pipeline includes several quality gates to improve result relevance:
+The Location/Beat Scout pipeline includes several quality gates to improve result relevance:
 
 | Filter | Location | Scope | Description |
 |--------|----------|-------|-------------|
@@ -292,7 +292,7 @@ if len(tag) > 128:  # Safety margin — Firecrawl's max tag length is undocument
 | Service | Used For | DO NOT REMOVE |
 |---------|----------|---------------|
 | `ExecutionDeduplicationService` | EXEC# records, summary embeddings | `check_duplicate()`, `store_execution()` |
-| `AtomicUnitService` | Fact-level dedup for Smart Scouts | `process_results()` |
+| `AtomicUnitService` | Fact-level dedup for Location/Beat Scouts | `process_results()` |
 | `embedding_utils` | Centralized embedding functions | `generate_embedding()`, `cosine_similarity()` |
 
 **Service Dependencies:**

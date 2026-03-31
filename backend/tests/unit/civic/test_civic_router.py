@@ -353,6 +353,40 @@ class TestCivicExecuteResult:
         assert result.is_duplicate is True
         assert result.promises_found == 0
 
+    def test_promises_field_defaults_empty(self):
+        """CivicExecuteResult promises field should default to empty list."""
+        result = CivicExecuteResult(
+            status="ok",
+            summary="Found 1 promise.",
+            promises_found=1,
+            new_pdf_urls=[],
+            is_duplicate=False,
+        )
+        assert result.promises == []
+
+    def test_promises_field_populated(self):
+        """CivicExecuteResult should carry Promise objects through."""
+        promise = Promise(
+            promise_text="Build 50 new affordable homes by 2027",
+            context="Councillor Smith committed to the housing target.",
+            source_url="https://council.example.gov/minutes/2026-03.pdf",
+            source_date="2026-03-15",
+            due_date="2027-12-31",
+            date_confidence="high",
+            criteria_match=True,
+        )
+        result = CivicExecuteResult(
+            status="ok",
+            summary="Found 1 promise.",
+            promises_found=1,
+            new_pdf_urls=["https://council.example.gov/minutes/2026-03.pdf"],
+            is_duplicate=False,
+            promises=[promise],
+        )
+        assert len(result.promises) == 1
+        assert result.promises[0].promise_text == "Build 50 new affordable homes by 2027"
+        assert result.promises[0].source_url == "https://council.example.gov/minutes/2026-03.pdf"
+
 
 # =============================================================================
 # Promise Tests

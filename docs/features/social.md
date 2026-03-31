@@ -6,12 +6,14 @@ Social media profile monitoring with post diffing and criteria matching.
 
 ## Overview
 
-Social Scouts monitor social media profiles for new (and optionally removed) posts. Two platforms are supported:
+Social Scouts monitor social media profiles for new (and optionally removed) posts. Four platforms are supported:
 
 | Platform | Apify Actor ID | Media Support |
 |----------|----------------|---------------|
 | Instagram | `culc72xb7MP3EbaeX` (apidojo/instagram-scraper) | Text + images + video URLs |
-| X/Twitter | `61RPP7dywgiy0JPD0` | Text only (Phase 1) |
+| X/Twitter | `61RPP7dywgiy0JPD0` | Text + media URLs |
+| Facebook | `cleansyntax~facebook-profile-posts-scraper` | Text + images + video URLs |
+| TikTok | `novi~tiktok-user-api` | Text + cover image + video URLs |
 
 Two monitor modes:
 
@@ -75,8 +77,9 @@ Only runs in `criteria` mode, and only on new posts identified by Layer 1.
 
 1. Embed the user's criteria text as a `RETRIEVAL_QUERY`
 2. Embed each new post at execution time:
-   - **Instagram**: multimodal embedding (text + first image via Gemini)
-   - **X**: text-only embedding
+   - **Instagram/TikTok/Facebook**: multimodal embedding (text + first image via Gemini) when images available
+   - **X**: text-only embedding (typically no images)
+   - All platforms fall back to text-only when no images are available
 3. Compare via cosine similarity — posts with similarity > 0.65 are matches
 
 The baseline never stores embeddings because they are only needed for the criteria comparison, not for diffing.
@@ -87,9 +90,8 @@ Uses **Gemini Embedding 2** (`gemini-embedding-2-preview`, 1536 dimensions) via 
 
 | Platform | Embedding Type | Input |
 |----------|---------------|-------|
-| Instagram (with images) | Multimodal | `"{author}: {text}"` + first image bytes |
-| Instagram (no images) | Text-only | `"{author}: {text}"` |
-| X/Twitter | Text-only | `"{author}: {text}"` |
+| Instagram/TikTok/Facebook (with images) | Multimodal | `"{author}: {text}"` + first image bytes |
+| Any platform (no images) | Text-only | `"{author}: {text}"` |
 
 Image bytes are downloaded from CDN URLs via `download_image()` (15s timeout, graceful fallback to text-only on failure).
 
@@ -108,13 +110,15 @@ class NormalizedPost(BaseModel):
     timestamp: str                   # ISO timestamp
     image_urls: List[str] = []       # Image CDN URLs (Instagram only in Phase 1)
     video_url: Optional[str] = None  # Video URL (Instagram only, when isVideo)
-    platform: SocialPlatform         # "instagram" | "x"
+    platform: SocialPlatform         # "instagram" | "x" | "facebook" | "tiktok"
     engagement: dict = {}            # Platform-specific metrics
 ```
 
 Engagement fields by platform:
 - **Instagram**: `likes`, `comments`
 - **X**: `likes`, `retweets`, `replies`
+- **Facebook**: `likes`, `comments`, `shares`
+- **TikTok**: empty (content-only — journalists monitor against criteria, not metrics)
 
 ### PostSnapshot
 
@@ -136,7 +140,7 @@ PK: {user_id}
 SK: POSTS#{scout_name}
 Fields:
   posts: JSON string of PostSnapshot[]
-  platform: "instagram" | "x"
+  platform: "instagram" | "x" | "facebook" | "tiktok"
   handle: profile handle
   updated_at: ISO timestamp
   post_count: int
@@ -147,7 +151,7 @@ Fields:
 
 ```python
 class SocialTestRequest(BaseModel):
-    platform: SocialPlatform         # "instagram" | "x"
+    platform: SocialPlatform         # "instagram" | "x" | "facebook" | "tiktok"
     handle: str                      # Auto-strips leading "@"
 
 class SocialTestResponse(BaseModel):
@@ -166,6 +170,7 @@ class SocialExecuteRequest(BaseModel):
     monitor_mode: SocialMonitorMode  # "summarize" | "criteria"
     track_removals: bool = False
     criteria: Optional[str] = None
+    topic: Optional[str] = Field(None, max_length=200)
     preferred_language: str = "en"
 ```
 
@@ -267,16 +272,32 @@ Full social scout execution: scrape, diff, summarize/criteria, notify, store.
 - Input: profile URL, `max_tweets`
 - Output fields: `id`, `id_str`, `text`, `author.username`, `created_at`, `url`, `favorite_count`, `retweet_count`, `reply_count`
 - Normalization: `normalize_x_posts()`
-- No media URLs in Phase 1
 
-Both actors are started asynchronously and polled every 2 seconds until completion or 120-second timeout.
+### Facebook: `cleansyntax~facebook-profile-posts-scraper`
+
+- Input: profile URL, `max_posts`
+- Output fields: `post_id`, `message`, `timestamp` (unix), `author.name`, `image.uri`, `album_preview`, `video.url`, `reactions_count`, `comments_count`, `reshare_count`
+- Normalization: `normalize_facebook_posts()`
+- Rejects Facebook Page URLs (only personal profiles)
+
+### TikTok: `novi~tiktok-user-api`
+
+- Input: profile URL, `limit`
+- Output fields: `aweme_id`, `desc`, `create_time` (unix), `share_url`, `author.unique_id`, `video.cover.url_list`, `video.play_addr.url_list`
+- Normalization: `normalize_tiktok_posts()`
+- Content-only: no engagement metrics (journalists monitor against criteria, not vanity metrics)
+- Cover image used for multimodal embedding
+
+All actors are started asynchronously and polled every 2 seconds until completion or 120-second timeout.
 
 ## Credit Cost
 
-| Operation | Credits |
-|-----------|---------|
-| Scheduled execution | 6 |
-| Test (profile validation + baseline) | 0 |
+| Platform | Scheduled execution | Test |
+|----------|-------------------|------|
+| Instagram | 2 | 0 |
+| X/Twitter | 2 | 0 |
+| Facebook | 15 | 0 |
+| TikTok | 2 | 0 |
 
 ## Benchmarking
 

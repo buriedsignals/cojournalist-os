@@ -1,12 +1,18 @@
-# Smart Scout Service (type `pulse`)
+# Location Scout / Beat Scout (type `pulse`)
 
-> **Naming:** In the UI, this appears as "Smart Scout". The backend type code is `pulse`.
+> **Naming:** In the UI, this appears as two separate panels: **Location Scout** (location-based monitoring) and **Beat Scout** (topic/criteria monitoring). Both share the same backend type code `pulse` and the same execution pipeline.
 
-AI-curated digest of niche sources and stories under the radar, with multi-language search and fact-level deduplication.
+AI-curated digest with multi-language search and fact-level deduplication.
 
 ## Overview
 
-Smart Scout (type `pulse`) surfaces niche sources, community blogs, and underreported stories. Supports location-only, criteria-only, or combined location+criteria scoping. Always sends notifications when executed on schedule.
+The pulse pipeline surfaces niche sources, community blogs, and underreported stories. It supports location-only, criteria-only, or combined location+criteria scoping. Always sends notifications when executed on schedule.
+
+**UI panels:**
+- **Location Scout** — requires a location, optionally accepts criteria. Defaults to **niche** sources (local blogs, community sites).
+- **Beat Scout** — requires criteria (topic/keywords), no location. Defaults to **reliable** sources (established outlets).
+
+Both panels expose a source mode toggle so users can switch between niche and reliable. The backend pipeline is identical; only the default parameters differ.
 
 **`topic` vs `criteria`:** The `criteria` field is the search driver (keywords, topic, or specific criteria passed to the query generator). The `topic` field is an organizational tag set in the Schedule modal, used only for info unit tagging -- it does not drive search. `PulseSearchRequest` has no `topic` field. `PulseExecuteRequest` has both: if `criteria` is empty but `topic` is set, `topic` is copied to `criteria` for backward compatibility with old SCRAPER# records.
 
@@ -14,7 +20,7 @@ Smart Scout (type `pulse`) surfaces niche sources, community blogs, and underrep
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                SMART SCOUT (PULSE) EXECUTION                      │
+│           LOCATION / BEAT SCOUT (PULSE) EXECUTION                 │
 │                                                                  │
 │  Trigger: EventBridge → Lambda → POST /api/pulse/execute         │
 │           OR: UI search → POST /api/pulse/search                 │
