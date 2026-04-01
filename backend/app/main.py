@@ -139,7 +139,7 @@ async def add_security_headers(request: Request, call_next):
     if "text/html" in content_type:
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' https: data:; "
             "font-src 'self' https://fonts.gstatic.com; "
