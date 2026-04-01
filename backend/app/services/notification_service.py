@@ -234,6 +234,7 @@ class NotificationService:
         extra_content: str = "",
         cta_text: str = "",
         post_content: str = "",
+        language: str = "en",
     ) -> str:
         """
         Build unified email HTML template.
@@ -310,6 +311,10 @@ class NotificationService:
             {post_content}
 
             {cta_section}
+
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #9ca3af; line-height: 1.5;">
+                {get_string("email_disclaimer", language)}
+            </div>
         </div>
     </div>
 </body>
@@ -364,12 +369,18 @@ class NotificationService:
                 "source": "",
             }]
 
+        # Scout-specific AI cue
+        page_scout_cue_text = get_string("page_scout_cue", language)
+
         extra_content = f"""
             <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
                 <p style="margin: 0 0 4px 0; font-size: 12px; color: #666; text-transform: uppercase;">{monitoring_url_label}</p>
                 <a href="{url_escaped}" style="color: #2563eb; text-decoration: none; word-break: break-all;">{url_escaped}</a>
             </div>
             {criteria_section}
+            <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
+                {page_scout_cue_text}
+            </div>
         """
 
         html_content = self._build_email_html(
@@ -383,6 +394,7 @@ class NotificationService:
             articles_section_title=articles_section_title,
             extra_content=extra_content,
             cta_text=cta_text,
+            language=language,
         )
 
         return await self._send_email_with_retry(
@@ -540,6 +552,13 @@ class NotificationService:
             </div>
             """
 
+        # Scout-specific AI cue
+        pulse_cue_html = f"""
+            <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
+                {get_string("pulse_scout_cue", language)}
+            </div>
+        """
+
         html_content = self._build_email_html(
             header_title=header_title,
             header_subtitle=scout_name_escaped,
@@ -549,8 +568,10 @@ class NotificationService:
             summary=summary,
             articles=translated_articles,
             articles_section_title=section_title,
+            extra_content=pulse_cue_html,
             cta_text=cta_text,
             post_content=post_content,
+            language=language,
         )
 
         return await self._send_email_with_retry(
@@ -575,6 +596,13 @@ class NotificationService:
         header_title = get_string("civic_scout", language)
         scout_name_escaped = html.escape(scout_name)
 
+        # Scout-specific AI cue
+        civic_cue_html = f"""
+            <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
+                {get_string("civic_scout_cue", language)}
+            </div>
+        """
+
         html_content = self._build_email_html(
             header_title=header_title,
             header_subtitle=scout_name_escaped,
@@ -584,6 +612,8 @@ class NotificationService:
             summary=summary,
             articles=[],
             articles_section_title="",
+            extra_content=civic_cue_html,
+            language=language,
         )
 
         return await self._send_email_with_retry(

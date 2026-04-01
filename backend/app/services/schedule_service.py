@@ -129,16 +129,20 @@ class ScheduleService:
                 item["topic"] = body["topic"]
         elif scout_type == "civic":
             item["root_domain"] = body.get("root_domain", "")
-            item["tracked_urls"] = body.get("tracked_urls", [])
+            item["tracked_urls"] = body.get("tracked_urls") or []
             item["criteria"] = body.get("criteria", "")
             item["content_hash"] = body.get("content_hash", "")
-            item["processed_pdf_urls"] = body.get("processed_pdf_urls", [])
+            item["processed_pdf_urls"] = body.get("processed_pdf_urls") or []
             if body.get("location"):
                 item["location"] = body["location"]
             if body.get("topic"):
                 item["topic"] = body["topic"]
 
-        await self.scout_storage.create_scout(user_id, convert_floats_to_decimal(item))
+        settings = get_settings()
+        if settings.deployment_target == "supabase":
+            await self.scout_storage.create_scout(user_id, item)
+        else:
+            await self.scout_storage.create_scout(user_id, convert_floats_to_decimal(item))
 
         # 2. Create EventBridge schedule via scheduler adapter
         rule_name = build_schedule_name(user_id, scraper_name)
@@ -162,7 +166,10 @@ class ScheduleService:
             "root_domain": body.get("root_domain", ""),
         })
 
-        cron_expr = f"cron({cron_schedule.expression})"
+        if settings.deployment_target == "supabase":
+            cron_expr = cron_schedule.expression
+        else:
+            cron_expr = f"cron({cron_schedule.expression})"
         target_config = {
             "lambda_arn": self.scraper_lambda_arn,
             "role_arn": self.eventbridge_role_arn,

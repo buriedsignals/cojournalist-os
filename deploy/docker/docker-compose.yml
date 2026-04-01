@@ -27,13 +27,15 @@ services:
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     volumes:
       - db-data:/var/lib/postgresql/data
-      - ../../supabase/migrations:/docker-entrypoint-initdb.d
       - ./init/00000_init_roles.sh:/docker-entrypoint-initdb.d/00000_init_roles.sh:ro
+      - ../../supabase/migrations/00001_extensions.sql:/docker-entrypoint-initdb.d/00001_extensions.sql:ro
+      - ../../supabase/migrations:/app-migrations:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 60s
     restart: unless-stopped
 
   auth:
@@ -150,8 +152,30 @@ services:
     depends_on:
       - backend
     ports:
-      - "3000:3000"
+      - "3000:5173"
+    environment:
+      BACKEND_URL: http://backend:8000
     restart: unless-stopped
+
+  migrations:
+    image: supabase/postgres:15.6.1.143
+    depends_on:
+      auth:
+        condition: service_started
+      db:
+        condition: service_healthy
+    volumes:
+      - ../../supabase/migrations:/migrations:ro
+    entrypoint: >
+      sh -c "sleep 10 &&
+        for f in /migrations/00002_tables.sql /migrations/00003_indexes.sql /migrations/00004_rls.sql /migrations/00005_triggers.sql /migrations/00006_cron_cleanup.sql; do
+          echo \"Running $$f...\";
+          PGPASSWORD=$$POSTGRES_PASSWORD psql -h db -U postgres -d postgres -f $$f;
+        done &&
+        echo 'All app migrations complete.'"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    restart: "no"
 
 volumes:
   db-data:

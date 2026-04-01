@@ -162,7 +162,7 @@ class UserService:
                 "preferred_language": existing.get("preferred_language", "en"),
                 "onboarding_completed": existing.get("onboarding_completed", False),
                 "default_location": existing.get("default_location"),
-                "excluded_domains": existing.get("excluded_domains", []),
+                "excluded_domains": existing.get("excluded_domains") or [],
                 "org_id": org_id,
             }
         else:

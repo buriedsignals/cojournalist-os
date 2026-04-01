@@ -341,6 +341,9 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 							{ value: 'niche', label: m.sourceMode_niche(), description: m.sourceMode_nicheDesc() }
 						]}
 					/>
+					{#if sourceMode === 'niche'}
+						<p class="niche-disclaimer">{m.disclaimer_nicheWarning()}</p>
+					{/if}
 				</div>
 
 				<!-- Optional criteria for location mode (hidden when niche: results are poor with niche + criteria) -->
@@ -602,6 +605,7 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	.field-group { margin-bottom: 0.75rem; }
 	.field-label { display: block; font-size: 0.8125rem; font-weight: 500; color: #374151; margin-bottom: 0.375rem; }
 	.field-subtitle { font-weight: 400; color: var(--color-text-secondary); margin-left: 0.375rem; font-size: 0.8125rem; }
+	.niche-disclaimer { font-size: 0.75rem; color: #9ca3af; margin: 0.375rem 0 0; line-height: 1.4; }
 
 	/* Prompt Editor Section */
 	.prompt-section { margin-bottom: 1.5rem; }

@@ -10,7 +10,6 @@
 	import TimePicker from '$lib/components/ui/TimePicker.svelte';
 	import LocationAutocomplete from '$lib/components/ui/LocationAutocomplete.svelte';
 	import TopicChips from '$lib/components/ui/TopicChips.svelte';
-	import UpgradeModal from '$lib/components/modals/UpgradeModal.svelte';
 	import { getScoutCost } from '$lib/utils/scouts';
 	import * as m from '$lib/paraglide/messages';
 
@@ -44,7 +43,6 @@
 	$: perRunCost = scoutType === 'pulse' && sourceMode === 'niche' && location
 		? 10
 		: getScoutCost(scoutType, scoutType === 'social' ? platform : undefined);
-	let showUpgradeModal = false;
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -497,9 +495,11 @@
 							<label for="regularity" class="text-sm font-medium text-gray-700">
 								{m.scheduleSearch_monitoringFrequency()}
 							</label>
+							{#if import.meta.env.PUBLIC_DEPLOYMENT_TARGET !== 'supabase'}
 							<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-200">
 								{monthlyCost === 1 ? m.scout_monthlyCost({ count: monthlyCost }) : m.scout_monthlyCostPlural({ count: monthlyCost })}
 							</span>
+						{/if}
 						</div>
 						<select
 							id="regularity"
@@ -606,13 +606,6 @@
 	</div>
 {/if}
 
-<UpgradeModal
-	open={showUpgradeModal}
-	currentCredits={$authStore.user?.credits ?? 0}
-	requiredCredits={monthlyCost}
-	operationType="scout scheduling"
-	on:close={() => (showUpgradeModal = false)}
-/>
 
 <style>
 </style>

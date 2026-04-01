@@ -10,7 +10,6 @@
 	import PanelPlaceholder from '$lib/components/ui/PanelPlaceholder.svelte';
 	import FilterBar from '$lib/components/ui/FilterBar.svelte';
 	import FilterSelect from '$lib/components/ui/FilterSelect.svelte';
-	import UpgradeModal from '$lib/components/modals/UpgradeModal.svelte';
 	import { RefreshCw, Trash2, X, Check, Globe, Radar, MapPin, Calendar, ExternalLink, Tag, Play, Radio, Users, Landmark } from 'lucide-svelte';
 	import RadarGraphic from '$lib/components/ui/RadarGraphic.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -35,7 +34,6 @@
 	let runningScout: string | null = null;
 
 	// Upgrade modal state for Run Now credit validation
-	let showUpgradeModal = false;
 	let upgradeRequiredCredits = 0;
 	let upgradeOperationType: 'extraction' | 'monitoring' | 'export' | 'scout scheduling' = 'monitoring';
 
@@ -504,13 +502,6 @@
 </div>
 
 <!-- Upgrade Modal for Run Now credit validation -->
-<UpgradeModal
-	open={showUpgradeModal}
-	currentCredits={$authStore.user?.credits ?? 0}
-	requiredCredits={upgradeRequiredCredits}
-	operationType={upgradeOperationType}
-	on:close={() => showUpgradeModal = false}
-/>
 
 <style>
 	.scouts-view {

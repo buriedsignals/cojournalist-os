@@ -30,6 +30,12 @@ rm -f backend/app/routers/admin.py
 rm -f backend/app/services/admin_report_service.py
 rm -f backend/app/schemas/admin.py
 
+# Backend: remove feedback router (Linear integration — SaaS-only)
+rm -f backend/app/routers/feedback.py
+
+# Backend: remove threat modeling dashboard (internal security assessment)
+rm -rf backend/app/routers/threat_modeling/
+
 # Backend: remove SaaS-only test files
 rm -f backend/tests/unit/api/test_admin.py
 rm -f backend/tests/unit/shared/test_admin_report.py
@@ -92,13 +98,51 @@ mv frontend/src/routes/login-supabase/ frontend/src/routes/login/
 # Frontend: strip SaaS-only routes and references
 # -------------------------------------------------------------------
 rm -rf frontend/src/routes/pricing/
+rm -rf frontend/src/routes/terms/
 
-sed -i "s|'/login', '/pricing', '/setup'|'/login', '/setup'|" frontend/src/routes/+layout.svelte
+sed -i "s|'/login', '/pricing', '/setup', '/terms'|'/login', '/setup'|" frontend/src/routes/+layout.svelte
 sed -i 's|href="/pricing"|href="/"|' frontend/src/routes/setup/+page.svelte
 sed -i "s#\$page.url.pathname === '/pricing' || ##" frontend/src/lib/components/ui/MobileBlocker.svelte
 sed -i "s|goto('/pricing');|return; // unlimited in self-hosted|" frontend/src/lib/components/ui/NewScoutDropdown.svelte
 sed -i "s|https://accounts.muckrock.com/[^']*|#|g" frontend/src/lib/components/modals/PreferencesModal.svelte
-sed -i "s|https://accounts.muckrock.com/[^']*|#|g" frontend/src/lib/components/modals/UpgradeModal.svelte
+# Remove UpgradeModal and all credit-gating logic (no credits in OSS)
+rm -f frontend/src/lib/components/modals/UpgradeModal.svelte
+
+# Strip UpgradeModal imports from components that reference it
+sed -i "/import UpgradeModal/d" frontend/src/lib/components/feed/FeedView.svelte
+sed -i "/import UpgradeModal/d" frontend/src/lib/components/panels/ScoutsPanel.svelte
+sed -i "/import UpgradeModal/d" frontend/src/lib/components/modals/ScoutScheduleModal.svelte
+sed -i "/import UpgradeModal/d" frontend/src/lib/components/sidebars/DataExtract.svelte
+
+# Strip showUpgradeModal state and credit gate blocks
+sed -i "/let showUpgradeModal/d" frontend/src/lib/components/feed/FeedView.svelte
+sed -i "/let showUpgradeModal/d" frontend/src/lib/components/panels/ScoutsPanel.svelte
+sed -i "/let showUpgradeModal/d" frontend/src/lib/components/modals/ScoutScheduleModal.svelte
+sed -i "/let showUpgradeModal/d" frontend/src/lib/components/sidebars/DataExtract.svelte
+
+# Strip <UpgradeModal .../> component blocks (multi-line: delete from <UpgradeModal to />)
+sed -i '/<UpgradeModal/,/\/>/d' frontend/src/lib/components/feed/FeedView.svelte
+sed -i '/<UpgradeModal/,/\/>/d' frontend/src/lib/components/panels/ScoutsPanel.svelte
+sed -i '/<UpgradeModal/,/\/>/d' frontend/src/lib/components/modals/ScoutScheduleModal.svelte
+sed -i '/<UpgradeModal/,/\/>/d' frontend/src/lib/components/sidebars/DataExtract.svelte
+
+# Replace credit gates with unlimited (credits ?? 0 → 999999)
+sed -i 's/\$authStore\.user?\.credits ?? 0/999999/g' frontend/src/lib/components/feed/FeedView.svelte
+sed -i 's/\$authStore\.user?\.credits ?? 0/999999/g' frontend/src/lib/components/panels/ScoutsPanel.svelte
+sed -i 's/\$authStore\.user?\.credits ?? 0/999999/g' frontend/src/lib/components/modals/ScoutScheduleModal.svelte
+sed -i 's/\$authStore\.user?\.credits ?? 0/999999/g' frontend/src/lib/components/sidebars/DataExtract.svelte
+
+# Frontend: remove FeedbackModal and BugReportButton (Linear integration — SaaS-only)
+rm -f frontend/src/lib/components/modals/FeedbackModal.svelte
+sed -i "/import BugReportButton from/d" frontend/src/routes/+layout.svelte
+sed -i "/import FeedbackModal from/d" frontend/src/routes/+layout.svelte
+sed -i "/let feedbackModalOpen/d" frontend/src/routes/+layout.svelte
+sed -i "/BugReportButton/d" frontend/src/routes/+layout.svelte
+sed -i "/FeedbackModal/d" frontend/src/routes/+layout.svelte
+
+# Backend: strip feedback router import and mount from main.py
+sed -i '/^    feedback,$/d' backend/app/main.py
+sed -i '/feedback\.router/d' backend/app/main.py
 
 # -------------------------------------------------------------------
 # Validate: no SaaS-only references remain
@@ -123,6 +167,11 @@ fi
 
 if grep -r "auth-muckrock" --exclude="auth-supabase.ts" frontend/src/ 2>/dev/null; then
   echo "ERROR: auth-muckrock references found in OSS build"
+  FAIL=1
+fi
+
+if [ -d "backend/app/routers/threat_modeling" ]; then
+  echo "ERROR: threat_modeling directory found in OSS build"
   FAIL=1
 fi
 

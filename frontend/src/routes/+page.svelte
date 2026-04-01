@@ -12,7 +12,14 @@ import CivicScoutView from '$lib/components/news/CivicScoutView.svelte';
 import FeedView from '$lib/components/feed/FeedView.svelte';
 import ApiView from '$lib/components/views/ApiView.svelte';
 import PreferencesModal from '$lib/components/modals/PreferencesModal.svelte';
+import * as m from '$lib/paraglide/messages';
 	let showPreferencesModal = false;
+	let disclaimerDismissed = typeof localStorage !== 'undefined' && localStorage.getItem('ai-disclaimer-dismissed') === 'true';
+
+	function dismissDisclaimer() {
+		disclaimerDismissed = true;
+		localStorage.setItem('ai-disclaimer-dismissed', 'true');
+	}
 
 </script>
 
@@ -25,6 +32,12 @@ import PreferencesModal from '$lib/components/modals/PreferencesModal.svelte';
 
 	<!-- Main Content Area - All views mounted, visibility toggled for state persistence -->
 	<main class="main-content">
+		{#if !disclaimerDismissed}
+		<div class="ai-disclaimer-banner">
+			<span>{m.disclaimer_aiGenerated()}</span>
+			<button class="dismiss-btn" on:click={dismissDisclaimer}>&times;</button>
+		</div>
+		{/if}
 		<div class="view-container" class:hidden={$sidebarNav.activeView !== 'scouts'}>
 			<ScoutsPanel />
 		</div>
@@ -95,5 +108,32 @@ import PreferencesModal from '$lib/components/modals/PreferencesModal.svelte';
 
 	.view-container.hidden {
 		display: none;
+	}
+
+	.ai-disclaimer-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.5rem 1rem;
+		background: rgba(245, 158, 11, 0.06);
+		border: 1px solid rgba(245, 158, 11, 0.15);
+		border-radius: 0.5rem;
+		font-size: 0.8rem;
+		color: #57534e;
+		margin-bottom: 1rem;
+	}
+
+	.dismiss-btn {
+		background: none;
+		border: none;
+		color: #a8a29e;
+		cursor: pointer;
+		font-size: 1.1rem;
+		padding: 0 0.25rem;
+		line-height: 1;
+	}
+
+	.dismiss-btn:hover {
+		color: #57534e;
 	}
 </style>

@@ -118,7 +118,7 @@ Revenue reporting for MuckRock pilot invoicing. Accessible at `/api/admin/` (bro
 | `backend/app/schemas/admin.py` | Pydantic response models |
 | `backend/app/dependencies/auth.py` | `require_admin` dependency (ADMIN_EMAILS check) |
 
-**USAGE# records:** Written on every credit decrement (fire-and-forget from `decrement_credit()` in `billing.py`). Stored in DynamoDB with 365-day TTL. PK is `ORG#{id}` or `USER#{id}`, SK is `USAGE#{timestamp}#{uuid}`.
+**USAGE# records:** Written on every credit decrement (fire-and-forget from `decrement_credit()` in `billing.py`). Stored in DynamoDB with 90-day TTL. PK is `ORG#{id}` or `USER#{id}`, SK is `USAGE#{timestamp}#{uuid}`.
 
 **Endpoints:**
 - `GET /api/admin/` — Browser dashboard (metrics + current month invoice)

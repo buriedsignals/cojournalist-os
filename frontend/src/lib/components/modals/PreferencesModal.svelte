@@ -222,6 +222,7 @@
 				</div>
 
 				<!-- Account -->
+			{#if import.meta.env.PUBLIC_DEPLOYMENT_TARGET !== 'supabase'}
 			<div class="border-t border-gray-200 pt-4">
 				<p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{m.preferences_account()}</p>
 				<div class="space-y-3">
@@ -232,7 +233,7 @@
 						</span>
 					</div>
 					<a
-						href={$authStore.user?.username ? `#'#'}
+						href={'#'}
 						target="_blank"
 						rel="noopener noreferrer"
 						class="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
@@ -243,6 +244,7 @@
 					<p class="text-xs text-gray-400">{m.preferences_manageMuckrockHint()}</p>
 				</div>
 			</div>
+			{/if}
 
 				<!-- Error -->
 				{#if errorMessage}

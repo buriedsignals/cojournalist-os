@@ -531,7 +531,7 @@ Crawl a council domain and return AI-ranked candidate URLs (meeting minutes, age
 
 ### POST /api/civic/execute (service key auth)
 
-Full civic scout execution — fetch tracked URLs, hash content, detect new PDFs, parse with LlamaParse, extract promises, store records, notify.
+Full civic scout execution — fetch tracked URLs, hash content, detect new PDFs, parse with Firecrawl, extract promises, store records, notify.
 
 **Auth:** `X-Service-Key` header
 

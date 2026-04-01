@@ -19,7 +19,7 @@
 	}
 
 	// Skip blocker on public pages
-	$: isExemptPage = $page.url.pathname === '/login' || $page.url.pathname === '/faq';
+	$: isExemptPage = $page.url.pathname === '/login' || $page.url.pathname === '/faq' || $page.url.pathname === '/terms';
 </script>
 
 {#if showBlocker && !isExemptPage}

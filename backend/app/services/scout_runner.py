@@ -149,7 +149,8 @@ class ScoutRunner:
 
         # 4. Store run record via adapter
         try:
-            await self._store_time_record(user_id, scraper_name, scout_type, result_dict)
+            scout_id = item.get("id", scraper_name)  # UUID from Supabase, name from AWS
+            await self._store_time_record(user_id, scout_id, scraper_name, scout_type, result_dict)
         except Exception as exc:
             logger.error("Failed to store run record: %s", exc)
 
@@ -158,6 +159,7 @@ class ScoutRunner:
     async def _store_time_record(
         self,
         user_id: str,
+        scout_id: str,
         scraper_name: str,
         scout_type: str,
         result: dict,
@@ -165,7 +167,7 @@ class ScoutRunner:
         """Store run record for scout execution history."""
         status = "success" if result.get("scraper_status") else "error"
         await self.run_storage.store_run(
-            scout_id=scraper_name,
+            scout_id=scout_id,
             user_id=user_id,
             status=status,
             scout_type=scout_type,

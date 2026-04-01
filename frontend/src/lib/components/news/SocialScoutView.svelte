@@ -72,9 +72,14 @@
 		}, 800);
 
 		try {
-			const response = await fetch(buildApiUrl('/api/social/test'), {
+			const { authStore } = await import('$lib/stores/auth');
+			const token = await authStore.getToken();
+			const response = await fetch(buildApiUrl('/social/test'), {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					...(token ? { Authorization: `Bearer ${token}` } : {})
+				},
 				credentials: 'include',
 				body: JSON.stringify({ platform, handle: normalizedHandle })
 			});

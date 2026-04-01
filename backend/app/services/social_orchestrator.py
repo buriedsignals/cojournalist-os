@@ -49,6 +49,7 @@ from app.config import settings
 from app.dependencies import get_user_email
 from app.services.http_client import get_http_client
 from app.services.notification_service import NotificationService, markdown_to_html
+from app.services.email_translations import get_string
 from app.services.openrouter import openrouter_chat
 from app.services.embedding_utils import generate_embedding_multimodal, generate_embedding, cosine_similarity
 from app.schemas.social import NormalizedPost, PostSnapshot
@@ -470,18 +471,42 @@ async def scrape_profile(
 # Image download (for multimodal embeddings)
 # ---------------------------------------------------------------------------
 
-async def download_image(url: str, timeout: int = 15) -> Optional[bytes]:
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+async def download_image(url: str, timeout: int = 10) -> Optional[bytes]:
     """Download image bytes from a CDN URL.
+
+    Validates Content-Type (must start with image/) and Content-Length
+    (must be <= 10 MB) before downloading the body. Uses a 10-second timeout.
 
     Returns None on failure instead of raising.
     """
     try:
         client = await get_http_client()
         response = await client.get(url, timeout=float(timeout), follow_redirects=True)
-        if response.status_code == 200:
-            return response.content
-        logger.warning(f"Image download failed ({response.status_code}): {url[:80]}")
-        return None
+        if response.status_code != 200:
+            logger.warning(f"Image download failed ({response.status_code}): {url[:80]}")
+            return None
+
+        # Validate Content-Type
+        content_type = response.headers.get("content-type", "")
+        if not content_type.startswith("image/"):
+            logger.warning(f"Image download rejected (content-type: {content_type}): {url[:80]}")
+            return None
+
+        # Validate size via Content-Length header (if present) and actual body
+        content_length = response.headers.get("content-length")
+        if content_length and int(content_length) > MAX_IMAGE_SIZE:
+            logger.warning(f"Image download rejected (content-length: {content_length}): {url[:80]}")
+            return None
+
+        data = response.content
+        if len(data) > MAX_IMAGE_SIZE:
+            logger.warning(f"Image download rejected (body size: {len(data)}): {url[:80]}")
+            return None
+
+        return data
     except Exception as e:
         logger.warning(f"Image download error: {e}")
         return None
@@ -682,6 +707,9 @@ async def send_social_notification(
     safe_scout_name = html.escape(scout_name)
     safe_profile_url = html.escape(profile_url)
 
+    # Scout-specific AI cue
+    social_cue_text = get_string("social_scout_cue", language)
+
     html_content = ns._build_email_html(
         header_title=f"Social Scout Update",
         header_subtitle=safe_scout_name,
@@ -696,9 +724,13 @@ async def send_social_notification(
             f'<p style="margin: 0 0 4px 0; font-size: 12px; color: #666; text-transform: uppercase;">PROFILE</p>'
             f'<a href="{safe_profile_url}" style="color: #e11d48; text-decoration: none;">{safe_profile_url}</a>'
             f'</div>'
+            f'<div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">'
+            f'{social_cue_text}'
+            f'</div>'
         ),
         cta_text="",
         post_content=post_content,
+        language=language,
     )
 
     return await ns._send_email_with_retry(

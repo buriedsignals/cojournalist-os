@@ -9,7 +9,7 @@ The execute() method fetches tracked URLs, detects new document links (PDF or
 HTML), parses them, extracts promises, and stores results.
 
 DEPENDS ON: config (API keys, llm_model), openrouter (LLM chat),
-    schemas/civic (CandidateUrl, Promise), llama_parse (PDF parsing)
+    schemas/civic (CandidateUrl, Promise)
 USED BY: routers/civic.py
 
 Discovery pipeline (discover):
@@ -29,15 +29,9 @@ import hashlib
 import json
 import logging
 import re
-import tempfile
 from datetime import date
 from typing import Optional
 from urllib.parse import urlparse
-
-try:
-    from llama_parse import LlamaParse
-except Exception:  # noqa: BLE001 — llama_parse deps use py3.10+ union syntax; not available in py3.9
-    LlamaParse = None  # type: ignore[assignment,misc]
 
 from app.config import get_settings
 from app.schemas.civic import CandidateUrl, CivicExecuteRequest, CivicExecuteResult, Promise
@@ -153,7 +147,7 @@ class CivicOrchestrator:
 
         for doc_url in batch:
             try:
-                # Use Firecrawl scrape for both PDF and HTML — fast, no LlamaParse dependency
+                # Use Firecrawl scrape for both PDF and HTML
                 text = await self._parse_html(doc_url)
 
                 if text:
@@ -228,7 +222,7 @@ class CivicOrchestrator:
 
         for doc_url in batch:
             try:
-                # Use Firecrawl scrape for both PDF and HTML — fast, no LlamaParse dependency
+                # Use Firecrawl scrape for both PDF and HTML
                 text = await self._parse_html(doc_url)
 
                 if text:
@@ -420,28 +414,6 @@ class CivicOrchestrator:
             return ""
         return data.get("markdown", "") if isinstance(data, dict) else ""
 
-    async def _parse_pdf(self, file_path: str, language: str = "de") -> str:
-        """Parse a PDF document to extract text content via LlamaParse.
-
-        Args:
-            file_path: Path to the PDF file on disk.
-            language: Language hint passed to LlamaParse (default "de" for German
-                      council documents).
-
-        Returns:
-            Concatenated text from all parsed documents, separated by \\n\\n.
-            Returns "" if LlamaParse returns no documents.
-        """
-        parser = LlamaParse(
-            api_key=self.settings.llamaparse_api_key,
-            result_type="markdown",
-            language=language,
-        )
-        documents = await parser.aload_data(file_path)
-        if not documents:
-            return ""
-        return "\n\n".join(doc.text for doc in documents)
-
     async def _extract_promises(
         self,
         text: str,
@@ -624,43 +596,6 @@ class CivicOrchestrator:
         """
         match = re.search(r"(\d{4}-\d{2}-\d{2})", url)
         return match.group(1) if match else ""
-
-    async def _download_pdf(self, url: str) -> str:
-        """Download a PDF via Firecrawl scrape to a temporary file.
-
-        Uses Firecrawl consistently (handles bot protection, Cloudflare, etc.)
-        rather than raw httpx which fails on many US council sites.
-
-        Args:
-            url: URL of the PDF to download.
-
-        Returns:
-            Absolute path to the temporary file containing the downloaded PDF.
-
-        Raises:
-            Exception: If Firecrawl fails to fetch the PDF.
-        """
-        client = await get_http_client()
-        response = await client.post(
-            "https://api.firecrawl.dev/v2/scrape",
-            headers={
-                "Authorization": f"Bearer {self.settings.firecrawl_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={"url": url, "formats": ["rawHtml"]},
-            timeout=60.0,
-        )
-        if response.status_code != 200:
-            raise RuntimeError(f"Firecrawl PDF fetch failed: {response.status_code}")
-
-        data = response.json().get("data", {})
-        raw = data.get("rawHtml", "")
-        if not raw:
-            raise RuntimeError("Firecrawl returned no content for PDF")
-
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-            f.write(raw.encode("utf-8", errors="surrogateescape") if isinstance(raw, str) else raw)
-            return f.name
 
     # ------------------------------------------------------------------
     # Link denylist — extensions and schemes to exclude

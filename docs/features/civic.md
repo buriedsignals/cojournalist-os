@@ -298,7 +298,7 @@ Projection: ALL
 | Operation | Credits | Cost basis |
 |---|---|---|
 | Discovery crawl (setup) | 10 | Firecrawl crawl + AI classification |
-| Per execution (up to 2 PDFs) | 20 | LlamaParse + Gemini extraction |
+| Per execution (up to 2 PDFs) | 20 | Firecrawl + Gemini extraction |
 | Promise notification (daily) | 0 | Already paid at extraction |
 
 ### Promise Checker Lambda

@@ -155,6 +155,85 @@ class TestGetUnitsForArticle:
         assert len(result) == 1
 
 
+class TestStoreUnitsDateConversion:
+    """#36: String dates should be converted to datetime.date for asyncpg."""
+
+    @pytest.mark.asyncio
+    async def test_converts_string_date_to_date_object(self, storage, mock_pool):
+        mock_pool.executemany = AsyncMock()
+
+        await storage.store_units("user-1", "scout-1", [{
+            "statement": "Test fact",
+            "type": "fact",
+            "event_date": "2026-04-01",  # String date
+            "source_url": "https://example.com",
+        }])
+
+        records = mock_pool.executemany.call_args[0][1]
+        from datetime import date
+        # event_date is at index 11 in the tuple
+        event_date = records[0][11]
+        assert isinstance(event_date, date)
+        assert event_date == date(2026, 4, 1)
+
+    @pytest.mark.asyncio
+    async def test_handles_none_event_date(self, storage, mock_pool):
+        mock_pool.executemany = AsyncMock()
+
+        await storage.store_units("user-1", "scout-1", [{
+            "statement": "Test fact",
+            "type": "fact",
+            "event_date": None,
+        }])
+
+        records = mock_pool.executemany.call_args[0][1]
+        assert records[0][11] is None
+
+    @pytest.mark.asyncio
+    async def test_handles_invalid_date_string(self, storage, mock_pool):
+        mock_pool.executemany = AsyncMock()
+
+        await storage.store_units("user-1", "scout-1", [{
+            "statement": "Test fact",
+            "type": "fact",
+            "event_date": "not-a-date",
+        }])
+
+        records = mock_pool.executemany.call_args[0][1]
+        assert records[0][11] is None  # Invalid date -> None
+
+
+class TestStoreUnitsArticleId:
+    """#32: Empty article_id should be converted to None for UUID cast."""
+
+    @pytest.mark.asyncio
+    async def test_converts_empty_article_id_to_none(self, storage, mock_pool):
+        mock_pool.executemany = AsyncMock()
+
+        await storage.store_units("user-1", "scout-1", [{
+            "statement": "Test fact",
+            "type": "fact",
+            "article_id": "",  # Empty string
+        }])
+
+        records = mock_pool.executemany.call_args[0][1]
+        assert records[0][3] is None  # article_id at index 3
+
+    @pytest.mark.asyncio
+    async def test_preserves_valid_article_id(self, storage, mock_pool):
+        mock_pool.executemany = AsyncMock()
+
+        article_id = str(uuid.uuid4())
+        await storage.store_units("user-1", "scout-1", [{
+            "statement": "Test fact",
+            "type": "fact",
+            "article_id": article_id,
+        }])
+
+        records = mock_pool.executemany.call_args[0][1]
+        assert records[0][3] == article_id
+
+
 class TestMarkUsed:
     @pytest.mark.asyncio
     async def test_marks_units_as_used(self, storage, mock_pool):

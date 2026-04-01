@@ -11,6 +11,16 @@ RUN npm install
 # Copy application code (excluding node_modules via .dockerignore)
 COPY . .
 
+# Convert build args to .env file for Vite dev server
+ARG PUBLIC_DEPLOYMENT_TARGET
+ARG PUBLIC_SUPABASE_URL
+ARG PUBLIC_SUPABASE_ANON_KEY
+ARG PUBLIC_MAPTILER_API_KEY
+RUN echo "PUBLIC_DEPLOYMENT_TARGET=${PUBLIC_DEPLOYMENT_TARGET}" > .env \
+ && echo "PUBLIC_SUPABASE_URL=${PUBLIC_SUPABASE_URL}" >> .env \
+ && echo "PUBLIC_SUPABASE_ANON_KEY=${PUBLIC_SUPABASE_ANON_KEY}" >> .env \
+ && echo "PUBLIC_MAPTILER_API_KEY=${PUBLIC_MAPTILER_API_KEY}" >> .env
+
 # Expose port
 EXPOSE 5173
 

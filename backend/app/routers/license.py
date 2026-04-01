@@ -110,24 +110,40 @@ async def validate_license(request: Request):
 
 
 def _resolve_gated_file(name: str) -> str:
-    """Resolve a gated file path, checking Docker then local dev locations."""
-    # Docker path: /workspace/backend/app/<name>
-    docker_path = Path(__file__).resolve().parent.parent / name
-    if docker_path.exists():
-        return docker_path.read_text()
+    """Resolve a gated file from automation/ or deploy/ directories.
 
-    # Local dev: map filenames to their repo-root locations
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent
-    local_paths = {
-        "SETUP_AGENT.md": repo_root / "automation" / "SETUP_AGENT.md",
-        "setup.sh": repo_root / "automation" / "setup.sh",
-        "sync-upstream.yml": repo_root / "automation" / "sync-upstream.yml",
-        "render.yaml": repo_root / "deploy" / "render" / "render.yaml",
-        "SETUP.md": repo_root / "deploy" / "SETUP.md",
+    Checks three locations in order:
+    1. Production Dockerfile: files copied to backend/app/{name} (same dir as this code)
+    2. Docker Compose dev: directories mounted at /app/automation and /app/deploy
+    3. Local dev (no Docker): repo root automation/ and deploy/ directories
+    """
+    # 1. Production: Dockerfile COPYs files directly alongside app code
+    app_dir = Path(__file__).resolve().parent.parent
+    direct_path = app_dir / name
+    if direct_path.exists() and direct_path.stat().st_size > 0:
+        return direct_path.read_text()
+
+    # 2 & 3: Map filenames to canonical paths under automation/ or deploy/
+    file_map = {
+        "SETUP_AGENT.md": "automation/SETUP_AGENT.md",
+        "setup.sh": "automation/setup.sh",
+        "sync-upstream.yml": "automation/sync-upstream.yml",
+        "render.yaml": "deploy/render/render.yaml",
+        "SETUP.md": "deploy/SETUP.md",
     }
-    local_path = local_paths.get(name)
-    if local_path and local_path.exists():
-        return local_path.read_text()
+    rel_path = file_map.get(name)
+    if not rel_path:
+        return ""
+
+    # Docker Compose dev: directories mounted at /app/
+    docker_base = Path("/app")
+    if (docker_base / rel_path).exists():
+        return (docker_base / rel_path).read_text()
+
+    # Local dev: repo root (4 levels up from this file)
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    if (repo_root / rel_path).exists():
+        return (repo_root / rel_path).read_text()
 
     return ""
 

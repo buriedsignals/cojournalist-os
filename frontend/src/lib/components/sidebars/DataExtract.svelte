@@ -5,7 +5,6 @@ import { authStore } from '$lib/stores/auth';
 import { parseCSVBlob, type ParsedCSVData } from '$lib/utils/scraper';
 import type { ScrapeChannel } from '$lib/types';
 import { CheckCircle, Sparkles } from 'lucide-svelte';
-import UpgradeModal from '$lib/components/modals/UpgradeModal.svelte';
 import * as m from '$lib/paraglide/messages';
 
 type ExtractResultPayload = {
@@ -51,7 +50,6 @@ let extractError = '';
 	export let csvFileName: string = 'data.csv';
 
 	// Upgrade modal state
-	let showUpgradeModal = false;
 	let upgradeModalCredits = { current: 0, required: 0 };
 
 	$: channelOptions = [
@@ -573,10 +571,3 @@ $: urlPlaceholder =
 	}
 </style>
 
-<UpgradeModal
-	open={showUpgradeModal}
-	currentCredits={upgradeModalCredits.current}
-	requiredCredits={upgradeModalCredits.required}
-	operationType="extraction"
-	on:close={() => (showUpgradeModal = false)}
-/>

@@ -15,7 +15,6 @@
 	import UnitGrid from './UnitGrid.svelte';
 	import ExportSlideOver from './ExportSlideOver.svelte';
 	import AISelectPanel from './AISelectPanel.svelte';
-	import UpgradeModal from '$lib/components/modals/UpgradeModal.svelte';
 	import PreferencesModal from '$lib/components/modals/PreferencesModal.svelte';
 	import * as m from '$lib/paraglide/messages';
 
@@ -34,7 +33,6 @@
 	let showingPlaceholders = false;
 
 	// Upgrade modal
-	let showUpgradeModal = false;
 
 	// CMS export
 	let isExporting = false;
@@ -314,7 +312,7 @@
 	async function handleGenerate() {
 		if ($feedStore.selectedUnitIds.size === 0) return;
 
-		const userCredits = $authStore.user?.credits ?? 0;
+		const userCredits = 999999;
 		if (userCredits < 1) {
 			showUpgradeModal = true;
 			return;
@@ -343,7 +341,7 @@
 		const usedUnits = $feedStore.unitsUsedForExport;
 		if (usedUnits.length === 0) return;
 
-		const userCredits = $authStore.user?.credits ?? 0;
+		const userCredits = 999999;
 		if (userCredits < 1) {
 			showUpgradeModal = true;
 			return;
@@ -627,13 +625,6 @@
 	/>
 </div>
 
-<UpgradeModal
-	open={showUpgradeModal}
-	currentCredits={$authStore.user?.credits ?? 0}
-	requiredCredits={1}
-	operationType="export"
-	on:close={() => (showUpgradeModal = false)}
-/>
 
 <PreferencesModal
 	open={showPreferencesFromExport}

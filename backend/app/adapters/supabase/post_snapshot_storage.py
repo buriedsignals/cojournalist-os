@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 
 from app.adapters.supabase.connection import get_pool
 from app.ports.storage import PostSnapshotStoragePort
@@ -27,10 +28,30 @@ class SupabasePostSnapshotStorage(PostSnapshotStoragePort):
         if self.pool is None:
             self.pool = await get_pool()
 
+    async def _resolve_scout_id(self, scout_id_or_name: str, user_id: str = None) -> str:
+        """Resolve a scout name to its UUID. Pass-through if already a UUID."""
+        try:
+            uuid.UUID(scout_id_or_name)
+            return scout_id_or_name  # Already a UUID
+        except ValueError:
+            pass
+        # Look up by name
+        query = "SELECT id FROM scouts WHERE name = $1"
+        params = [scout_id_or_name]
+        if user_id:
+            query += " AND user_id = $2::uuid"
+            params.append(user_id)
+        query += " LIMIT 1"
+        row = await self.pool.fetchrow(query, *params)
+        if row:
+            return str(row["id"])
+        raise ValueError(f"Scout not found: {scout_id_or_name}")
+
     async def store_snapshot(self, user_id: str, scout_id: str,
                               platform: str, handle: str, posts: list[dict]) -> None:
         """Upsert a post snapshot for a scout. Uses ON CONFLICT on scout_id."""
         await self._ensure_pool()
+        scout_id = await self._resolve_scout_id(scout_id, user_id)
 
         posts_json = json.dumps(posts)
 
@@ -51,6 +72,7 @@ class SupabasePostSnapshotStorage(PostSnapshotStoragePort):
     async def get_snapshot(self, user_id: str, scout_id: str) -> list[dict]:
         """Get the stored post snapshot for a scout. Returns list of posts or []."""
         await self._ensure_pool()
+        scout_id = await self._resolve_scout_id(scout_id, user_id)
 
         row = await self.pool.fetchrow(
             """

@@ -11,6 +11,7 @@ Covers:
 7. TestClassifyMeetingUrls — keyword match, LLM fallback, empty input, LLM error
 8. TestParseMeetingUrlIndices — valid indices, out-of-range, duplicates, invalid JSON
 9. TestFilterPromises — date filtering, criteria filtering, combined filters
+
 """
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -349,67 +350,6 @@ class TestRankUrls:
             result = await orchestrator._rank_urls(urls)
 
         assert result == []
-
-
-# =============================================================================
-# CivicOrchestrator._parse_pdf() Tests
-# =============================================================================
-
-
-class TestPdfParsing:
-    """Test _parse_pdf() calls LlamaParse and returns concatenated text."""
-
-    @pytest.mark.asyncio
-    async def test_parse_pdf_calls_llamaparse(self):
-        """_parse_pdf() should call LlamaParse and return text from documents."""
-        import json
-        orchestrator = CivicOrchestrator()
-
-        mock_doc = MagicMock()
-        mock_doc.text = "Council meeting minutes March 2025"
-
-        mock_parser = AsyncMock()
-        mock_parser.aload_data = AsyncMock(return_value=[mock_doc])
-
-        with patch("app.services.civic_orchestrator.LlamaParse", return_value=mock_parser) as mock_llama:
-            result = await orchestrator._parse_pdf("/tmp/minutes.pdf")
-
-        mock_llama.assert_called_once()
-        mock_parser.aload_data.assert_called_once_with("/tmp/minutes.pdf")
-        assert result == "Council meeting minutes March 2025"
-
-    @pytest.mark.asyncio
-    async def test_parse_pdf_empty_result(self):
-        """_parse_pdf() should return '' when LlamaParse returns no documents."""
-        orchestrator = CivicOrchestrator()
-
-        mock_parser = AsyncMock()
-        mock_parser.aload_data = AsyncMock(return_value=[])
-
-        with patch("app.services.civic_orchestrator.LlamaParse", return_value=mock_parser):
-            result = await orchestrator._parse_pdf("/tmp/empty.pdf")
-
-        assert result == ""
-
-    @pytest.mark.asyncio
-    async def test_parse_pdf_multiple_docs(self):
-        """_parse_pdf() should concatenate multiple documents with \\n\\n."""
-        orchestrator = CivicOrchestrator()
-
-        mock_doc1 = MagicMock()
-        mock_doc1.text = "Page one content"
-        mock_doc2 = MagicMock()
-        mock_doc2.text = "Page two content"
-        mock_doc3 = MagicMock()
-        mock_doc3.text = "Page three content"
-
-        mock_parser = AsyncMock()
-        mock_parser.aload_data = AsyncMock(return_value=[mock_doc1, mock_doc2, mock_doc3])
-
-        with patch("app.services.civic_orchestrator.LlamaParse", return_value=mock_parser):
-            result = await orchestrator._parse_pdf("/tmp/multi.pdf")
-
-        assert result == "Page one content\n\nPage two content\n\nPage three content"
 
 
 # =============================================================================
@@ -885,7 +825,7 @@ class TestExecute:
                           return_value=[pdf_url]), \
              patch.object(orchestrator, "_get_processed_urls", new_callable=AsyncMock,
                           return_value=[]), \
-             patch.object(orchestrator, "_download_pdf", new_callable=AsyncMock,
+             patch.object(orchestrator, "_parse_html", new_callable=AsyncMock,
                           side_effect=Exception("Network error")), \
              patch.object(orchestrator, "_store_promises", new_callable=AsyncMock), \
              patch.object(orchestrator, "_update_scraper_record", new_callable=AsyncMock):
@@ -1399,8 +1339,8 @@ class TestExecuteHtmlDocuments:
     """Tests for execute() with HTML documents."""
 
     @pytest.mark.asyncio
-    async def test_execute_html_calls_parse_html_not_download_pdf(self):
-        """execute() should call _parse_html (not _download_pdf/_parse_pdf) for HTML URLs."""
+    async def test_execute_html_calls_parse_html(self):
+        """execute() should call _parse_html for HTML URLs (Firecrawl handles all formats)."""
         orchestrator = CivicOrchestrator()
         params = _make_execute_request()
 
@@ -1408,8 +1348,6 @@ class TestExecuteHtmlDocuments:
         raw_links = [(html_url, "Council Meeting March 2025")]
         promises = [_make_promise("Install bike lanes")]
 
-        download_mock = AsyncMock(return_value="/tmp/file.pdf")
-        parse_pdf_mock = AsyncMock(return_value="PDF text")
         parse_html_mock = AsyncMock(return_value="# Council Meeting\n\nThe council agreed...")
 
         with patch.object(orchestrator, "_fetch_and_extract_links", new_callable=AsyncMock,
@@ -1420,8 +1358,6 @@ class TestExecuteHtmlDocuments:
                           return_value=[html_url]), \
              patch.object(orchestrator, "_get_processed_urls", new_callable=AsyncMock,
                           return_value=[]), \
-             patch.object(orchestrator, "_download_pdf", download_mock), \
-             patch.object(orchestrator, "_parse_pdf", parse_pdf_mock), \
              patch.object(orchestrator, "_parse_html", parse_html_mock), \
              patch.object(orchestrator, "_extract_promises", new_callable=AsyncMock,
                           return_value=promises), \
@@ -1430,10 +1366,7 @@ class TestExecuteHtmlDocuments:
 
             result = await orchestrator.execute(params)
 
-        # _parse_html should have been called, not _download_pdf/_parse_pdf
         parse_html_mock.assert_called_once_with(html_url)
-        download_mock.assert_not_called()
-        parse_pdf_mock.assert_not_called()
         assert result.status == "ok"
         assert result.promises_found == 1
 

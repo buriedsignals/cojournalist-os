@@ -24,26 +24,26 @@ class AdditionalSource(BaseModel):
 class AtomicInformationUnit(BaseModel):
     """Atomic information unit extracted from article."""
 
-    unit_id: str
-    article_id: str = Field(..., description="Links units from same article")
-    pk: str = Field(..., description="Partition key for updates")
-    sk: str = Field(..., description="Sort key for updates")
+    unit_id: str = ""
+    article_id: str = Field(default="", description="Links units from same article")
+    pk: str = Field(default="", description="Partition key for updates")
+    sk: str = Field(default="", description="Sort key for updates")
 
     # Content
     statement: str = Field(..., description="Concise factual statement (1-2 sentences)")
-    unit_type: Literal["fact", "event", "entity_update"]
+    unit_type: Literal["fact", "event", "entity_update"] = "fact"
     entities: list[str] = Field(default_factory=list)
 
     # Source attribution
-    source_url: str
-    source_domain: str
-    source_title: str
+    source_url: str = ""
+    source_domain: str = ""
+    source_title: str = ""
     additional_sources: list[AdditionalSource] = Field(default_factory=list)
 
     # Metadata
-    scout_type: str
-    scout_id: str
-    created_at: str
+    scout_type: str = ""
+    scout_id: str = ""
+    created_at: str = ""
     used_in_article: bool = False
     topic: Optional[str] = ""
     date: Optional[str] = None

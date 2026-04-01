@@ -12,8 +12,6 @@
 	import GuidedTourController from '$lib/components/tour/GuidedTourController.svelte';
 	import type { GeocodedLocation } from '$lib/types';
 	import MobileBlocker from '$lib/components/ui/MobileBlocker.svelte';
-	import BugReportButton from '$lib/components/ui/BugReportButton.svelte';
-	import FeedbackModal from '$lib/components/modals/FeedbackModal.svelte';
 
 	import '../app.css';
 
@@ -33,7 +31,6 @@ let timezoneCheckPerformed = false;
 
 // Extended onboarding flow state
 let videoModalOpen = false;
-let feedbackModalOpen = false;
 
 const TIMEZONE_FLAG_KEY = 'cojournalist_timezone_verified';
 
@@ -187,8 +184,6 @@ function handleTourComplete() {
 <slot />
 
 {#if $page.url.pathname !== '/login'}
-	<BugReportButton on:open={() => (feedbackModalOpen = true)} />
-	<FeedbackModal
 		open={feedbackModalOpen}
 		on:close={() => (feedbackModalOpen = false)}
 	/>

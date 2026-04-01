@@ -117,6 +117,9 @@ class SupabaseUserStorage(UserStoragePort):
             if field in USER_FIELDS:
                 if field in ("default_location", "preferences") and isinstance(value, dict):
                     value = json.dumps(value)
+                if field == "cms_api_token" and value:
+                    from app.services.crypto import encrypt_token
+                    value = encrypt_token(value)
                 set_clauses.append(f"{field} = ${idx}")
                 values.append(value)
                 idx += 1
@@ -141,7 +144,11 @@ class SupabaseUserStorage(UserStoragePort):
         )
         if row is None:
             return {"cms_api_url": None, "cms_api_token": None}
-        return dict(row)
+        result = dict(row)
+        if result.get("cms_api_token"):
+            from app.services.crypto import decrypt_token
+            result["cms_api_token"] = decrypt_token(result["cms_api_token"])
+        return result
 
     # ------------------------------------------------------------------
     # Credit methods -- self-hosted has no limits, mirrors NoOpBilling

@@ -44,15 +44,30 @@ class SupabaseCivicPromiseStorage(PromiseStoragePort):
 
         records = []
         for promise in promises:
+            # Convert Pydantic models to dicts if needed
+            p = promise.model_dump() if hasattr(promise, 'model_dump') else (
+                promise.dict() if hasattr(promise, 'dict') else promise
+            )
+            meeting_date_raw = p.get("meeting_date")
+            meeting_date = None
+            if meeting_date_raw:
+                if isinstance(meeting_date_raw, str):
+                    from datetime import date as date_type
+                    try:
+                        meeting_date = date_type.fromisoformat(meeting_date_raw)
+                    except ValueError:
+                        meeting_date = None
+                else:
+                    meeting_date = meeting_date_raw
             records.append((
                 user_id,
                 scraper_name,
                 user_id,
-                promise.get("promise_text", promise.get("text", "")),
-                promise.get("context"),
-                promise.get("source_url"),
-                promise.get("source_title"),
-                promise.get("meeting_date"),
+                p.get("promise_text", p.get("text", "")),
+                p.get("context"),
+                p.get("source_url"),
+                p.get("source_title"),
+                meeting_date,
             ))
 
         await self.pool.executemany(
@@ -62,8 +77,8 @@ class SupabaseCivicPromiseStorage(PromiseStoragePort):
                 source_url, source_title, meeting_date
             )
             VALUES (
-                (SELECT id FROM scouts WHERE user_id = $1::uuid AND name = $2),
-                $3::uuid, $4, $5, $6, $7, $8
+                (SELECT id FROM scouts WHERE user_id = $1::uuid AND name = $2::text),
+                $3::uuid, $4::text, $5::text, $6::text, $7::text, $8
             )
             """,
             records,

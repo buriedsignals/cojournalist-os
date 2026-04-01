@@ -15,6 +15,17 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from app.services.scout_service import ScoutService
 
 
+@pytest.fixture(autouse=True)
+def mock_settings():
+    """Ensure settings has required API keys for tests (CI has no .env)."""
+    with patch("app.services.scout_service.settings") as mock_s:
+        mock_s.openrouter_api_key = "test-key"
+        mock_s.llm_model = "test-model"
+        mock_s.firecrawl_api_key = "test-key"
+        mock_s.environment = "test"
+        yield mock_s
+
+
 # ---------------------------------------------------------------------------
 # Helpers: build mock HTTP responses
 # ---------------------------------------------------------------------------
@@ -94,6 +105,7 @@ PATCH_EXEC = "app.services.scout_service.ExecutionDeduplicationService"
 PATCH_ATOMIC = "app.services.scout_service.AtomicUnitService"
 PATCH_EMAIL = "app.services.scout_service.get_user_email"
 PATCH_CREDIT = "app.services.scout_service.decrement_credit"
+PATCH_SETTINGS = "app.services.scout_service.settings"
 
 
 def _build_patches(

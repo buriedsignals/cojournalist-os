@@ -81,13 +81,15 @@ router = APIRouter()
 # Lazy service singletons
 # ---------------------------------------------------------------------------
 
-_api_key_service: Optional[ApiKeyService] = None
+_api_key_service: Optional[object] = None
 _schedule_service: Optional[ScheduleService] = None
 _feed_search_service: Optional[FeedSearchService] = None
 
 
-def _get_api_key_service() -> ApiKeyService:
+def _get_api_key_service():
     global _api_key_service
+    if ApiKeyService is None:
+        return None
     if _api_key_service is None:
         _api_key_service = ApiKeyService()
     return _api_key_service
@@ -184,6 +186,8 @@ async def create_api_key(
 ):
     """Generate a new API key. The raw key is returned exactly once."""
     svc = _get_api_key_service()
+    if svc is None:
+        raise HTTPException(404, "API key management not available")
     try:
         result = svc.create_key(user["user_id"], name=body.name)
     except ValueError as exc:
@@ -212,6 +216,8 @@ async def list_api_keys(
 ):
     """List all API keys for the authenticated user (prefix only, no raw keys)."""
     svc = _get_api_key_service()
+    if svc is None:
+        return ApiKeyListResponse(keys=[], count=0)
     keys = svc.list_keys(user["user_id"])
     items = [
         ApiKeyListItem(
@@ -240,6 +246,8 @@ async def revoke_api_key(
 ):
     """Revoke an API key by its key_id."""
     svc = _get_api_key_service()
+    if svc is None:
+        raise HTTPException(404, "API key management not available")
     deleted = svc.revoke_key(user["user_id"], key_id)
     if not deleted:
         _error(status.HTTP_404_NOT_FOUND, "API key not found", "NOT_FOUND")

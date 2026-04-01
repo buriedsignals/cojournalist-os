@@ -150,7 +150,7 @@ class TestStoreTimeRecord:
     @pytest.mark.asyncio
     async def test_stores_run_record(self, scout_runner, mock_run_storage):
         await scout_runner._store_time_record(
-            "user-1", "test-scout", "pulse",
+            "user-1", "test-scout", "Test Scout", "pulse",
             {"scraper_status": True, "criteria_status": False, "notification_sent": False},
         )
         mock_run_storage.store_run.assert_called_once()
@@ -159,3 +159,4 @@ class TestStoreTimeRecord:
         assert call_kwargs["user_id"] == "user-1"
         assert call_kwargs["status"] == "success"
         assert call_kwargs["scout_type"] == "pulse"
+        assert call_kwargs["scraper_name"] == "Test Scout"

@@ -85,7 +85,7 @@ async def search_pulse(
         orchestrator = PulseOrchestrator()
 
         # Merge request-level + user-level excluded domains (order-preserving dedup)
-        user_excluded = user.get("excluded_domains", [])
+        user_excluded = user.get("excluded_domains") or []
         request_excluded = search_request.excluded_domains or []
         merged_excluded = list(dict.fromkeys(user_excluded + request_excluded))
 
@@ -204,7 +204,7 @@ async def execute_pulse_scout(
         try:
             us = UserService()
             user_data = await us.get_user(request.userId)
-            excluded_domains = user_data.get("excluded_domains", []) if user_data else []
+            excluded_domains = (user_data.get("excluded_domains") or []) if user_data else []
             org_id = user_data.get("org_id") if user_data else None
         except Exception as exc:
             logger.warning(f"Could not fetch user data for {request.userId}: {exc}")

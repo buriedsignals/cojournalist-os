@@ -37,6 +37,7 @@ from app.schemas.civic import (
     CivicTestRequest,
     CivicTestResponse,
 )
+from app.config import get_settings
 from app.services.civic_orchestrator import CivicOrchestrator
 from app.services.execution_deduplication import ExecutionDeduplicationService
 from app.services.notification_service import NotificationService
@@ -72,9 +73,10 @@ async def discover_civic_urls(
     """
     user_id = user["user_id"]
     org_id = user.get("org_id")
+    settings = get_settings()
 
-    # Civic Scout requires Pro tier
-    if user.get("tier", "free") == "free":
+    # Civic Scout requires Pro tier (skip for self-hosted Supabase — no tiers)
+    if settings.deployment_target != "supabase" and user.get("tier", "free") == "free":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Track the Council requires a Pro plan.",
@@ -82,8 +84,9 @@ async def discover_civic_urls(
 
     cost = CREDIT_COSTS["civic_discover"]
 
-    # Validate credits (raises 402 if insufficient)
-    await validate_credits(user_id, cost, org_id=org_id)
+    # Validate credits (raises 402 if insufficient); skip for Supabase
+    if settings.deployment_target != "supabase":
+        await validate_credits(user_id, cost, org_id=org_id)
 
     try:
         orchestrator = CivicOrchestrator()
@@ -127,9 +130,10 @@ async def test_civic_extraction(
     """
     user_id = user["user_id"]
     org_id = user.get("org_id")
+    settings = get_settings()
 
-    # Civic Scout requires Pro tier
-    if user.get("tier", "free") == "free":
+    # Civic Scout requires Pro tier (skip for self-hosted Supabase — no tiers)
+    if settings.deployment_target != "supabase" and user.get("tier", "free") == "free":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Track the Council requires a Pro plan.",
@@ -137,8 +141,9 @@ async def test_civic_extraction(
 
     cost = CREDIT_COSTS["civic_discover"]
 
-    # Validate credits (raises 402 if insufficient)
-    await validate_credits(user_id, cost, org_id=org_id)
+    # Validate credits (raises 402 if insufficient); skip for Supabase
+    if settings.deployment_target != "supabase":
+        await validate_credits(user_id, cost, org_id=org_id)
 
     try:
         orchestrator = CivicOrchestrator()

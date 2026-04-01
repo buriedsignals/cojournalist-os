@@ -48,9 +48,40 @@ from app.models.responses import (
 try:
     from app.services.cron import build_scraper_cron, CronBuilderError
 except ImportError:
-    # OSS mirror: cron expressions built by SupabaseScheduler adapter
-    def build_scraper_cron(*args, **kwargs): return "0 * * * *"
-    class CronBuilderError(Exception): pass
+    # OSS mirror: build proper CronSchedule-compatible objects
+    from dataclasses import dataclass
+    from typing import Optional as _Opt
+
+    class CronBuilderError(Exception):
+        pass
+
+    @dataclass
+    class _CronSchedule:
+        expression: str
+        timezone: str
+        hour: int = 0
+        minute: int = 0
+        day_of_week: _Opt[int] = None
+        day_of_month: _Opt[int] = None
+
+        def metadata(self) -> dict:
+            return {"hour": self.hour, "minute": self.minute,
+                    "day_of_week": self.day_of_week, "day_of_month": self.day_of_month,
+                    "timezone": self.timezone}
+
+    def build_scraper_cron(timezone=None, regularity="daily", day_number=1, time_str="08:00"):
+        tz = timezone or "UTC"
+        parts = time_str.split(":") if time_str else ["8", "0"]
+        hour, minute = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+        if regularity == "daily":
+            expr = f"{minute} {hour} * * *"
+        elif regularity == "weekly":
+            expr = f"{minute} {hour} * * {day_number}"
+        elif regularity == "monthly":
+            expr = f"{minute} {hour} {day_number} * *"
+        else:
+            expr = f"{minute} {hour} * * *"
+        return _CronSchedule(expression=expr, timezone=tz, hour=hour, minute=minute)
 from app.services.post_snapshot_service import PostSnapshotService
 from app.services.scout_runner import ScoutRunner
 from app.utils.pricing import calculate_monitoring_cost, CREDIT_COSTS, get_social_monitoring_cost, get_pulse_cost
@@ -261,127 +292,163 @@ async def schedule_monitoring(
     )
     logger.debug("AWS payload: %s", aws_payload)
 
-    headers = _build_aws_headers(user)
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{settings.aws_api_base_url}/schedule_scraper",
-                json=aws_payload,
-                headers=headers,
-                timeout=30.0,
+    # --- Scout creation: Supabase vs AWS path ---
+    if settings.deployment_target == "supabase":
+        from app.services.schedule_service import ScheduleService
+        svc = ScheduleService()
+        try:
+            result = await svc.create_scout(
+                user_id=user.get("user_id"),
+                scraper_name=scraper_name,
+                body=aws_payload,
+                cron_schedule=cron_schedule,
             )
+            logger.info(f"Created scout via ScheduleService: {result}")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"ScheduleService.create_scout failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to create scout: {e}")
+    else:
+        # AWS path: forward to API Gateway
+        headers = _build_aws_headers(user)
 
-            if response.status_code != 200:
-                error_detail = response.text
-                error_json = None
-                try:
-                    error_json = response.json()
-                    error_detail = error_json.get("error") or error_json.get("message") or error_detail
-                except Exception:
-                    pass
-
-                logger.error(
-                    "AWS scheduler error for user %s - Status: %d, Response: %s",
-                    user.get("user_id"),
-                    response.status_code,
-                    error_json or response.text[:200],
-                )
-                logger.error("Request payload: %s", aws_payload)
-
-                # Provide more helpful error messages
-                if response.status_code == 401:
-                    detail = "Authentication failed. Please ensure you have completed onboarding and try again."
-                elif response.status_code == 403:
-                    detail = "Access denied. Your account may not have permission to schedule monitoring jobs."
-                else:
-                    detail = f"Failed to schedule monitoring job: {error_detail}"
-
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=detail,
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{settings.aws_api_base_url}/schedule_scraper",
+                    json=aws_payload,
+                    headers=headers,
+                    timeout=30.0,
                 )
 
-            aws_response = response.json()
-            logger.info(
-                "Successfully scheduled monitoring job '%s' in AWS: %s",
-                payload.name,
-                aws_response,
-            )
+                if response.status_code != 200:
+                    error_detail = response.text
+                    error_json = None
+                    try:
+                        error_json = response.json()
+                        error_detail = error_json.get("error") or error_json.get("message") or error_detail
+                    except Exception:
+                        pass
 
-            # For web scouts with a content hash, store EXEC# baseline record
-            if payload.scout_type == "web" and payload.content_hash:
-                from app.services.execution_deduplication import ExecutionDeduplicationService
-                exec_dedup = ExecutionDeduplicationService()
-                try:
-                    await exec_dedup.store_execution(
-                        user_id=user.get("user_id"),
-                        scout_name=scraper_name,
-                        scout_type="web",
-                        summary_text="Baseline established",
-                        is_duplicate=False,
-                        started_at=datetime.utcnow().isoformat() + "Z",
-                        content_hash=payload.content_hash,
-                        provider=payload.provider,
-                    )
-                    logger.info(f"Stored EXEC# baseline for {scraper_name}")
-                except Exception as e:
-                    logger.warning(f"Failed to store EXEC# baseline for {scraper_name}: {e}")
-
-            # For social scouts with baseline data, store initial POSTS# snapshot
-            if payload.scout_type == "social" and payload.baseline_posts:
-                try:
-                    await _get_snapshot_service().store_snapshot(
+                    logger.error(
+                        "AWS scheduler error for user %s - Status: %d, Response: %s",
                         user.get("user_id"),
-                        scraper_name,
-                        payload.baseline_posts,
-                        payload.platform,
-                        payload.profile_handle,
+                        response.status_code,
+                        error_json or response.text[:200],
                     )
-                    logger.info(f"Stored POSTS# baseline for social scout {scraper_name}")
-                except Exception as e:
-                    logger.warning(f"Failed to store POSTS# baseline for {scraper_name}: {e}")
+                    logger.error("Request payload: %s", aws_payload)
 
-            # For civic scouts with initial promises, store PROMISE# records
-            if payload.scout_type == "civic" and payload.initial_promises:
-                try:
-                    from app.services.civic_orchestrator import CivicOrchestrator
-                    from app.schemas.civic import Promise
-                    orchestrator = CivicOrchestrator()
-                    promises = []
-                    for p in payload.initial_promises:
-                        try:
-                            promises.append(Promise(**p))
-                        except Exception:
-                            continue
-                    if promises:
-                        await orchestrator.store_promises(user.get("user_id"), scraper_name, promises)
-                        logger.info(f"Stored {len(promises)} initial promises for civic scout {scraper_name}")
-                except Exception as e:
-                    logger.warning(f"Failed to store initial promises for {scraper_name}: {e}")
+                    # Provide more helpful error messages
+                    if response.status_code == 401:
+                        detail = "Authentication failed. Please ensure you have completed onboarding and try again."
+                    elif response.status_code == 403:
+                        detail = "Access denied. Your account may not have permission to schedule monitoring jobs."
+                    else:
+                        detail = f"Failed to schedule monitoring job: {error_detail}"
 
-            # For pulse scouts, trigger initial execution to:
-            # 1. Run the search and extract initial information units
-            # 2. Store EXEC# record for Scouts panel status
-            if payload.scout_type == "pulse":
-                location_dict = payload.location.model_dump(exclude_none=True) if payload.location else None
-                background_tasks.add_task(
-                    execute_initial_pulse_background,
-                    scraper_name,
-                    user.get("user_id"),
-                    location_dict,
-                    payload.topic,
-                    payload.criteria,
-                    user.get("preferred_language", "en"),
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=detail,
+                    )
+
+                aws_response = response.json()
+                logger.info(
+                    "Successfully scheduled monitoring job '%s' in AWS: %s",
+                    payload.name,
+                    aws_response,
                 )
-                logger.info(f"Queued initial run for pulse scout: {scraper_name}")
 
-    except httpx.RequestError as exc:
-        logger.error("Failed to connect to AWS API: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Unable to connect to scheduling service",
+        except httpx.RequestError as exc:
+            logger.error("Failed to connect to AWS API: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Unable to connect to scheduling service",
+            )
+
+    # --- Baseline storage (runs regardless of deployment target) ---
+
+    # For web scouts with a content hash, store EXEC# baseline record
+    if payload.scout_type == "web" and payload.content_hash:
+        from app.services.execution_deduplication import ExecutionDeduplicationService
+        exec_dedup = ExecutionDeduplicationService()
+        try:
+            await exec_dedup.store_execution(
+                user_id=user.get("user_id"),
+                scout_name=scraper_name,
+                scout_type="web",
+                summary_text="Baseline established",
+                is_duplicate=False,
+                started_at=datetime.utcnow().isoformat() + "Z",
+                content_hash=payload.content_hash,
+                provider=payload.provider,
+            )
+            logger.info(f"Stored EXEC# baseline for {scraper_name}")
+        except Exception as e:
+            logger.warning(f"Failed to store EXEC# baseline for {scraper_name}: {e}")
+
+    # For social scouts with baseline data, store initial POSTS# snapshot
+    if payload.scout_type == "social" and payload.baseline_posts:
+        try:
+            await _get_snapshot_service().store_snapshot(
+                user.get("user_id"),
+                scraper_name,
+                payload.baseline_posts,
+                payload.platform,
+                payload.profile_handle,
+            )
+            logger.info(f"Stored POSTS# baseline for social scout {scraper_name}")
+        except Exception as e:
+            logger.warning(f"Failed to store POSTS# baseline for {scraper_name}: {e}")
+
+    # For civic scouts with initial promises, store PROMISE# records
+    if payload.scout_type == "civic" and payload.initial_promises:
+        try:
+            from app.services.civic_orchestrator import CivicOrchestrator
+            from app.schemas.civic import Promise
+            orchestrator = CivicOrchestrator()
+            promises = []
+            for p in payload.initial_promises:
+                try:
+                    promises.append(Promise(**p))
+                except Exception:
+                    continue
+            if promises:
+                await orchestrator.store_promises(user.get("user_id"), scraper_name, promises)
+                logger.info(f"Stored {len(promises)} initial promises for civic scout {scraper_name}")
+        except Exception as e:
+            logger.warning(f"Failed to store initial promises for {scraper_name}: {e}")
+
+    # Store civic content hash baseline at schedule time (#51)
+    if payload.scout_type == "civic" and payload.content_hash:
+        try:
+            from app.dependencies.providers import get_promise_storage
+            promise_storage = get_promise_storage()
+            await promise_storage.update_scraper_record(
+                user.get("user_id"),
+                scraper_name,
+                content_hash=payload.content_hash,
+                new_processed=payload.tracked_urls or [],
+            )
+            logger.info(f"Stored civic baseline hash for {scraper_name}")
+        except Exception as e:
+            logger.warning(f"Failed to store civic baseline hash for {scraper_name}: {e}")
+
+    # For pulse scouts, trigger initial execution to:
+    # 1. Run the search and extract initial information units
+    # 2. Store EXEC# record for Scouts panel status
+    if payload.scout_type == "pulse":
+        location_dict = payload.location.model_dump(exclude_none=True) if payload.location else None
+        background_tasks.add_task(
+            execute_initial_pulse_background,
+            scraper_name,
+            user.get("user_id"),
+            location_dict,
+            payload.topic,
+            payload.criteria,
+            user.get("preferred_language", "en"),
         )
+        logger.info(f"Queued initial run for pulse scout: {scraper_name}")
 
     return MonitoringScheduleResponse(
         name=scraper_name,
@@ -410,6 +477,10 @@ async def validate_monitoring_credits(
 
     Returns credit cost information or raises 402 if insufficient.
     """
+    if settings.deployment_target == "supabase":
+        return {"valid": True, "per_run_cost": 0, "monthly_cost": 0,
+                "current_credits": 999999, "remaining_after": 999999}
+
     user_id = user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="User ID not found")
@@ -444,8 +515,15 @@ async def get_active_scrapers(
     user: dict = Depends(get_current_user),
 ):
     """
-    Fetch all active monitoring jobs from AWS for the authenticated user.
+    Fetch all active monitoring jobs for the authenticated user.
     """
+    if settings.deployment_target == "supabase":
+        from app.services.schedule_service import ScheduleService
+        svc = ScheduleService()
+        scouts = await svc.list_scouts(user.get("user_id"))
+        return {"scrapers": scouts}
+
+    # AWS path (original)
     headers = _build_aws_headers(user)
 
     try:
@@ -489,8 +567,19 @@ async def delete_active_scraper(
     user: dict = Depends(get_current_user),
 ):
     """
-    Delete a specific monitoring job from AWS by scraper name.
+    Delete a specific monitoring job by scraper name.
     """
+    if settings.deployment_target == "supabase":
+        from app.services.schedule_service import ScheduleService
+        svc = ScheduleService()
+        try:
+            result = await svc.delete_scout(user.get("user_id"), scraper_name)
+            return result
+        except Exception as e:
+            logger.error(f"Failed to delete scout '{scraper_name}': {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete scout: {e}")
+
+    # AWS path (original)
     headers = _build_aws_headers(user)
 
     try:
@@ -554,6 +643,9 @@ async def charge_scrape_credits(
     """
     Deduct credits from the authenticated user for running a scrape/monitoring action.
     """
+    if settings.deployment_target == "supabase":
+        return CreditBalanceResponse(credits=999999)
+
     user_id = user.get("user_id")
     org_id = user.get("org_id")
 

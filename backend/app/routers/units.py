@@ -32,6 +32,41 @@ router = APIRouter()
 feed_service = FeedSearchService()
 
 
+def _normalize_unit(u: dict, user_id: str = "") -> dict:
+    """Normalize a unit dict from Supabase adapter to match DynamoDB schema expectations."""
+    # Map PostgreSQL field names to DynamoDB equivalents
+    if "id" in u and "unit_id" not in u:
+        u["unit_id"] = str(u["id"])
+    if "type" in u and "unit_type" not in u:
+        u["unit_type"] = u["type"]
+    if "scout_id" in u and isinstance(u["scout_id"], str):
+        pass  # Already string
+
+    # Build DynamoDB-compatible pk and sk
+    uid = u.get("user_id", user_id)
+    if "pk" not in u or not u["pk"]:
+        u["pk"] = f"USER#{uid}#"
+    if "sk" not in u or not u["sk"]:
+        created = u.get("created_at", "")
+        unit_id = u.get("unit_id", u.get("id", ""))
+        u["sk"] = f"UNIT#{created}#{unit_id}"
+
+    # Ensure created_at is a string
+    if "created_at" in u and not isinstance(u["created_at"], str):
+        u["created_at"] = str(u["created_at"])
+
+    # Ensure article_id is a string
+    if "article_id" in u:
+        u["article_id"] = str(u["article_id"]) if u["article_id"] else ""
+
+    # Map event_date to date field
+    if "event_date" in u and "date" not in u:
+        ed = u["event_date"]
+        u["date"] = str(ed) if ed else None
+
+    return u
+
+
 @router.get("/units/locations", response_model=LocationsResponse)
 async def get_user_locations(
     user: dict = Depends(get_current_user),
@@ -93,7 +128,7 @@ async def get_units_by_topic(
             limit=limit,
         )
 
-        units = [AtomicInformationUnit(**u) for u in result["units"]]
+        units = [AtomicInformationUnit(**_normalize_unit(u, user_id)) for u in result["units"]]
         return UnitsResponse(units=units, count=len(units))
 
     except Exception as e:
@@ -121,7 +156,7 @@ async def get_all_unused_units(
             user_id=user_id,
             limit=limit,
         )
-        units = [AtomicInformationUnit(**u) for u in units_data]
+        units = [AtomicInformationUnit(**_normalize_unit(u, user_id)) for u in units_data]
         return UnitsResponse(units=units, count=len(units))
 
     except Exception as e:
@@ -174,7 +209,7 @@ async def get_units_by_location(
         )
 
         # Convert to response model
-        units = [AtomicInformationUnit(**u) for u in units_data]
+        units = [AtomicInformationUnit(**_normalize_unit(u, user_id)) for u in units_data]
 
         return UnitsResponse(units=units, count=len(units))
 
@@ -228,7 +263,7 @@ async def search_units_semantic(
         )
 
     try:
-        result = await feed_search_service.search_semantic(
+        result = await feed_service.search_semantic(
             user_id=user_id,
             query=query,
             location=location,
@@ -237,7 +272,7 @@ async def search_units_semantic(
         )
 
         # Convert to response model
-        units = [SearchedUnit(**u) for u in result["units"]]
+        units = [SearchedUnit(**_normalize_unit(u, user_id)) for u in result["units"]]
 
         return SearchUnitsResponse(
             units=units,
@@ -330,7 +365,7 @@ async def get_units_by_article(
                     detail="Cannot access units belonging to another user",
                 )
 
-        units = [AtomicInformationUnit(**u) for u in units_data]
+        units = [AtomicInformationUnit(**_normalize_unit(u, user_id)) for u in units_data]
         return UnitsResponse(units=units, count=len(units))
 
     except HTTPException:
@@ -387,7 +422,7 @@ async def get_unused_units(
 
         # Filter to unused units only
         unused_units = [u for u in units_data if not u.get("used_in_article", False)]
-        units = [AtomicInformationUnit(**u) for u in unused_units]
+        units = [AtomicInformationUnit(**_normalize_unit(u, user_id)) for u in unused_units]
 
         return UnitsResponse(units=units, count=len(units))
 

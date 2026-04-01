@@ -122,6 +122,60 @@ class TestMarkPromisesNotified:
         mock_pool.execute.assert_not_called()
 
 
+class TestStorePromisesPydantic:
+    """#48: store_promises should handle Pydantic objects, not just dicts."""
+
+    @pytest.mark.asyncio
+    async def test_handles_pydantic_objects(self, storage, mock_pool):
+        from pydantic import BaseModel
+
+        class MockPromise(BaseModel):
+            promise_text: str
+            context: str = None
+            source_url: str = None
+            source_title: str = None
+            meeting_date: str = None
+
+        mock_pool.executemany = AsyncMock()
+
+        promises = [MockPromise(promise_text="Build new school by 2027")]
+        await storage.store_promises("user-1", "scout-1", promises)
+
+        mock_pool.executemany.assert_called_once()
+        records = mock_pool.executemany.call_args[0][1]
+        assert records[0][3] == "Build new school by 2027"  # promise_text at index 3
+
+    @pytest.mark.asyncio
+    async def test_converts_meeting_date_string_to_date(self, storage, mock_pool):
+        """meeting_date strings should be converted to datetime.date objects."""
+        mock_pool.executemany = AsyncMock()
+
+        promises = [{
+            "promise_text": "Fix roads by summer",
+            "meeting_date": "2026-04-15",
+        }]
+        await storage.store_promises("user-1", "scout-1", promises)
+
+        records = mock_pool.executemany.call_args[0][1]
+        meeting_date = records[0][7]  # meeting_date at index 7
+        assert isinstance(meeting_date, date)
+        assert meeting_date == date(2026, 4, 15)
+
+    @pytest.mark.asyncio
+    async def test_handles_invalid_meeting_date_string(self, storage, mock_pool):
+        """Invalid meeting_date strings should become None."""
+        mock_pool.executemany = AsyncMock()
+
+        promises = [{
+            "promise_text": "Fix roads",
+            "meeting_date": "not-a-date",
+        }]
+        await storage.store_promises("user-1", "scout-1", promises)
+
+        records = mock_pool.executemany.call_args[0][1]
+        assert records[0][7] is None  # Invalid date -> None
+
+
 class TestDeletePromisesForScout:
     @pytest.mark.asyncio
     async def test_deletes_promises(self, storage, mock_pool):

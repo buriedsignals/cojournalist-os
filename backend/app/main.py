@@ -11,6 +11,7 @@ USED BY: Render deployment (uvicorn entrypoint)
 """
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -38,9 +39,32 @@ from app.routers import (
     civic,
     license,
     v1,
-    feedback,
 )
 from app.services.http_client import close_http_client
+
+class SensitiveDataFilter(logging.Filter):
+    """Scrub API keys, tokens, and JWTs from log output."""
+    PATTERNS = [re.compile(p) for p in [
+        r'(sk-[a-zA-Z0-9]{20,})',        # OpenRouter/API keys
+        r'(cj_[a-zA-Z0-9]+)',             # coJournalist API keys
+        r'(Bearer\s+[a-zA-Z0-9._-]{20,})',  # Bearer tokens
+        r'(eyJ[a-zA-Z0-9._-]{20,})',      # JWTs
+        r'(AKIA[A-Z0-9]{16})',            # AWS access keys
+    ]]
+
+    def filter(self, record):
+        if isinstance(record.msg, str):
+            for pat in self.PATTERNS:
+                record.msg = pat.sub('[REDACTED]', record.msg)
+        if record.args:
+            args = list(record.args) if isinstance(record.args, tuple) else [record.args]
+            for i, arg in enumerate(args):
+                if isinstance(arg, str):
+                    for pat in self.PATTERNS:
+                        args[i] = pat.sub('[REDACTED]', args[i])
+            record.args = tuple(args)
+        return True
+
 
 # Configure logging
 log_level = logging.DEBUG if settings.environment == "development" else logging.INFO
@@ -51,6 +75,7 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
+logging.getLogger().addFilter(SensitiveDataFilter())
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +129,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # Only add CSP to HTML responses (don't break API JSON responses)
+    content_type = response.headers.get("content-type", "")
+    if "text/html" in content_type:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' https: data:; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "connect-src 'self' https://*.maptiler.com https://*.supabase.co; "
+            "frame-src 'none'"
+        )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    return response
 
 
 # Startup event to initialize services and log startup information
@@ -182,15 +227,34 @@ if settings.deployment_target != "supabase":
     from app.routers import admin
     app.include_router(admin.router, prefix="/api/admin", tags=["Admin"], include_in_schema=False)
 
+    # Threat modeling — SaaS-only (stripped from OSS mirror), gated by require_admin
+    from app.routers import threat_modeling
+    app.include_router(threat_modeling.router, prefix="/api/threat-modeling", tags=["Threat Modeling"], include_in_schema=False)
+
 # License key management — hidden from public API docs
 app.include_router(license.router, prefix="/api", tags=["License"], include_in_schema=False)
 
 # Feedback — hidden from public API docs
-app.include_router(feedback.router, prefix="/api", tags=["Feedback"], include_in_schema=False)
 
 # Public v1 API — visible in docs
 app.include_router(v1.router, prefix="/api/v1")
 # billing router removed — billing now handled on Squarelet
+
+@app.get("/api/auth/has-users")
+async def has_users():
+    """Check if any users exist (for first-run UX). No auth required."""
+    from app.config import get_settings
+    settings_obj = get_settings()
+    if settings_obj.deployment_target != "supabase":
+        return {"has_users": True}
+    try:
+        from app.adapters.supabase.connection import get_pool
+        pool = await get_pool()
+        count = await pool.fetchval("SELECT COUNT(*) FROM auth.users")
+        return {"has_users": count > 0}
+    except Exception:
+        return {"has_users": True}
+
 
 # Serve built frontend if available
 FRONTEND_DIST = Path(__file__).resolve().parent / "frontend_client"

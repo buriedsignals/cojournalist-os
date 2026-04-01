@@ -95,6 +95,10 @@ async def validate_extraction_credits(
 
     Returns credit information or raises 402 if insufficient.
     """
+    # Supabase (self-hosted) has no credit system — always allow
+    if get_settings().deployment_target == "supabase":
+        return {"valid": True, "cost": 0, "current_credits": 999999, "remaining_after": 999999}
+
     user_id = user.get("user_id") or user.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="User ID not found")

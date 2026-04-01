@@ -1,26 +1,89 @@
 /**
  * Main Edge Function — entry point for supabase/edge-runtime.
  *
- * The edge-runtime `--main-service` flag points here. Individual function
- * directories (execute-scout, manage-schedule) are served automatically by
- * the runtime at /<function-name>. This main service handles the root path
- * and any unmatched routes with a health-check or 404 response.
+ * The edge-runtime `--main-service` flag points here. Kong strips
+ * `/functions/v1/` from the path, so requests arrive as `/execute-scout`.
+ * This handler routes to the appropriate sub-function logic inline
+ * (dynamic imports conflict with Deno.serve re-registration).
  */
 
-Deno.serve((_req: Request): Response => {
-  const url = new URL(_req.url);
+const BACKEND_URL = Deno.env.get("BACKEND_URL") ?? "http://backend:8000";
+const SERVICE_KEY = Deno.env.get("INTERNAL_SERVICE_KEY") ?? "";
+
+const EXECUTE_ENDPOINTS: Record<string, string> = {
+  web: "/api/scouts/execute",
+  pulse: "/api/pulse/execute",
+  social: "/api/social/execute",
+  civic: "/api/civic/execute",
+};
+
+Deno.serve(async (req: Request): Promise<Response> => {
+  const url = new URL(req.url);
+  const jsonHeaders = { "Content-Type": "application/json" };
 
   // Root health check
   if (url.pathname === "/" || url.pathname === "") {
     return new Response(
       JSON.stringify({ status: "ok", service: "edge-functions" }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
+      { status: 200, headers: jsonHeaders },
     );
   }
 
-  // Fallback for unknown routes (individual functions are handled by the runtime)
+  // Route: /execute-scout — forward scout execution to FastAPI backend
+  if (url.pathname === "/execute-scout") {
+    if (req.method !== "POST") {
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405, headers: jsonHeaders,
+      });
+    }
+
+    try {
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+      if (!supabaseServiceKey || authHeader !== `Bearer ${supabaseServiceKey}`) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: jsonHeaders,
+        });
+      }
+
+      const body = await req.json();
+      const scoutType: string = body.scout_type ?? body.type ?? "";
+      const endpoint = EXECUTE_ENDPOINTS[scoutType];
+
+      if (!endpoint) {
+        return new Response(
+          JSON.stringify({ error: `Unknown scout type: ${scoutType}` }),
+          { status: 400, headers: jsonHeaders },
+        );
+      }
+
+      console.log(`Executing ${scoutType} scout: ${body.scout_id ?? body.scraper_name ?? "unknown"}`);
+
+      const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Service-Key": SERVICE_KEY },
+        body: JSON.stringify(body),
+      });
+
+      const responseBody = await response.text();
+      console.log(`Scout execution completed: ${response.status}`);
+
+      return new Response(responseBody, {
+        status: response.status, headers: jsonHeaders,
+      });
+    } catch (error) {
+      console.error("Error executing scout:", error);
+      return new Response(
+        JSON.stringify({ error: "Internal server error", detail: error instanceof Error ? error.message : String(error) }),
+        { status: 500, headers: jsonHeaders },
+      );
+    }
+  }
+
+  // Fallback for unknown routes
   return new Response(
     JSON.stringify({ error: "Function not found" }),
-    { status: 404, headers: { "Content-Type": "application/json" } },
+    { status: 404, headers: jsonHeaders },
   );
 });

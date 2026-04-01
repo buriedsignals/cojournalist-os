@@ -27,6 +27,8 @@
 		switch (scoutType) {
 			case 'pulse': return m.feed_smartMonitor();
 			case 'web': return m.feed_pageMonitor();
+			case 'social': return m.scoutType_socialMonitor();
+			case 'civic': return m.scoutType_civicMonitor();
 			default: return scoutType;
 		}
 	}
@@ -35,6 +37,8 @@
 		switch (scoutType) {
 			case 'web': return 'type-tag-web';
 			case 'pulse': return 'type-tag-pulse';
+			case 'social': return 'type-tag-social';
+			case 'civic': return 'type-tag-civic';
 			default: return '';
 		}
 	}
@@ -97,13 +101,13 @@
 			<ExternalLink size={10} />
 			{unit.source_domain || 'source'}
 		</a>
+		{#if similarityScore !== undefined}
+			<span class="score-pill">{m.feed_matchScore({ score: Math.round(similarityScore * 100) })}</span>
+		{/if}
 		<span class="time-tag">
 			<Clock size={10} />
 			{formatRelativeTime(unit.created_at)}
 		</span>
-		{#if similarityScore !== undefined}
-			<span class="score-pill">{m.feed_matchScore({ score: Math.round(similarityScore * 100) })}</span>
-		{/if}
 	</div>
 </button>
 
@@ -159,6 +163,8 @@
 
 	.type-tag-web { color: #1d4ed8; background: #dbeafe; }
 	.type-tag-pulse { color: #ea580c; background: #ffedd5; }
+	.type-tag-social { color: #7c3aed; background: #ede9fe; }
+	.type-tag-civic { color: #059669; background: #d1fae5; }
 
 	.statement {
 		position: relative;
@@ -213,8 +219,8 @@
 
 	.card-footer {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
+		justify-content: space-between;
 		gap: 0.625rem;
 		margin-top: auto;
 	}
@@ -238,6 +244,7 @@
 		gap: 0.25rem;
 		font-size: 0.6875rem;
 		color: #9ca3af;
+		margin-left: auto;
 	}
 
 	.score-pill {

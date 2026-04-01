@@ -17,7 +17,7 @@ _transform: true
 
 services:
   - name: auth-v1
-    url: http://auth:8080
+    url: http://auth:8081
     routes:
       - name: auth-v1-route
         strip_path: true

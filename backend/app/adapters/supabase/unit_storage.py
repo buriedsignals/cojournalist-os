@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import date as date_type
 from typing import Optional
 
 from app.adapters.supabase.connection import get_pool
@@ -48,11 +49,26 @@ class SupabaseUnitStorage(UnitStoragePort):
             if embedding:
                 embedding_str = f"[{','.join(str(v) for v in embedding)}]"
 
+            # Fix #36: convert string event_date to datetime.date for asyncpg
+            event_date_raw = unit.get("event_date")
+            event_date = None
+            if event_date_raw:
+                if isinstance(event_date_raw, str):
+                    try:
+                        event_date = date_type.fromisoformat(event_date_raw)
+                    except ValueError:
+                        event_date = None
+                elif isinstance(event_date_raw, date_type):
+                    event_date = event_date_raw
+
+            # Fix #32: empty string → None for UUID cast
+            article_id = unit.get("article_id") or None
+
             records.append((
                 user_id,
                 scout_id,
                 unit.get("scout_type"),
-                unit.get("article_id"),
+                article_id,
                 unit["statement"],
                 unit["type"],
                 unit.get("entities"),
@@ -60,7 +76,7 @@ class SupabaseUnitStorage(UnitStoragePort):
                 unit.get("source_url"),
                 unit.get("source_domain"),
                 unit.get("source_title"),
-                unit.get("event_date"),
+                event_date,
                 unit.get("country"),
                 unit.get("state"),
                 unit.get("city"),

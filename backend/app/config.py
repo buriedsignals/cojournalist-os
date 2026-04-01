@@ -63,9 +63,6 @@ class Settings(BaseSettings):
     )
 
 
-    # LlamaParse (PDF parsing for Civic Scout)
-    llamaparse_api_key: str = os.getenv("LLAMAPARSE_API_KEY", "")
-
     # Firecrawl
     firecrawl_api_key: str = os.getenv("FIRECRAWL_API_KEY", "")
 

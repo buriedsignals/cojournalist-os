@@ -80,6 +80,36 @@ class TestDeleteSchedule:
         assert "cron.unschedule" in sql
 
 
+class TestCreateScheduleTypeCasts:
+    """#42: Parameters inside format() need ::text casts for asyncpg."""
+
+    @pytest.mark.asyncio
+    async def test_uses_text_casts_for_parameters(self, scheduler, mock_pool):
+        mock_pool.execute = AsyncMock()
+
+        await scheduler.create_schedule("test-job", "0 8 * * *", {"key": "value"})
+
+        sql = mock_pool.execute.call_args[0][0]
+        assert "$1::text" in sql
+        assert "$2::text" in sql
+        assert "$3::text" in sql
+        assert "$4::text" in sql
+        assert "$5::text" in sql
+
+
+class TestDeleteScheduleTolerant:
+    """#39-delete: delete_schedule should not crash when job doesn't exist."""
+
+    @pytest.mark.asyncio
+    async def test_tolerates_missing_job(self, scheduler, mock_pool):
+        mock_pool.execute = AsyncMock(
+            side_effect=Exception("could not find valid entry for job")
+        )
+
+        # Should NOT raise - just log a warning
+        await scheduler.delete_schedule("nonexistent-job")
+
+
 class TestUpdateSchedule:
     @pytest.mark.asyncio
     async def test_updates_cron_expression(self, scheduler, mock_pool):

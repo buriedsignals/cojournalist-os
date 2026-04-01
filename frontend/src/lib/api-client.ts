@@ -147,11 +147,13 @@ export const apiClient = {
 	 * Delete an active monitoring job from AWS.
 	 */
 	async deleteActiveJob(scraperName: string): Promise<void> {
+		const { authStore } = await import('$lib/stores/auth');
+		const token = await authStore.getToken();
 		const response = await fetch(
 			buildApiUrl(`/scrapers/active/${encodeURIComponent(scraperName)}`),
 			{
 				method: 'DELETE',
-				headers: JSON_HEADERS,
+				headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
 				credentials: 'include'
 			}
 		);
@@ -197,9 +199,11 @@ export const apiClient = {
 	 */
 	async getAuthStatus(): Promise<{ authenticated: boolean; user: User | null }> {
 		try {
+			const { authStore } = await import('$lib/stores/auth');
+			const token = await authStore.getToken();
 			const response = await fetch(buildApiUrl('/auth/me'), {
 				method: 'GET',
-				headers: JSON_HEADERS,
+				headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
 				credentials: 'include'
 			});
 
@@ -239,9 +243,11 @@ export const apiClient = {
 		if (filters.criteria) body.criteria = filters.criteria;
 		if (filters.excluded_domains?.length) body.excluded_domains = filters.excluded_domains;
 
+		const { authStore } = await import('$lib/stores/auth');
+		const token = await authStore.getToken();
 		const response = await fetch(buildApiUrl('/pulse/search'), {
 			method: 'POST',
-			headers: JSON_HEADERS,
+			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
 			credentials: 'include',
 			body: JSON.stringify(body)
 		});
@@ -329,9 +335,11 @@ export const apiClient = {
 		current_credits: number;
 		remaining_after: number;
 	}> {
+		const { authStore } = await import('$lib/stores/auth');
+		const token = await authStore.getToken();
 		const response = await fetch(buildApiUrl('/extract/validate'), {
 			method: 'POST',
-			headers: JSON_HEADERS,
+			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
 			credentials: 'include',
 			body: JSON.stringify(payload)
 		});
@@ -365,9 +373,11 @@ export const apiClient = {
 		current_credits: number;
 		remaining_after: number;
 	}> {
+		const { authStore } = await import('$lib/stores/auth');
+		const token = await authStore.getToken();
 		const response = await fetch(buildApiUrl('/scrapers/monitoring/validate'), {
 			method: 'POST',
-			headers: JSON_HEADERS,
+			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
 			credentials: 'include',
 			body: JSON.stringify(payload)
 		});
@@ -602,9 +612,11 @@ export const apiClient = {
 		required_credits: number,
 		operation_type?: string
 	): Promise<{ valid: boolean; current_credits: number; required_credits: number }> {
+		const { authStore } = await import('$lib/stores/auth');
+		const token = await authStore.getToken();
 		const response = await fetch(buildApiUrl('/scrapers/monitoring/validate'), {
 			method: 'POST',
-			headers: JSON_HEADERS,
+			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
 			credentials: 'include',
 			body: JSON.stringify({
 				channel: 'website',

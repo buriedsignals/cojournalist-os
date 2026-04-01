@@ -67,7 +67,10 @@ async def build_user_response(user_svc, user_id: str) -> dict:
 
     credits = user.get("credits")
     onboarding_completed = user.get("onboarding_completed", False)
-    needs_init = credits is None or not onboarding_completed
+    if get_settings().deployment_target == "supabase":
+        needs_init = not onboarding_completed
+    else:
+        needs_init = credits is None or not onboarding_completed
 
     user["needs_initialization"] = needs_init
 
@@ -271,24 +274,26 @@ async def verify_api_key(request: Request) -> dict:
 # =============================================================================
 
 async def get_user_email(user_id: str) -> Optional[str]:
-    """Fetch user's email from MuckRock API on-demand.
+    """Fetch user's email.
 
-    Does NOT read from DynamoDB — email is not stored locally to protect
-    journalist PII. Calls MuckRock's user data endpoint using the user's
-    MuckRock UUID.
-
-    Args:
-        user_id: MuckRock UUID (same as user_id in our system).
-
-    Returns:
-        User's email address or None if not found.
+    Supabase: queries auth.users via adapter.
+    AWS/SaaS: calls MuckRock API on-demand (email not stored locally).
     """
+    settings = get_settings()
+    if settings.deployment_target == "supabase":
+        try:
+            from app.dependencies.providers import get_auth
+            auth_adapter = get_auth()
+            return await auth_adapter.get_user_email(user_id)
+        except Exception as e:
+            logger.error(f"Failed to fetch email from Supabase for {user_id}: {e}")
+            return None
+
     try:
         from app.services.muckrock_client import MuckRockClient
     except ImportError:
-        return None  # OSS: email from Supabase Auth, not MuckRock
+        return None
     try:
-        settings = get_settings()
         client = MuckRockClient(
             settings.muckrock_client_id,
             settings.muckrock_client_secret,
@@ -325,4 +330,5 @@ async def require_admin(request: Request) -> dict:
     if not email or email.lower() not in admin_list:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
+    logger.info("Admin access: user_id=%s, endpoint=%s", user_id, request.url.path)
     return user

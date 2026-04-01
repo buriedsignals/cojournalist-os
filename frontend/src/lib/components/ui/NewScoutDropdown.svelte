@@ -8,7 +8,7 @@
 	export let open = false;
 	export let sidebarCollapsed = false;
 
-	$: isPro = ($authStore.user?.tier ?? 'free') !== 'free';
+	$: isPro = import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase' || ($authStore.user?.tier ?? 'free') !== 'free';
 
 	const dispatch = createEventDispatcher<{
 		trackPage: void;

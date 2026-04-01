@@ -202,7 +202,7 @@
 
 	<!-- Footer with Credits and Profile -->
 	<div class="sidebar-footer">
-		{#if $authStore.user}
+		{#if $authStore.user && import.meta.env.PUBLIC_DEPLOYMENT_TARGET !== 'supabase'}
 			<div class="credits-display" class:hidden={collapsed}>
 				<span class="credits-value">{$authStore.user.credits}</span>
 				<span class="credits-label">{m.sidebar_credits()}</span>
@@ -238,7 +238,8 @@
 	-->
 
 	<div class="sidebar-attribution" class:hidden={collapsed}>
-		built by <a href="https://buriedsignals.com" target="_blank" rel="noopener noreferrer">Buried Signals</a>
+		<span>built by <a href="https://buriedsignals.com" target="_blank" rel="noopener noreferrer">Buried Signals</a></span>
+		<a href="/terms" class="terms-link">Terms</a>
 	</div>
 </div>
 
@@ -526,7 +527,9 @@
 
 	.sidebar-attribution {
 		padding: 0 1rem 0.75rem;
-		text-align: left;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 		font-size: 0.625rem;
 		color: #9ca3af;
 		white-space: nowrap;
@@ -534,6 +537,17 @@
 		opacity: 1;
 		max-height: 2rem;
 		transition: opacity 200ms ease, max-height 200ms ease, padding 200ms ease;
+	}
+
+	.sidebar-attribution .terms-link {
+		font-size: 0.625rem;
+		color: #9ca3af;
+		text-decoration: none;
+		font-weight: 500;
+	}
+
+	.sidebar-attribution .terms-link:hover {
+		color: #7c6fc7;
 	}
 
 	.sidebar-attribution.hidden {

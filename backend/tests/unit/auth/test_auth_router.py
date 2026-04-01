@@ -36,12 +36,10 @@ def reset_services():
     auth_module._muckrock_client = None
     auth_module._session_service = None
     auth_module._user_service = None
-    auth_module._pending_states.clear()
     yield
     auth_module._muckrock_client = None
     auth_module._session_service = None
     auth_module._user_service = None
-    auth_module._pending_states.clear()
 
 
 class TestLogin:
@@ -57,10 +55,18 @@ class TestLogin:
         assert "state=" in location
         assert "response_type=code" in location
 
-    def test_login_stores_state_token(self):
-        """Login should store the CSRF state token for later verification."""
-        client.get("/api/auth/login", follow_redirects=False)
-        assert len(auth_module._pending_states) == 1
+    def test_login_includes_hmac_signed_state(self):
+        """Login should include an HMAC-signed state token in the redirect URL."""
+        response = client.get("/api/auth/login", follow_redirects=False)
+        location = response.headers["location"]
+        # Extract state parameter — should be nonce:timestamp:signature format
+        import re
+        state_match = re.search(r"state=([^&]+)", location)
+        assert state_match is not None
+        state = state_match.group(1)
+        # HMAC state has 3 colon-separated parts: nonce:timestamp:signature
+        parts = state.split("%3A") if "%3A" in state else state.split(":")
+        assert len(parts) == 3, f"Expected nonce:ts:sig format, got: {state}"
 
 
 class TestMe:
@@ -263,14 +269,13 @@ class TestCallback:
         )
         assert response.status_code == 400
 
-    def test_callback_with_invalid_state_redirects_to_login(self):
-        """Callback with unrecognized state should redirect to login with error."""
+    def test_callback_with_invalid_state_returns_401(self):
+        """Callback with invalid HMAC state should return 401."""
         response = client.get(
             "/api/auth/callback?code=test-code&state=bogus",
             follow_redirects=False,
         )
-        assert response.status_code == 302
-        assert "error=invalid_state" in response.headers["location"]
+        assert response.status_code == 401
 
     def test_callback_with_oauth_error_redirects(self):
         """Callback with error param from provider should redirect to login."""

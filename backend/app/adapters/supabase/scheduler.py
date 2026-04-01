@@ -51,8 +51,8 @@ class SupabaseScheduler(SchedulerPort):
 
         sql = """
             SELECT cron.schedule(
-                $1,
-                $2,
+                $1::text,
+                $2::text,
                 format(
                     'SELECT net.http_post(
                         url := %L,
@@ -60,9 +60,9 @@ class SupabaseScheduler(SchedulerPort):
                         body := %L::jsonb,
                         timeout_milliseconds := 60000
                     )',
-                    $3,
-                    $4,
-                    $5
+                    $3::text,
+                    $4::text,
+                    $5::text
                 )
             )
         """
@@ -81,11 +81,14 @@ class SupabaseScheduler(SchedulerPort):
         """Remove a pg_cron job by name."""
         await self._ensure_pool()
 
-        await self.pool.execute(
-            "SELECT cron.unschedule($1)",
-            schedule_name,
-        )
-        logger.info(f"Deleted pg_cron schedule: {schedule_name}")
+        try:
+            await self.pool.execute(
+                "SELECT cron.unschedule($1::text)",
+                schedule_name,
+            )
+            logger.info(f"Deleted pg_cron schedule: {schedule_name}")
+        except Exception as e:
+            logger.warning(f"Could not unschedule '{schedule_name}': {e}")
 
     async def update_schedule(self, schedule_name: str, cron: str = None,
                                target_config: dict = None) -> None:

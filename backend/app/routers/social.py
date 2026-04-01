@@ -178,7 +178,14 @@ async def execute_social_scout(
         previous_snapshot = []
         snapshot = await _get_snapshot_service().get_snapshot(user_id, scout_name)
         if snapshot:
-            for s in snapshot["posts"]:
+            # Handle both DynamoDB format (dict with "posts" key) and Supabase format (list directly)
+            if isinstance(snapshot, dict):
+                posts_list = snapshot.get("posts", [])
+            elif isinstance(snapshot, list):
+                posts_list = snapshot
+            else:
+                posts_list = []
+            for s in posts_list:
                 previous_ids.add(s.get("post_id", ""))
                 previous_snapshot.append(PostSnapshot(**s))
 
@@ -187,8 +194,19 @@ async def execute_social_scout(
         current_ids = {p.id for p in posts}
 
         removed_posts = []
+        possible_actor_failure = False
         if payload.track_removals:
-            removed_posts = identify_removed_posts(current_ids, previous_snapshot)
+            # Guard: if actor returned significantly fewer posts than the previous
+            # snapshot, treat it as a possible actor failure rather than mass deletion.
+            if previous_snapshot and len(posts) < len(previous_snapshot) * 0.2:
+                logger.warning(
+                    "Social Scout %s: actor returned %d posts vs %d previous — possible actor failure, skipping removal detection",
+                    scout_name, len(posts), len(previous_snapshot),
+                )
+                removed_posts = []
+                possible_actor_failure = True
+            else:
+                removed_posts = identify_removed_posts(current_ids, previous_snapshot)
 
         # 4. Handle execution by mode
         summary = ""
@@ -228,9 +246,11 @@ async def execute_social_scout(
             else:
                 summary = "No posts matched criteria."
 
-        # 5. Append removal info to summary if tracking
+        # 5. Append removal info or actor failure note to summary
         if removed_posts and payload.track_removals:
             summary += f"\n\n{len(removed_posts)} post(s) removed since last check."
+        elif possible_actor_failure:
+            summary += "\n\nNote: scraper returned significantly fewer posts than expected — possible actor failure. Removal detection skipped for this run."
 
         # 6. Store EXEC# record
         try:

@@ -10,6 +10,7 @@ USED BY: routers/export.py (via ExportGenerator domain validation)
 """
 import ipaddress
 import logging
+import socket
 from urllib.parse import urlparse
 from fastapi import HTTPException
 
@@ -133,8 +134,21 @@ _BLOCKED_HOSTS = frozenset({"localhost", "127.0.0.1", "0.0.0.0", "::1", "metadat
 # Internal hostname suffixes to block
 _BLOCKED_SUFFIXES = (".local", ".internal", ".localhost")
 
-# Cloud metadata IP (AWS, GCP instance metadata)
-_METADATA_IP = "169.254.169.254"
+# Cloud metadata IPs (AWS EC2/GCP instance metadata + AWS ECS task metadata)
+_METADATA_IPS = frozenset({"169.254.169.254", "169.254.170.2"})
+
+
+def _resolve_and_check(hostname: str) -> bool:
+    """Resolve hostname and verify no resolved IPs are private/reserved."""
+    try:
+        results = socket.getaddrinfo(hostname, None)
+        for family, type_, proto, canonname, sockaddr in results:
+            ip = ipaddress.ip_address(sockaddr[0])
+            if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local:
+                return False
+        return True
+    except (socket.gaierror, ValueError):
+        return False
 
 
 def is_safe_external_url(url: str) -> bool:
@@ -168,7 +182,7 @@ def is_safe_external_url(url: str) -> bool:
         if not hostname:
             return False
 
-        if hostname in _BLOCKED_HOSTS or hostname == _METADATA_IP:
+        if hostname in _BLOCKED_HOSTS or hostname in _METADATA_IPS:
             return False
 
         if any(hostname.endswith(suffix) for suffix in _BLOCKED_SUFFIXES):
@@ -181,6 +195,10 @@ def is_safe_external_url(url: str) -> bool:
                 return False
         except ValueError:
             pass  # Not an IP address, which is expected
+
+        # DNS resolution check — defense against DNS rebinding
+        if not _resolve_and_check(hostname):
+            return False
 
         return True
     except Exception:

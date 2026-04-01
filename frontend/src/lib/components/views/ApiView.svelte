@@ -22,8 +22,8 @@
 	let copiedAgent = false;
 	let revokeConfirmId: string | null = null;
 
-	const AGENT_INSTRUCTIONS = `Base URL: https://cojournalist.ai/api/v1
-API Spec: https://cojournalist.ai/api/openapi.json
+	const AGENT_INSTRUCTIONS = `Base URL: ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1
+API Spec: ${typeof window !== 'undefined' ? window.location.origin : ''}/api/openapi.json
 Auth: Bearer <your-api-key>`;
 
 	// --- Lifecycle ---

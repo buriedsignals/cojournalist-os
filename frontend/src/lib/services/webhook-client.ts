@@ -41,10 +41,13 @@ class WebhookClient {
 		const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
 		try {
+			const { authStore } = await import('$lib/stores/auth');
+			const token = await authStore.getToken();
 			const response = await fetch(buildApiUrl('/scouts/test'), {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					...(token ? { Authorization: `Bearer ${token}` } : {})
 				},
 				credentials: 'include',
 				body: JSON.stringify({
