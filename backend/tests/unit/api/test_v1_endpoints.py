@@ -543,7 +543,10 @@ class TestRunScout:
         assert data["scraper_status"] is True
         assert data["summary"] == "Changes detected"
         # web scout costs 1 credit — deducted after execution
-        mock_decrement.assert_called_once_with("user-api-456", 1, org_id=None)
+        mock_decrement.assert_called_once_with(
+            "user-api-456", 1, org_id=None,
+            operation="web", scout_name="Runner", scout_type="web",
+        )
 
     def test_run_pulse_scout_costs_7_credits(self, api_client):
         mock_svc = AsyncMock()
@@ -562,7 +565,10 @@ class TestRunScout:
             response = api_client.post("/api/v1/scouts/Pulse/run")
 
         assert response.status_code == 200
-        mock_decrement.assert_called_once_with("user-api-456", 7, org_id=None)
+        mock_decrement.assert_called_once_with(
+            "user-api-456", 7, org_id=None,
+            operation="pulse", scout_name="Pulse", scout_type="pulse",
+        )
 
     def test_run_scout_insufficient_credits_returns_402(self, api_client):
         """validate_credits raises 402 before execution starts."""

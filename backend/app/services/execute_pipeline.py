@@ -197,7 +197,11 @@ async def run_post_orchestrator_pipeline(
             f"({len(processing_result.duplicate_facts)} duplicates) - skipping notification"
         )
         if not ctx.skip_credit_charge:
-            await decrement_credit(ctx.user_id, ctx.credit_cost, org_id=ctx.team_org_id)
+            await decrement_credit(
+                ctx.user_id, ctx.credit_cost, org_id=ctx.team_org_id,
+                operation=ctx.scout_type, scout_name=ctx.scraper_name,
+                scout_type=ctx.scout_type,
+            )
 
         duration_ms = (time.time() - ctx.start_time) * 1000
         log_fields = {
@@ -227,7 +231,11 @@ async def run_post_orchestrator_pipeline(
 
     # Step 6: Decrement credits
     if not ctx.skip_credit_charge:
-        await decrement_credit(ctx.user_id, ctx.credit_cost, org_id=ctx.team_org_id)
+        await decrement_credit(
+            ctx.user_id, ctx.credit_cost, org_id=ctx.team_org_id,
+            operation=ctx.scout_type, scout_name=ctx.scraper_name,
+            scout_type=ctx.scout_type,
+        )
 
     # Step 7: Log execution
     duration_ms = (time.time() - ctx.start_time) * 1000

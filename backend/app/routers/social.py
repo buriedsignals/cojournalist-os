@@ -266,7 +266,12 @@ async def execute_social_scout(
         if not payload.skip_credit_charge:
             try:
                 org_id = await get_user_org_id(user_id)
-                await decrement_credit(user_id, get_social_monitoring_cost(payload.platform), org_id=org_id)
+                platform_key = f"social_monitoring_{payload.platform}"
+                await decrement_credit(
+                    user_id, get_social_monitoring_cost(payload.platform), org_id=org_id,
+                    operation=platform_key, scout_name=scout_name,
+                    scout_type="social",
+                )
             except Exception as e:
                 logger.error(f"Failed to decrement credits: {e}")
 

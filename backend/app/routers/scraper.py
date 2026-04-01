@@ -575,7 +575,12 @@ async def charge_scrape_credits(
         )
 
     try:
-        success = await decrement_credit(user_id, payload.amount, org_id=org_id)
+        success = await decrement_credit(
+            user_id, payload.amount, org_id=org_id,
+            operation=payload.scout_type if hasattr(payload, "scout_type") else "charge",
+            scout_name=payload.scraper_name if hasattr(payload, "scraper_name") else "",
+            scout_type=payload.scout_type if hasattr(payload, "scout_type") else "",
+        )
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,

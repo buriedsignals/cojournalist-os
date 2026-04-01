@@ -53,7 +53,7 @@ AI-powered local news monitoring platform. Users create "scouts" that monitor we
 | Backend | FastAPI (Python), hosted on Render — production at `https://www.cojournalist.ai/api` |
 | Database | DynamoDB (scout metadata + run history) |
 | Scheduling | AWS EventBridge Scheduler |
-| Auth | MuckRock OAuth 2.0 (session cookies) |
+| Auth | MuckRock OAuth 2.0 (SaaS, session cookies) / Supabase Auth (OSS, Bearer JWT) |
 | AI | Gemini 2.5 Flash-Lite (default LLM, direct API), OpenRouter (fallback), Firecrawl (web search) |
 | Email | Resend |
 | Maps | MapTiler (geocoding) |
@@ -105,6 +105,27 @@ Detailed docs for each sidebar service in `docs/features/`:
 | Civic Scout | `civic` | `civic.py` | `civic_orchestrator.py` |
 | Scrape | N/A | `data_extractor.py` | `firecrawl_client.py` |
 | Feed / Export | N/A | `export.py` | `export_generator.py` |
+
+## Admin Dashboard (SaaS-only, stripped from OSS mirror)
+
+Revenue reporting for MuckRock pilot invoicing. Accessible at `/api/admin/` (browser) by users in `ADMIN_EMAILS`.
+
+| File | Purpose |
+|------|---------|
+| `backend/app/routers/admin.py` | Dashboard HTML + JSON API endpoints |
+| `backend/app/services/admin_report_service.py` | Report generation, metrics, email template |
+| `backend/app/adapters/aws/admin_storage.py` | USAGE# record storage + aggregate queries |
+| `backend/app/schemas/admin.py` | Pydantic response models |
+| `backend/app/dependencies/auth.py` | `require_admin` dependency (ADMIN_EMAILS check) |
+
+**USAGE# records:** Written on every credit decrement (fire-and-forget from `decrement_credit()` in `billing.py`). Stored in DynamoDB with 365-day TTL. PK is `ORG#{id}` or `USER#{id}`, SK is `USAGE#{timestamp}#{uuid}`.
+
+**Endpoints:**
+- `GET /api/admin/` — Browser dashboard (metrics + current month invoice)
+- `GET /api/admin/usage?start_date=X&end_date=Y` — Query usage records
+- `GET /api/admin/metrics` — Users by tier, orgs, scouts
+- `POST /api/admin/report/monthly?year=X&month=Y` — Invoice JSON
+- `POST /api/admin/report/send-email?year=X&month=Y` — Send report via Resend
 
 ## Directory-Specific Guides
 

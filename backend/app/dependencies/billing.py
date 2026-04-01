@@ -3,6 +3,7 @@ FastAPI billing dependencies — credit balance and decrement operations.
 
 PURPOSE: Provides credit-related utility functions used by scout execution
 pipelines: get_user_org_id, get_user_credits, decrement_credit, validate_credits.
+Also writes USAGE# audit records on every successful credit decrement.
 
 DEPENDS ON: auth._get_services (lazy-init UserService)
 USED BY: services/scout_service.py, services/execute_pipeline.py,
@@ -19,6 +20,15 @@ except ImportError:
         return {"current_credits": 999999, "required": 0, "remaining_after": 999999}
 
 logger = logging.getLogger(__name__)
+
+
+def _get_admin_storage():
+    """Lazy-import AdminStorage to avoid circular imports."""
+    try:
+        from app.adapters.aws.admin_storage import AdminStorage
+        return AdminStorage()
+    except ImportError:
+        return None  # OSS mirror: admin storage not available
 
 
 async def get_user_org_id(user_id: str) -> Optional[str]:
@@ -56,13 +66,24 @@ async def get_user_credits(user_id: str) -> int:
         return 0
 
 
-async def decrement_credit(user_id: str, amount: int = 1, org_id: str = None) -> bool:
-    """Atomically decrement credits in DynamoDB.
+async def decrement_credit(
+    user_id: str,
+    amount: int = 1,
+    org_id: str = None,
+    *,
+    operation: str = "",
+    scout_name: str = "",
+    scout_type: str = "",
+) -> bool:
+    """Atomically decrement credits in DynamoDB and log a USAGE# audit record.
 
     Args:
         user_id: User ID.
         amount: Number of credits to decrement (default 1).
-        org_id: Optional org ID. When set, decrement from org pool with fallback.
+        org_id: Optional org ID. When set, decrement from org pool.
+        operation: Pricing key (e.g. "pulse", "website_extraction").
+        scout_name: Name of the scout that triggered the charge.
+        scout_type: Type of scout (e.g. "web", "pulse", "social").
 
     Returns:
         True if credits were decremented, False on insufficient credits or error.
@@ -83,6 +104,22 @@ async def decrement_credit(user_id: str, amount: int = 1, org_id: str = None) ->
         else:
             await user_service.decrement_credits(user_id, amount)
         logger.info(f"Decremented {amount} credit(s) for {user_id} (org={org_id})")
+
+        # Fire-and-forget: write USAGE# audit record
+        try:
+            storage = _get_admin_storage()
+            if storage:
+                await storage.store_usage_record(
+                    user_id=user_id,
+                    amount=amount,
+                    operation=operation,
+                    scout_name=scout_name,
+                    scout_type=scout_type,
+                    org_id=org_id,
+                )
+        except Exception as usage_err:
+            logger.error(f"Failed to write USAGE# record for {user_id}: {usage_err}")
+
         return True
     except Exception as e:
         if hasattr(e, "response") and e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":

@@ -330,7 +330,12 @@ class ScoutService:
 
             # Step 8: Decrement credit (if not skipped - only AWS Lambda calls should charge)
             if not skip_credit_charge:
-                await decrement_credit(user_id, org_id=org_id)
+                await decrement_credit(
+                    user_id, org_id=org_id,
+                    operation="website_extraction",
+                    scout_name=scraper_name or "",
+                    scout_type="web",
+                )
 
             # Step 9: Return success
             return {

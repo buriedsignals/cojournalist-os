@@ -135,7 +135,10 @@ async def generate_export(
         )
 
         # Deduct credit after successful generation
-        await decrement_credit(user_id, org_id=org_id)
+        await decrement_credit(
+            user_id, org_id=org_id,
+            operation="feed_export", scout_name="", scout_type="export",
+        )
 
         return GenerateExportResponse(
             title=result["title"],
@@ -212,7 +215,10 @@ async def auto_select_units(
             topic=body.topic,
         )
 
-        await decrement_credit(user_id, org_id=org_id)
+        await decrement_credit(
+            user_id, org_id=org_id,
+            operation="feed_export", scout_name="", scout_type="export",
+        )
 
         return AutoSelectResponse(
             selected_unit_ids=result["selected_unit_ids"],

@@ -110,17 +110,26 @@ async def build_user_response(user_svc, user_id: str) -> dict:
 
 async def get_current_user(request: Request) -> dict:
     """
-    Dependency to get the current authenticated user via session cookie.
+    Dependency to get the current authenticated user.
 
-    Extracts the "session" cookie, validates the JWT via SessionService,
-    then fetches the user profile from DynamoDB via UserService.
+    Delegates to the deployment-target-aware auth adapter:
+      - AWS/MuckRock: validates session cookie, fetches from DynamoDB
+      - Supabase: validates Bearer JWT, fetches from Postgres
 
     Returns:
-        User dict with user_id, muckrock_id, credits, timezone, etc.
+        User dict with user_id, timezone, etc.
 
     Raises:
-        HTTPException 401: If no cookie, invalid session, or user not found.
+        HTTPException 401: If not authenticated or user not found.
     """
+    from app.dependencies.providers import get_auth
+
+    settings = get_settings()
+    if settings.deployment_target == "supabase":
+        auth = get_auth()
+        return await auth.get_current_user(request)
+
+    # MuckRock / AWS path — session cookie
     session_service, user_service = _get_services()
 
     token = request.cookies.get("session")
@@ -290,3 +299,30 @@ async def get_user_email(user_id: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Failed to fetch email from MuckRock for {user_id}: {e}")
         return None
+
+
+# ---------------------------------------------------------------------------
+# Admin-only dependency
+# ---------------------------------------------------------------------------
+
+async def require_admin(request: Request) -> dict:
+    """Gate admin-only endpoints. Checks ADMIN_EMAILS env var.
+
+    Fetches user email from MuckRock (not stored locally) and compares
+    against the admin list. Returns 403 if not an admin.
+    """
+    user = await get_current_user(request)
+    user_id = user.get("user_id")
+
+    settings = get_settings()
+    admin_raw = settings.admin_emails.strip()
+    if not admin_raw:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    admin_list = {e.strip().lower() for e in admin_raw.split(",") if e.strip()}
+
+    email = await get_user_email(user_id)
+    if not email or email.lower() not in admin_list:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    return user

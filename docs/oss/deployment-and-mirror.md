@@ -20,6 +20,9 @@ deploy/
 │   └── render.yaml              # Render Blueprint (backend + frontend static)
 ├── docker/
 │   ├── docker-compose.yml       # Self-hosted: Supabase stack + app
+│   ├── kong.yml                 # Kong API gateway declarative config (auth/rest/edge-functions routing)
+│   ├── init/
+│   │   └── 00000_init_roles.sh  # Creates PostgreSQL roles (supabase_auth_admin, authenticator, anon)
 │   └── .env.example             # Template for all required env vars
 └── SETUP.md                     # Deployment guide (managed + self-hosted paths)
 
@@ -557,6 +560,31 @@ jobs:
           #   api_key_service, LICENSE
           # ---------------------------------------------------------------
 
+          # ---------------------------------------------------------------
+          # Replace auth system (MuckRock OAuth → Supabase Auth)
+          # ---------------------------------------------------------------
+          # Rewrite auth.ts to import from auth-supabase instead of auth-muckrock
+          cat > frontend/src/lib/stores/auth.ts << 'AUTHEOF'
+          ...Supabase auth store re-exports...
+          AUTHEOF
+          rm -f frontend/src/lib/stores/auth-muckrock.ts
+
+          # Replace MuckRock login page with Supabase email/password login
+          rm -rf frontend/src/routes/login/
+          mv frontend/src/routes/login-supabase/ frontend/src/routes/login/
+
+          # Fix layout and setup page references to /pricing (doesn't exist in OSS)
+          sed -i "s|'/login', '/pricing', '/setup'|'/login', '/setup'|" frontend/src/routes/+layout.svelte
+          sed -i 's|href="/pricing"|href="/"|' frontend/src/routes/setup/+page.svelte
+
+          # Validate: no MuckRock or /pricing references remain
+          if grep -ri "muckrock" frontend/src/lib/stores/ frontend/src/routes/login/; then
+            echo "ERROR: MuckRock references found in OSS build"; exit 1
+          fi
+          if grep -r "'/pricing'" frontend/src/; then
+            echo "ERROR: /pricing references found in OSS build"; exit 1
+          fi
+
           echo "Stripped files:"
           echo "  - aws/ (Lambda functions, infrastructure)"
           echo "  - backend/app/adapters/aws/ (DynamoDB/EventBridge adapters)"
@@ -567,6 +595,8 @@ jobs:
           echo "  - backend/app/services/seed_data_service.py"
           echo "  - .github/workflows/mirror-*.yml"
           echo "  - .github/workflows/claude*.yml"
+          echo "  - frontend/src/lib/stores/auth-muckrock.ts (replaced with Supabase)"
+          echo "  - frontend/src/routes/login/ (replaced with Supabase login)"
 
       - name: Set up Python
         uses: actions/setup-python@v5

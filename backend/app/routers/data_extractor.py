@@ -26,20 +26,25 @@ from app.workflows.firecrawl_client import FirecrawlError
 from app.dependencies import get_current_user, decrement_credit, get_user_org_id, validate_credits
 from app.config import get_settings
 from app.services.user_service import UserService
-from app.utils.pricing import CREDIT_COSTS, get_extraction_cost
+from app.utils.pricing import CREDIT_COSTS, EXTRACTION_KEYS, get_extraction_cost
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-async def charge_user_credits(user_id: str, amount: int, org_id: str = None) -> int:
+async def charge_user_credits(
+    user_id: str, amount: int, org_id: str = None,
+    *, operation: str = "website_extraction", scout_type: str = "extract",
+) -> int:
     """
     Charge credits from user's account via DynamoDB.
 
     Args:
         user_id: User ID
         amount: Number of credits to charge
+        operation: Pricing key for USAGE# audit trail.
+        scout_type: Scout type for USAGE# audit trail.
 
     Returns:
         New credit balance
@@ -59,7 +64,10 @@ async def charge_user_credits(user_id: str, amount: int, org_id: str = None) -> 
             )
 
         # Deduct credits atomically
-        success = await decrement_credit(user_id, amount, org_id=org_id)
+        success = await decrement_credit(
+            user_id, amount, org_id=org_id,
+            operation=operation, scout_name="", scout_type=scout_type,
+        )
         if not success:
             raise HTTPException(
                 status_code=402,
@@ -176,7 +184,11 @@ async def extract_data(
                     raise HTTPException(status_code=401, detail="User ID not found")
                 org_id = user.get("org_id")
 
-                await charge_user_credits(user_id, amount=get_extraction_cost(request.channel), org_id=org_id)
+                extraction_key = EXTRACTION_KEYS.get(request.channel, "website_extraction")
+                await charge_user_credits(
+                    user_id, amount=get_extraction_cost(request.channel), org_id=org_id,
+                    operation=extraction_key,
+                )
                 
                 # Format CSV
                 csv_content = format_data_as_csv(data)
@@ -213,7 +225,10 @@ async def extract_data(
             raise HTTPException(status_code=401, detail="User ID not found")
         org_id = user.get("org_id")
 
-        new_balance = await charge_user_credits(user_id, amount=1, org_id=org_id)
+        new_balance = await charge_user_credits(
+            user_id, amount=1, org_id=org_id,
+            operation="website_extraction",
+        )
 
         # Return CSV with proper headers for download
         return Response(
@@ -306,7 +321,11 @@ async def poll_extraction_job(job_id: str, service: str, user_id: str, request_u
                     channel = service_to_channel.get(service, "website")
                     cost = get_extraction_cost(channel)
                     bg_org_id = await get_user_org_id(user_id)
-                    await charge_user_credits(user_id, amount=cost, org_id=bg_org_id)
+                    extraction_op = EXTRACTION_KEYS.get(channel, "website_extraction")
+                    await charge_user_credits(
+                        user_id, amount=cost, org_id=bg_org_id,
+                        operation=extraction_op,
+                    )
                     jobs[job_id]["credits_charged"] = cost
                 except Exception as e:
                     logger.error("Failed to charge credits for job %s: %s", job_id, e)

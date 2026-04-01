@@ -11,7 +11,7 @@
 
 	const steps = [
 		{ title: 'Validates your license', desc: 'Confirms your key is active' },
-		{ title: 'Checks your environment', desc: 'git, node, npm, Supabase CLI' },
+		{ title: 'Checks your environment', desc: 'Node 22 LTS, git, npm, Supabase CLI' },
 		{ title: 'Collects your API keys', desc: 'Gemini, Firecrawl, Resend, Apify, and more' },
 		{ title: 'Sets up Supabase', desc: 'Managed cloud or self-hosted Docker' },
 		{ title: 'Deploys your instance', desc: 'Render, Docker, or any PaaS' },
@@ -21,7 +21,9 @@
 	const agentPrompt = `Read SETUP_AGENT.md in this directory — it contains the full 10-step deployment plan for coJournalist. The supporting devops files (render.yaml, setup.sh, SETUP.md) are already downloaded here too. Follow the steps in order, asking me for each API key, database credential, and deployment choice (Render vs Docker) as you go. Do not skip any step or assume values — prompt me for every decision and secret.`;
 
 	const manualSteps = [
+		{ title: 'Install Node 22 LTS', desc: 'Required runtime. Install via nvm (nvm install 22) or Homebrew (brew install node@22).' },
 		{ title: 'Get your API keys', desc: 'Gemini, Firecrawl, Resend, Apify (required). MapTiler, OpenRouter (optional).' },
+		{ title: 'Verify Resend domain', desc: 'Add and verify your sending domain at resend.com/domains before configuring email.' },
 		{ title: 'Clone the repository', desc: 'git clone https://github.com/buriedsignals/cojournalist-os' },
 		{ title: 'Set up Supabase', desc: 'Create a managed project on supabase.com or run self-hosted via Docker.' },
 		{ title: 'Run database migrations', desc: 'supabase db push or run migration files in order.' },
@@ -98,7 +100,7 @@
 	<div class="bg-gradient-secondary"></div>
 
 	<div class="content">
-		<a class="back-button" href="/pricing">
+		<a class="back-button" href="/">
 			<ArrowLeft class="w-4 h-4" />
 			<span>Back</span>
 		</a>
@@ -134,6 +136,11 @@
 					{/if}
 				</button>
 				<p class="download-subtext">SETUP_AGENT.md, render.yaml, setup.sh, sync-upstream.yml, SETUP.md</p>
+			</div>
+
+			<!-- Prerequisites callout -->
+			<div class="prerequisites-note">
+				<strong>Prerequisites:</strong> Node 22 LTS, Docker (for self-hosted), and a verified domain in Resend for email notifications.
 			</div>
 
 			<!-- Tab selector -->
@@ -497,6 +504,22 @@
 		font-size: 0.75rem;
 		color: var(--color-text-tertiary);
 		margin: 0.5rem 0 0;
+	}
+
+	/* Prerequisites callout */
+	.prerequisites-note {
+		font-size: 0.8125rem;
+		color: var(--color-text-secondary);
+		background: rgba(150, 139, 223, 0.04);
+		border: 1px solid rgba(150, 139, 223, 0.12);
+		border-radius: 0.5rem;
+		padding: 0.75rem 1rem;
+		margin-bottom: 1.5rem;
+		line-height: 1.5;
+	}
+
+	.prerequisites-note strong {
+		color: var(--color-text-primary);
 	}
 
 	/* Tab selector */

@@ -38,6 +38,7 @@ from app.routers import (
     civic,
     license,
     v1,
+    feedback,
 )
 from app.services.http_client import close_http_client
 
@@ -157,6 +158,14 @@ async def normalize_api_prefix(request: Request, call_next):
 if settings.deployment_target != "supabase":
     from app.routers import auth
     app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"], include_in_schema=False)
+else:
+    # Supabase mode: minimal /auth/me endpoint (login/logout handled client-side)
+    from fastapi import Depends
+    from app.dependencies.auth import get_current_user as _get_current_user
+
+    @app.get("/api/auth/me", include_in_schema=False)
+    async def supabase_auth_me(user: dict = Depends(_get_current_user)):
+        return user
 app.include_router(onboarding.router, prefix="/api/onboarding", tags=["Onboarding"], include_in_schema=False)
 app.include_router(scraper.router, prefix="/api", tags=["Scraper"], include_in_schema=False)
 app.include_router(data_extractor.router, prefix="/api", tags=["Data"], include_in_schema=False)
@@ -168,8 +177,16 @@ app.include_router(pulse.router, prefix="/api", tags=["Pulse"], include_in_schem
 app.include_router(social.router, prefix="/api", tags=["Social"], include_in_schema=False)
 app.include_router(civic.router, prefix="/api", tags=["Civic"], include_in_schema=False)
 
+# Admin — SaaS-only (stripped from OSS mirror), gated by require_admin
+if settings.deployment_target != "supabase":
+    from app.routers import admin
+    app.include_router(admin.router, prefix="/api/admin", tags=["Admin"], include_in_schema=False)
+
 # License key management — hidden from public API docs
 app.include_router(license.router, prefix="/api", tags=["License"], include_in_schema=False)
+
+# Feedback — hidden from public API docs
+app.include_router(feedback.router, prefix="/api", tags=["Feedback"], include_in_schema=False)
 
 # Public v1 API — visible in docs
 app.include_router(v1.router, prefix="/api/v1")

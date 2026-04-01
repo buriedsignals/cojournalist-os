@@ -46,16 +46,23 @@ function normalizeErrorDetail(detail: unknown, fallback: string): string {
 
 /**
  * Generic authenticated API request.
- * Uses session cookies for auth (credentials: 'include').
+ * Sends Supabase Bearer token (if available) or falls back to session cookies.
  */
-async function apiRequest<T>(
+export async function apiRequest<T>(
 	method: string,
 	path: string,
 	body?: unknown
 ): Promise<T> {
+	const { authStore } = await import('$lib/stores/auth');
+	const token = await authStore.getToken();
+	const headers: Record<string, string> = {
+		...JSON_HEADERS,
+		...(token ? { Authorization: `Bearer ${token}` } : {})
+	};
+
 	const response = await fetch(buildApiUrl(path), {
 		method,
-		headers: JSON_HEADERS,
+		headers,
 		credentials: 'include',
 		...(body !== undefined ? { body: JSON.stringify(body) } : {})
 	});
@@ -79,9 +86,16 @@ async function apiRequestSafeError<T>(
 	body: unknown,
 	fallbackMessage: string
 ): Promise<T> {
+	const { authStore } = await import('$lib/stores/auth');
+	const token = await authStore.getToken();
+	const headers: Record<string, string> = {
+		...JSON_HEADERS,
+		...(token ? { Authorization: `Bearer ${token}` } : {})
+	};
+
 	const response = await fetch(buildApiUrl(path), {
 		method,
-		headers: JSON_HEADERS,
+		headers,
 		credentials: 'include',
 		body: JSON.stringify(body)
 	});

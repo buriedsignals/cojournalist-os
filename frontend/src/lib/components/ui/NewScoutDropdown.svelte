@@ -42,7 +42,7 @@
 	function handleCivicScout() {
 		if (!isPro) {
 			dispatch('close');
-			goto('/pricing');
+			return; // unlimited in self-hosted
 			return;
 		}
 		dispatch('civicScout');

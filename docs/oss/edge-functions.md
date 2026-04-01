@@ -6,6 +6,23 @@ routing wrappers — all business logic stays in the FastAPI backend.
 
 Source files: `supabase/functions/`
 
+### Docker Self-Hosted
+
+For Docker deployments, edge functions run inside `supabase/edge-runtime:v1.67.4`.
+The Kong API gateway (`deploy/docker/kong.yml`) routes `/functions/v1/*` to the
+edge-runtime container. The main entry point (`supabase/functions/main/index.ts`)
+provides a health check at `/`; individual functions (`execute-scout`, `manage-schedule`)
+are auto-discovered by the edge-runtime from their directory names.
+
+```yaml
+# docker-compose.yml
+edge-functions:
+  image: supabase/edge-runtime:v1.67.4
+  command: start --main-service /home/deno/functions/main
+  volumes:
+    - ../../supabase/functions:/home/deno/functions
+```
+
 ---
 
 ## Lambda → Edge Function Mapping

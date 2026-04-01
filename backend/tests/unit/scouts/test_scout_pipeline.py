@@ -422,7 +422,10 @@ class TestScoutPipeline:
             )
 
         assert result["criteria_status"] is True
-        mock_credit.assert_called_once_with("user_1", org_id=None)
+        mock_credit.assert_called_once_with(
+            "user_1", org_id=None,
+            operation="website_extraction", scout_name="scout-1", scout_type="web",
+        )
 
         # Case 2: no match → skip_credit_charge not relevant, but criteria_status False
         # means the function returns before Step 8

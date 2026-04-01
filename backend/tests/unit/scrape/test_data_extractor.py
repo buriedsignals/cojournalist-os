@@ -621,6 +621,9 @@ class TestAsyncJobWrapperEmptyData:
             assert jobs[job_id]["status"] == "completed"
             assert "data" in jobs[job_id]
             assert jobs[job_id]["data"]["csv_content"]  # non-empty CSV
-            mock_charge.assert_called_once_with("user_test_123", amount=1, org_id=None)
+            mock_charge.assert_called_once_with(
+                "user_test_123", amount=1, org_id=None,
+                operation="website_extraction",
+            )
         finally:
             jobs.pop(job_id, None)

@@ -105,6 +105,9 @@ class Settings(BaseSettings):
     supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")
     supabase_jwt_secret: str = os.getenv("SUPABASE_JWT_SECRET", "")
 
+    # Linear (feedback)
+    linear_api_key: str = os.getenv("LINEAR_API_KEY", "")
+
     # CORS — explicit origins only (no wildcards that match unrelated apps)
     allowed_origins: list[str] = [
         "http://localhost:5173",  # SvelteKit dev

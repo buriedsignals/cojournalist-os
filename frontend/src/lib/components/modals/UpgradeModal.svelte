@@ -12,7 +12,7 @@
 	const dispatch = createEventDispatcher();
 
 	$: shortfall = Math.max(0, requiredCredits - currentCredits);
-	$: upgradeUrl = $authStore.user?.upgrade_url || 'https://accounts.muckrock.com/plans/70-cojournalist-pro/';
+	$: upgradeUrl = $authStore.user?.upgrade_url || '#';
 
 	function close() {
 		dispatch('close');

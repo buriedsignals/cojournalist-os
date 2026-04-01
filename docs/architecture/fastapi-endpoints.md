@@ -12,10 +12,11 @@ FastAPI backend providing scout execution endpoints, news search, and scheduling
 ## Authentication
 
 ### User Endpoints
-Protected by session cookies (MuckRock OAuth). Session cookie is sent automatically with requests.
+Protected by session cookies (MuckRock OAuth, SaaS) or Bearer JWT (Supabase Auth, OSS).
+The `get_current_user()` dependency in `dependencies/auth.py` delegates to the deployment-target-aware adapter via `providers.get_auth()`.
 
-### Lambda Endpoints (Internal)
-Protected by `X-Service-Key` header. Key stored in AWS Secrets Manager.
+### Lambda / Edge Function Endpoints (Internal)
+Protected by `X-Service-Key` header. Key stored in AWS Secrets Manager (SaaS) or `.env` (self-hosted).
 
 ```python
 def verify_service_key(x_service_key: str) -> None:
@@ -27,9 +28,9 @@ def verify_service_key(x_service_key: str) -> None:
 
 ## Auth Endpoints
 
-**Location:** `backend/app/routers/auth.py`
+### SaaS (MuckRock OAuth)
 
-MuckRack OAuth 2.0 session-based authentication.
+**Location:** `backend/app/routers/auth.py` (conditionally mounted when `DEPLOYMENT_TARGET != "supabase"`)
 
 | Method | Path | Auth | Rate Limit | Description |
 |--------|------|------|------------|-------------|
@@ -39,6 +40,16 @@ MuckRack OAuth 2.0 session-based authentication.
 | GET | `/api/auth/status` | Session cookie (optional) | — | Get auth status (safe for unauthenticated pages) |
 | POST | `/api/auth/logout` | Session cookie | — | Clear session cookie |
 | POST | `/api/auth/webhook` | HMAC-SHA256 | — | MuckRock webhook (user/org updates); verifies signature + 5-min timestamp |
+
+### OSS (Supabase Auth)
+
+**Location:** `backend/app/main.py` (inline endpoint, mounted when `DEPLOYMENT_TARGET == "supabase"`)
+
+| Method | Path | Auth | Rate Limit | Description |
+|--------|------|------|------------|-------------|
+| GET | `/api/auth/me` | Bearer JWT (Supabase) | — | Get current authenticated user data |
+
+Login, logout, and signup are handled client-side by the Supabase JS client — no backend endpoints needed.
 
 ### GET /api/auth/login
 

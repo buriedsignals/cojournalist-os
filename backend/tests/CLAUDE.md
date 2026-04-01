@@ -21,6 +21,16 @@ python -m pytest tests/unit/scouts/test_scout_pipeline.py -v
 
 ```
 tests/unit/
+├── adapters/                       # Adapter implementations
+│   ├── supabase/
+│   │   └── test_auth.py            # SupabaseAuth: JWT validation, user lookup, service key
+│   └── aws/
+│       └── test_auth.py            # MuckRockAuth: session validation, user lookup
+├── auth/                           # Auth router tests
+│   └── test_auth_router.py         # MuckRock OAuth: login redirect, /me, logout, callback, webhook
+├── api/                            # API endpoint tests
+│   ├── test_v1_endpoints.py        # External API (v1) endpoints
+│   └── test_admin.py               # Admin dashboard endpoints
 ├── pulse/                          # Smart Scout (type pulse) pipeline
 │   ├── test_domain_cap.py          # Per-domain article limits
 │   ├── test_excluded_domains.py    # Domain blocklist

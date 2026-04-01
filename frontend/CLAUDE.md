@@ -56,7 +56,7 @@ Svelte stores in `lib/stores/`:
 ## API Client
 
 `lib/api-client.ts` - Typed wrapper for backend API calls. Handles:
-- Session cookie auth
+- Auth via session cookies (SaaS) or Bearer JWT from `authStore.getToken()` (OSS/Supabase)
 - Error handling
 - Type safety
 

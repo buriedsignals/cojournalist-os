@@ -533,7 +533,10 @@ async def run_scout(
         )
 
     # Deduct credits after successful execution
-    success = await decrement_credit(user["user_id"], cost, org_id=org_id)
+    success = await decrement_credit(
+        user["user_id"], cost, org_id=org_id,
+        operation=scout_type, scout_name=name, scout_type=scout_type,
+    )
     if not success:
         # Execution succeeded but credit deduction failed (race condition
         # where balance dropped between validate and deduct).  Return the

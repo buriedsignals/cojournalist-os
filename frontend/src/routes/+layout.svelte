@@ -13,6 +13,7 @@
 	import type { GeocodedLocation } from '$lib/types';
 	import MobileBlocker from '$lib/components/ui/MobileBlocker.svelte';
 	import BugReportButton from '$lib/components/ui/BugReportButton.svelte';
+	import FeedbackModal from '$lib/components/modals/FeedbackModal.svelte';
 
 	import '../app.css';
 
@@ -32,6 +33,7 @@ let timezoneCheckPerformed = false;
 
 // Extended onboarding flow state
 let videoModalOpen = false;
+let feedbackModalOpen = false;
 
 const TIMEZONE_FLAG_KEY = 'cojournalist_timezone_verified';
 
@@ -54,7 +56,7 @@ function markTimezoneVerified(userId?: string | null) {
 			if (cancelled) return;
 
 			unsubscribe = authStore.subscribe(async (state) => {
-				if (!state.authenticated && !['/login', '/pricing', '/setup'].includes($page.url.pathname)) {
+				if (!state.authenticated && !['/login', '/setup'].includes($page.url.pathname)) {
 					// Redirect to login if not authenticated
 					await goto('/login');
 					return;
@@ -185,7 +187,11 @@ function handleTourComplete() {
 <slot />
 
 {#if $page.url.pathname !== '/login'}
-	<BugReportButton />
+	<BugReportButton on:open={() => (feedbackModalOpen = true)} />
+	<FeedbackModal
+		open={feedbackModalOpen}
+		on:close={() => (feedbackModalOpen = false)}
+	/>
 {/if}
 
 <OnboardingModal

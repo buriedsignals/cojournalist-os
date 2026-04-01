@@ -232,7 +232,7 @@
 						</span>
 					</div>
 					<a
-						href={$authStore.user?.username ? `https://accounts.muckrock.com/users/${$authStore.user.username}/` : 'https://accounts.muckrock.com/accounts/'}
+						href={$authStore.user?.username ? `#'#'}
 						target="_blank"
 						rel="noopener noreferrer"
 						class="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"

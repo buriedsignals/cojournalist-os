@@ -1,17 +1,12 @@
 /**
- * Auth Store — Conditional loader based on deployment target.
+ * Auth Store — Supabase Auth (self-hosted deployment).
  *
- * Statically re-exports from either MuckRock OAuth or Supabase Auth
- * depending on the PUBLIC_DEPLOYMENT_TARGET build-time env var.
- * Vite tree-shakes the unused module at build time.
+ * Re-exports from auth-supabase for email/password authentication.
  *
  * USED BY: All components that import from '$lib/stores/auth'
  */
+import * as supabase from './auth-supabase';
 
-// @ts-ignore — Vite resolves this at build time
-import * as muckrock from './auth-muckrock';
-
-// Default to MuckRock (the SaaS deployment)
-export const authStore = muckrock.authStore;
-export const currentUser = muckrock.currentUser;
-export const auth = muckrock.auth;
+export const authStore = supabase.authStore;
+export const currentUser = supabase.currentUser;
+export const auth = supabase.auth;

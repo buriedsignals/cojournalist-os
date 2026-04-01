@@ -12,6 +12,7 @@ from app.dependencies.auth import (
     get_current_user,
     get_optional_user,
     get_user_email,
+    require_admin,
     verify_api_key,
     verify_service_key,
 )
@@ -41,6 +42,7 @@ __all__ = [
     "get_optional_user",
     "get_user_email",
     "verify_api_key",
+    "require_admin",
     "verify_service_key",
     "decrement_credit",
     "get_user_credits",

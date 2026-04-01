@@ -60,6 +60,9 @@ backend/app/
 │       ├── auth.py                 # SupabaseAuth
 │       └── billing.py              # NoOpBilling
 └── dependencies/
+    ├── __init__.py                 # Re-exports all public symbols
+    ├── auth.py                     # get_current_user() — delegates to adapter for Supabase, session cookies for MuckRock
+    ├── billing.py                  # Credit/org dependencies
     └── providers.py                # Factory functions + singleton cache
 ```
 
@@ -127,6 +130,24 @@ from app.dependencies.providers import get_scout_storage
 @router.get("/active")
 async def list_scouts(storage: ScoutStoragePort = Depends(get_scout_storage)):
     return await storage.list_scouts(user_id)
+```
+
+### Auth Dependency
+
+The `get_current_user()` dependency in `dependencies/auth.py` checks `DEPLOYMENT_TARGET`
+and delegates to the correct auth adapter:
+
+- **Supabase:** Extracts Bearer JWT from `Authorization` header, validates with `supabase_jwt_secret`, looks up user in Postgres via `SupabaseAuth`
+- **AWS/MuckRock:** Extracts session cookie, validates with `SessionService`, looks up user in DynamoDB
+
+```python
+# dependencies/auth.py (simplified)
+async def get_current_user(request: Request) -> dict:
+    if settings.deployment_target == "supabase":
+        auth = get_auth()  # Returns SupabaseAuth with user_storage wired in
+        return await auth.get_current_user(request)
+    # MuckRock path — session cookie validation
+    ...
 ```
 
 ---

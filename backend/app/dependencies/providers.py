@@ -178,7 +178,7 @@ def get_auth():
         target = _validate_target()
         if target == "supabase":
             from app.adapters.supabase.auth import SupabaseAuth
-            _auth = SupabaseAuth()
+            _auth = SupabaseAuth(user_storage=get_user_storage())
         else:
             from app.adapters.aws.auth import MuckRockAuth
             _auth = MuckRockAuth()

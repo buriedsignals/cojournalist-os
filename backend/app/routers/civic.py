@@ -97,7 +97,11 @@ async def discover_civic_urls(
 
     # Decrement credits after successful discovery
     try:
-        await decrement_credit(user_id, cost, org_id=org_id)
+        await decrement_credit(
+            user_id, cost, org_id=org_id,
+            operation="civic_discover", scout_name=body.root_domain,
+            scout_type="civic",
+        )
     except Exception as e:
         logger.error("Failed to decrement credits for %s: %s", user_id, e)
 

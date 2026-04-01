@@ -8,7 +8,10 @@ Python FastAPI backend hosted on Render. Handles scout execution, news search, a
 backend/app/
 ├── main.py              # FastAPI app, middleware, routes
 ├── config.py            # Settings from environment
-├── dependencies.py      # Session cookie auth, service key verification
+├── dependencies/
+│   ├── auth.py          # Adapter-aware auth (session cookies for MuckRock, Bearer JWT for Supabase)
+│   ├── billing.py       # Org/credit dependencies
+│   └── providers.py     # DI factories — selects AWS or Supabase adapters via DEPLOYMENT_TARGET
 ├── routers/             # API endpoints
 │   ├── scouts.py        # Page Scout execution (Lambda)
 │   ├── pulse.py         # Pulse endpoints (UI + Lambda)
@@ -216,8 +219,8 @@ The `notification_service.py` provides unified email formatting with localizatio
 
 ## Authentication
 
-- **User endpoints:** Session cookie (MuckRock OAuth)
-- **Lambda endpoints:** `X-Service-Key` header validated against `INTERNAL_SERVICE_KEY`
+- **User endpoints:** Session cookie (MuckRock/AWS) or Bearer JWT (Supabase) — `get_current_user()` in `dependencies/auth.py` delegates to the adapter via `providers.get_auth()`
+- **Lambda / Edge Function endpoints:** `X-Service-Key` header validated against `INTERNAL_SERVICE_KEY`
 
 ## Pulse Pipeline Quality Filters
 
