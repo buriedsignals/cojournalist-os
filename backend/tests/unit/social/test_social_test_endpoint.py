@@ -8,7 +8,9 @@ Verifies:
 - Response schema includes new baseline fields
 """
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from starlette.requests import Request
 
 from app.schemas.social import (
     SocialTestRequest,
@@ -87,9 +89,10 @@ async def test_test_endpoint_success():
 
         from app.routers.social import test_social_profile
 
+        mock_request = MagicMock(spec=Request)
         request = SocialTestRequest(platform="instagram", handle="testuser")
         # Simulate the dependency injection with a mock user
-        result = await test_social_profile(request, user={"user_id": "u1"})
+        result = await test_social_profile(mock_request, request, user={"user_id": "u1"})
 
     assert result.valid is True
     assert result.profile_url == "https://www.instagram.com/testuser/"
@@ -113,8 +116,9 @@ async def test_test_endpoint_invalid_profile():
 
         from app.routers.social import test_social_profile
 
+        mock_request = MagicMock(spec=Request)
         request = SocialTestRequest(platform="instagram", handle="noexist")
-        result = await test_social_profile(request, user={"user_id": "u1"})
+        result = await test_social_profile(mock_request, request, user={"user_id": "u1"})
 
     assert result.valid is False
     assert result.error == "Profile not found or inaccessible"
@@ -134,8 +138,9 @@ async def test_test_endpoint_apify_failure():
 
         from app.routers.social import test_social_profile
 
+        mock_request = MagicMock(spec=Request)
         request = SocialTestRequest(platform="instagram", handle="testuser")
-        result = await test_social_profile(request, user={"user_id": "u1"})
+        result = await test_social_profile(mock_request, request, user={"user_id": "u1"})
 
     assert result.valid is True
     assert "baseline scan failed" in result.error
@@ -155,8 +160,9 @@ async def test_test_endpoint_empty_scrape():
 
         from app.routers.social import test_social_profile
 
+        mock_request = MagicMock(spec=Request)
         request = SocialTestRequest(platform="instagram", handle="newuser")
-        result = await test_social_profile(request, user={"user_id": "u1"})
+        result = await test_social_profile(mock_request, request, user={"user_id": "u1"})
 
     assert result.valid is True
     assert result.error is None
@@ -187,8 +193,9 @@ async def test_test_endpoint_truncates_preview():
 
         from app.routers.social import test_social_profile
 
+        mock_request = MagicMock(spec=Request)
         request = SocialTestRequest(platform="instagram", handle="verbose")
-        result = await test_social_profile(request, user={"user_id": "u1"})
+        result = await test_social_profile(mock_request, request, user={"user_id": "u1"})
 
     assert len(result.preview_posts[0]["text"]) == 120
     assert len(result.posts_data[0]["caption_truncated"]) == 200
@@ -205,8 +212,9 @@ async def test_test_endpoint_scrape_called_with_max_20():
 
         from app.routers.social import test_social_profile
 
+        mock_request = MagicMock(spec=Request)
         request = SocialTestRequest(platform="x", handle="testuser")
-        await test_social_profile(request, user={"user_id": "u1"})
+        await test_social_profile(mock_request, request, user={"user_id": "u1"})
 
     mock_scrape.assert_called_once_with(
         platform="x",

@@ -16,8 +16,6 @@ USED BY: frontend (Civic Scout panel), Lambda (scheduled execution,
 """
 import logging
 from datetime import datetime
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -38,6 +36,7 @@ from app.schemas.civic import (
     CivicExecuteResult,
     CivicTestRequest,
     CivicTestResponse,
+    NotifyPromisesRequest,
 )
 from app.config import get_settings
 from app.services.civic_orchestrator import CivicOrchestrator
@@ -254,32 +253,18 @@ async def execute_civic_scout(
 
 @router.post("/notify-promises")
 async def notify_civic_promises(
-    payload: dict[str, Any],
+    payload: NotifyPromisesRequest,
     _: None = Depends(verify_promise_key),
 ):
     """Send a digest email for promises surfaced by the promise-checker Lambda.
 
-    Expects JSON body:
-      {
-        "user_id": "<str>",
-        "scraper_name": "<str>",
-        "promises": [{"promise_text": "...", "due_date": "...", ...}, ...]
-        "language": "<str>  (optional, default 'en')"
-      }
-
     Fetches user email, builds a markdown digest, sends notification,
     and returns a status dict.
     """
-    user_id = payload.get("user_id")
-    scraper_name = payload.get("scraper_name", "Civic Scout")
-    promises: list[dict] = payload.get("promises", [])
-    language: str = payload.get("language", "en")
-
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="user_id is required",
-        )
+    user_id = payload.user_id
+    scraper_name = payload.scraper_name
+    promises: list[dict] = payload.promises
+    language: str = payload.language
 
     if not promises:
         logger.info("notify-promises: no promises for %s/%s — skipping", user_id, scraper_name)

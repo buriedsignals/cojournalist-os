@@ -271,6 +271,12 @@ CRITICAL - HANDLING MULTIPLE TOPICS (IMMUTABLE):
 
         # Use custom writing guidelines if provided, otherwise use defaults
         if custom_system_prompt:
+            from app.services.filter_prompts import sanitize_filter_prompt, PromptInjectionError
+            try:
+                custom_system_prompt = sanitize_filter_prompt(custom_system_prompt)
+            except (ValueError, PromptInjectionError):
+                custom_system_prompt = None
+        if custom_system_prompt:
             system_prompt += f"{custom_system_prompt}\n\n"
         else:
             system_prompt += f"{default_writing_guidelines}\n\n"

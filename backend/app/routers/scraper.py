@@ -30,7 +30,9 @@ from typing import Optional
 from urllib.parse import quote
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from pydantic import BaseModel
 
@@ -191,6 +193,7 @@ class MonitoringValidationRequest(BaseModel):
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/scrapers/monitoring", response_model=MonitoringScheduleResponse)
@@ -705,7 +708,9 @@ class RunNowRequest(BaseModel):
 
 
 @router.post("/scrapers/run-now", response_model=RunNowResponse)
+@limiter.limit("5/minute")
 async def run_scout_now(
+    request: Request,
     payload: RunNowRequest,
     user: dict = Depends(get_current_user),
 ):

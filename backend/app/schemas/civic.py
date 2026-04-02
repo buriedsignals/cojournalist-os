@@ -1,6 +1,6 @@
 """Civic Scout request/response schemas."""
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Any, Optional
 
 
 class CivicDiscoverRequest(BaseModel):
@@ -66,3 +66,10 @@ class CivicTestResponse(BaseModel):
     documents_found: int
     sample_promises: list[Promise]
     error: Optional[str] = None
+
+
+class NotifyPromisesRequest(BaseModel):
+    user_id: str = Field(..., min_length=1, max_length=256)
+    scraper_name: str = Field("Civic Scout", max_length=256)
+    promises: list[dict[str, Any]] = Field(default_factory=list)
+    language: str = Field("en", max_length=5)

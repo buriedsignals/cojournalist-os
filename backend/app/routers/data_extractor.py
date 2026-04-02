@@ -12,8 +12,10 @@ USED BY: frontend (Scrape panel), main.py (router mount)
 """
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.workflows.data_extractor import (
     extract_data_async,
@@ -31,6 +33,7 @@ from app.utils.pricing import CREDIT_COSTS, EXTRACTION_KEYS, get_extraction_cost
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 async def charge_user_credits(
@@ -86,8 +89,10 @@ async def charge_user_credits(
 
 
 @router.post("/extract/validate")
+@limiter.limit("10/minute")
 async def validate_extraction_credits(
-    request: DataExtractRequest,
+    request: Request,
+    payload: DataExtractRequest,
     user: dict = Depends(get_current_user)
 ):
     """
@@ -105,7 +110,7 @@ async def validate_extraction_credits(
     org_id = user.get("org_id")
 
     # Determine cost based on channel (platform-tiered)
-    cost = get_extraction_cost(request.channel)
+    cost = get_extraction_cost(payload.channel)
 
     result = await validate_credits(user_id, cost, org_id=org_id)
 
@@ -118,8 +123,10 @@ async def validate_extraction_credits(
 
 
 @router.post("/data/extract")
+@limiter.limit("5/minute")
 async def extract_data(
-    request: DataExtractRequest,
+    request: Request,
+    payload: DataExtractRequest,
     user: dict = Depends(get_current_user)
 ) -> Response:
     """
@@ -133,7 +140,7 @@ async def extract_data(
     5. Returns CSV file for download
 
     Args:
-        request: Extraction parameters (url, target, channel)
+        payload: Extraction parameters (url, target, channel)
         user: Authenticated user from dependency injection
 
     Returns:
@@ -150,53 +157,53 @@ async def extract_data(
 
     try:
         # Handle Social Media Extraction (Apify)
-        if request.channel == "social":
+        if payload.channel == "social":
             # Validate Apify token
             if not settings.apify_api_token:
                 raise HTTPException(
                     status_code=500,
                     detail="Apify API token not configured"
                 )
-            
+
             from app.workflows.apify_client import run_twitter_scraper, ApifyError
-            
+
             # Execute Apify workflow
             try:
                 # Use 'target' as keywords/criteria since that's what the frontend sends
                 # The frontend sends 'criteria' as 'target' or separate field?
-                # In DataExtract.svelte: 
+                # In DataExtract.svelte:
                 # result = await webhookClient.extractData({ ..., criteria: socialCriteria })
                 # In webhook-client.ts: body: JSON.stringify({ service, ...payload })
-                # So payload has 'criteria'. 
+                # So payload has 'criteria'.
                 # But DataExtractRequest model in backend might need update or we access extra fields.
-                
+
                 # Let's check DataExtractRequest definition in app/workflows/data_extractor.py
-                # If it doesn't have criteria, we might need to update it or use request.target as fallback.
+                # If it doesn't have criteria, we might need to update it or use payload.target as fallback.
                 # For now, I'll assume criteria is passed or use target.
-                
-                criteria = getattr(request, "criteria", request.target)
-                
+
+                criteria = getattr(payload, "criteria", payload.target)
+
                 data = await run_twitter_scraper(
-                    url=request.url,
+                    url=payload.url,
                     keywords=criteria,
                     max_tweets=20
                 )
-                
+
                 # Charge credits for social (channel-tiered)
                 user_id = user.get("user_id") or user.get("id")
                 if not user_id:
                     raise HTTPException(status_code=401, detail="User ID not found")
                 org_id = user.get("org_id")
 
-                extraction_key = EXTRACTION_KEYS.get(request.channel, "website_extraction")
+                extraction_key = EXTRACTION_KEYS.get(payload.channel, "website_extraction")
                 await charge_user_credits(
-                    user_id, amount=get_extraction_cost(request.channel), org_id=org_id,
+                    user_id, amount=get_extraction_cost(payload.channel), org_id=org_id,
                     operation=extraction_key,
                 )
-                
+
                 # Format CSV
                 csv_content = format_data_as_csv(data)
-                filename = f"social_extract_{request.url.split('/')[-1]}.csv"
+                filename = f"social_extract_{payload.url.split('/')[-1]}.csv"
                 
                 return Response(
                     content=csv_content,
@@ -219,7 +226,7 @@ async def extract_data(
 
         # Execute extraction workflow
         result = await extract_data_async(
-            request=request,
+            request=payload,
             api_key=settings.firecrawl_api_key
         )
 
@@ -358,8 +365,10 @@ async def poll_extraction_job(job_id: str, service: str, user_id: str, request_u
 
 
 @router.post("/extract/start")
+@limiter.limit("5/minute")
 async def start_extraction_job(
-    request: DataExtractRequest,
+    request: Request,
+    payload: DataExtractRequest,
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user)
 ):
@@ -368,10 +377,10 @@ async def start_extraction_job(
     Returns job_id immediately.
     """
     settings = get_settings()
-    
+
     try:
         # Start the job (calls external API)
-        result = await start_data_extraction_job(request, settings)
+        result = await start_data_extraction_job(payload, settings)
         job_id = result["job_id"]
         service = result["service"]
 
@@ -384,14 +393,14 @@ async def start_extraction_job(
             "user_id": user_id,
             "created_at": asyncio.get_event_loop().time()
         }
-        
+
         # Start background polling
         background_tasks.add_task(
-            poll_extraction_job, 
-            job_id, 
-            service, 
+            poll_extraction_job,
+            job_id,
+            service,
             user_id,
-            request.url
+            payload.url
         )
         
         return {"job_id": job_id, "status": "running"}

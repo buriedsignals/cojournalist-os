@@ -221,16 +221,28 @@ def verify_service_key(
 def _verify_key_against(
     x_service_key: Optional[str],
     *valid_keys: str,
+    key_name: str = "service",
 ) -> None:
-    """Check header value against one or more configured keys (skips empty)."""
+    """Check header value against one or more configured keys (skips empty).
+
+    Keys are checked in order: per-function key first, then fallback.
+    Logs a deprecation warning when the fallback key is used and the
+    per-function key IS configured (helps track migration progress).
+    """
     if not x_service_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid service key"
         )
 
-    for key in valid_keys:
+    primary_configured = bool(valid_keys[0]) if valid_keys else False
+    for i, key in enumerate(valid_keys):
         if key and secrets.compare_digest(x_service_key, key):
+            if i > 0 and primary_configured:
+                logger.warning(
+                    "Request authenticated via fallback INTERNAL_SERVICE_KEY — "
+                    "migrate to per-function key (%s)", key_name
+                )
             return
 
     logger.warning("Invalid service key attempted")
@@ -257,6 +269,7 @@ def verify_scraper_key(
         x_service_key,
         settings.scraper_service_key,
         settings.internal_service_key,
+        key_name="SCRAPER_SERVICE_KEY",
     )
 
 
@@ -277,6 +290,7 @@ def verify_promise_key(
         x_service_key,
         settings.promise_service_key,
         settings.internal_service_key,
+        key_name="PROMISE_SERVICE_KEY",
     )
 
 

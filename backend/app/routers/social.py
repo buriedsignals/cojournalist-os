@@ -16,7 +16,9 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.dependencies import get_current_user, verify_service_key, verify_scraper_key, decrement_credit, get_user_org_id
 from app.schemas.social import (
@@ -42,6 +44,7 @@ from app.utils.pricing import get_social_monitoring_cost
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 # Lazy PostSnapshotService singleton
 _snapshot_svc = None
@@ -60,7 +63,9 @@ def _get_snapshot_service() -> PostSnapshotService:
 
 
 @router.post("/social/test", response_model=SocialTestResponse)
+@limiter.limit("3/minute")
 async def test_social_profile(
+    request: Request,
     payload: SocialTestRequest,
     user: dict = Depends(get_current_user),
 ):

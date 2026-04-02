@@ -157,7 +157,7 @@ async def generate_export(
 
     except Exception as e:
         logger.error(f"[ExportRouter] Draft generation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to generate export: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate export")
 
 
 # ==================== AI Auto-Select ====================
@@ -227,7 +227,7 @@ async def auto_select_units(
 
     except Exception as e:
         logger.error(f"[ExportRouter] Auto-select failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Auto-selection failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Auto-selection failed")
 
 
 # ==================== CMS Export ====================
@@ -256,7 +256,13 @@ class ExportToCmsRequest(BaseModel):
 
 
 def _validate_cms_url(url: str) -> None:
-    """Validate CMS URL for SSRF protection."""
+    """Validate CMS URL for SSRF protection.
+
+    Resolves hostname to IP and checks ALL resolved addresses against
+    private/reserved/link-local ranges to prevent DNS rebinding attacks.
+    """
+    import socket
+
     parsed = urlparse(url)
     if parsed.scheme != "https":
         raise HTTPException(status_code=400, detail="CMS API URL must use HTTPS")
@@ -264,12 +270,18 @@ def _validate_cms_url(url: str) -> None:
     if not hostname:
         raise HTTPException(status_code=400, detail="Invalid CMS URL")
     host = hostname.split(":")[0] if ":" in hostname else hostname
+
     try:
-        ip = ipaddress.ip_address(host)
-        if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local:
-            raise HTTPException(status_code=400, detail="CMS API URL cannot target private/internal addresses")
-    except ValueError:
-        pass  # hostname is not an IP — fine
+        addr_infos = socket.getaddrinfo(host, None)
+        for family, _, _, _, sockaddr in addr_infos:
+            ip = ipaddress.ip_address(sockaddr[0])
+            if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local:
+                raise HTTPException(
+                    status_code=400,
+                    detail="CMS API URL cannot target private/internal addresses"
+                )
+    except socket.gaierror:
+        raise HTTPException(status_code=400, detail="CMS URL hostname cannot be resolved")
 
 
 @router.post("/to-cms")
