@@ -55,6 +55,7 @@ interface PulseState {
 	govArticles: AINewsArticle[];
 	newsTotalResults: number;
 	govTotalResults: number;
+	filteredOutCount: number;
 
 	// AI summaries
 	structuredSummary: StructuredSummary;
@@ -78,6 +79,7 @@ const initialState: PulseState = {
 	govArticles: [],
 	newsTotalResults: 0,
 	govTotalResults: 0,
+	filteredOutCount: 0,
 	structuredSummary: { news_summary: '', gov_summary: '' },
 	customFilterPrompts: loadCustomPrompts(),
 	excludedDomains: [],
@@ -159,12 +161,14 @@ function createPulseStore() {
 			let newsSummary = '';
 			let newsTotalResults = 0;
 			let newsQueries: string[] = [];
+			let totalFilteredOut = 0;
 
 			if (newsResult.status === 'fulfilled' && newsResult.value.status !== 'failed') {
 				newsArticles = newsResult.value.articles || [];
 				newsSummary = newsResult.value.summary || '';
 				newsTotalResults = newsResult.value.totalResults || 0;
 				newsQueries = newsResult.value.search_queries_used || [];
+				totalFilteredOut += newsResult.value.filteredOutCount || 0;
 			} else {
 				console.error('[Pulse] News category failed:', newsResult);
 			}
@@ -180,6 +184,7 @@ function createPulseStore() {
 				govSummary = govResult.value.summary || '';
 				govTotalResults = govResult.value.totalResults || 0;
 				govQueries = govResult.value.search_queries_used || [];
+				totalFilteredOut += govResult.value.filteredOutCount || 0;
 			} else {
 				console.error('[Pulse] Government category failed:', govResult);
 			}
@@ -208,6 +213,7 @@ function createPulseStore() {
 				govArticles,
 				newsTotalResults,
 				govTotalResults,
+				filteredOutCount: totalFilteredOut,
 				structuredSummary: {
 					news_summary: newsSummary,
 					gov_summary: govSummary

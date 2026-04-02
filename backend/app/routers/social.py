@@ -18,7 +18,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.dependencies import get_current_user, verify_service_key, decrement_credit, get_user_org_id
+from app.dependencies import get_current_user, verify_service_key, verify_scraper_key, decrement_credit, get_user_org_id
 from app.schemas.social import (
     SocialTestRequest,
     SocialTestResponse,
@@ -139,7 +139,7 @@ async def test_social_profile(
 @router.post("/social/execute")
 async def execute_social_scout(
     payload: SocialExecuteRequest,
-    _: None = Depends(verify_service_key),
+    _: None = Depends(verify_scraper_key),
 ):
     """Execute a social media scout: scrape, diff, summarize, notify, store.
 

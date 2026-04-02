@@ -91,6 +91,8 @@ class Settings(BaseSettings):
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     resend_api_key: str = os.getenv("RESEND_API_KEY", "")
     internal_service_key: str = os.getenv("INTERNAL_SERVICE_KEY", "")
+    scraper_service_key: str = os.getenv("SCRAPER_SERVICE_KEY", "")
+    promise_service_key: str = os.getenv("PROMISE_SERVICE_KEY", "")
 
     # Deployment target — selects adapter set (aws | supabase)
     deployment_target: str = os.getenv("DEPLOYMENT_TARGET", "aws")

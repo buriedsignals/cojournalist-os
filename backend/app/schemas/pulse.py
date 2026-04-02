@@ -89,6 +89,7 @@ class PulseSearchResponse(BaseModel):
     urls_scraped: List[str] = Field(default_factory=list, description="URLs that were scraped")
     processing_time_ms: Optional[int] = Field(None, description="Processing time in milliseconds")
     summary: str = Field("", description="AI-generated summary for this category")
+    filteredOutCount: int = Field(0, description="Number of articles filtered out by AI")
     error: Optional[str] = Field(None, description="Error message if search failed")
 
 

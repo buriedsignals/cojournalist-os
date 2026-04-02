@@ -202,11 +202,15 @@ def _render_article_cards(articles: list[dict], accent_color: str, limit: int = 
         source = html.escape(article.get('source', ''))
         source_html = f'<span style="font-size: 12px; color: #999;">{source}</span>' if source else ''
 
+        original_title = html.escape(article.get('original_title', ''))
+        original_html = f'<div style="font-size:11px;color:#9ca3af;margin-top:2px;">Original: {original_title}</div>' if original_title else ''
+
         cards_html += f"""
             <div style="margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
                 <a href="{url}" style="color: {accent_color}; text-decoration: none; font-weight: 600;">
                     {title}
                 </a>
+                {original_html}
                 <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">
                     {article_summary}
                 </p>
@@ -484,6 +488,7 @@ class NotificationService:
 
         for i, article in enumerate(translated_articles):
             if i < len(translated_titles):
+                article["original_title"] = article.get("title", "")
                 article["title"] = translated_titles[i]
 
         return translated_articles

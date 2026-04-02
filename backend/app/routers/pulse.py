@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.dependencies import get_current_user, get_user_email, get_user_org_id, verify_service_key
+from app.dependencies import get_current_user, get_user_email, get_user_org_id, verify_service_key, verify_scraper_key
 from app.services.user_service import UserService
 from app.models.modes import ScoutMode
 from app.services.pulse_orchestrator import PulseOrchestrator
@@ -139,6 +139,7 @@ async def search_pulse(
             urls_scraped=result.urls_scraped,
             processing_time_ms=result.processing_time_ms,
             summary=result.summary,
+            filteredOutCount=result.filtered_out_count,
         )
 
     except Exception as e:
@@ -166,7 +167,7 @@ async def search_pulse(
 @router.post("/execute", response_model=PulseExecuteResponse)
 async def execute_pulse_scout(
     request: PulseExecuteRequest,
-    _: None = Depends(verify_service_key)
+    _: None = Depends(verify_scraper_key)
 ):
     """
     Execute Pulse scout.

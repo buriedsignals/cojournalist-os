@@ -218,6 +218,68 @@ def verify_service_key(
         )
 
 
+def _verify_key_against(
+    x_service_key: Optional[str],
+    *valid_keys: str,
+) -> None:
+    """Check header value against one or more configured keys (skips empty)."""
+    if not x_service_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid service key"
+        )
+
+    for key in valid_keys:
+        if key and secrets.compare_digest(x_service_key, key):
+            return
+
+    logger.warning("Invalid service key attempted")
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid service key"
+    )
+
+
+def verify_scraper_key(
+    x_service_key: Optional[str] = Header(None, alias="X-Service-Key")
+) -> None:
+    """Verify scraper Lambda service key. Falls back to INTERNAL_SERVICE_KEY."""
+    settings = get_settings()
+
+    if not settings.internal_service_key and not settings.scraper_service_key:
+        logger.error("No service key configured - rejecting request")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Service configuration error"
+        )
+
+    _verify_key_against(
+        x_service_key,
+        settings.scraper_service_key,
+        settings.internal_service_key,
+    )
+
+
+def verify_promise_key(
+    x_service_key: Optional[str] = Header(None, alias="X-Service-Key")
+) -> None:
+    """Verify promise-checker Lambda service key. Falls back to INTERNAL_SERVICE_KEY."""
+    settings = get_settings()
+
+    if not settings.internal_service_key and not settings.promise_service_key:
+        logger.error("No service key configured - rejecting request")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Service configuration error"
+        )
+
+    _verify_key_against(
+        x_service_key,
+        settings.promise_service_key,
+        settings.internal_service_key,
+    )
+
+
 # =============================================================================
 # External API Key Verification
 # =============================================================================

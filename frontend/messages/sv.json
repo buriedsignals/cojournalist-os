@@ -36,6 +36,7 @@
   "api_revokeConfirm": "Revoke this key? Any agents using it will stop working.",
   "api_subtitle": "Connect AI agents and scripts to coJournalist",
   "api_title": "API",
+  "beatScout_broadCriteriaHint": "Tip: Specific criteria like 'housing policy changes' work better than broad terms like 'news'. Add details to get more relevant results.",
   "bugReport_label": "Rapportera en bugg",
   "cardGrid_fromSource": "from {source}",
   "cardGrid_next": "Next",

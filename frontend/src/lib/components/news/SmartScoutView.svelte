@@ -328,6 +328,9 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 								{ label: 'local elections', value: 'local elections' },
 							]}
 						/>
+						{#if topicInput.trim() && topicInput.trim().split(/\s+/).length <= 2}
+							<p class="scope-hint">{m.beatScout_broadCriteriaHint()}</p>
+						{/if}
 					</div>
 				{/if}
 
@@ -573,6 +576,10 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 							</div>
 						</div>
 					{/if}
+
+					{#if $pulseStore.filteredOutCount > 0}
+						<p class="filtered-disclaimer">{m.disclaimer_filteredCount({ count: $pulseStore.filteredOutCount })}</p>
+					{/if}
 				</section>
 			{:else if searchCompleted}
 				<div class="empty-state">
@@ -606,6 +613,8 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	.field-label { display: block; font-size: 0.8125rem; font-weight: 500; color: #374151; margin-bottom: 0.375rem; }
 	.field-subtitle { font-weight: 400; color: var(--color-text-secondary); margin-left: 0.375rem; font-size: 0.8125rem; }
 	.niche-disclaimer { font-size: 0.75rem; color: #9ca3af; margin: 0.375rem 0 0; line-height: 1.4; }
+	.scope-hint { font-size: 0.75rem; color: #9ca3af; margin: 0.375rem 0 0; line-height: 1.4; }
+	.filtered-disclaimer { font-size: 0.75rem; color: #9ca3af; margin: 0.75rem 0 0; line-height: 1.4; text-align: center; }
 
 	/* Prompt Editor Section */
 	.prompt-section { margin-bottom: 1.5rem; }

@@ -684,7 +684,8 @@ class PulseOrchestrator:
             criteria=criteria,
         )
 
-        logger.info(f"AI filtered to {len(ai_filtered)} relevant articles")
+        filtered_out_count = len(discovery_candidates) - len(ai_filtered)
+        logger.info(f"AI filtered to {len(ai_filtered)} relevant articles ({filtered_out_count} filtered out)")
 
         # --- Pipeline stage 8: Convert to response objects ---
         articles = []
@@ -730,5 +731,6 @@ class PulseOrchestrator:
             search_queries_used=search_queries,
             urls_scraped=[],
             processing_time_ms=processing_time,
-            summary=news_summary
+            summary=news_summary,
+            filtered_out_count=filtered_out_count,
         )

@@ -27,6 +27,8 @@ from app.dependencies import (
     get_current_user,
     get_user_email,
     verify_service_key,
+    verify_scraper_key,
+    verify_promise_key,
     validate_credits,
 )
 from app.schemas.civic import (
@@ -174,7 +176,7 @@ async def test_civic_extraction(
 @router.post("/execute", response_model=CivicExecuteResult)
 async def execute_civic_scout(
     payload: CivicExecuteRequest,
-    _: None = Depends(verify_service_key),
+    _: None = Depends(verify_scraper_key),
 ):
     """Execute a civic scout: fetch pages, detect new PDFs, extract promises, notify.
 
@@ -253,7 +255,7 @@ async def execute_civic_scout(
 @router.post("/notify-promises")
 async def notify_civic_promises(
     payload: dict[str, Any],
-    _: None = Depends(verify_service_key),
+    _: None = Depends(verify_promise_key),
 ):
     """Send a digest email for promises surfaced by the promise-checker Lambda.
 

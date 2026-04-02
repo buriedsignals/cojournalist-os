@@ -40,6 +40,7 @@
   "pulse_almostDone": "Almost done...",
   "pulse_estimatedTimeMinutes": "~{minutes} min remaining",
   "pulse_estimatedTimeSeconds": "~{seconds}s remaining",
+  "beatScout_broadCriteriaHint": "Tip: Specific criteria like 'housing policy changes' work better than broad terms like 'news'. Add details to get more relevant results.",
   "bugReport_label": "Report a bug",
   "cardGrid_fromSource": "from {source}",
   "cardGrid_next": "Next",

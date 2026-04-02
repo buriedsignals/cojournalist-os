@@ -723,6 +723,8 @@ def build_filter_prompt(
     prompt = f"Today's date: {today}\n\n{prompt}"
     prompt += "\n\nTIMELINESS: Reject articles whose content clearly describes events or documents from more than 12 months ago. For example, a '2024 budget report' is outdated if today's year is 2026. Prefer articles about current or recent events."
 
+    prompt += "\n\nSOURCE QUALITY: Articles marked with ⚠ flags have suspicious domain characteristics. Deprioritize these unless their content is clearly legitimate. Also deprioritize articles from unfamiliar domains that report exclusive claims not covered by any other source in the batch — prefer stories corroborated by multiple sources."
+
     if criteria:
         # Sanitize criteria the same way we sanitize custom prompts
         try:

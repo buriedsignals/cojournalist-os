@@ -25,7 +25,7 @@ from slowapi.util import get_remote_address
 from app.config import settings
 from app.services.scout_service import ScoutService
 from app.schemas.scouts import GeocodedLocation
-from app.dependencies import verify_service_key, get_current_user, get_user_org_id
+from app.dependencies import verify_service_key, verify_scraper_key, get_current_user, get_user_org_id
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class ExecuteResponse(BaseModel):
 @router.post("/scouts/execute", response_model=ExecuteResponse)
 async def execute_scout(
     request: ExecuteRequest,
-    _: None = Depends(verify_service_key)
+    _: None = Depends(verify_scraper_key)
 ):
     """
     Execute a scout scrape and criteria check.

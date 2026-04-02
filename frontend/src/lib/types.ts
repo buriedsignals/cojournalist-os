@@ -221,6 +221,7 @@ interface BaseSearchResponse {
 export interface PulseSearchResponse extends BaseSearchResponse {
 	summary: string;
 	response_markdown: string;
+	filteredOutCount?: number;
 }
 
 /**
