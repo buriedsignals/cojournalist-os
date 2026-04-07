@@ -366,6 +366,8 @@ async def create_scout(
             scout_body["criteria"] = body.criteria
         if body.excluded_domains:
             scout_body["excluded_domains"] = body.excluded_domains
+        if body.priority_sources:
+            scout_body["priority_sources"] = body.priority_sources
         if body.source_mode and body.source_mode != "niche":
             scout_body["source_mode"] = body.source_mode
 

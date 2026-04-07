@@ -32,6 +32,7 @@ class PulseSearchRequest(BaseModel):
     source_mode: Literal["reliable", "niche"] = Field("niche", description="Source mode: reliable for established outlets, niche for community/underreported content")
     criteria: Optional[str] = Field(None, max_length=500, description="Search driver — what to search for (topic, keywords, or specific criteria)")
     excluded_domains: Optional[List[str]] = Field(None, max_length=50, description="Per-scout domain blacklist")
+    priority_sources: Optional[List[str]] = Field(None, max_length=10, description="Domains to boost in AI filter ranking")
     exclude_urls: Optional[List[str]] = Field(default=None, description="URLs to exclude (cross-category dedup)")
 
     @field_validator('excluded_domains')
@@ -46,6 +47,24 @@ class PulseSearchRequest(BaseModel):
             d = re.sub(r'/.*$', '', d)
             if d and '.' in d:
                 cleaned.append(d)
+        return cleaned or None
+
+    @field_validator('priority_sources')
+    @classmethod
+    def sanitize_priority_sources(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
+        cleaned = []
+        for d in v[:10]:
+            d = re.sub(r'^https?://', '', d).strip()
+            d = re.sub(r'^www\.', '', d)
+            d = re.sub(r'/.*$', '', d)
+            d = d.lower()
+            if not d or '.' not in d:
+                continue
+            if not re.match(r'^[a-zA-Z0-9.\-]+$', d):
+                continue
+            cleaned.append(d)
         return cleaned or None
 
     @model_validator(mode='after')
@@ -110,6 +129,7 @@ class PulseExecuteRequest(BaseModel):
     source_mode: Literal["reliable", "niche"] = Field("niche", description="Source mode: reliable or niche")
     criteria: Optional[str] = Field(None, max_length=500, description="Search driver — what to search for")
     excluded_domains: Optional[List[str]] = Field(None, max_length=50, description="Per-scout domain blacklist")
+    priority_sources: Optional[List[str]] = Field(None, max_length=10, description="Domains to boost in AI filter ranking")
 
     @model_validator(mode='after')
     def backfill_criteria_from_topic(self):

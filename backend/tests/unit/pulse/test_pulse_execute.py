@@ -671,6 +671,42 @@ class TestLanguageAndTopicForwarding:
         for call in mock_orchestrator.search_news.call_args_list:
             assert call.kwargs["excluded_domains"] == ["vg.no", "nrk.no"]
 
+    @pytest.mark.asyncio
+    async def test_priority_sources_forwarded_in_shared_kwargs(self):
+        """priority_sources from request reach the orchestrator via shared_kwargs."""
+        news_resp = _make_agent_response("news", [])
+        gov_resp = _make_agent_response("government", [])
+
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.search_news = AsyncMock(side_effect=lambda **kw: news_resp if kw["category"] == "news" else gov_resp)
+
+        mocks = _base_patches()
+
+        req = PulseExecuteRequest(
+            userId="user_123",
+            scraperName="my-scout",
+            preferred_language="no",
+            source_mode="reliable",
+            location=GeocodedLocation(displayName="Oslo, Norway", city="Oslo", country="Norway"),
+            priority_sources=["propublica.org", "reuters.com"],
+        )
+
+        with patch(f"{_P}.get_user_email", mocks["get_user_email"]), \
+             patch(f"{_P}.PulseOrchestrator", return_value=mock_orchestrator), \
+             patch(f"{_EP}.atomic_unit_service", mocks["atomic_unit_service"]), \
+             patch(f"{_EP}.exec_dedup_service", mocks["exec_dedup_service"]), \
+             patch(f"{_P}.notification_service", mocks["notification_service"]), \
+             patch(f"{_EP}.decrement_credit", mocks["decrement_credit"]), \
+             patch(f"{_EP}.log_scout_execution", mocks["log_scout_execution"]), \
+             patch(f"{_NU}.cross_category_dedup", mocks["cross_category_dedup"]), \
+             patch(f"{_P}.UserService", _user_service_mock()):
+
+            from app.routers.pulse import execute_pulse_scout
+            result = await execute_pulse_scout(request=req, _=None)
+
+        for call in mock_orchestrator.search_news.call_args_list:
+            assert call.kwargs["priority_sources"] == ["propublica.org", "reuters.com"]
+
 
 # ---------------------------------------------------------------------------
 # Test: Sequential run deduplication

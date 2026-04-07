@@ -67,6 +67,10 @@ interface PulseState {
 	excludedDomains: string[];
 	excludedDomainsText: string;
 
+	// Priority sources (persisted to localStorage)
+	prioritySources: string[];
+	prioritySourcesText: string;
+
 	// Metadata
 	searchQueriesUsed: string[];
 	processingTimeMs: number | null;
@@ -84,6 +88,8 @@ const initialState: PulseState = {
 	customFilterPrompts: loadCustomPrompts(),
 	excludedDomains: [],
 	excludedDomainsText: loadTimedValue('pulse_excluded_domains') || '',
+	prioritySources: [],
+	prioritySourcesText: loadTimedValue('pulse_priority_sources') || '',
 	searchQueriesUsed: [],
 	processingTimeMs: null,
 	taskCompleted: false
@@ -99,7 +105,7 @@ function createPulseStore() {
 		 * Fetch both news and government categories in parallel.
 		 * Uses /pulse/search endpoint for both categories.
 		 */
-		async fetchBothCategories(location?: GeocodedLocation, sourceMode?: 'reliable' | 'niche', criteria?: string, excludedDomains?: string[]) {
+		async fetchBothCategories(location?: GeocodedLocation, sourceMode?: 'reliable' | 'niche', criteria?: string, excludedDomains?: string[], prioritySources?: string[]) {
 			// In criteria-only mode (no location), use 'analysis' instead of 'government'
 			const isCriteriaOnly = criteria && !location;
 			const secondCategory: SearchCategory = isCriteriaOnly ? 'analysis' : 'government';
@@ -131,7 +137,8 @@ function createPulseStore() {
 						custom_filter_prompt: state.customFilterPrompts.news || undefined,
 						source_mode: sourceMode,
 						criteria,
-						excluded_domains: excludedDomains
+						excluded_domains: excludedDomains,
+						priority_sources: prioritySources
 					})
 				]);
 				govResult = { status: 'fulfilled', value: { status: 'completed', articles: [], summary: '', totalResults: 0, search_queries_used: [], processing_time_ms: 0 } };
@@ -143,7 +150,8 @@ function createPulseStore() {
 						custom_filter_prompt: state.customFilterPrompts.news || undefined,
 						source_mode: sourceMode,
 						criteria,
-						excluded_domains: excludedDomains
+						excluded_domains: excludedDomains,
+						priority_sources: prioritySources
 					}),
 					apiClient.searchPulse({
 						location,
@@ -151,7 +159,8 @@ function createPulseStore() {
 						custom_filter_prompt: state.customFilterPrompts.government || undefined,
 						source_mode: sourceMode,
 						criteria,
-						excluded_domains: excludedDomains
+						excluded_domains: excludedDomains,
+						priority_sources: prioritySources
 					})
 				]);
 			}
@@ -253,17 +262,33 @@ function createPulseStore() {
 		},
 
 		/**
+		 * Set priority sources (raw text and parsed array).
+		 * Persists raw text to localStorage.
+		 */
+		setPrioritySources(text: string, sources: string[]) {
+			saveTimedValue('pulse_priority_sources', text || null);
+			update((state) => ({
+				...state,
+				prioritySourcesText: text,
+				prioritySources: sources
+			}));
+		},
+
+		/**
 		 * Reset custom filter prompts to defaults.
 		 */
 		resetCustomFilterPrompts() {
 			saveCustomPrompt('news', null);
 			saveCustomPrompt('government', null);
 			saveTimedValue('pulse_excluded_domains', null);
+			saveTimedValue('pulse_priority_sources', null);
 			update((state) => ({
 				...state,
 				customFilterPrompts: { news: null, government: null },
 				excludedDomains: [],
-				excludedDomainsText: ''
+				excludedDomainsText: '',
+				prioritySources: [],
+				prioritySourcesText: ''
 			}));
 		},
 

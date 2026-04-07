@@ -10,7 +10,7 @@
 	import StepButtons from '$lib/components/ui/StepButtons.svelte';
 	import TogglePicker from '$lib/components/ui/TogglePicker.svelte';
 	import ScoutScheduleModal from '$lib/components/modals/ScoutScheduleModal.svelte';
-	import { Clock, Building2, Lightbulb, ChevronDown, ChevronUp, RotateCcw, Sparkles, Ban } from 'lucide-svelte';
+	import { Clock, Building2, Lightbulb, ChevronDown, ChevronUp, RotateCcw, Sparkles, Ban, Star } from 'lucide-svelte';
 
 	import ProgressIndicator from '$lib/components/ui/ProgressIndicator.svelte';
 	import type { GeocodedLocation, ActiveJobsResponse } from '$lib/types';
@@ -18,7 +18,7 @@
 	import { addRecentLocation } from '$lib/stores/recent-locations';
 	import { marked, Renderer } from 'marked';
 	import { safeHtml } from '$lib/utils/sanitize';
-	import { parseExcludedDomains } from '$lib/utils/domains';
+	import { parseExcludedDomains, parsePrioritySources } from '$lib/utils/domains';
 	import { easeOutProgress, formatEstimatedTime, PULSE_EXPECTED_DURATION_MS } from '$lib/utils/progress-timer';
 	import * as m from '$lib/paraglide/messages';
 	import { sidebarNav } from '$lib/stores/sidebar-nav';
@@ -73,6 +73,10 @@
 	// Excluded domains
 	let excludedDomainsText = $pulseStore.excludedDomainsText || '';
 	$: parsedExcludedDomains = parseExcludedDomains(excludedDomainsText);
+
+	// Priority sources
+	let prioritySourcesText = $pulseStore.prioritySourcesText || '';
+	$: parsedPrioritySources = parsePrioritySources(prioritySourcesText);
 
 
 	// Derive selected location from store
@@ -182,6 +186,7 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 		editedNewsPrompt = '';
 		editedGovPrompt = '';
 		excludedDomainsText = '';
+		prioritySourcesText = '';
 		pulseStore.resetCustomFilterPrompts();
 	}
 
@@ -253,7 +258,7 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 				? undefined
 				: topicInput.trim() || undefined;
 
-			await pulseStore.fetchBothCategories(location, sourceMode, criteriaValue, parsedExcludedDomains.length ? parsedExcludedDomains : undefined);
+			await pulseStore.fetchBothCategories(location, sourceMode, criteriaValue, parsedExcludedDomains.length ? parsedExcludedDomains : undefined, parsedPrioritySources.length ? parsedPrioritySources : undefined);
 
 			stopProgress(true);
 			searchCompleted = true;
@@ -438,6 +443,20 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 								></textarea>
 							</div>
 
+							<div class="prompt-group">
+								<label class="prompt-label">
+									<Star size={12} />
+									{m.pulse_prioritySources()}
+								</label>
+								<textarea
+									class="prompt-textarea excluded-domains-textarea"
+									bind:value={prioritySourcesText}
+									on:blur={() => pulseStore.setPrioritySources(prioritySourcesText, parsedPrioritySources)}
+									placeholder={m.pulse_prioritySourcesPlaceholder()}
+									rows="3"
+								></textarea>
+							</div>
+
 							<button
 								class="reset-button"
 								on:click={resetPrompts}
@@ -599,6 +618,7 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	criteria={topicInput.trim() || ''}
 	{sourceMode}
 	excludedDomains={parsedExcludedDomains}
+	prioritySources={parsedPrioritySources}
 	on:close={() => showScheduleModal = false}
 	on:success={() => {
 		showScheduleModal = false;

@@ -616,6 +616,7 @@ async def ai_filter_results(
     excluded_domains: Optional[List[str]] = None,
     source_mode: str = "niche",
     criteria: Optional[str] = None,
+    priority_sources: Optional[List[str]] = None,
 ) -> List[dict]:
     """
     Use AI to filter search results for local journalism relevance.
@@ -706,6 +707,7 @@ async def ai_filter_results(
                     city_name=city_name, country_name=country_name,
                     country_tlds=country_tlds, local_language=local_language_name,
                     topic=topic or "", articles_text=articles_text, criteria=criteria,
+                    priority_sources=priority_sources,
                 )
             else:
                 prompt = custom_filter_prompt.format(**kwargs)
@@ -716,6 +718,7 @@ async def ai_filter_results(
                 city_name=city_name, country_name=country_name,
                 country_tlds=country_tlds, local_language=local_language_name,
                 topic=topic or "", articles_text=articles_text, criteria=criteria,
+                priority_sources=priority_sources,
             )
     else:
         prompt = build_filter_prompt(
@@ -729,6 +732,7 @@ async def ai_filter_results(
             topic=topic or "",
             articles_text=articles_text,
             criteria=criteria,
+            priority_sources=priority_sources,
         )
 
     try:

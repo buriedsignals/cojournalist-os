@@ -135,6 +135,9 @@ async def execute_initial_pulse_background(
     topic: str | None,
     criteria: str | None,
     preferred_language: str,
+    excluded_domains: list[str] | None = None,
+    source_mode: str | None = None,
+    priority_sources: list[str] | None = None,
 ):
     """Execute initial run for Pulse scout via internal HTTP call."""
     try:
@@ -153,6 +156,12 @@ async def execute_initial_pulse_background(
             payload["topic"] = topic
         if criteria:
             payload["criteria"] = criteria
+        if excluded_domains:
+            payload["excluded_domains"] = excluded_domains
+        if source_mode and source_mode != "niche":
+            payload["source_mode"] = source_mode
+        if priority_sources:
+            payload["priority_sources"] = priority_sources
 
         # Initial run: skip notification, credit charge, and unit extraction
         payload["skip_notification"] = True
@@ -267,6 +276,8 @@ async def schedule_monitoring(
             aws_payload["source_mode"] = payload.source_mode
         if payload.excluded_domains:
             aws_payload["excluded_domains"] = payload.excluded_domains
+        if payload.priority_sources:
+            aws_payload["priority_sources"] = payload.priority_sources
     elif payload.scout_type == "social":
         if payload.regularity == "daily":
             raise HTTPException(status_code=400, detail="Social scouts require weekly or monthly frequency")
@@ -450,6 +461,9 @@ async def schedule_monitoring(
             payload.topic,
             payload.criteria,
             user.get("preferred_language", "en"),
+            payload.excluded_domains,
+            payload.source_mode,
+            payload.priority_sources,
         )
         logger.info(f"Queued initial run for pulse scout: {scraper_name}")
 

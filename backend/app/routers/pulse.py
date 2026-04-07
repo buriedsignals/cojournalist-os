@@ -101,6 +101,7 @@ async def search_pulse(
             source_mode=search_request.source_mode,
             criteria=search_request.criteria,
             exclude_urls=search_request.exclude_urls,
+            priority_sources=search_request.priority_sources,
         )
 
         logger.info(
@@ -225,6 +226,7 @@ async def execute_pulse_scout(
             excluded_domains=merged_excluded,
             source_mode=request.source_mode,
             criteria=request.criteria,
+            priority_sources=request.priority_sources,
         )
 
         # Niche + location (no criteria): skip government — institutional

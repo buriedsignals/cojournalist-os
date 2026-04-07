@@ -78,6 +78,8 @@ class ScoutRunner:
                 body["topic"] = item["topic"]
             if item.get("excluded_domains"):
                 body["excluded_domains"] = item["excluded_domains"]
+            if item.get("priority_sources"):
+                body["priority_sources"] = item["priority_sources"]
             if item.get("source_mode"):
                 body["source_mode"] = item["source_mode"]
             if item.get("criteria"):

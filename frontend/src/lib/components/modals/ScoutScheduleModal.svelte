@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { X, Globe, ScanSearch, Tag, MapPin, Bell, CheckCircle, Mail, Filter, Ban, Users, Landmark } from 'lucide-svelte';
+	import { X, Globe, ScanSearch, Tag, MapPin, Bell, CheckCircle, Mail, Filter, Ban, Star, Users, Landmark } from 'lucide-svelte';
 	import { fade } from 'svelte/transition';
 	import type { GeocodedLocation, RegularityType, ScoutType, ScrapeChannel, ActiveJobsResponse } from '$lib/types';
 	import { apiClient } from '$lib/api-client';
@@ -61,6 +61,7 @@
 	let scheduleSuccess = false;
 	export let sourceMode: 'reliable' | 'niche' = 'niche';
 	export let excludedDomains: string[] = [];
+	export let prioritySources: string[] = [];
 
 	// Web scout: location/topic added at schedule time
 	let selectedLocation: GeocodedLocation | null = null;
@@ -262,7 +263,8 @@
 				topic: topicInput.trim() || undefined,
 				criteria: criteria || undefined,
 				source_mode: sourceMode,
-				excluded_domains: excludedDomains.length ? excludedDomains : undefined
+				excluded_domains: excludedDomains.length ? excludedDomains : undefined,
+				priority_sources: prioritySources.length ? prioritySources : undefined
 			});
 		}
 
@@ -410,6 +412,14 @@
 								<Ban class="h-4 w-4 text-gray-500 mt-0.5" />
 								<span class="font-medium text-gray-700">{m.pulse_excludedDomains()}:</span>
 								<span class="text-gray-600">{excludedDomains.join(', ')}</span>
+							</div>
+						{/if}
+
+						{#if prioritySources.length > 0 && scoutType === 'pulse'}
+							<div class="flex items-start gap-2 text-sm mt-2 pt-2 border-t border-gray-200">
+								<Star class="h-4 w-4 text-gray-500 mt-0.5" />
+								<span class="font-medium text-gray-700">{m.pulse_prioritySources()}:</span>
+								<span class="text-gray-600">{prioritySources.join(', ')}</span>
 							</div>
 						{/if}
 

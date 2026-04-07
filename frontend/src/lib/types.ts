@@ -111,6 +111,7 @@ export interface ScoutSetupRequest {
 	topic?: string;  // pulse (free-text topic)
 	source_mode?: 'reliable' | 'niche';  // pulse only
 	excluded_domains?: string[];  // pulse only
+	priority_sources?: string[];  // pulse only
 	// Social scout fields
 	platform?: string;  // social
 	profile_handle?: string;  // social

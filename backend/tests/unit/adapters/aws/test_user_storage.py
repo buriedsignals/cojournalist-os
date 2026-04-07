@@ -132,6 +132,25 @@ class TestCreateOrUpdateUser:
         item = mock_table.put_item.call_args[1]["Item"]
         assert item["extra"] == "value"
 
+    def test_converts_float_coordinates_to_decimal(self, adapter, mock_table):
+        """Regression: MapTiler coordinates are floats, DynamoDB rejects them."""
+        data = {
+            "tier": "free",
+            "default_location": {
+                "displayName": "Zurich, Switzerland",
+                "city": "Zurich",
+                "country": "CH",
+                "locationType": "city",
+                "maptilerId": "abc123",
+                "coordinates": {"lat": 47.36667, "lon": 8.55},
+            },
+        }
+        adapter.create_or_update_user_sync("user1", data)
+        item = mock_table.put_item.call_args[1]["Item"]
+        coords = item["default_location"]["coordinates"]
+        assert isinstance(coords["lat"], Decimal)
+        assert isinstance(coords["lon"], Decimal)
+
 
 # ---------------------------------------------------------------------------
 # update_profile
@@ -177,6 +196,25 @@ class TestUpdateProfile:
         kwargs = mock_table.update_item.call_args[1]
         values = kwargs["ExpressionAttributeValues"]
         assert len(values) == 8
+
+    def test_converts_float_coordinates_to_decimal(self, adapter, mock_table):
+        """Regression: MapTiler coordinates are floats, DynamoDB rejects them."""
+        updates = {
+            "default_location": {
+                "displayName": "Oslo, Norway",
+                "city": "Oslo",
+                "country": "NO",
+                "locationType": "city",
+                "maptilerId": "xyz789",
+                "coordinates": {"lat": 59.9139, "lon": 10.7522},
+            },
+        }
+        adapter.update_profile_sync("user1", updates)
+        kwargs = mock_table.update_item.call_args[1]
+        location = kwargs["ExpressionAttributeValues"][":default_location"]
+        coords = location["coordinates"]
+        assert isinstance(coords["lat"], Decimal)
+        assert isinstance(coords["lon"], Decimal)
 
 
 # ---------------------------------------------------------------------------

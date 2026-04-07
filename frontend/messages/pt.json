@@ -418,6 +418,8 @@
   "pulse_news": "Notícias",
   "pulse_newsFilter": "Filtro de notícias",
   "pulse_newsUpdates": "Notícias e atualizações",
+  "pulse_prioritySources": "Priority Sources",
+  "pulse_prioritySourcesPlaceholder": "propublica.org\nreuters.com",
   "pulse_progressAnalyzing": "O agente IA analisa fontes locais...",
   "pulse_progressComplete": "Concluído!",
   "pulse_progressFiltering": "Filtrando e categorizando resultados...",

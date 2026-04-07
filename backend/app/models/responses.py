@@ -84,6 +84,7 @@ class MonitoringScheduleRequest(BaseModel):
     content_hash: Optional[str] = Field(default=None, description="Content hash from test scrape for baseline (web scouts only)")
     source_mode: Optional[str] = Field(default="niche", pattern=r"^(reliable|niche)$", description="Source mode for pulse scouts")
     excluded_domains: Optional[list[str]] = Field(default=None, description="Per-scout domain blacklist for pulse scouts")
+    priority_sources: Optional[list[str]] = Field(default=None, description="Domains to boost in AI filter ranking for pulse scouts")
     # Provider detection (web scouts)
     provider: Optional[str] = Field(default=None, pattern=r"^(firecrawl|firecrawl_plain)$", description="Detected scraping provider for web scouts")
     # Social scout fields

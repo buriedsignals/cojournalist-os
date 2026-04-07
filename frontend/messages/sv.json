@@ -418,6 +418,8 @@
   "pulse_news": "Nyheter",
   "pulse_newsFilter": "Nyhetsfilter",
   "pulse_newsUpdates": "Nyheter och uppdateringar",
+  "pulse_prioritySources": "Priority Sources",
+  "pulse_prioritySourcesPlaceholder": "propublica.org\nreuters.com",
   "pulse_progressAnalyzing": "AI-agent analyserar lokala källor...",
   "pulse_progressComplete": "Klart!",
   "pulse_progressFiltering": "Filtrerar och kategoriserar resultat...",

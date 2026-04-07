@@ -229,6 +229,7 @@ export const apiClient = {
 		source_mode?: 'reliable' | 'niche';
 		criteria?: string;
 		excluded_domains?: string[];
+		priority_sources?: string[];
 	}): Promise<import('$lib/types').PulseSearchResponse> {
 		if (!filters.location && !filters.criteria) {
 			throw new Error('Location or criteria is required for pulse search');
@@ -242,6 +243,7 @@ export const apiClient = {
 		if (filters.source_mode) body.source_mode = filters.source_mode;
 		if (filters.criteria) body.criteria = filters.criteria;
 		if (filters.excluded_domains?.length) body.excluded_domains = filters.excluded_domains;
+		if (filters.priority_sources?.length) body.priority_sources = filters.priority_sources;
 
 		const { authStore } = await import('$lib/stores/auth');
 		const token = await authStore.getToken();

@@ -418,6 +418,8 @@
   "pulse_news": "Uutiset",
   "pulse_newsFilter": "Uutissuodatin",
   "pulse_newsUpdates": "Uutiset ja päivitykset",
+  "pulse_prioritySources": "Priority Sources",
+  "pulse_prioritySourcesPlaceholder": "propublica.org\nreuters.com",
   "pulse_progressAnalyzing": "Tekoälyagentti analysoi paikallisia lähteitä...",
   "pulse_progressComplete": "Valmis!",
   "pulse_progressFiltering": "Suodatetaan ja luokitellaan tuloksia...",

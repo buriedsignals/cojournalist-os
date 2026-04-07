@@ -370,6 +370,7 @@ class PulseOrchestrator:
         source_mode: Literal["reliable", "niche"] = "niche",
         criteria: Optional[str] = None,
         exclude_urls: Optional[List[str]] = None,
+        priority_sources: Optional[List[str]] = None,
     ) -> AgentResponse:
         """Execute Smart Scout (type pulse) search — the main pipeline entry point.
 
@@ -471,6 +472,13 @@ class PulseOrchestrator:
             local_count = len(local_query_result.get("queries", []))
             cached = local_query_result.get("cached", False)
             fallback = local_query_result.get("fallback", False)
+            # Append site-specific queries for priority sources
+            if priority_sources:
+                search_label = city_name or criteria or ""
+                for domain in priority_sources[:5]:
+                    all_queries.append({"query": f'site:{domain} "{search_label}"', "sources": ["web"], "_pass": "news"})
+                logger.info(f"Added {min(len(priority_sources), 5)} priority source queries")
+
             logger.info(f"Generated {len(all_queries)} queries for {display_name}: {local_count} local (languages: {languages}), cached={cached}, fallback={fallback}")
 
             # Execute searches with geo-targeting and language hint
@@ -510,6 +518,12 @@ class PulseOrchestrator:
                     {"query": f'"{criteria}" update', "sources": query_sources, "_pass": "news"},
                     {"query": f'"{criteria}" report', "sources": query_sources, "_pass": "news"},
                 ]
+
+            # Append site-specific queries for priority sources
+            if priority_sources:
+                for domain in priority_sources[:5]:
+                    topic_queries.append({"query": f'site:{domain} "{criteria}"', "sources": ["web"], "_pass": "news"})
+                logger.info(f"Added {min(len(priority_sources), 5)} priority source queries")
 
             logger.info(f"Generated {len(topic_queries)} criteria-only queries for: {criteria}")
 
@@ -682,6 +696,7 @@ class PulseOrchestrator:
             excluded_domains=excluded_domains,
             source_mode=source_mode,
             criteria=criteria,
+            priority_sources=priority_sources,
         )
 
         filtered_out_count = len(discovery_candidates) - len(ai_filtered)

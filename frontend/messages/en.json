@@ -414,6 +414,8 @@
   "pulse_news": "Discoveries",
   "pulse_newsFilter": "Discoveries Filter",
   "pulse_newsUpdates": "Discoveries",
+  "pulse_prioritySources": "Priority Sources",
+  "pulse_prioritySourcesPlaceholder": "propublica.org\nreuters.com",
   "pulse_progressAnalyzing": "Selecting the most relevant results...",
   "pulse_progressComplete": "Complete!",
   "pulse_progressFiltering": "Filtering and categorizing results...",

@@ -210,6 +210,43 @@ AUDIT_PERMUTATIONS = [
         "categories": ["news", "analysis"],
         "search_kwargs": {"criteria": "renewable energy", "language": "en"},
     },
+    # ── Priority sources: beat ──
+    {
+        "name": "priority: housing+propublica",
+        "source_mode": "reliable",
+        "scope": "topic+priority",
+        "categories": ["news"],
+        "search_kwargs": {
+            "criteria": "housing policy",
+            "language": "en",
+            "priority_sources": ["propublica.org", "reuters.com"],
+        },
+    },
+    {
+        "name": "priority: energy+nytimes",
+        "source_mode": "reliable",
+        "scope": "topic+priority",
+        "categories": ["news"],
+        "search_kwargs": {
+            "criteria": "renewable energy",
+            "language": "en",
+            "priority_sources": ["nytimes.com", "theguardian.com"],
+        },
+    },
+    # ── Priority sources: location ──
+    {
+        "name": "priority: Bozeman+localnews",
+        "source_mode": "reliable",
+        "scope": "location+priority",
+        "categories": ["news"],
+        "search_kwargs": {
+            "location": "Bozeman, Montana",
+            "city": "Bozeman",
+            "country": "US",
+            "language": "en",
+            "priority_sources": ["bozemandailychronicle.com", "montanafreepress.org"],
+        },
+    },
 ]
 
 
@@ -340,8 +377,51 @@ def validate_undated_ratio(articles: list[dict], category: str) -> dict:
     }
 
 
+def validate_priority_sources(articles: list[dict], priority_sources: list[str]) -> dict:
+    """Check whether articles from priority source domains appear in results."""
+    from urllib.parse import urlparse
+
+    if not priority_sources:
+        return {"check": "priority_sources", "status": "skip", "detail": "no priority sources set"}
+
+    priority_set = {d.lower() for d in priority_sources}
+    hits = {}
+    for a in articles:
+        url = a.get("url", "")
+        try:
+            domain = urlparse(url).netloc.lower().replace("www.", "")
+        except Exception:
+            continue
+        for ps in priority_set:
+            if domain.endswith(ps):
+                hits.setdefault(ps, []).append(a.get("title", "?")[:60])
+
+    found = list(hits.keys())
+    missing = [d for d in priority_set if d not in hits]
+
+    if not found:
+        status = "FAIL"
+        detail = f"0/{len(priority_set)} priority domains found in results"
+    elif missing:
+        status = "WARN"
+        detail = f"{len(found)}/{len(priority_set)} priority domains found (missing: {', '.join(missing)})"
+    else:
+        status = "PASS"
+        detail = f"{len(found)}/{len(priority_set)} priority domains found"
+
+    return {
+        "check": "priority_sources",
+        "status": status,
+        "detail": detail,
+        "found_domains": found,
+        "missing_domains": missing,
+        "hits": {d: titles for d, titles in hits.items()},
+    }
+
+
 def run_quality_checks(
-    record: dict, expected_lang: str, source_mode: str
+    record: dict, expected_lang: str, source_mode: str,
+    priority_sources: list[str] | None = None,
 ) -> list[dict]:
     """Run all quality validation checks on a single audit record."""
     checks = []
@@ -349,6 +429,8 @@ def run_quality_checks(
     checks.append(validate_date_relevance(record.get("articles", [])))
     checks.append(validate_source_diversity(record.get("articles", []), source_mode))
     checks.append(validate_undated_ratio(record.get("articles", []), record.get("category", "")))
+    if priority_sources:
+        checks.append(validate_priority_sources(record.get("articles", []), priority_sources))
     return checks
 
 
@@ -633,20 +715,22 @@ def write_report(records: list[dict], flaws: list[str], output_path: Path):
 
     # Quality Validation
     lines.append("\n## Quality Validation\n")
-    lines.append("| Permutation | Category | Language | Date Relevance | Source Diversity | Undated Ratio |")
-    lines.append("|-------------|----------|----------|----------------|-----------------|---------------|")
+    lines.append("| Permutation | Category | Language | Date Relevance | Source Diversity | Undated Ratio | Priority Sources |")
+    lines.append("|-------------|----------|----------|----------------|-----------------|---------------|-----------------|")
     for r in records:
         checks = {c["check"]: c for c in r.get("quality_checks", [])}
         lang = checks.get("language", {})
         date = checks.get("date_relevance", {})
         src = checks.get("source_diversity", {})
         und = checks.get("undated_ratio", {})
+        pri = checks.get("priority_sources", {})
         lines.append(
             f"| {r['permutation']} | {r['category']} | "
             f"{lang.get('status', 'skip')} | "
             f"{date.get('status', 'skip')} ({date.get('pdf_count', 0)} PDFs) | "
             f"{src.get('detail', 'skip')} | "
-            f"{und.get('detail', 'skip')} |"
+            f"{und.get('detail', 'skip')} | "
+            f"{pri.get('status', 'skip')} {pri.get('detail', '')} |"
         )
 
     # Cross-Category Overlap
@@ -691,14 +775,15 @@ def write_report(records: list[dict], flaws: list[str], output_path: Path):
 
     # Test Inputs (dynamic from permutations)
     lines.append("\n## Test Inputs\n")
-    lines.append("| Name | Scope | Source Mode | Location | Topic | Criteria | User Lang |")
-    lines.append("|------|-------|-------------|----------|-------|----------|-----------|")
+    lines.append("| Name | Scope | Source Mode | Location | Topic | Criteria | Priority Sources | User Lang |")
+    lines.append("|------|-------|-------------|----------|-------|----------|-----------------|-----------|")
     for p in AUDIT_PERMUTATIONS:
         sk = p["search_kwargs"]
+        ps = ", ".join(sk.get("priority_sources", [])) or "--"
         lines.append(
             f"| {p['name']} | {p['scope']} | {p['source_mode']} | "
             f"{sk.get('location', '--')} | {sk.get('topic', '--')} | "
-            f"{sk.get('criteria', '--')} | {sk.get('language', 'en')} |"
+            f"{sk.get('criteria', '--')} | {ps} | {sk.get('language', 'en')} |"
         )
 
     # Raw JSON
@@ -747,7 +832,8 @@ async def run_audit():
                 )
 
             expected_lang = perm["search_kwargs"].get("language", "en")
-            checks = run_quality_checks(record, expected_lang, perm["source_mode"])
+            ps = perm["search_kwargs"].get("priority_sources")
+            checks = run_quality_checks(record, expected_lang, perm["source_mode"], priority_sources=ps)
             record["quality_checks"] = checks
             failed = [c for c in checks if c["status"] == "FAIL"]
             warned = [c for c in checks if c["status"] == "WARN"]

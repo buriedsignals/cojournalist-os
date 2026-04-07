@@ -114,6 +114,8 @@ class ScheduleService:
                 item["topic"] = body.get("topic")
             if body.get("excluded_domains"):
                 item["excluded_domains"] = body["excluded_domains"]
+            if body.get("priority_sources"):
+                item["priority_sources"] = body["priority_sources"]
             if body.get("source_mode"):
                 item["source_mode"] = body["source_mode"]
             if body.get("criteria"):
@@ -157,6 +159,7 @@ class ScheduleService:
             "preferred_language": body.get("preferred_language", "en"),
             "provider": body.get("provider"),
             "excluded_domains": body.get("excluded_domains"),
+            "priority_sources": body.get("priority_sources"),
             "source_mode": body.get("source_mode"),
             "platform": body.get("platform"),
             "profile_handle": body.get("profile_handle"),

@@ -10,10 +10,11 @@ DEPENDS ON: schemas/scouts (GeocodedLocation), models/modes (RegularityType,
     MonitoringType, ScoutType)
 USED BY: routers/v1.py
 """
+import re
 from typing import Literal, Optional
 from datetime import datetime
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.scouts import GeocodedLocation
 from app.models.modes import RegularityType, ScoutType
@@ -130,6 +131,28 @@ class CreateScoutRequest(BaseModel):
         None,
         description="Per-scout domain blacklist (pulse scouts)",
     )
+    priority_sources: Optional[list[str]] = Field(
+        None,
+        description="Domains to boost in AI filter ranking (pulse scouts)",
+    )
+
+    @field_validator('priority_sources')
+    @classmethod
+    def sanitize_priority_sources(cls, v: Optional[list[str]]) -> Optional[list[str]]:
+        if v is None:
+            return v
+        cleaned = []
+        for d in v[:10]:
+            d = re.sub(r'^https?://', '', d).strip()
+            d = re.sub(r'^www\.', '', d)
+            d = re.sub(r'/.*$', '', d)
+            d = d.lower()
+            if not d or '.' not in d:
+                continue
+            if not re.match(r'^[a-zA-Z0-9.\-]+$', d):
+                continue
+            cleaned.append(d)
+        return cleaned or None
 
     @model_validator(mode="after")
     def validate_scout_type_requirements(self) -> "CreateScoutRequest":
