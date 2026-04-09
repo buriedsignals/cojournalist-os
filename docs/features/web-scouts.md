@@ -26,12 +26,15 @@ Some websites fail Firecrawl's `changeTracking` format (ERR_TIMED_OUT) but work 
 2. User clicks "Test" → backend runs `double_probe()` **concurrently** with the preview scrape
 3. Double-probe sends **two** sequential changeTracking requests using the real `{user_id}#{scraper_name}` tag:
    - Call 1: Establishes a baseline (or times out)
-   - Call 2: Checks `previousScrapeAt` — if it has a timestamp, Firecrawl stored the baseline; if `null`, the baseline was silently dropped
-4. If baseline confirmed → provider = `firecrawl`; if dropped or timeout → `firecrawl_plain`
+   - Call 2: Checks both `previousScrapeAt` and `changeStatus`:
+     - Has timestamp + `changeStatus` is `same`/`changed` → baseline verified with content
+     - Has timestamp + `changeStatus` is `new`/null → ghost baseline (timestamp stored, content discarded)
+     - No timestamp → baseline dropped entirely
+4. If baseline verified → provider = `firecrawl`; if ghost/dropped/timeout → `firecrawl_plain`
 5. Provider is returned in the test response, passed through the scheduling modal, stored in the SCRAPER# record, and included in the EventBridge input template
 6. On every scheduled run, `execute()` uses the persisted provider — skipping the doomed 60s changeTracking attempt for `firecrawl_plain` URLs
 
-**Why double-probe:** Firecrawl can return `changeStatus: "new"` (HTTP 200) but silently drop the baseline. A single probe cannot distinguish "baseline stored" from "baseline dropped". The second call's `previousScrapeAt` field is the only definitive signal. See `page-scout-refactor.md` § Phase 3.
+**Why double-probe:** Firecrawl can return `changeStatus: "new"` (HTTP 200) but silently drop the baseline. A single probe cannot distinguish "baseline stored" from "baseline dropped". The second call's `previousScrapeAt` confirms timestamp storage, and `changeStatus` confirms content storage. Both are needed — a "ghost baseline" has a timestamp but no content, causing every future run to report `changeStatus: "new"`. See `double-probe.md` for full specification.
 
 **Backwards compatibility:** Existing scouts without a `provider` field use the original runtime fallback behavior (try changeTracking, fall back to plain on failure).
 

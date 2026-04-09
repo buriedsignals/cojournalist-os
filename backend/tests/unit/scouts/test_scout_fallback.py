@@ -282,6 +282,48 @@ class TestDoubleProbe:
         assert result == "firecrawl_plain"
 
     @pytest.mark.asyncio
+    async def test_ghost_baseline_returns_firecrawl_plain(self, service):
+        """Call 2 has previousScrapeAt but changeStatus='new' → ghost baseline → 'firecrawl_plain'."""
+        call1_data = {
+            "markdown": "# Page",
+            "changeTracking": {"changeStatus": "new", "previousScrapeAt": None},
+        }
+        call2_data = {
+            "markdown": "# Page",
+            "changeTracking": {
+                "changeStatus": "new",
+                "previousScrapeAt": "2026-03-04T12:16:54.477+00:00",
+            },
+        }
+        with patch.object(
+            service, "_firecrawl_scrape",
+            new_callable=AsyncMock, side_effect=[call1_data, call2_data],
+        ):
+            result = await service.double_probe("https://example.com", "user1", "scout1")
+        assert result == "firecrawl_plain"
+
+    @pytest.mark.asyncio
+    async def test_ghost_baseline_null_status_returns_firecrawl_plain(self, service):
+        """Call 2 has previousScrapeAt but changeStatus=None → ghost baseline → 'firecrawl_plain'."""
+        call1_data = {
+            "markdown": "# Page",
+            "changeTracking": {"changeStatus": "new", "previousScrapeAt": None},
+        }
+        call2_data = {
+            "markdown": "# Page",
+            "changeTracking": {
+                "changeStatus": None,
+                "previousScrapeAt": "2026-03-04T12:16:54.477+00:00",
+            },
+        }
+        with patch.object(
+            service, "_firecrawl_scrape",
+            new_callable=AsyncMock, side_effect=[call1_data, call2_data],
+        ):
+            result = await service.double_probe("https://example.com", "user1", "scout1")
+        assert result == "firecrawl_plain"
+
+    @pytest.mark.asyncio
     async def test_call1_timeout_returns_firecrawl_plain(self, service):
         """Call 1 times out (returns None) → 'firecrawl_plain', no second call."""
         with patch.object(

@@ -5,7 +5,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import type { GeocodedLocation } from '$lib/types';
 
-	import { formatTz, getTimezoneOptions } from '$lib/utils/timezones';
+	import { formatTz, getTimezoneOptions, normalizeTimezone } from '$lib/utils/timezones';
 
 	export let open = false;
 	export let saving = false;
@@ -32,7 +32,8 @@
 
 	onMount(() => {
 		try {
-			detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			const raw = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			detectedTimezone = raw ? normalizeTimezone(raw) : null;
 			if (detectedTimezone && !selectedTimezone) {
 				selectedTimezone = detectedTimezone;
 			}

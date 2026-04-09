@@ -10,7 +10,6 @@ USED BY: frontend (onboarding modal), main.py (router mount)
 from __future__ import annotations
 
 import logging
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -70,11 +69,12 @@ async def initialize_user(
     onboarding as completed. Credits are already set during the OAuth callback.
     This endpoint is idempotent.
     """
-    # Validate timezone identifier
+    # Validate and canonicalize timezone identifier
+    from app.utils.timezone import validate_timezone
     try:
-        ZoneInfo(payload.timezone)
-    except Exception as e:
-        logger.error(f"Invalid timezone '{payload.timezone}': {e}")
+        canonical_tz = validate_timezone(payload.timezone)
+    except ValueError:
+        logger.error(f"Invalid timezone '{payload.timezone}'")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid timezone identifier: {payload.timezone}",
@@ -84,7 +84,7 @@ async def initialize_user(
 
     try:
         prefs: dict = {
-            "timezone": payload.timezone,
+            "timezone": canonical_tz,
             "preferred_language": payload.preferred_language,
             "onboarding_completed": True,
         }

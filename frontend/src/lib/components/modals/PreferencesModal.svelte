@@ -5,7 +5,7 @@
 	import { authStore } from '$lib/stores/auth';
 	import { SUPPORTED_LANGUAGES, getLanguageLabel } from '$lib/i18n/constants';
 	import { setLocaleFromUser } from '$lib/i18n/locale';
-	import { formatTz, getTimezoneOptions } from '$lib/utils/timezones';
+	import { formatTz, getTimezoneOptions, normalizeTimezone } from '$lib/utils/timezones';
 	import * as m from '$lib/paraglide/messages';
 
 	export let open = false;
@@ -31,7 +31,7 @@
 	// Initialize only once when modal first opens
 	$: if (open && $authStore.user && !initialized) {
 		selectedLanguage = $authStore.user.preferred_language || 'en';
-		selectedTimezone = $authStore.user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+		selectedTimezone = $authStore.user.timezone || normalizeTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
 		cmsApiUrl = $authStore.user.cms_api_url || '';
 		hasCmsToken = $authStore.user.has_cms_token || false;
 		cmsTokenInput = '';
@@ -233,7 +233,9 @@
 						</span>
 					</div>
 					<a
-						href={'#'}
+						href={$authStore.user?.username
+							? `#
+							: '#'}
 						target="_blank"
 						rel="noopener noreferrer"
 						class="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"

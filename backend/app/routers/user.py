@@ -153,12 +153,13 @@ async def update_user_preferences(
             detail="At least one preference field must be provided"
         )
 
-    # Validate timezone if provided
+    # Validate and canonicalize timezone if provided
+    canonical_tz = None
     if payload.timezone:
-        from zoneinfo import ZoneInfo
+        from app.utils.timezone import validate_timezone
         try:
-            ZoneInfo(payload.timezone)
-        except (KeyError, Exception):
+            canonical_tz = validate_timezone(payload.timezone)
+        except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid timezone identifier: {payload.timezone}"
@@ -170,8 +171,8 @@ async def update_user_preferences(
 
         if payload.preferred_language:
             update_kwargs["preferred_language"] = payload.preferred_language
-        if payload.timezone:
-            update_kwargs["timezone"] = payload.timezone
+        if canonical_tz:
+            update_kwargs["timezone"] = canonical_tz
         if payload.excluded_domains is not None:
             update_kwargs["excluded_domains"] = payload.excluded_domains
         if payload.cms_api_url is not None:

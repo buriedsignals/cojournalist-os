@@ -74,6 +74,12 @@ async def build_user_response(user_svc, user_id: str) -> dict:
 
     user["needs_initialization"] = needs_init
 
+    # Normalize deprecated timezone aliases (e.g. "Asia/Calcutta" → "Asia/Kolkata")
+    from app.utils.timezone import normalize_timezone
+    tz = user.get("timezone")
+    if tz:
+        user["timezone"] = normalize_timezone(tz)
+
     # Team credits: if user has org_id, show org pool balance
     org_id = user.get("org_id")
     if org_id:

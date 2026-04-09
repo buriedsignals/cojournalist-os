@@ -181,6 +181,26 @@ class TestInitialize:
     @patch(f"{_MOD}.seed_demo_data")
     @patch(f"{_MOD}.build_user_response", new_callable=AsyncMock)
     @patch(f"{_MOD}.UserService")
+    async def test_initialize_normalizes_deprecated_timezone(self, mock_user_service_cls, mock_build_response, mock_seed):
+        """initialize should normalize deprecated timezone names before storing."""
+        mock_service = AsyncMock()
+        mock_user_service_cls.return_value = mock_service
+        mock_build_response.return_value = _make_user({
+            "timezone": "America/Argentina/Buenos_Aires",
+        })
+
+        payload = InitializeUserRequest(timezone="America/Buenos_Aires")
+        user = _make_user({"onboarding_completed": False})
+
+        await initialize_user(payload=payload, user=user)
+
+        call_kwargs = mock_service.update_preferences.call_args[1]
+        assert call_kwargs["timezone"] == "America/Argentina/Buenos_Aires"
+
+    @pytest.mark.asyncio
+    @patch(f"{_MOD}.seed_demo_data")
+    @patch(f"{_MOD}.build_user_response", new_callable=AsyncMock)
+    @patch(f"{_MOD}.UserService")
     async def test_initialize_defaults_language_to_en(self, mock_user_service_cls, mock_build_response, mock_seed):
         """initialize should default preferred_language to 'en'."""
         mock_service = AsyncMock()

@@ -62,12 +62,13 @@ class ScoutService:
         """Verify changeTracking baseline storage with two sequential scrapes.
 
         Call 1: Scrape with changeTracking tag (establishes baseline).
-        Call 2: Scrape again with same tag — check previousScrapeAt.
-          - Has timestamp → baseline confirmed stored → "firecrawl"
-          - null → baseline silently dropped → "firecrawl_plain"
+        Call 2: Scrape again with same tag — check previousScrapeAt AND changeStatus.
+          - Has timestamp + changeStatus 'same'/'changed' → baseline verified → "firecrawl"
+          - Has timestamp + changeStatus 'new'/null → ghost baseline (no content) → "firecrawl_plain"
+          - No timestamp → baseline dropped → "firecrawl_plain"
           - Timeout on either call → "firecrawl_plain"
 
-        See page-scout-refactor.md § "Phase 3" for rationale.
+        See double-probe.md for full specification.
         """
         tag = f"{user_id}#{scraper_name or 'web-scout'}"
         if len(tag) > 128:
@@ -85,12 +86,17 @@ class ScoutService:
             logger.info(f"Double-probe call 2 failed for {url} — firecrawl_plain")
             return "firecrawl_plain"
 
-        ct = result2.get("changeTracking", {})
-        previous_scrape = ct.get("previousScrapeAt") if ct else None
+        ct = result2.get("changeTracking", {}) or {}
+        previous_scrape = ct.get("previousScrapeAt")
+        change_status = ct.get("changeStatus")
 
-        if previous_scrape:
-            logger.info(f"Double-probe confirmed baseline for {url} (previousScrapeAt={previous_scrape})")
+        if previous_scrape and change_status in ("same", "changed"):
+            logger.info(f"Double-probe confirmed baseline for {url} (previousScrapeAt={previous_scrape}, changeStatus={change_status})")
             return "firecrawl"
+        elif previous_scrape:
+            # Ghost baseline: timestamp stored but content discarded
+            logger.info(f"Double-probe: ghost baseline for {url} (previousScrapeAt={previous_scrape}, changeStatus={change_status})")
+            return "firecrawl_plain"
         else:
             logger.info(f"Double-probe: baseline dropped for {url} (previousScrapeAt=null)")
             return "firecrawl_plain"
