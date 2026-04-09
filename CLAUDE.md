@@ -195,6 +195,21 @@ cd backend && python3 -m pytest tests/unit/ -v
 
 See `backend/tests/CLAUDE.md` and `frontend/src/tests/CLAUDE.md` for details.
 
+**OSS mirror check — required when adding SaaS-only files or routes:**
+
+This project ships an OSS mirror via `scripts/strip-oss.sh`. When you add any of the following, you MUST update `strip-oss.sh` to exclude it from the mirror:
+
+- New backend routers, services, or schemas that are SaaS-only (admin, billing, MuckRock, Linear)
+- New frontend routes that are SaaS-only (`/admin`, `/pricing`, `/terms`)
+- New frontend components that reference MuckRock, credits, or upgrade flows
+- New test files for SaaS-only code
+
+**Verify before pushing:**
+```bash
+bash scripts/strip-oss.sh  # Run in a throwaway worktree or after git stash
+```
+CI also runs this validation (`OSS mirror validation` check), but catching it locally is faster.
+
 ## CI/CD Pipeline
 
 CI runs automatically on push to `develop` and on PRs to `main`. See **Deployment Workflow** above for the mandatory process.
