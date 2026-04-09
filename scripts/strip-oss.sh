@@ -97,6 +97,7 @@ mv frontend/src/routes/login-supabase/ frontend/src/routes/login/
 # -------------------------------------------------------------------
 # Frontend: strip SaaS-only routes and references
 # -------------------------------------------------------------------
+rm -rf frontend/src/routes/admin/
 rm -rf frontend/src/routes/pricing/
 rm -rf frontend/src/routes/terms/
 
