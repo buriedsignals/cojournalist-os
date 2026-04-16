@@ -30,11 +30,6 @@
 		sidebarNav.setView(view);
 	}
 
-	function handleLocationScout() {
-		showNewScoutDropdown = false;
-		sidebarNav.setView('location-scout');
-	}
-
 	function handleBeatScout() {
 		showNewScoutDropdown = false;
 		sidebarNav.setView('beat-scout');
@@ -123,7 +118,6 @@
 			open={showNewScoutDropdown}
 			sidebarCollapsed={collapsed}
 			on:trackPage={handleTrackPage}
-			on:locationScout={handleLocationScout}
 			on:beatScout={handleBeatScout}
 			on:profileScout={handleProfileScout}
 			on:civicScout={handleCivicScout}

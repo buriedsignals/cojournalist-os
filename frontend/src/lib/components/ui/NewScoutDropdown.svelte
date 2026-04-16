@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { Crosshair, MapPin, Radar, Users, Landmark } from 'lucide-svelte';
+	import { Crosshair, Radar, Users, Landmark } from 'lucide-svelte';
 	import { authStore } from '$lib/stores/auth';
 	import * as m from '$lib/paraglide/messages';
 
@@ -12,7 +12,6 @@
 
 	const dispatch = createEventDispatcher<{
 		trackPage: void;
-		locationScout: void;
 		beatScout: void;
 		profileScout: void;
 		civicScout: void;
@@ -21,11 +20,6 @@
 
 	function handleTrackPage() {
 		dispatch('trackPage');
-		dispatch('close');
-	}
-
-	function handleLocationScout() {
-		dispatch('locationScout');
 		dispatch('close');
 	}
 
@@ -69,18 +63,6 @@
 				<div class="option-content">
 					<span class="option-title">{m.newScout_trackTitle()}</span>
 					<span class="option-description">{m.newScout_trackDescription()}</span>
-				</div>
-			</button>
-
-			<div class="option-divider"></div>
-
-			<button class="scout-option" on:click={handleLocationScout}>
-				<div class="option-icon">
-					<MapPin size={20} />
-				</div>
-				<div class="option-content">
-					<span class="option-title">{m.newScout_locationScoutTitle()}</span>
-					<span class="option-description">{m.newScout_locationScoutDescription()}</span>
 				</div>
 			</button>
 
