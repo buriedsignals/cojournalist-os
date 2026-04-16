@@ -919,7 +919,7 @@ class FirecrawlTools:
         url: str,
         max_pages: int = MAX_PAGES_PER_PDF,
     ) -> dict:
-        """Scrape a PDF URL using Firecrawl's document parsing with OCR.
+        """Scrape a PDF URL using Firecrawl's fast PDF parser (no OCR).
 
         Returns dict with 'markdown' (extracted text) and 'metadata' keys,
         or {'error': ...} on failure.
@@ -928,7 +928,7 @@ class FirecrawlTools:
             payload = {
                 "url": url,
                 "formats": ["markdown"],
-                "parsers": [{"type": "pdf", "mode": "auto", "maxPages": max_pages}],
+                "parsers": [{"type": "pdf", "mode": "fast", "maxPages": max_pages}],
             }
 
             client = await get_http_client()
