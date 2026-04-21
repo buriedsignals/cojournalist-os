@@ -244,19 +244,10 @@ async def has_users():
         return {"has_users": True}
 
 
-# Serve built frontend if available
-FRONTEND_DIST = Path(__file__).resolve().parent / "frontend_client"
-if FRONTEND_DIST.exists():
-    logger.info("Serving frontend assets from %s", FRONTEND_DIST)
-    # Dedicated static mount for email images (standard StaticFiles, not SPA fallback)
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIST)), name="static")
-    # SPA fallback for all other routes
-    app.mount("/", SPAStaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
-else:
-    logger.info("Frontend assets directory not found at %s (skipping mount).", FRONTEND_DIST)
-
-
-# Health check endpoint
+# Health check endpoints — MUST be declared BEFORE the SPA static mount
+# below, otherwise the mount catches /api/health and SPAStaticFiles raises
+# RuntimeError('Not a static file') → 500. Render's healthCheckPath is
+# /api/health so a regression here makes the deploy immediately unhealthy.
 @app.get("/api/health", include_in_schema=False)
 async def health_check():
     """Health check endpoint for monitoring."""
@@ -267,6 +258,18 @@ async def health_check():
 async def readiness_check():
     """Readiness check endpoint."""
     return {"status": "ready"}
+
+
+# Serve built frontend if available
+FRONTEND_DIST = Path(__file__).resolve().parent / "frontend_client"
+if FRONTEND_DIST.exists():
+    logger.info("Serving frontend assets from %s", FRONTEND_DIST)
+    # Dedicated static mount for email images (standard StaticFiles, not SPA fallback)
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIST)), name="static")
+    # SPA fallback for all other routes
+    app.mount("/", SPAStaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
+else:
+    logger.info("Frontend assets directory not found at %s (skipping mount).", FRONTEND_DIST)
 
 
 # Global exception handler
