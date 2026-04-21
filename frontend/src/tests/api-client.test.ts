@@ -36,14 +36,14 @@ beforeEach(() => {
 // ===========================================================================
 
 describe('getActiveJobs', () => {
-	it('calls GET /scrapers/active with Bearer auth', async () => {
-		fetchSpy = mockFetchResponse({ scrapers: [] });
+	it('calls GET /scouts EF with Bearer auth (post-cutover adapter)', async () => {
+		fetchSpy = mockFetchResponse({ items: [], pagination: { total: 0 } });
 		vi.stubGlobal('fetch', fetchSpy);
 
 		await apiClient.getActiveJobs();
 
 		expect(fetchSpy).toHaveBeenCalledWith(
-			'/api/scrapers/active',
+			'/api/scouts',
 			expect.objectContaining({
 				method: 'GET',
 				headers: expect.objectContaining({ 'Content-Type': 'application/json' })
@@ -53,20 +53,25 @@ describe('getActiveJobs', () => {
 		expect(options.credentials).toBeUndefined();
 	});
 
-	it('returns parsed response', async () => {
-		const mockScouts = { scrapers: [{ scraper_name: 'test' }] };
-		fetchSpy = mockFetchResponse(mockScouts);
+	it('reshapes EF {items} → legacy {scrapers: [{scraper_name}]}', async () => {
+		fetchSpy = mockFetchResponse({
+			items: [{ id: 'uuid-1', name: 'test', user_id: 'u1' }],
+			pagination: { total: 1 }
+		});
 		vi.stubGlobal('fetch', fetchSpy);
 
 		const result = await apiClient.getActiveJobs();
-		expect(result).toEqual(mockScouts);
+		// Adapter surfaces `scraper_name` mirroring `name` so legacy UI works.
+		expect(result.scrapers[0].scraper_name).toBe('test');
+		expect(result.user).toBe('u1');
 	});
 
 	it('throws on API error', async () => {
 		fetchSpy = mockFetchResponse({ detail: 'Server error' }, 500);
 		vi.stubGlobal('fetch', fetchSpy);
 
-		await expect(apiClient.getActiveJobs()).rejects.toThrow('Server error');
+		// Adapter discards body and reports status — see normalizeErrorDetail call.
+		await expect(apiClient.getActiveJobs()).rejects.toThrow('API error: 500');
 	});
 });
 
@@ -75,26 +80,54 @@ describe('getActiveJobs', () => {
 // ===========================================================================
 
 describe('deleteActiveJob', () => {
-	it('calls DELETE with encoded scout name', async () => {
-		fetchSpy = mockFetchResponse(undefined, 204);
+	it('resolves name → UUID via /scouts then DELETE /scouts/:id', async () => {
+		// First fetch: GET /scouts to resolve name → uuid.
+		// Second fetch: DELETE /scouts/<uuid>.
+		fetchSpy = vi.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				status: 200,
+				json: vi.fn().mockResolvedValue({
+					items: [{ id: 'uuid-abc', name: 'my scout name' }]
+				}),
+				text: vi.fn().mockResolvedValue('')
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				status: 204,
+				json: vi.fn().mockResolvedValue(undefined),
+				text: vi.fn().mockResolvedValue('')
+			});
 		vi.stubGlobal('fetch', fetchSpy);
 
 		await apiClient.deleteActiveJob('my scout name');
 
-		expect(fetchSpy).toHaveBeenCalledWith(
-			'/api/scrapers/active/my%20scout%20name',
-			expect.objectContaining({ method: 'DELETE' })
-		);
+		expect(fetchSpy.mock.calls[1][0]).toBe('/api/scouts/uuid-abc');
+		expect(fetchSpy.mock.calls[1][1].method).toBe('DELETE');
 	});
 
-	it('handles special characters in scout name', async () => {
-		fetchSpy = mockFetchResponse(undefined, 204);
+	it('handles special characters in scout name (URL-encoded UUID path)', async () => {
+		fetchSpy = vi.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				status: 200,
+				json: vi.fn().mockResolvedValue({
+					items: [{ id: 'uuid/with&special', name: 'scout/with&special' }]
+				}),
+				text: vi.fn().mockResolvedValue('')
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				status: 204,
+				json: vi.fn().mockResolvedValue(undefined),
+				text: vi.fn().mockResolvedValue('')
+			});
 		vi.stubGlobal('fetch', fetchSpy);
 
 		await apiClient.deleteActiveJob('scout/with&special');
 
-		const url = fetchSpy.mock.calls[0][0];
-		expect(url).toContain(encodeURIComponent('scout/with&special'));
+		const url = fetchSpy.mock.calls[1][0];
+		expect(url).toContain(encodeURIComponent('uuid/with&special'));
 	});
 });
 
@@ -103,21 +136,31 @@ describe('deleteActiveJob', () => {
 // ===========================================================================
 
 describe('runScoutNow', () => {
-	it('calls POST /scrapers/run-now with scout name', async () => {
-		const mockResult = { scraper_status: true, criteria_status: true, summary: 'Found changes' };
-		fetchSpy = mockFetchResponse(mockResult);
+	it('resolves name → UUID via /scouts then POSTs /scouts/:id/run', async () => {
+		fetchSpy = vi.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				status: 200,
+				json: vi.fn().mockResolvedValue({
+					items: [{ id: 'uuid-run', name: 'test-scout' }]
+				}),
+				text: vi.fn().mockResolvedValue('')
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				status: 202,
+				json: vi.fn().mockResolvedValue({ run_id: 'r-1' }),
+				text: vi.fn().mockResolvedValue('{"run_id":"r-1"}')
+			});
 		vi.stubGlobal('fetch', fetchSpy);
 
 		const result = await apiClient.runScoutNow('test-scout');
 
-		expect(fetchSpy).toHaveBeenCalledWith(
-			'/api/scrapers/run-now',
-			expect.objectContaining({
-				method: 'POST',
-					body: JSON.stringify({ scraper_name: 'test-scout' })
-			})
-		);
-		expect(result).toEqual(mockResult);
+		expect(fetchSpy.mock.calls[1][0]).toBe('/api/scouts/uuid-run/run');
+		expect(fetchSpy.mock.calls[1][1].method).toBe('POST');
+		// Adapter synthesizes a "queued" response since EF returns 202 only.
+		expect(result.scraper_status).toBe(true);
+		expect(result.summary).toBe('Scout run queued');
 	});
 });
 
@@ -126,26 +169,12 @@ describe('runScoutNow', () => {
 // ===========================================================================
 
 describe('validateCredits', () => {
-	it('returns valid when credits are sufficient', async () => {
-		fetchSpy = mockFetchResponse({ current_credits: 10, per_run_cost: 1 });
-		vi.stubGlobal('fetch', fetchSpy);
-
-		const result = await apiClient.validateCredits(1, 'monitoring');
-
-		expect(result.valid).toBe(true);
-	});
-
-	it('returns invalid on 402 with credit details', async () => {
-		fetchSpy = mockFetchResponse(
-			{ current_credits: 0, required_credits: 2 },
-			402
-		);
-		vi.stubGlobal('fetch', fetchSpy);
-
+	it('always returns valid=true (post-cutover stub; gating moved server-side)', async () => {
+		// Post-cutover, the legacy /scrapers/monitoring/validate endpoint
+		// has no EF equivalent. The method is a no-op stub — credit gating
+		// is enforced atomically inside the EF /scouts POST handler.
 		const result = await apiClient.validateCredits(2, 'monitoring');
-
-		expect(result.valid).toBe(false);
-		expect(result.current_credits).toBe(0);
+		expect(result.valid).toBe(true);
 		expect(result.required_credits).toBe(2);
 	});
 });
@@ -203,7 +232,7 @@ describe('searchPulse', () => {
 // ===========================================================================
 
 describe('scheduleMonitoring', () => {
-	it('sends POST with full payload', async () => {
+	it('sends POST /scouts EF with full payload (post-cutover adapter)', async () => {
 		const payload = {
 			name: 'my-scout',
 			url: 'https://example.com',
@@ -221,7 +250,7 @@ describe('scheduleMonitoring', () => {
 		await apiClient.scheduleMonitoring(payload);
 
 		expect(fetchSpy).toHaveBeenCalledWith(
-			'/api/scrapers/monitoring',
+			'/api/scouts',
 			expect.objectContaining({
 				method: 'POST',
 					body: JSON.stringify(payload)
@@ -235,24 +264,41 @@ describe('scheduleMonitoring', () => {
 // ===========================================================================
 
 describe('Information Units', () => {
-	it('getUserUnitLocations calls GET /units/locations', async () => {
-		fetchSpy = mockFetchResponse({ locations: ['CH#Zurich#_'] });
+	it('getUserUnitLocations aggregates client-side from /units?limit=200', async () => {
+		// Post-cutover: units EF has no /locations route, so we fetch a page
+		// and dedupe distinct city/state/country combos.
+		fetchSpy = mockFetchResponse({
+			items: [
+				{ city: 'Zurich', state: 'Zurich', country: 'CH' },
+				{ city: 'Zurich', state: 'Zurich', country: 'CH' },
+				{ city: 'Bern', state: 'Bern', country: 'CH' }
+			]
+		});
 		vi.stubGlobal('fetch', fetchSpy);
 
 		const result = await apiClient.getUserUnitLocations();
 
-		expect(fetchSpy.mock.calls[0][0]).toBe('/api/units/locations');
-		expect(result.locations).toEqual(['CH#Zurich#_']);
+		expect(fetchSpy.mock.calls[0][0]).toBe('/api/units?limit=200');
+		expect(result.locations).toEqual(['Bern, Bern, CH', 'Zurich, Zurich, CH']);
 	});
 
-	it('getUnitsByTopic passes topic as query param', async () => {
-		fetchSpy = mockFetchResponse({ units: [], count: 0 });
+	it('getUnitsByTopic filters client-side from /units?limit=N', async () => {
+		// Post-cutover: units EF doesn't accept topic filter; we fetch a
+		// larger page and filter locally.
+		fetchSpy = mockFetchResponse({
+			items: [
+				{ unit_id: 'u1', topic: 'Climate' },
+				{ unit_id: 'u2', topic: 'Politics' }
+			]
+		});
 		vi.stubGlobal('fetch', fetchSpy);
 
-		await apiClient.getUnitsByTopic({ topic: 'Climate' });
+		const result = await apiClient.getUnitsByTopic({ topic: 'Climate' });
 
 		const url: string = fetchSpy.mock.calls[0][0];
-		expect(url).toContain('topic=Climate');
+		expect(url).toMatch(/^\/api\/units\?limit=\d+$/);
+		expect(result.units).toHaveLength(1);
+		expect(result.count).toBe(1);
 	});
 
 	it('searchUnitsSemantic passes query param', async () => {
@@ -334,7 +380,7 @@ describe('autoSelectUnits', () => {
 		topic: null
 	};
 
-	it('sends POST to /export/auto-select with correct body', async () => {
+	it('sends POST to /export-select Edge Function with correct body', async () => {
 		const mockResponse = {
 			selected_unit_ids: ['unit-001'],
 			selection_summary: 'Selected 1 unit about government budget decisions'
@@ -345,7 +391,7 @@ describe('autoSelectUnits', () => {
 		await apiClient.autoSelectUnits(mockParams);
 
 		expect(fetchSpy).toHaveBeenCalledWith(
-			'/api/export/auto-select',
+			'/api/export-select',
 			expect.objectContaining({
 				method: 'POST',
 					body: JSON.stringify(mockParams)

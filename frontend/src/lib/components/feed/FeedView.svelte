@@ -411,25 +411,25 @@
 		feedStore.enterAISelectMode();
 		feedStore.setAISelectLoading(true);
 
+		// Date pre-filter: if using the date prompt, exclude units
+		// whose date is set but falls outside ±2 days
+		const isDateMode = prompt.startsWith(m.export_aiSelectDefaultPrompt());
+		const eligibleUnits = isDateMode
+			? filteredUnits.filter(u => !u.date || isWithinDateWindow(u.date, 2))
+			: filteredUnits;
+
+		const unitsForSelection = eligibleUnits.map(u => ({
+			unit_id: u.unit_id,
+			statement: u.statement,
+			entities: u.entities,
+			source_title: u.source_title,
+			created_at: u.created_at,
+			date: u.date ?? null,
+			unit_type: u.unit_type,
+			scout_type: u.scout_type,
+		}));
+
 		try {
-			// Date pre-filter: if using the date prompt, exclude units
-			// whose date is set but falls outside ±2 days
-			const isDateMode = prompt.startsWith(m.export_aiSelectDefaultPrompt());
-			const eligibleUnits = isDateMode
-				? filteredUnits.filter(u => !u.date || isWithinDateWindow(u.date, 2))
-				: filteredUnits;
-
-			const unitsForSelection = eligibleUnits.map(u => ({
-				unit_id: u.unit_id,
-				statement: u.statement,
-				entities: u.entities,
-				source_title: u.source_title,
-				created_at: u.created_at,
-				date: u.date ?? null,
-				unit_type: u.unit_type,
-				scout_type: u.scout_type,
-			}));
-
 			const result = await apiClient.autoSelectUnits({
 				units: unitsForSelection,
 				prompt,
@@ -440,7 +440,9 @@
 			feedStore.setAISelectedUnitIds(result.selected_unit_ids);
 			feedStore.setAISelectionSummary(result.selection_summary);
 		} catch (err) {
-			console.error('AI select failed:', err);
+			console.error('AI select failed, using fallback:', err);
+			feedStore.setAISelectedUnitIds(unitsForSelection.slice(0, 10).map(u => u.unit_id));
+			feedStore.setAISelectionSummary(m.export_aiSelectFallback());
 		} finally {
 			feedStore.setAISelectLoading(false);
 		}

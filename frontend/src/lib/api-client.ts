@@ -621,7 +621,7 @@ export const apiClient = {
 		location: string | null;
 		topic: string | null;
 	}): Promise<{ selected_unit_ids: string[]; selection_summary: string }> {
-		return apiRequest('POST', '/export/auto-select', params);
+		return apiRequest('POST', '/export-select', params);
 	},
 
 	/**

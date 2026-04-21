@@ -211,6 +211,7 @@
 	"export_aiSelectDateDesc": "Events from last 2 days + next 2 days",
 	"export_aiSelectDefaultPrompt": "Select recent and upcoming events from the last 2 days and next 2 days.",
 	"export_aiSelectDesc": "AI picks relevant units",
+	"export_aiSelectFallback": "AI selection unavailable; showing first 10 units.",
 	"export_aiSelectFrom": "Selecting from {location} units",
 	"export_aiSelectFromAll": "Selecting from all units",
 	"export_aiSelectLocationDesc": "Most relevant for {location}",
