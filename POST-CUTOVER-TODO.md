@@ -98,6 +98,52 @@ to `rm -rf backend/` and streams a slimmed OSS tree. Plenty of room to
 consolidate the ad-hoc sed patches once the FastAPI surface is gone in
 PR 4.
 
+## Reference — Render env-var consolidation path
+
+Today's Render service has 5+ Supabase-related env vars because the
+FastAPI surface still owns the data path. Each has a distinct consumer:
+
+| Env var | Used by | Why needed today |
+|---|---|---|
+| `SUPABASE_URL` | FastAPI broker (`routers/auth.py`) | Build admin REST calls (`admin.create_user`, `admin.generate_link`) |
+| `SUPABASE_SERVICE_KEY` | FastAPI broker | Auth header for admin calls (bypasses RLS) |
+| `SUPABASE_JWT_SECRET` | `adapters/supabase/auth.py` HS256 fallback | Legacy symmetric-token branch — can be dropped once we're confident no HS256 tokens are in flight (TTL drained, see PR for ES256+JWKS) |
+| `DATABASE_URL` | asyncpg pool in `adapters/supabase/connection.py` | Direct Postgres reads from FastAPI data routers (scouts, units, scraper, etc.). Uses Supavisor v2 pooler at `aws-1-eu-west-1.pooler.supabase.com:6543` (NOT the legacy `aws-0` pattern, NOT the IPv6-only direct host) |
+| `PUBLIC_SUPABASE_URL` | Frontend bundle (build-time) | `auth-supabase.ts` reads via `import.meta.env.PUBLIC_SUPABASE_URL` to init the browser supabase-js client that calls `setSession()` after magiclink hop |
+| `PUBLIC_SUPABASE_ANON_KEY` | Frontend bundle (build-time) | Same — supabase-js needs the anon key to identify the project |
+
+### Why "I saw my scouts earlier" worked without `DATABASE_URL`
+
+Earlier in tonight's cutover, `VITE_API_URL` pointed at
+`https://gfmdziplticfoakhrfpt.supabase.co/functions/v1`. Frontend data
+calls hit Supabase Edge Functions directly. Edge Functions run *inside*
+Supabase's infrastructure and read Postgres via the internal network
+using the service-role key — they never go through FastAPI, never need
+`DATABASE_URL` from Render.
+
+When we flipped `VITE_API_URL=/api` to make the legacy `/scrapers/*`
+routes reachable on FastAPI, every data call started going through
+the FastAPI → asyncpg → Postgres path. That path needs `DATABASE_URL`.
+It was unset → asyncpg fell back to localhost → `ConnectionRefusedError`
+→ 500 on `/api/user/me`, `/api/scouts`, `/api/units`,
+`/api/scrapers/active`. Adding the pooler URL to Render fixed it.
+
+### Long-term steady state (after follow-up #2 lands)
+
+Once `frontend/src/lib/api-client.ts` calls Edge Functions for data
+(rename `/scrapers/*` → `/scouts`, etc.) and PR 4 deletes the FastAPI
+data routers + adapters, the FastAPI service shrinks to **just
+`/api/auth/*`**. At that point:
+
+- `DATABASE_URL` — can be removed from Render (no asyncpg pool needed).
+- `SUPABASE_SERVICE_KEY` — can be removed (auth broker only needs URL).
+- `SUPABASE_JWT_SECRET` — can be removed (PR 2a webhook port + ES256-only validation).
+- `SUPABASE_URL` — kept for the broker.
+- `PUBLIC_SUPABASE_URL` + `PUBLIC_SUPABASE_ANON_KEY` — only used at frontend build step; can stay in `.env.production` (already are) and be dropped from Render altogether.
+
+Steady-state Render Supabase footprint: **1 env var** (`SUPABASE_URL`).
+Today's footprint: 5+. The cleanup is gated on follow-up #2.
+
 ## Known non-issues (not to re-investigate)
 
 - `Failed to check active jobs for notifications` in console: same
