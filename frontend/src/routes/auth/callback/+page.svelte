@@ -39,8 +39,8 @@
 		}
 
 		// Strip tokens from visible URL before navigating
-		history.replaceState({}, '', '/workspace');
-		await goto('/workspace');
+		history.replaceState({}, '', '/');
+		await goto('/');
 	});
 </script>
 
