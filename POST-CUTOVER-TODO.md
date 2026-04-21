@@ -78,6 +78,18 @@ T+30d. Once confident, snapshot final state to S3 Glacier, then delete
 the `scraping-jobs` and `information-units` tables + Lambda + EventBridge
 Scheduler + API Gateway. Stops the AWS bill from the v1 infrastructure.
 
+### 9. Port `backend/scripts/bump_credits.py` to Supabase
+
+Script reads `MUCKROCK_CLIENT_ID` + secret to look up a user UUID by
+email, then writes a `CREDITS#` row in DynamoDB to bump their balance.
+Post-cutover, credits live in `public.credit_accounts` keyed on
+`user_id`. Replace the boto3/DynamoDB writes with a `supabase-py`
+upsert against `credit_accounts` (or a SECURITY DEFINER RPC if you'd
+rather keep the bump-credits action audit-logged). Email→UUID lookup
+via MuckRock stays — that's still the source of truth for identity.
+
+Until ported, the script is a no-op against production.
+
 ### 8. Mirror OSS strip-oss.sh broader cleanup
 
 Several `sed` edits I added during cutover were surgical fixes to keep
