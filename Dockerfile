@@ -9,18 +9,17 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 COPY frontend .
-ARG VITE_API_URL=''
-ARG PUBLIC_MAPTILER_API_KEY
-ARG PUBLIC_SUPABASE_URL
-ARG PUBLIC_SUPABASE_ANON_KEY
-ARG PUBLIC_DEPLOYMENT_TARGET='supabase'
-ARG PUBLIC_MUCKROCK_ENABLED=''
-ENV VITE_API_URL=${VITE_API_URL}
+# Build-time config lives in frontend/.env.production (Vite loads it for
+# `npm run build`). Dockerfile used to set `ENV PUBLIC_*=${ARG}` here, but
+# that overrode .env.production with empty strings when Render didn't pass
+# a matching build arg — leaking ""-valued PUBLIC_SUPABASE_URL into the
+# bundle and breaking the Supabase client. Let Vite read the file directly.
+#
+# The only build-time override we still keep is PUBLIC_MAPTILER_API_KEY,
+# since that one is a secret that's managed in Render dashboard rather
+# than committed to the repo.
+ARG PUBLIC_MAPTILER_API_KEY=''
 ENV PUBLIC_MAPTILER_API_KEY=${PUBLIC_MAPTILER_API_KEY}
-ENV PUBLIC_SUPABASE_URL=${PUBLIC_SUPABASE_URL}
-ENV PUBLIC_SUPABASE_ANON_KEY=${PUBLIC_SUPABASE_ANON_KEY}
-ENV PUBLIC_DEPLOYMENT_TARGET=${PUBLIC_DEPLOYMENT_TARGET}
-ENV PUBLIC_MUCKROCK_ENABLED=${PUBLIC_MUCKROCK_ENABLED}
 RUN npm run build
 
 FROM python:3.13-slim AS runtime
