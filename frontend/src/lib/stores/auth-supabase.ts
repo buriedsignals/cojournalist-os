@@ -18,7 +18,7 @@ const SUPABASE_ANON_KEY = import.meta.env.PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 let supabase: SupabaseClient | null = null;
 
-function getSupabase(): SupabaseClient {
+export function getSupabase(): SupabaseClient {
 	if (!supabase) {
 		supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 	}

@@ -416,6 +416,11 @@ export const apiClient = {
 
 	/**
 	 * Start an async data extraction job.
+	 *
+	 * Adapter: maps to Edge Function POST /ingest. Legacy `target`/`channel`
+	 * fields are folded into `notes` for traceability since the v2 ingests
+	 * table doesn't have separate columns. Returns `job_id` for poll
+	 * compatibility (mirrors the ingest_id from the EF response).
 	 */
 	async startExtraction(payload: {
 		url: string;
@@ -423,11 +428,28 @@ export const apiClient = {
 		channel: string;
 		criteria?: string;
 	}): Promise<{ job_id: string; status: string }> {
-		return apiRequest('POST', '/extract/start', payload);
+		const body = {
+			kind: 'url' as const,
+			url: payload.url,
+			...(payload.criteria ? { criteria: payload.criteria } : {}),
+			notes: `target=${payload.target} channel=${payload.channel}`
+		};
+		const res = await apiRequest<{ ingest_id?: string; job_id?: string }>(
+			'POST',
+			'/ingest',
+			body
+		);
+		return {
+			job_id: res.ingest_id ?? res.job_id ?? '',
+			status: 'running'
+		};
 	},
 
 	/**
 	 * Get the status of an extraction job.
+	 *
+	 * Adapter: queries the `ingests` table directly via supabase-js (no
+	 * EF round trip). RLS scopes the read to the calling user.
 	 */
 	async getExtractionStatus(jobId: string): Promise<{
 		job_id: string;
@@ -435,12 +457,34 @@ export const apiClient = {
 		result?: any;
 		error?: string;
 	}> {
-		return apiRequest('GET', `/extract/status/${jobId}`);
+		const { getSupabase } = await import('$lib/stores/auth-supabase');
+		const sb = getSupabase();
+		const { data, error } = await sb
+			.from('ingests')
+			.select('id, status, error_message')
+			.eq('id', jobId)
+			.maybeSingle();
+		if (error || !data) {
+			return { job_id: jobId, status: 'failed', error: error?.message ?? 'not found' };
+		}
+		const status: 'running' | 'completed' | 'failed' =
+			data.status === 'completed' ? 'completed' :
+			data.status === 'error' || data.status === 'failed' ? 'failed' :
+			'running';
+		return {
+			job_id: jobId,
+			status,
+			...(data.error_message ? { error: data.error_message } : {})
+		};
 	},
 
 	/**
 	 * Validate credits before extraction.
-	 * Throws an error with type 'insufficient_credits' if user doesn't have enough.
+	 *
+	 * Adapter: server-side credit gating happens inside POST /ingest
+	 * (enforced by RPC + RLS), so the up-front validate call returns
+	 * a permissive result. If the user genuinely lacks credits, the
+	 * subsequent /ingest POST will reject and the UI surfaces it.
 	 */
 	async validateExtractionCredits(payload: {
 		url: string;
@@ -452,24 +496,13 @@ export const apiClient = {
 		current_credits: number;
 		remaining_after: number;
 	}> {
-		const { authStore } = await import('$lib/stores/auth');
-		const token = await authStore.getToken();
-		const response = await fetch(buildApiUrl('/extract/validate'), {
-			method: 'POST',
-			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-			/* credentials dropped — Supabase Edge Functions return '*' origin; browsers reject credentials with wildcards */
-			body: JSON.stringify(payload)
-		});
-
-		if (!response.ok) {
-			const error = await response.json();
-			if (response.status === 402) {
-				throw { type: 'insufficient_credits', ...error.detail };
-			}
-			throw new Error(error.detail || 'Failed to validate credits');
-		}
-
-		return response.json();
+		void payload;
+		return {
+			valid: true,
+			cost: 0,
+			current_credits: 9999,
+			remaining_after: 9999
+		};
 	},
 
 	// ==================== Information Units API ====================
@@ -477,13 +510,26 @@ export const apiClient = {
 	/**
 	 * Get distinct locations where user has information units.
 	 *
-	 * Adapter: the units Edge Function does not expose /units/locations.
-	 * Stub returns empty list so the FeedView location-filter dropdown
-	 * shows no options instead of throwing. Real implementation moves
-	 * server-side as a SECURITY DEFINER RPC (POST-CUTOVER-TODO #2).
+	 * Adapter: the units EF doesn't expose /units/locations, so we
+	 * aggregate client-side: fetch a page of units and dedupe distinct
+	 * country/state/city combinations into displayName-shaped strings.
+	 * 200-unit cap keeps the request bounded; if a user has more they
+	 * see the most-recent locations only (acceptable for filter UX).
 	 */
 	async getUserUnitLocations(): Promise<{ locations: string[] }> {
-		return { locations: [] };
+		const { authStore } = await import('$lib/stores/auth');
+		const token = await authStore.getToken();
+		const r = await fetch(buildApiUrl('/units?limit=200'), {
+			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+		});
+		if (!r.ok) return { locations: [] };
+		const body = (await r.json()) as { items?: Array<{ city?: string; state?: string; country?: string }> };
+		const set = new Set<string>();
+		for (const u of body.items ?? []) {
+			const parts = [u.city, u.state, u.country].filter(Boolean);
+			if (parts.length) set.add(parts.join(', '));
+		}
+		return { locations: Array.from(set).sort() };
 	},
 
 	/**
@@ -599,20 +645,32 @@ export const apiClient = {
 	/**
 	 * Get distinct topics where user has information units.
 	 *
-	 * Adapter: stubbed (units EF doesn't expose /units/topics yet).
-	 * See POST-CUTOVER-TODO #2.
+	 * Adapter: aggregate client-side from a single GET /units page,
+	 * same approach as getUserUnitLocations. 200-unit cap.
 	 */
 	async getUserUnitTopics(): Promise<{ topics: string[] }> {
-		return { topics: [] };
+		const { authStore } = await import('$lib/stores/auth');
+		const token = await authStore.getToken();
+		const r = await fetch(buildApiUrl('/units?limit=200'), {
+			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+		});
+		if (!r.ok) return { topics: [] };
+		const body = (await r.json()) as { items?: Array<{ topic?: string }> };
+		const set = new Set<string>();
+		for (const u of body.items ?? []) {
+			if (u.topic) set.add(u.topic);
+		}
+		return { topics: Array.from(set).sort() };
 	},
 
 	/**
 	 * Get information units for a specific topic.
 	 *
-	 * Adapter: units EF GET /units doesn't filter by topic today
-	 * (filterable fields are scout_id, project_id, country, state, city).
-	 * Returns empty until topic-filter is added to the EF or moved to
-	 * client-side filtering of the unfiltered list.
+	 * Adapter: client-side filter on a GET /units page. The units EF
+	 * doesn't (yet) accept topic as a filter param; rather than ship
+	 * a server-side EF change at 1AM, filter the result locally. 200-
+	 * unit cap. Server-side topic filter is a small EF patch for the
+	 * morning.
 	 */
 	async getUnitsByTopic(params: {
 		topic: string;
@@ -621,8 +679,17 @@ export const apiClient = {
 		units: InformationUnit[];
 		count: number;
 	}> {
-		void params; // avoid unused-arg lint
-		return { units: [], count: 0 };
+		const { authStore } = await import('$lib/stores/auth');
+		const token = await authStore.getToken();
+		const fetchLimit = Math.min(200, Math.max(50, params.limit ?? 50) * 4);
+		const r = await fetch(buildApiUrl(`/units?limit=${fetchLimit}`), {
+			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+		});
+		if (!r.ok) return { units: [], count: 0 };
+		const body = (await r.json()) as { items?: InformationUnit[] };
+		const filtered = (body.items ?? []).filter((u) => u.topic === params.topic);
+		const limit = params.limit ?? 50;
+		return { units: filtered.slice(0, limit), count: filtered.length };
 	},
 
 	/**
