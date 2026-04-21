@@ -20,11 +20,31 @@ docs/
 │   ├── scrape.md                          # Firecrawl extraction
 │   ├── social.md                          # Social media monitoring (Apify)
 │   └── web-scouts.md                      # Website change detection
-├── oss/                                   # Everything OSS / self-hosted
+├── supabase/                              # Authoritative Supabase system docs (read these)
+│   ├── README.md                          # Index + conventions
+│   ├── architecture-overview.md           # Who-calls-what diagram
+│   ├── migrations.md                      # One-liner per migration file
+│   ├── auth-users.md                      # auth.users + user_preferences
+│   ├── credits-entitlements.md            # orgs, credit_accounts, decrement RPC, webhook
+│   ├── scouts-runs.md                     # scouts, scout_runs, scheduling, failure handling
+│   ├── units-entities.md                  # information_units, entities, semantic search
+│   ├── projects-ingest.md                 # projects, project_members, ingests
+│   ├── civic-pipeline.md                  # civic_extraction_queue + worker
+│   ├── social-apify.md                    # apify_run_queue + callback/reconcile
+│   ├── mcp-oauth.md                       # MCP OAuth flow + tables
+│   ├── cron-jobs.md                       # Every pg_cron job in one place
+│   ├── rls-reference.md                   # Every RLS policy
+│   ├── rpc-reference.md                   # Every RPC function
+│   ├── edge-functions.md                  # Every Edge Function
+│   ├── notifications.md                   # Scout email notifications (Resend, templates, i18n, benchmark)
+│   ├── benchmarks.md                      # End-to-end scout benchmark scripts (web, beat, civic, social)
+│   ├── vault-secrets.md                   # vault.decrypted_secrets usage
+│   └── retention.md                       # TTL + cleanup cadence
+├── oss/                                   # OSS distribution strategy (not Supabase-specific)
 │   ├── architecture.md                    # Strategy: two-repo model, licensing, what ships
 │   ├── adapter-pattern.md                 # Port/adapter design, DI wiring, async patterns
-│   ├── supabase-schema.md                 # PostgreSQL tables, indexes, RLS, migrations
-│   ├── edge-functions.md                  # Supabase Edge Functions reference
+│   ├── supabase-schema.md                 # Legacy: superseded by docs/supabase/*
+│   ├── edge-functions.md                  # Legacy: superseded by docs/supabase/edge-functions.md
 │   ├── license-key.md                     # Stripe integration, key format, validation
 │   ├── deployment-and-mirror.md           # Docker, Render, GitHub mirror CI
 │   └── automation.md                      # setup.sh, sync-upstream, agent instructions

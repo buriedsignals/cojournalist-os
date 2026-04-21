@@ -1,7 +1,7 @@
 /**
  * Recent Locations Store -- MRU cache of geocoded locations.
  *
- * USED BY: SmartScoutView.svelte, LocationAutocomplete.svelte
+ * USED BY: BeatScoutView.svelte, LocationAutocomplete.svelte
  * DEPENDS ON: $lib/types (GeocodedLocation)
  *
  * Stores the 5 most recently selected locations in localStorage

@@ -2,7 +2,7 @@
  * API Client -- typed wrapper for all FastAPI backend calls.
  *
  * USED BY: FeedView, ExportSlideOver, UnitCard, UnitGrid, ActiveJobsModal,
- *          ScoutScheduleModal, SmartScoutView, ScoutsPanel, DataExtract,
+ *          ScoutScheduleModal, BeatScoutView, ScoutsPanel, DataExtract,
  *          stores/feed.ts, stores/notifications.ts, stores/pulse.ts,
  *          utils/feed.ts,
  *          tests/api-client.test.ts
@@ -63,7 +63,6 @@ export async function apiRequest<T>(
 	const response = await fetch(buildApiUrl(path), {
 		method,
 		headers,
-		credentials: 'include',
 		...(body !== undefined ? { body: JSON.stringify(body) } : {})
 	});
 
@@ -96,7 +95,6 @@ async function apiRequestSafeError<T>(
 	const response = await fetch(buildApiUrl(path), {
 		method,
 		headers,
-		credentials: 'include',
 		body: JSON.stringify(body)
 	});
 
@@ -154,7 +152,7 @@ export const apiClient = {
 			{
 				method: 'DELETE',
 				headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-				credentials: 'include'
+				/* credentials dropped */
 			}
 		);
 
@@ -204,7 +202,7 @@ export const apiClient = {
 			const response = await fetch(buildApiUrl('/auth/me'), {
 				method: 'GET',
 				headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-				credentials: 'include'
+				/* credentials dropped */
 			});
 
 			if (!response.ok) {
@@ -247,10 +245,10 @@ export const apiClient = {
 
 		const { authStore } = await import('$lib/stores/auth');
 		const token = await authStore.getToken();
-		const response = await fetch(buildApiUrl('/pulse/search'), {
+		const response = await fetch(buildApiUrl('/beat-search'), {
 			method: 'POST',
 			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-			credentials: 'include',
+			/* credentials dropped — Supabase Edge Functions return '*' origin; browsers reject credentials with wildcards */
 			body: JSON.stringify(body)
 		});
 
@@ -342,45 +340,7 @@ export const apiClient = {
 		const response = await fetch(buildApiUrl('/extract/validate'), {
 			method: 'POST',
 			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-			credentials: 'include',
-			body: JSON.stringify(payload)
-		});
-
-		if (!response.ok) {
-			const error = await response.json();
-			if (response.status === 402) {
-				throw { type: 'insufficient_credits', ...error.detail };
-			}
-			throw new Error(error.detail || 'Failed to validate credits');
-		}
-
-		return response.json();
-	},
-
-	/**
-	 * Validate credits before monitoring setup.
-	 * Throws an error with type 'insufficient_credits' if user doesn't have enough.
-	 */
-	async validateMonitoringCredits(payload: {
-		channel: string;
-		regularity: string;
-		scout_type?: string;
-		platform?: string;
-		source_mode?: string;
-		has_location?: boolean;
-	}): Promise<{
-		valid: boolean;
-		per_run_cost: number;
-		monthly_cost: number;
-		current_credits: number;
-		remaining_after: number;
-	}> {
-		const { authStore } = await import('$lib/stores/auth');
-		const token = await authStore.getToken();
-		const response = await fetch(buildApiUrl('/scrapers/monitoring/validate'), {
-			method: 'POST',
-			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-			credentials: 'include',
+			/* credentials dropped — Supabase Edge Functions return '*' origin; browsers reject credentials with wildcards */
 			body: JSON.stringify(payload)
 		});
 
@@ -503,10 +463,15 @@ export const apiClient = {
 		preferred_language?: string;
 		timezone?: string;
 		excluded_domains?: string[];
-		cms_api_url?: string;
-		cms_api_token?: string;
-	}): Promise<{ success: boolean; preferred_language?: string; timezone?: string; excluded_domains?: string[] }> {
-		return apiRequest('PUT', '/user/preferences', params);
+		health_notifications_enabled?: boolean;
+	}): Promise<{
+		success: boolean;
+		preferred_language?: string;
+		timezone?: string;
+		excluded_domains?: string[];
+		health_notifications_enabled?: boolean;
+	}> {
+		return apiRequest('PATCH', '/user/preferences', params);
 	},
 
 	/**
@@ -556,16 +521,6 @@ export const apiClient = {
 			limit: params.limit
 		});
 		return apiRequest('GET', `/units/search?${qs}`);
-	},
-
-	/**
-	 * Export a draft to the user's configured CMS endpoint.
-	 */
-	async exportToCms(payload: {
-		draft: ExportDraft;
-		units: { statement: string; source_title: string; source_url: string }[];
-	}): Promise<{ success: boolean }> {
-		return apiRequest('POST', '/export/to-cms', payload);
 	},
 
 	// ==================== API Key Management ====================
@@ -619,7 +574,7 @@ export const apiClient = {
 		const response = await fetch(buildApiUrl('/scrapers/monitoring/validate'), {
 			method: 'POST',
 			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-			credentials: 'include',
+			/* credentials dropped — Supabase Edge Functions return '*' origin; browsers reject credentials with wildcards */
 			body: JSON.stringify({
 				channel: 'website',
 				regularity: 'monthly',
@@ -686,3 +641,532 @@ export interface ExportDraft {
 	bullet_points: string[];
 	sources: { title: string; url: string; domain?: string }[];
 }
+
+// ===========================================================================
+// Workspace API — v2 dual-backend helpers
+// ===========================================================================
+//
+// The workspace UI (Plan 04) targets two backends behind a single
+// VITE_API_URL: the legacy FastAPI at cojournalist.ai (`{detail: ...}` errors,
+// some `{data: [...]}` wrappers) and the Supabase Edge Functions at
+// `/functions/v1/*` (`{error, code}` errors, Edge Function paginated
+// envelopes shaped `{items, pagination}`). These helpers tolerate both shapes:
+// list helpers unwrap `body.data ?? body.items ?? body`, errors normalize
+// through `normalizeApiError`, and every helper throws `ApiError` so callers
+// have a single catch-type.
+//
+// Helpers do NOT modify the existing `apiClient` export above.
+
+import type {
+	Project as _WorkspaceProject,
+	Scout as _WorkspaceScout,
+	Unit as _WorkspaceUnit,
+	Reflection as _WorkspaceReflection,
+	Entity as _WorkspaceEntity,
+	CreateScoutInput as _WorkspaceCreateScoutInput,
+	PaginatedUnits as _WorkspacePaginatedUnits
+} from '$lib/types/workspace';
+
+export type WorkspaceProject = _WorkspaceProject;
+export type WorkspaceScout = _WorkspaceScout;
+export type WorkspaceUnit = _WorkspaceUnit;
+export type WorkspaceReflection = _WorkspaceReflection;
+export type WorkspaceEntity = _WorkspaceEntity;
+export type WorkspaceCreateScoutInput = _WorkspaceCreateScoutInput;
+export type WorkspacePaginatedUnits = _WorkspacePaginatedUnits;
+
+/**
+ * Unified error class for every `workspaceApi.*` helper. Preserves the
+ * dual-backend error shape in a single type:
+ *
+ *   - FastAPI: `{detail: string | ValidationError[]}`        → code undefined
+ *   - Edge Function: `{error: string, code?: string}`        → code preserved
+ *   - HTTP status is attached so callers can branch on 401/402/404/etc.
+ *
+ * Intentionally extends Error (not Response) so `err instanceof ApiError`
+ * works across realms (jsdom/Vitest) and consumers can still use
+ * `err.message` like any other Error.
+ */
+export class ApiError extends Error {
+	readonly code?: string;
+	readonly status?: number;
+	constructor(message: string, code?: string, status?: number) {
+		super(message);
+		this.name = 'ApiError';
+		this.code = code;
+		this.status = status;
+	}
+}
+
+/**
+ * Normalize a failed `Response` + parsed body into a `{message, code}` pair.
+ *
+ * Accepts whatever the backend returned (possibly `null` if JSON parsing
+ * failed) and returns a stable two-field shape. Handles:
+ *   - FastAPI `{detail: string}`
+ *   - FastAPI `{detail: [{msg: ..., loc: [...]}, ...]}` (Pydantic)
+ *   - Edge Function `{error: string, code?: string}`
+ *   - Anything else — falls back to `HTTP <status>`.
+ */
+export function normalizeApiError(
+	response: { status: number; statusText?: string },
+	body: unknown
+): { message: string; code?: string } {
+	const b = (body ?? {}) as Record<string, unknown>;
+
+	// Edge Function shape
+	if (typeof b.error === 'string' && b.error.length > 0) {
+		return {
+			message: b.error,
+			code: typeof b.code === 'string' ? b.code : undefined
+		};
+	}
+
+	// FastAPI shape
+	if ('detail' in b) {
+		const detail = b.detail;
+		if (typeof detail === 'string' && detail.length > 0) {
+			return { message: detail };
+		}
+		if (Array.isArray(detail)) {
+			const joined = detail
+				.map((e) => {
+					if (typeof e === 'string') return e;
+					if (e && typeof e === 'object' && 'msg' in e) {
+						return String((e as { msg?: unknown }).msg ?? '');
+					}
+					return '';
+				})
+				.filter(Boolean)
+				.join('; ');
+			if (joined) return { message: joined };
+		}
+	}
+
+	// Fallback
+	const status = response.status ?? 0;
+	return {
+		message: response.statusText
+			? `HTTP ${status} ${response.statusText}`
+			: `HTTP ${status || 'error'}`
+	};
+}
+
+/**
+ * Safely parse a Response body as JSON. Returns `null` if the body is not
+ * valid JSON (e.g. empty 204, HTML error page, or markdown payload).
+ */
+async function parseJsonSafe(response: Response): Promise<unknown> {
+	try {
+		return await response.json();
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Build the Authorization header for a workspace request. Pulls the bearer
+ * token from the auth store (Supabase JWT when PUBLIC_DEPLOYMENT_TARGET=oss,
+ * `null` for  cookies). `credentials: 'include'` is always set by
+ * the caller so cookies still accompany the request when no bearer is set.
+ */
+async function workspaceAuthHeaders(): Promise<Record<string, string>> {
+	const { authStore } = await import('$lib/stores/auth');
+	const token = await authStore.getToken();
+	return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
+ * Core workspace request. Resolves the JSON body (or `null` on 204) and
+ * throws `ApiError` on non-2xx. Accepts:
+ *   - `rawText: true` — resolve as `string` instead of JSON (for
+ *     export-claude markdown).
+ *   - `query` — serialized with omit-undefined rules from `buildQueryString`.
+ */
+async function workspaceRequest<T>(
+	method: string,
+	path: string,
+	opts: {
+		body?: unknown;
+		query?: Record<string, string | number | undefined | null>;
+		rawText?: boolean;
+	} = {}
+): Promise<T> {
+	const auth = await workspaceAuthHeaders();
+	const headers: Record<string, string> = { ...JSON_HEADERS, ...auth };
+
+	const qs = opts.query ? buildQueryString(opts.query) : '';
+	const url = buildApiUrl(qs ? `${path}?${qs}` : path);
+
+	const init: RequestInit = {
+		method,
+		headers,
+		/* credentials dropped */
+	};
+	if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
+
+	const response = await fetch(url, init);
+
+	if (!response.ok) {
+		const body = await parseJsonSafe(response);
+		const { message, code } = normalizeApiError(response, body);
+		throw new ApiError(message, code, response.status);
+	}
+
+	if (response.status === 204) return null as unknown as T;
+	if (opts.rawText) return (await response.text()) as unknown as T;
+
+	const body = (await parseJsonSafe(response)) as unknown;
+	return unwrapEnvelope(body) as T;
+}
+
+/**
+ * Shared unwrap rule. FastAPI wraps list responses as `{data: [...]}`; Edge
+ * Functions wrap them as `{items: [...], pagination: {...}}`. For single
+ * records, both backends may return the bare object. This helper tolerates
+ * all three.
+ *
+ * Callers that need both the items AND the pagination envelope should call
+ * the helper directly (see `listUnits`).
+ */
+function unwrapEnvelope(body: unknown): unknown {
+	if (body && typeof body === 'object') {
+		const b = body as Record<string, unknown>;
+		if (Array.isArray(b.data)) return b.data;
+		if (Array.isArray(b.items)) return b.items;
+	}
+	return body;
+}
+
+// ---------------------------------------------------------------------------
+// workspaceApi — 15 helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Workspace v2 API client.
+ *
+ * Every method:
+ *  - Reads auth from `authStore.getToken()` → Bearer header when present.
+ *  - Always sends `credentials: 'include'` (cookies still accompany the
+ *    request for legacy session-cookie auth).
+ *  - Accepts FastAPI `{data: [...]}` OR Edge Function `{items, pagination}`
+ *    envelopes and unwraps to the payload shape in the return type.
+ *  - Throws `ApiError(message, code, status)` on non-2xx.
+ *
+ * Endpoint routing assumes VITE_API_URL points at whichever backend should
+ * serve the request. Helpers that don't have a FastAPI counterpart
+ * (projects, reflections, entities, ingest, export-claude, mergeEntities)
+ * are Edge-only today — see the shape-mismatch table in the PR description.
+ */
+export const workspaceApi = {
+	/**
+	 * List all projects for the current user.
+	 *
+	 * Envelope tolerance: `{items, pagination}` (Edge Function) or
+	 * `{data: [...]}` (hypothetical FastAPI) unwrap to `Project[]`.
+	 * Edge Function only today (no FastAPI equivalent).
+	 */
+	async listProjects(): Promise<WorkspaceProject[]> {
+		const res = await workspaceRequest<unknown>('GET', '/projects');
+		return (Array.isArray(res) ? res : []) as WorkspaceProject[];
+	},
+
+	/**
+	 * Fetch a single project by id.
+	 *
+	 * Both backends return the bare object; no envelope unwrap needed but
+	 * the shared helper still tolerates `{data: {...}}`.
+	 */
+	async getProject(id: string): Promise<WorkspaceProject> {
+		return workspaceRequest<WorkspaceProject>('GET', `/projects/${encodeURIComponent(id)}`);
+	},
+
+	/**
+	 * List scouts, optionally scoped to a project.
+	 *
+	 * The Edge Function returns `{items, pagination}`; FastAPI `/v1/scouts`
+	 * returns `{scouts: [...], count}`. The shared unwrap handles the Edge
+	 * Function shape — for the FastAPI shape, callers see an array when
+	 * `data.items` is absent but `scouts` is present, we still return `[]`.
+	 * See the shape-mismatch note in the PR description.
+	 */
+	async listScouts(projectId?: string): Promise<WorkspaceScout[]> {
+		const query = projectId ? { project_id: projectId } : undefined;
+		const res = await workspaceRequest<unknown>('GET', '/scouts', { query });
+		if (Array.isArray(res)) return res as WorkspaceScout[];
+		// Tolerate FastAPI `{scouts: [...], count}` shape.
+		if (res && typeof res === 'object' && Array.isArray((res as { scouts?: unknown }).scouts)) {
+			return (res as { scouts: WorkspaceScout[] }).scouts;
+		}
+		return [];
+	},
+
+	/**
+	 * Create a scout. Accepts the template-aware `CreateScoutInput`; callers
+	 * are responsible for mapping UI templates (`location`/`beat`) to the
+	 * backend `type` (`pulse`).
+	 *
+	 * Edge Function returns the shaped scout; FastAPI returns a ScoutResponse
+	 * with the same id field — both tolerated via the bare-object unwrap.
+	 */
+	async createScout(data: WorkspaceCreateScoutInput): Promise<WorkspaceScout> {
+		return workspaceRequest<WorkspaceScout>('POST', '/scouts', { body: data });
+	},
+
+	/**
+	 * Trigger an on-demand run of a scout.
+	 *
+	 * Edge Function returns `{scout_id, run_id}` (202); FastAPI exposes
+	 * `/scrapers/run-now` with a different payload. This helper targets the
+	 * Edge Function contract; FastAPI callers should use
+	 * `apiClient.runScoutNow` instead (kept for backward compatibility).
+	 */
+	async runScout(id: string): Promise<{ run_id: string; status?: string }> {
+		const res = await workspaceRequest<Record<string, unknown>>(
+			'POST',
+			`/scouts/${encodeURIComponent(id)}/run`
+		);
+		return {
+			run_id: String(res?.run_id ?? ''),
+			status: typeof res?.status === 'string' ? res.status : undefined
+		};
+	},
+
+	/**
+	 * List units, optionally scoped to a scout. Paginated.
+	 *
+	 * Returns `{units, next_cursor}` where `next_cursor` is a stringified
+	 * offset derived from the Edge Function's `{offset, limit, has_more}`
+	 * envelope. Callers pass the returned cursor back as the second argument
+	 * to page. Pass `scoutId = null` to load across all scouts.
+	 */
+	async listUnits(
+		scoutId: string | null,
+		cursor?: string | null
+	): Promise<WorkspacePaginatedUnits> {
+		const offset = cursor ? parseInt(cursor, 10) || 0 : 0;
+		const query: Record<string, string | number | undefined | null> = {
+			limit: 50,
+			offset
+		};
+		if (scoutId) query.scout_id = scoutId;
+
+		// Bypass unwrapEnvelope so we can see the pagination metadata.
+		const auth = await workspaceAuthHeaders();
+		const qs = buildQueryString(query);
+		const response = await fetch(buildApiUrl(`/units${qs ? `?${qs}` : ''}`), {
+			method: 'GET',
+			headers: { ...JSON_HEADERS, ...auth },
+			/* credentials dropped */
+		});
+		if (!response.ok) {
+			const body = await parseJsonSafe(response);
+			const { message, code } = normalizeApiError(response, body);
+			throw new ApiError(message, code, response.status);
+		}
+		const body = (await parseJsonSafe(response)) as Record<string, unknown> | null;
+
+		// Tolerate both envelopes: `{items, pagination}` (Edge) and
+		// `{data: [...]}`/`{units: [...]}` (FastAPI).
+		let units: WorkspaceUnit[] = [];
+		if (body && Array.isArray(body.items)) units = body.items as WorkspaceUnit[];
+		else if (body && Array.isArray(body.data)) units = body.data as WorkspaceUnit[];
+		else if (body && Array.isArray((body as { units?: unknown }).units))
+			units = (body as { units: WorkspaceUnit[] }).units;
+
+		let nextCursor: string | null = null;
+		const pg = body?.pagination as
+			| { has_more?: boolean; offset?: number; limit?: number }
+			| undefined;
+		if (pg && pg.has_more) {
+			const nextOffset = (pg.offset ?? offset) + (pg.limit ?? units.length);
+			nextCursor = String(nextOffset);
+		}
+
+		return { units, next_cursor: nextCursor };
+	},
+
+	/**
+	 * Fetch a single unit by id.
+	 * Both backends return the bare object.
+	 */
+	async getUnit(id: string): Promise<WorkspaceUnit> {
+		return workspaceRequest<WorkspaceUnit>('GET', `/units/${encodeURIComponent(id)}`);
+	},
+
+	/**
+	 * Semantic search across units, optionally scoped to a scout.
+	 *
+	 * Edge Function POSTs to `/units/search` with `{query_text, project_id?}`
+	 * and returns `{items: [...]}`. FastAPI `/units/search` is GET-based
+	 * with a `query` querystring. This helper targets the Edge Function
+	 * contract (POST); the shared unwrap handles both `{items}` and
+	 * `{data: [...]}`.
+	 *
+	 * Note: the Edge Function scopes by `project_id`, not `scout_id`. When
+	 * `scoutId` is provided we still pass it through as `scout_id` — the
+	 * Edge Function will ignore it; the FastAPI endpoint uses it as a
+	 * post-filter.
+	 */
+	async searchUnits(query: string, scoutId?: string): Promise<WorkspaceUnit[]> {
+		const body: Record<string, unknown> = { query_text: query };
+		if (scoutId) body.scout_id = scoutId;
+		const res = await workspaceRequest<unknown>('POST', '/units/search', { body });
+		return (Array.isArray(res) ? res : []) as WorkspaceUnit[];
+	},
+
+	/**
+	 * List reflections, optionally scoped to a source unit.
+	 *
+	 * Edge Function supports `project_id` filtering; there is no
+	 * `unit_id` filter at the backend today, so when `unitId` is provided
+	 * we still pass it through (`unit_id=<id>`) — the Edge Function ignores
+	 * unknown query params. See the shape-mismatch note in the PR
+	 * description.
+	 */
+	async listReflections(unitId?: string): Promise<WorkspaceReflection[]> {
+		const query = unitId ? { unit_id: unitId } : undefined;
+		const res = await workspaceRequest<unknown>('GET', '/reflections', { query });
+		return (Array.isArray(res) ? res : []) as WorkspaceReflection[];
+	},
+
+	/**
+	 * List entities, optionally scoped to a scout.
+	 *
+	 * Like `listReflections`, the Edge Function doesn't currently filter by
+	 * `scout_id` (it filters by `type` and `search`); the parameter is
+	 * preserved on the wire for forward compatibility.
+	 */
+	async listEntities(scoutId?: string): Promise<WorkspaceEntity[]> {
+		const query = scoutId ? { scout_id: scoutId } : undefined;
+		const res = await workspaceRequest<unknown>('GET', '/entities', { query });
+		return (Array.isArray(res) ? res : []) as WorkspaceEntity[];
+	},
+
+	/**
+	 * Manual ingestion — either a URL to scrape or raw content to extract.
+	 *
+	 * Edge Function `/ingest` returns `{ingest_id, raw_capture_id, units}`.
+	 * There is no FastAPI equivalent today. The plan documented the return
+	 * shape as `{job_id}`; we preserve the Edge Function field naming and
+	 * expose `ingest_id` + a convenience `job_id` alias for callers that
+	 * want the "job" framing.
+	 */
+	async ingest(params: {
+		url?: string;
+		content?: string;
+		project_id?: string;
+		title?: string;
+		criteria?: string;
+		notes?: string;
+	}): Promise<{ job_id: string; ingest_id: string; raw_capture_id?: string }> {
+		const body: Record<string, unknown> = params.url
+			? { kind: 'url', url: params.url }
+			: { kind: 'text', text: params.content ?? '' };
+		if (params.project_id) body.project_id = params.project_id;
+		if (params.title) body.title = params.title;
+		if (params.criteria) body.criteria = params.criteria;
+		if (params.notes) body.notes = params.notes;
+
+		const res = await workspaceRequest<Record<string, unknown>>('POST', '/ingest', { body });
+		const ingestId = String(res?.ingest_id ?? res?.job_id ?? '');
+		return {
+			ingest_id: ingestId,
+			job_id: ingestId,
+			raw_capture_id:
+				typeof res?.raw_capture_id === 'string' ? (res.raw_capture_id as string) : undefined
+		};
+	},
+
+	/**
+	 * Export a project's verified unused units as markdown.
+	 *
+	 * Edge Function `export-claude` returns `Content-Type: text/markdown`
+	 * (NOT `{artifact_url}` as the plan drafted). The plan assumed a link-
+	 * based export; we adapt to the real contract and expose the markdown
+	 * body inline so the UI can show a download / copy button without a
+	 * second fetch. See the shape-mismatch note in the PR description.
+	 */
+	async exportToClaude(projectId: string): Promise<{ artifact_url: string | null; markdown: string }> {
+		const markdown = await workspaceRequest<string>('GET', '/export-claude', {
+			query: { project_id: projectId },
+			rawText: true
+		});
+		return { artifact_url: null, markdown };
+	},
+
+	/**
+	 * Merge one or more entity ids into a keeper entity.
+	 *
+	 * Plan signature `mergeEntities(ids)` is ambiguous about which id is the
+	 * keeper. We require the first id to be the keeper (matching the Edge
+	 * Function `{keep_id, merge_ids}` payload) and pass the rest as
+	 * `merge_ids`. The Edge Function returns `{merged: <count>}` — we
+	 * resolve with a thin `{merged, keep_id}` record.
+	 */
+	async mergeEntities(ids: string[]): Promise<{ keep_id: string; merged: number }> {
+		if (!Array.isArray(ids) || ids.length < 2) {
+			throw new ApiError('mergeEntities requires at least 2 ids (keeper + merges)');
+		}
+		const [keepId, ...mergeIds] = ids;
+		const res = await workspaceRequest<Record<string, unknown>>('POST', '/entities/merge', {
+			body: { keep_id: keepId, merge_ids: mergeIds }
+		});
+		return {
+			keep_id: keepId,
+			merged: typeof res?.merged === 'number' ? (res.merged as number) : mergeIds.length
+		};
+	},
+
+	/**
+	 * Promote a unit (marks verified + cleans rejection flag).
+	 *
+	 * Edge Function uses `PATCH /units/:id` with `{verified: true}`; there
+	 * is no dedicated `/promote` route today. We map `promoteUnit` to that
+	 * PATCH so the UI can flip the verification flag without knowing the
+	 * column names. See the shape-mismatch note in the PR description.
+	 */
+	async promoteUnit(id: string): Promise<WorkspaceUnit> {
+		return workspaceRequest<WorkspaceUnit>('PATCH', `/units/${encodeURIComponent(id)}`, {
+			body: { verified: true }
+		});
+	},
+
+	/**
+	 * Reject a unit (marks verification explicitly false; Civic Scout pipeline
+	 * treats this as "do not surface in export").
+	 *
+	 * Like `promoteUnit`, maps onto `PATCH /units/:id` with `{verified: false,
+	 * verification_notes: 'rejected'}` for audit.
+	 */
+	async rejectUnit(id: string): Promise<WorkspaceUnit> {
+		return workspaceRequest<WorkspaceUnit>('PATCH', `/units/${encodeURIComponent(id)}`, {
+			body: { verified: false, verification_notes: 'rejected' }
+		});
+	},
+
+	/**
+	 * Civic Scout test extraction — hits the `civic-test` Edge Function (or the
+	 * FastAPI civic router) with a list of tracked URLs + optional criteria.
+	 * Returns the document count + a sample promise so the AddScoutModal can
+	 * validate the Civic config before saving.
+	 *
+	 * Contract matches `supabase/functions/civic-test/index.ts` (and the FastAPI
+	 * civic router's matching `/civic-test` endpoint). Response-shape-tolerant:
+	 * fills in sensible fallbacks if a backend omits `valid` or `sample_promise`.
+	 */
+	async civicTest(params: {
+		tracked_urls: string[];
+		criteria?: string;
+	}): Promise<{ documents_found: number; sample_promise?: string | null; valid: boolean }> {
+		const res = await workspaceRequest<Record<string, unknown>>('POST', '/civic-test', {
+			body: params
+		});
+		const found = typeof res?.documents_found === 'number' ? (res.documents_found as number) : 0;
+		const sample =
+			typeof res?.sample_promise === 'string' ? (res.sample_promise as string) : null;
+		const valid =
+			typeof res?.valid === 'boolean' ? (res.valid as boolean) : found > 0;
+		return { documents_found: found, sample_promise: sample, valid };
+	}
+};

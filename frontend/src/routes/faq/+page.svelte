@@ -3,7 +3,8 @@
 </script>
 
 <svelte:head>
-	<title>FAQ - coJournalist</title>
+	<title>FAQ — coJournalist</title>
+	<meta name="description" content="Frequently asked questions about coJournalist — scouts, agent integration, the Sustainable Use License, and self-hosting." />
 </svelte:head>
 
 <div class="faq-page">
@@ -70,18 +71,13 @@
 			</section>
 
 			<section class="faq-section">
-				<h2 class="section-title">Self-Hosted License</h2>
+				<h2 class="section-title">Self-hosting</h2>
 
 				<details class="faq-item">
-					<summary class="faq-question">What does the annual license include?</summary>
+					<summary class="faq-question">How do I deploy coJournalist on my own infrastructure?</summary>
 					<div class="faq-answer">
-						<p>The self-hosted license (CHF 180/year) includes:</p>
-						<ul>
-							<li><strong>Automated deployment</strong> — a setup skill that gets you running in minutes with any AI coding agent</li>
-							<li><strong>Automatic updates</strong> — new features and fixes delivered to your deployment without manual work</li>
-							<li><strong>All features</strong> — every scout type, export, API, and integration</li>
-						</ul>
-						<p>Without a license, you still have the full source code and can deploy manually. The license saves you the operational work.</p>
+						<p>The GitHub repo ships with an <strong>automated setup flow</strong>. Drop any AI coding agent (Claude Code, Cursor, Codex, etc.) into the repo, invoke the setup skill, and it provisions everything end-to-end: a fresh Supabase project, the edge functions, and the frontend.</p>
+						<p>Manual deployment is also documented in <code>automation/SETUP_AGENT.md</code> and <code>deploy/SETUP.md</code> — nothing is gated.</p>
 					</div>
 				</details>
 
@@ -95,22 +91,22 @@
 							<li><strong>Firecrawl API key</strong> — for web scraping and search</li>
 							<li><strong>Resend API key</strong> — for email notifications</li>
 							<li><strong>Apify API token</strong> — for social media monitoring</li>
-							<li><strong>Hosting</strong> — Render, Docker, or any PaaS that runs Python</li>
+							<li><strong>Hosting</strong> — Render, Docker, or any platform that serves a SvelteKit static build</li>
 						</ul>
 					</div>
 				</details>
 
 				<details class="faq-item">
-					<summary class="faq-question">What happens if I stop paying?</summary>
+					<summary class="faq-question">How do I stay up to date?</summary>
 					<div class="faq-answer">
-						<p>Your deployment keeps running — the application itself has no license key checks. Only the automated update pipeline stops. You keep the code at your last version and can continue using it indefinitely. You just won't receive new features automatically.</p>
+						<p>A GitHub Actions workflow (<code>sync-upstream</code>) periodically pulls the latest release from the public repository into your fork and opens a PR. Merge the PR and redeploy — no manual migration work. Set the workflow schedule (daily, weekly, manual) to suit your newsroom.</p>
 					</div>
 				</details>
 
 				<details class="faq-item">
-					<summary class="faq-question">Can I deploy without the license?</summary>
+					<summary class="faq-question">Does self-hosting cost anything?</summary>
 					<div class="faq-answer">
-						<p><strong>Yes.</strong> The full source code is public. You can clone the repository and deploy manually by following the setup documentation. The license key only gates the automation scripts that make deployment faster — it does not gate any application features.</p>
+						<p><strong>Nothing to us.</strong> coJournalist itself is free to self-host under the Sustainable Use License. Your only costs are the third-party services you connect (Supabase, Gemini, Firecrawl, Resend, Apify) and whatever hosting you choose for the frontend.</p>
 					</div>
 				</details>
 			</section>
@@ -129,45 +125,44 @@
 					<summary class="faq-question">What's the difference between the hosted and self-hosted versions?</summary>
 					<div class="faq-answer">
 						<p><strong>Hosted (cojournalist.ai)</strong> — we run everything. Sign in with MuckRock, pay per credits, no setup needed.</p>
-						<p><strong>Self-hosted</strong> — you run it on your own infrastructure (Supabase + Render/Docker). No credit limits, full control, bring your own API keys. Annual license for automated deployment and updates.</p>
-						<p>Both versions have the same features — every scout type, every integration.</p>
+						<p><strong>Self-hosted</strong> — you run it on your own infrastructure (Supabase + a static host). No credit limits, full control, bring your own API keys. Free, open source, and the same feature set as hosted.</p>
 					</div>
 				</details>
 			</section>
 		</div>
 
 		<p class="footer-note">
-			More questions? <a href="mailto:tom@buriedsignals.com">Get in touch</a>.
+			More questions? <a href="https://github.com/buriedsignals/cojournalist-os/issues" target="_blank" rel="noopener">Open an issue on GitHub</a>.
 		</p>
 	</div>
 </div>
 
 <style>
+	/* FAQ — plum + ochre on cream */
 	.faq-page {
 		min-height: 100vh;
-		background: var(--color-bg-primary);
+		background: var(--color-bg);
+		color: var(--color-ink);
 		position: relative;
 		overflow-x: hidden;
+		font-family: var(--font-body);
 	}
 
 	.bg-pattern {
 		position: absolute;
 		inset: 0;
-		background-image: linear-gradient(to right, #e7e5e4 1px, transparent 1px),
-			linear-gradient(to bottom, #e7e5e4 1px, transparent 1px);
-		background-size: 60px 60px;
-		opacity: 0.25;
+		background-image:
+			linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+			linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+		background-size: 96px 96px;
+		opacity: 0.35;
+		pointer-events: none;
+		mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 95%);
+		-webkit-mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 95%);
 	}
 
 	.bg-gradient {
-		position: absolute;
-		top: -100px;
-		left: 50%;
-		transform: translateX(-50%);
-		width: 900px;
-		height: 600px;
-		background: radial-gradient(ellipse, rgba(150, 139, 223, 0.12) 0%, transparent 70%);
-		pointer-events: none;
+		display: none;
 	}
 
 	.content {
@@ -182,57 +177,64 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
-		padding: 0.5rem 1rem;
-		font-size: 0.875rem;
+		padding: 0.5rem 0.875rem;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
 		font-weight: 500;
-		color: var(--color-text-secondary);
-		background: white;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-ink-muted);
+		background: var(--color-surface-alt);
 		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
 		cursor: pointer;
 		margin-bottom: 2rem;
-		transition: all 0.2s ease;
+		transition: border-color 150ms ease, color 150ms ease;
 		text-decoration: none;
 	}
 
 	.back-button:hover {
-		border-color: var(--color-accent);
-		color: var(--color-accent-dark);
+		border-color: var(--color-primary);
+		color: var(--color-primary);
 	}
 
 	.header {
-		text-align: center;
+		text-align: left;
 		margin-bottom: 3rem;
+		padding-bottom: 2rem;
+		border-bottom: 1px solid var(--color-border);
 	}
 
 	.badge {
+		font-family: var(--font-mono);
 		font-size: 0.6875rem;
-		font-weight: 700;
-		letter-spacing: 0.2em;
-		color: var(--color-text-tertiary);
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-secondary);
 		margin-bottom: 1rem;
 	}
 
 	.title {
-		font-family: 'Crimson Pro', Georgia, serif;
-		font-size: clamp(2rem, 5vw, 3rem);
-		font-weight: 700;
+		font-family: var(--font-display);
+		font-size: clamp(2rem, 4.5vw, 2.75rem);
+		font-weight: 600;
+		line-height: 1.1;
+		letter-spacing: -0.02em;
 		margin-bottom: 1rem;
-		color: var(--color-text-primary);
+		color: var(--color-ink);
 	}
 
 	.gradient-text {
-		background: linear-gradient(135deg, #968bdf, #7c6fc7);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
+		color: var(--color-primary);
 	}
 
 	.subtitle {
-		font-size: 1.125rem;
-		color: var(--color-text-secondary);
-		max-width: 500px;
-		margin: 0 auto;
+		font-size: 1.0625rem;
+		font-weight: 300;
+		color: var(--color-ink-muted);
+		max-width: 560px;
+		margin: 0;
+		line-height: 1.55;
 	}
 
 	.faq-list {
@@ -242,36 +244,43 @@
 	}
 
 	.section-title {
-		font-family: 'Crimson Pro', Georgia, serif;
-		font-size: 1.375rem;
-		font-weight: 600;
-		color: var(--color-text-primary);
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-secondary);
 		margin-bottom: 1rem;
 		padding-bottom: 0.5rem;
 		border-bottom: 1px solid var(--color-border);
 	}
 
 	.faq-item {
-		background: white;
+		background: var(--color-surface-alt);
 		border: 1px solid var(--color-border);
-		border-radius: 0.75rem;
-		margin-bottom: 0.75rem;
-		transition: box-shadow 0.2s ease;
+		border-top-width: 0;
+		transition: background 150ms ease, border-color 150ms ease;
+	}
+
+	.faq-section > details:first-of-type {
+		border-top-width: 1px;
 	}
 
 	.faq-item:hover {
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+		background: var(--color-bg);
 	}
 
 	.faq-item[open] {
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+		background: var(--color-bg);
+		border-color: var(--color-border-strong);
 	}
 
 	.faq-question {
 		padding: 1rem 1.25rem;
+		font-family: var(--font-body);
 		font-size: 0.9375rem;
 		font-weight: 600;
-		color: var(--color-text-primary);
+		color: var(--color-ink);
 		cursor: pointer;
 		list-style: none;
 		display: flex;
@@ -285,21 +294,24 @@
 
 	.faq-question::after {
 		content: '+';
-		font-size: 1.25rem;
-		font-weight: 400;
-		color: var(--color-text-tertiary);
-		transition: transform 0.2s ease;
+		font-family: var(--font-mono);
+		font-size: 1.125rem;
+		font-weight: 300;
+		color: var(--color-ink-subtle);
+		transition: color 150ms ease;
 	}
 
 	.faq-item[open] .faq-question::after {
 		content: '−';
-		color: var(--color-accent);
+		color: var(--color-primary);
 	}
 
 	.faq-answer {
 		padding: 0 1.25rem 1.25rem;
+		font-family: var(--font-body);
 		font-size: 0.9375rem;
-		color: var(--color-text-secondary);
+		font-weight: 300;
+		color: var(--color-ink-muted);
 		line-height: 1.7;
 	}
 
@@ -321,30 +333,43 @@
 	}
 
 	.faq-answer a {
-		color: var(--color-accent);
+		color: var(--color-primary);
 		text-decoration: none;
-		font-weight: 500;
+		border-bottom: 1px solid var(--color-primary-soft);
+		transition: border-color 150ms ease;
 	}
 
 	.faq-answer a:hover {
-		text-decoration: underline;
+		border-bottom-color: var(--color-primary);
+	}
+
+	.faq-answer code {
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		padding: 0.125rem 0.375rem;
+		background: var(--color-surface);
+		color: var(--color-ink);
+		border: 1px solid var(--color-border);
 	}
 
 	.footer-note {
-		text-align: center;
-		font-size: 0.875rem;
-		color: var(--color-text-tertiary);
+		text-align: left;
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		letter-spacing: 0.06em;
+		color: var(--color-ink-subtle);
 		margin-top: 3rem;
 	}
 
 	.footer-note a {
-		color: var(--color-accent);
+		color: var(--color-primary);
 		text-decoration: none;
-		font-weight: 500;
+		border-bottom: 1px solid var(--color-primary-soft);
+		transition: border-color 150ms ease;
 	}
 
 	.footer-note a:hover {
-		text-decoration: underline;
+		border-bottom-color: var(--color-primary);
 	}
 
 	@media (max-width: 640px) {

@@ -209,7 +209,7 @@
 		font-size: 0.875rem;
 		font-weight: 600;
 		color: #ffffff;
-		background: linear-gradient(135deg, #968bdf 0%, #7c6fc7 100%);
+		background: linear-gradient(135deg, #6B3FA0 0%, #4E2C78 100%);
 		border: none;
 		border-radius: 0.5rem;
 		cursor: pointer;

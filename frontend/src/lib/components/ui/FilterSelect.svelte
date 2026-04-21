@@ -35,17 +35,17 @@
 	.filter-select {
 		display: flex;
 		align-items: center;
-		gap: 0.375rem;
+		gap: 0.4375rem;
 		position: relative;
-		padding: 0.375rem 0.625rem;
-		padding-right: 1.5rem;
-		background: white;
-		border: 1px solid #e5e7eb;
-		border-radius: 6px;
+		padding: 0.4375rem 1.75rem 0.4375rem 0.75rem;
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		font-family: var(--font-body);
 		font-size: 0.8125rem;
-		color: #374151;
+		font-weight: 500;
+		color: var(--color-ink);
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: border-color 150ms ease, background 150ms ease;
 		max-width: min(250px, 40vw);
 		min-width: 0;
 	}
@@ -57,12 +57,13 @@
 	}
 
 	.filter-select:hover:not(.disabled) {
-		border-color: #d1d5db;
+		border-color: var(--color-primary);
+		background: var(--color-primary-soft);
 	}
 
 	.filter-select:focus-within {
-		border-color: #6366f1;
-		box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 3px var(--color-primary-soft);
 	}
 
 	.filter-select .label {
@@ -73,7 +74,7 @@
 	}
 
 	.filter-select :global(.filter-icon) {
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		flex-shrink: 0;
 	}
 
@@ -98,7 +99,7 @@
 		right: 0.5rem;
 		top: 50%;
 		transform: translateY(-50%);
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		pointer-events: none;
 	}
 </style>

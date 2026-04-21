@@ -15,7 +15,6 @@
 	import UnitGrid from './UnitGrid.svelte';
 	import ExportSlideOver from './ExportSlideOver.svelte';
 	import AISelectPanel from './AISelectPanel.svelte';
-	import PreferencesModal from '$lib/components/modals/PreferencesModal.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	/** Bridge PlaceholderUnit → InformationUnit for tour demo data. */
@@ -35,8 +34,6 @@
 	// Upgrade modal
 
 	// CMS export
-	let isExporting = false;
-	let showPreferencesFromExport = false;
 	let showAIPrompt = false;
 
 	// Filter state
@@ -397,30 +394,6 @@
 		markExportedUnitsUsed();
 	}
 
-	// Export to CMS
-	async function handleExportToCms() {
-		const draft = $feedStore.generatedExport;
-		if (!draft) return;
-
-		isExporting = true;
-		try {
-			const usedUnits = $feedStore.unitsUsedForExport;
-			await apiClient.exportToCms({
-				draft,
-				units: usedUnits.map(u => ({
-					statement: u.statement,
-					source_title: u.source_title,
-					source_url: u.source_url
-				}))
-			});
-			markExportedUnitsUsed();
-		} catch (e) {
-			console.error('CMS export failed:', e);
-		} finally {
-			isExporting = false;
-		}
-	}
-
 	// --- AI Select ---
 
 	function isWithinDateWindow(dateStr: string, windowDays: number): boolean {
@@ -610,10 +583,6 @@
 		generationError={$feedStore.generationError}
 		selectedCount={$feedStore.selectedUnitIds.size || $feedStore.unitsUsedForExport.length}
 		customPrompt={$feedStore.customExportPrompt}
-		cmsConfigured={!!$authStore.user?.cms_api_url}
-		onExportToCms={handleExportToCms}
-		{isExporting}
-		onOpenPreferences={() => { showPreferencesFromExport = true; }}
 		onClose={() => { feedStore.closeSlideOver(); feedStore.deselectAll(); }}
 		onRetry={handleGenerate}
 		onRegenerate={handleRegenerate}
@@ -625,11 +594,6 @@
 	/>
 </div>
 
-
-<PreferencesModal
-	open={showPreferencesFromExport}
-	on:close={() => (showPreferencesFromExport = false)}
-/>
 
 <style>
 	.feed-workspace {
@@ -646,7 +610,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		font-size: 0.8125rem;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 	}
 
 	.filter-divider {
@@ -663,15 +627,15 @@
 		gap: 0.5rem;
 		margin: 0.75rem 1.25rem 0;
 		padding: 0.625rem 0.75rem;
-		background: #fef2f2;
+		background: rgba(179, 62, 46, 0.08);
 		border-radius: 6px;
 		font-size: 0.8125rem;
-		color: #dc2626;
+		color: var(--color-error);
 	}
 
 	.count-label {
 		font-size: 0.75rem;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 	}
 
 	.delete-selected-btn {
@@ -680,7 +644,7 @@
 		gap: 0.25rem;
 		font-size: 0.75rem;
 		font-weight: 500;
-		color: #dc2626;
+		color: var(--color-error);
 		background: transparent;
 		border: none;
 		cursor: pointer;
@@ -688,7 +652,7 @@
 	}
 
 	.delete-selected-btn:hover {
-		color: #b91c1c;
+		color: var(--color-error);
 	}
 
 	.select-toggle {
@@ -715,7 +679,7 @@
 		border: 1px solid rgba(150, 139, 223, 0.2);
 		border-radius: 6px;
 		font-size: 0.8125rem;
-		color: #6d28d9;
+		color: var(--color-primary-deep);
 	}
 
 	.export-recovery-banner span {
@@ -728,7 +692,7 @@
 		gap: 0.25rem;
 		font-size: 0.75rem;
 		font-weight: 600;
-		color: #7c3aed;
+		color: var(--color-primary);
 		background: rgba(124, 58, 237, 0.08);
 		border: 1px solid rgba(124, 58, 237, 0.2);
 		border-radius: 4px;

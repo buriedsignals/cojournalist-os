@@ -11,7 +11,6 @@
 	import OnboardingVideoModal from '$lib/components/modals/OnboardingVideoModal.svelte';
 	import GuidedTourController from '$lib/components/tour/GuidedTourController.svelte';
 	import type { GeocodedLocation } from '$lib/types';
-	import MobileBlocker from '$lib/components/ui/MobileBlocker.svelte';
 
 	import '../app.css';
 
@@ -52,10 +51,13 @@ function markTimezoneVerified(userId?: string | null) {
 			await authStore.init();
 			if (cancelled) return;
 
+			const loginPath = '/login';
+			const publicPaths = ['/login', '/setup', '/faq', '/docs', '/swagger'];
+
 			unsubscribe = authStore.subscribe(async (state) => {
-				if (!state.authenticated && !['/login', '/setup'].includes($page.url.pathname)) {
-					// Redirect to login if not authenticated
-					await goto('/login');
+				if (!state.authenticated && !publicPaths.includes($page.url.pathname)) {
+					// Redirect to the auth provider's login page
+					await goto(loginPath);
 					return;
 				}
 
@@ -178,8 +180,6 @@ function handleTourComplete() {
 	}
 }
 </script>
-
-<MobileBlocker />
 
 <slot />
 

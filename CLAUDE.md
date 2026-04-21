@@ -131,8 +131,31 @@ Revenue reporting for MuckRock pilot invoicing. Accessible at `/api/admin/` (bro
 
 - `/aws/CLAUDE.md` - AWS infrastructure and Lambda details
 - `/backend/CLAUDE.md` - FastAPI structure and services
+- `/cli/CLAUDE.md` - `cojo` CLI release procedure and conventions
 - `/frontend/CLAUDE.md` - SvelteKit components and stores
 - `/docs/CLAUDE.md` - Documentation structure and guidelines
+
+## CLI: `cojo`
+
+Shipping product — a Deno-based CLI that talks to the REST API with a JWT
+bearer token. Releases are code-signed + notarized for macOS (no Gatekeeper
+warnings) and published on the private monorepo via `cli-release.yml`.
+
+- Source: `cli/` (see `cli/CLAUDE.md` for full detail)
+- Release tag pattern: `cli-v<MAJOR>.<MINOR>.<PATCH>` — push the tag, CI
+  builds + signs + notarizes + publishes the release automatically
+- Pre-release suffixes (marked as prerelease on GitHub): `-rc1`, `-beta1`,
+  `-alpha1`
+- Binaries: `cojo-darwin-arm64`, `cojo-darwin-x86_64`, `cojo-linux-arm64`,
+  `cojo-linux-x86_64` — each with a sibling `.sha256` file
+- Install (anyone, no auth):
+  `curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-<platform> | sudo tee /usr/local/bin/cojo > /dev/null && sudo chmod +x /usr/local/bin/cojo`
+- Release assets live on the public mirror `buriedsignals/cojournalist-os`;
+  workflow runs on the private monorepo (where signing secrets live) and
+  publishes cross-repo via `OSS_RELEASE_PAT`.
+- Apple secrets (on this repo only) are listed in `cli/CLAUDE.md`. Cert
+  expires 2031; Apple Developer Program renews 2026-04-20 ($109/yr);
+  renewal decision point 2027-04-15.
 
 ## Scout Types
 
@@ -221,6 +244,8 @@ CI runs automatically on push to `develop` and on PRs to `main`. See **Deploymen
 | `ci.yml` | Build, test, lint (4 required checks) | Push to `develop`, PR to `main` |
 | `claude.yml` | Claude PR assistant (`@claude` in issues/PRs) | Issue/PR comments |
 | `claude-code-review.yml` | Auto-review on PRs | PR opened/synchronized |
+| `cli-release.yml` | Build + sign + notarize + publish `cojo` CLI binaries | Push of `cli-v*` tag (or manual dispatch) |
+| `mirror-oss.yml` | Strip SaaS-only code and push to public OSS mirror | Push to `main` |
 
 ### Deploy pipeline
 

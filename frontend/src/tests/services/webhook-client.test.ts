@@ -27,7 +27,7 @@ beforeEach(() => {
 });
 
 describe('webhookClient.testScraper', () => {
-	it('uses cookie-based auth (credentials: include, no Authorization header)', async () => {
+	it('uses Bearer auth (no credentials; Authorization carries JWT when present)', async () => {
 		fetchSpy = mockFetchResponse({
 			summary: 'ok',
 			scraper_status: true,
@@ -38,8 +38,11 @@ describe('webhookClient.testScraper', () => {
 		await webhookClient.testScraper({ url: 'https://example.com' });
 
 		const options = fetchSpy.mock.calls[0][1];
-		expect(options.credentials).toBe('include');
-		expect(options.headers?.Authorization).toBeUndefined();
+		// credentials dropped — Supabase Edge Functions return '*' origin;
+		// browsers reject credentials:'include' with wildcard CORS.
+		expect(options.credentials).toBeUndefined();
+		const auth = options.headers?.Authorization;
+		expect(auth === undefined || /^Bearer /.test(auth)).toBe(true);
 	});
 
 	it('sends url, criteria, and scraperName in body', async () => {

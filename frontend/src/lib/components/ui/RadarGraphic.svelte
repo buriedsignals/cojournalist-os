@@ -24,7 +24,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: #7c6fc7;
+		color: #4E2C78;
 	}
 
 	.sonar-ring {

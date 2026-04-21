@@ -183,3 +183,78 @@ class TestDeletePromisesForScout:
 
         await storage.delete_promises_for_scout("user-1", "civic-scout-1")
         mock_pool.execute.assert_called_once()
+
+
+class TestDueDateAndConfidencePersistence:
+    """The extractor computes due_date and date_confidence; the adapter must
+    actually insert them (previously they were silently dropped). Also verify
+    the source_date → meeting_date mapping that was broken — the Pydantic
+    Promise emits `source_date` but the adapter used to read `meeting_date`,
+    so the meeting_date column was always NULL for civic promises."""
+
+    @pytest.mark.asyncio
+    async def test_source_date_maps_to_meeting_date_column(self, storage, mock_pool):
+        mock_pool.executemany = AsyncMock()
+
+        promises = [{
+            "promise_text": "Expand bike lanes",
+            "source_date": "2026-03-15",
+            "due_date": "2027-12-31",
+            "date_confidence": "high",
+        }]
+        await storage.store_promises("user-1", "scout-1", promises)
+
+        records = mock_pool.executemany.call_args[0][1]
+        # Positional tuple: (user_id, scraper, user_id, promise_text, context,
+        #                    source_url, source_title, meeting_date, due_date,
+        #                    date_confidence)
+        assert records[0][7] == date(2026, 3, 15)  # meeting_date ← source_date
+
+    @pytest.mark.asyncio
+    async def test_due_date_and_confidence_are_inserted(self, storage, mock_pool):
+        mock_pool.executemany = AsyncMock()
+
+        promises = [{
+            "promise_text": "Renovate town hall",
+            "source_date": "2026-03-15",
+            "due_date": "2028-06-30",
+            "date_confidence": "medium",
+        }]
+        await storage.store_promises("user-1", "scout-1", promises)
+
+        records = mock_pool.executemany.call_args[0][1]
+        assert records[0][8] == date(2028, 6, 30)  # due_date
+        assert records[0][9] == "medium"           # date_confidence
+
+    @pytest.mark.asyncio
+    async def test_invalid_date_confidence_becomes_null(self, storage, mock_pool):
+        """Check constraint only allows high/medium/low — reject anything else."""
+        mock_pool.executemany = AsyncMock()
+
+        promises = [{
+            "promise_text": "Install solar panels",
+            "source_date": "2026-03-15",
+            "due_date": "2030-12-31",
+            "date_confidence": "very-very-sure",  # LLM misfire
+        }]
+        await storage.store_promises("user-1", "scout-1", promises)
+
+        records = mock_pool.executemany.call_args[0][1]
+        assert records[0][9] is None
+
+    @pytest.mark.asyncio
+    async def test_legacy_meeting_date_still_accepted(self, storage, mock_pool):
+        """Dict callers passing the legacy 'meeting_date' key still work —
+        source_date takes precedence, but meeting_date is the fallback."""
+        mock_pool.executemany = AsyncMock()
+
+        promises = [{
+            "promise_text": "Legacy record",
+            "meeting_date": "2026-01-10",
+        }]
+        await storage.store_promises("user-1", "scout-1", promises)
+
+        records = mock_pool.executemany.call_args[0][1]
+        assert records[0][7] == date(2026, 1, 10)
+        assert records[0][8] is None  # no due_date
+        assert records[0][9] is None  # no date_confidence

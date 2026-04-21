@@ -2,7 +2,7 @@
 	import { fly, fade } from 'svelte/transition';
 	import { onDestroy } from 'svelte';
 	import type { ExportDraft } from '$lib/api-client';
-	import { ChevronRight, AlertCircle, RefreshCw, PenTool, RotateCcw, ChevronDown, ChevronUp, Download, Send, Info, Trash2 } from 'lucide-svelte';
+	import { ChevronRight, AlertCircle, RefreshCw, PenTool, RotateCcw, ChevronDown, ChevronUp, Download, Info, Trash2 } from 'lucide-svelte';
 	import ProgressIndicator from '$lib/components/ui/ProgressIndicator.svelte';
 	import { feedStore } from '$lib/stores/feed';
 	import { boldify, linkifySources } from '$lib/utils/export-formatting';
@@ -16,19 +16,11 @@
 	export let selectedCount = 0;
 	export let customPrompt: string | null = null;
 
-	export let cmsConfigured = false;
-	export let onExportToCms: () => void = () => {};
-	export let isExporting = false;
-	export let onOpenPreferences: () => void = () => {};
-
 	export let onClose: () => void;
 	export let onRetry: () => void;
 	export let onRegenerate: () => void;
 	export let onExport: () => void;
 	export let onDelete: () => void;
-
-	// Export dropdown
-	let showExportMenu = false;
 
 	// Regeneration prompt editor
 	let showRegenPrompt = false;
@@ -109,25 +101,12 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape' && open) {
-			if (showExportMenu) {
-				showExportMenu = false;
-			} else {
-				onClose();
-			}
-		}
-	}
-
-	function handleWindowClick(e: MouseEvent) {
-		if (showExportMenu) {
-			const target = e.target as HTMLElement;
-			if (!target.closest('.export-dropdown-wrapper')) {
-				showExportMenu = false;
-			}
+			onClose();
 		}
 	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} on:click={handleWindowClick} />
+<svelte:window on:keydown={handleKeydown} />
 
 {#if open}
 	<!-- Backdrop -->
@@ -167,42 +146,10 @@
 						>
 							<Trash2 size={12} />
 						</button>
-						<div class="export-dropdown-wrapper">
-							<button class="btn-primary" on:click={() => showExportMenu = !showExportMenu}>
-								<Download size={12} />
-								{m.export_dropdown()}
-								<ChevronDown size={10} />
-							</button>
-							{#if showExportMenu}
-								<div class="export-menu">
-									<button class="export-menu-item" on:click={() => { onExport(); showExportMenu = false; }}>
-										<Download size={14} />
-										<span>{m.export_asMarkdown()}</span>
-									</button>
-									<button
-										class="export-menu-item"
-										disabled={!cmsConfigured || isExporting}
-										on:click={() => {
-											if (cmsConfigured) {
-												onExportToCms();
-												showExportMenu = false;
-											} else {
-												onOpenPreferences();
-												showExportMenu = false;
-											}
-										}}
-									>
-										<Send size={14} />
-										<div class="menu-item-content">
-											<span>{isExporting ? m.export_sending() : m.export_toCms()}</span>
-											{#if !cmsConfigured}
-												<span class="menu-hint">{m.export_toCmsDisabled()}</span>
-											{/if}
-										</div>
-									</button>
-								</div>
-							{/if}
-						</div>
+						<button class="btn-primary" on:click={() => { onExport(); }}>
+							<Download size={12} />
+							{m.export_asMarkdown()}
+						</button>
 					</div>
 				{/if}
 			</div>
@@ -304,10 +251,10 @@
 		text-decoration-style: dotted;
 	}
 	:global(.citation-link:hover) {
-		color: #6366f1;
+		color: var(--color-primary);
 	}
 	:global(.citation-ref) {
-		color: #6366f1;
+		color: var(--color-primary);
 		text-decoration: none;
 		cursor: pointer;
 	}
@@ -334,7 +281,7 @@
 		width: 65%;
 		min-width: 500px;
 		max-width: 900px;
-		background: white;
+		background: var(--color-surface-alt);
 		z-index: 70;
 		display: flex;
 		flex-direction: column;
@@ -347,15 +294,15 @@
 		justify-content: space-between;
 		gap: 0.625rem;
 		padding: 1rem 1.5rem;
-		background: white;
-		border-bottom: 1px solid #e5e7eb;
+		background: var(--color-surface-alt);
+		border-bottom: 1px solid var(--color-border);
 		flex-shrink: 0;
 	}
 
 	.panel-header h2 {
 		font-size: 1rem;
 		font-weight: 600;
-		color: #374151;
+		color: var(--color-ink);
 		margin: 0;
 		flex: 1;
 	}
@@ -381,82 +328,23 @@
 		font-size: 0.75rem;
 		font-weight: 500;
 		line-height: 1;
-		color: #6b7280;
-		background: white;
-		border: 1px solid #e5e7eb;
-		border-radius: 0.5rem;
+		color: var(--color-ink-muted);
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		border-radius: 0;
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.action-icon-btn:hover {
-		background: #f3f4f6;
-		color: #374151;
+		background: var(--color-surface);
+		color: var(--color-ink);
 	}
 
 	.action-icon-btn.active {
-		background: #f3f4f6;
-		border-color: #d1d5db;
-		color: #374151;
-	}
-
-	.export-dropdown-wrapper {
-		position: relative;
-	}
-
-
-	.export-menu {
-		position: absolute;
-		top: calc(100% + 4px);
-		right: 0;
-		min-width: 200px;
-		background: white;
-		border: 1px solid #e5e7eb;
-		border-radius: 8px;
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-		z-index: 80;
-		overflow: hidden;
-	}
-
-	.export-menu-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		width: 100%;
-		padding: 0.625rem 0.75rem;
-		font-size: 0.8125rem;
-		font-weight: 500;
-		color: #374151;
-		background: white;
-		border: none;
-		cursor: pointer;
-		transition: background 0.1s ease;
-		text-align: left;
-	}
-
-	.export-menu-item:hover:not(:disabled) {
-		background: #f3f4f6;
-	}
-
-	.export-menu-item:disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
-
-	.export-menu-item + .export-menu-item {
-		border-top: 1px solid #f3f4f6;
-	}
-
-	.menu-item-content {
-		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
-	}
-
-	.menu-hint {
-		font-size: 0.6875rem;
-		color: #9ca3af;
-		font-weight: 400;
+		background: var(--color-surface);
+		border-color: var(--color-border-strong);
+		color: var(--color-ink);
 	}
 
 	/* Disclaimer banner */
@@ -465,17 +353,17 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 1.5rem;
-		background: #f9fafb;
-		border-bottom: 1px solid #e5e7eb;
+		background: var(--color-bg);
+		border-bottom: 1px solid var(--color-border);
 		font-size: 0.75rem;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		flex-shrink: 0;
 	}
 
 	.disclaimer-icon {
 		display: flex;
 		align-items: center;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		cursor: help;
 		flex-shrink: 0;
 	}
@@ -488,25 +376,25 @@
 		width: 28px;
 		height: 28px;
 		border-radius: 6px;
-		border: 1px solid #e5e7eb;
+		border: 1px solid var(--color-border);
 		background: transparent;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		cursor: pointer;
 		transition: all 0.15s ease;
 		flex-shrink: 0;
 	}
 
 	.collapse-btn:hover {
-		background: #f3f4f6;
-		color: #374151;
-		border-color: #d1d5db;
+		background: var(--color-surface);
+		color: var(--color-ink);
+		border-color: var(--color-border-strong);
 	}
 
 	/* Regen drawer below header */
 	.regen-drawer {
 		padding: 1rem 1.5rem;
-		background: #f9fafb;
-		border-bottom: 1px solid #e5e7eb;
+		background: var(--color-bg);
+		border-bottom: 1px solid var(--color-border);
 		flex-shrink: 0;
 	}
 
@@ -516,9 +404,9 @@
 		font-size: 0.75rem;
 		line-height: 1.5;
 		font-family: 'Monaco', 'Menlo', monospace;
-		border: 1px solid #e5e7eb;
+		border: 1px solid var(--color-border);
 		border-radius: 4px;
-		background: white;
+		background: var(--color-surface-alt);
 		resize: vertical;
 		min-height: 80px;
 		margin-bottom: 0.75rem;
@@ -526,12 +414,12 @@
 
 	.prompt-textarea:focus {
 		outline: none;
-		border-color: #6366f1;
+		border-color: var(--color-primary);
 		box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
 	}
 
 	.prompt-textarea::placeholder {
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		font-size: 0.6875rem;
 	}
 
@@ -548,18 +436,18 @@
 		padding: 0.375rem 0.625rem;
 		font-size: 0.6875rem;
 		font-weight: 500;
-		color: #6b7280;
-		background: white;
-		border: 1px solid #e5e7eb;
+		color: var(--color-ink-muted);
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
 		border-radius: 4px;
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.reset-button:hover {
-		background: #fee2e2;
-		border-color: #fca5a5;
-		color: #dc2626;
+		background: rgba(179, 62, 46, 0.1);
+		border-color: var(--color-error);
+		color: var(--color-error);
 	}
 
 	.regen-btn {
@@ -570,7 +458,7 @@
 		font-size: 0.8125rem;
 		font-weight: 600;
 		color: white;
-		background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-deep) 100%);
 		border: none;
 		border-radius: 6px;
 		cursor: pointer;
@@ -612,22 +500,22 @@
 	.state-centered h3 {
 		font-size: 1rem;
 		font-weight: 600;
-		color: #374151;
+		color: var(--color-ink);
 		margin: 0 0 0.25rem 0;
 	}
 
 	.state-centered p {
 		font-size: 0.875rem;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		margin: 0;
 	}
 
 	.state-centered.error {
-		color: #dc2626;
+		color: var(--color-error);
 	}
 
 	.state-centered.error h3 {
-		color: #dc2626;
+		color: var(--color-error);
 		margin-top: 0.75rem;
 	}
 
@@ -642,16 +530,16 @@
 		padding: 0.5rem 1rem;
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: #dc2626;
-		background: #fef2f2;
-		border: 1px solid #fecaca;
+		color: var(--color-error);
+		background: rgba(179, 62, 46, 0.08);
+		border: 1px solid var(--color-error);
 		border-radius: 6px;
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.retry-btn:hover {
-		background: #fee2e2;
+		background: rgba(179, 62, 46, 0.1);
 	}
 
 	/* Article content */
@@ -664,7 +552,7 @@
 		font-size: 1.625rem;
 		font-weight: 700;
 		line-height: 1.25;
-		color: #111827;
+		color: var(--color-ink);
 		margin: 0 0 1rem 0;
 		letter-spacing: -0.01em;
 	}
@@ -672,11 +560,11 @@
 	.document-content .lede {
 		font-size: 1.125rem;
 		font-style: italic;
-		color: #4b5563;
+		color: var(--color-ink-muted);
 		line-height: 1.6;
 		margin: 0 0 2rem 0;
 		padding-bottom: 1.5rem;
-		border-bottom: 1px solid #e5e7eb;
+		border-bottom: 1px solid var(--color-border);
 	}
 
 	.document-content h2 {
@@ -685,7 +573,7 @@
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		margin: 0 0 0.75rem 0;
 	}
 
@@ -699,20 +587,20 @@
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
-		color: #374151;
+		color: var(--color-ink);
 		margin: 0 0 0.5rem 0;
 	}
 
 	.draft-section p {
 		font-size: 1rem;
 		line-height: 1.7;
-		color: #374151;
+		color: var(--color-ink);
 		margin: 0;
 	}
 
 	.sources-section {
 		padding-top: 1.5rem;
-		border-top: 1px solid #e5e7eb;
+		border-top: 1px solid var(--color-border);
 	}
 
 	.source-list {
@@ -734,12 +622,12 @@
 		font-family: 'DM Sans', system-ui, sans-serif;
 		font-size: 0.6875rem;
 		font-weight: 600;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		flex-shrink: 0;
 	}
 
 	.source-list a {
-		color: #6366f1;
+		color: var(--color-primary);
 		text-decoration: none;
 	}
 

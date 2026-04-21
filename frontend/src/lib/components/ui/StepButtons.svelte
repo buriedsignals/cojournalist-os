@@ -93,30 +93,27 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 1.25rem;
-		height: 1.25rem;
-		border-radius: 9999px;
+		width: 1.375rem;
+		height: 1.375rem;
+		border: 1px solid var(--color-border-strong);
+		font-family: var(--font-mono);
 		font-size: 0.6875rem;
-		font-weight: 600;
-		background: var(--color-bg-tertiary, #e5e7eb);
-		color: var(--color-text-secondary);
+		font-weight: 500;
+		background: var(--color-bg);
+		color: var(--color-ink-muted);
 	}
 
 	.step-badge.step-active {
-		background: var(--color-accent, #968bdf);
-		color: white;
+		background: var(--color-primary);
+		border-color: var(--color-primary);
+		color: var(--color-bg);
 	}
 
 	.step-connector {
-		margin-left: 0.5rem;
+		margin-left: 0.6875rem;
 		width: 0.5rem;
 		height: 0.5rem;
-		border-left: 1.5px solid var(--color-border, #d1d5db);
-		border-bottom: 1.5px solid var(--color-border, #d1d5db);
-		border-bottom-left-radius: 2px;
-	}
-
-	:global(.dark) .step-connector {
-		border-color: #4b5563;
+		border-left: 1px solid var(--color-border-strong);
+		border-bottom: 1px solid var(--color-border-strong);
 	}
 </style>

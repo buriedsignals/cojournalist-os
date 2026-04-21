@@ -89,9 +89,19 @@ Both panels expose a source mode toggle so users can switch between niche and re
 
 ## Key Files
 
+### v2 (Supabase Edge Functions) — authoritative source of truth
+
 | File | Location | Purpose |
 |------|----------|---------|
-| `pulse_orchestrator.py` | `backend/app/services/` | Main orchestration logic |
+| `scout-beat-execute/index.ts` | `supabase/functions/` | Pulse scout entrypoint. Branches on `priority_sources`: explicit → direct scrape; empty → full 8-stage pipeline. Parallel news + government category fan-out when criteria + location are both set. Two-section email (news + gov) via `sendBeatAlert`. |
+| `_shared/pulse_pipeline.ts` | `supabase/functions/` | Ported legacy pipeline: `generateQueries` (LLM multilingual), `runSearches` (Firecrawl fan-out), `applyDateFilter` + `capUndatedResults` (14/28/90d windows + two-bucket caps), `isLikelyTourismContent` (niche+location+news prefilter), `dedupeByEmbedding` (cosine + rarity + +8 local-language bonus), `clusterFilter` (niche only), `aiFilterResults` (LLM picks top-N), `generatePulseSummary` (bulleted email summary). |
+| `beat-search/index.ts` | `supabase/functions/` | Preview endpoint — synchronous version of the pipeline for the New Scout modal's "Start Search" button. No credit charge, no persistence. |
+
+### Legacy (v1 FastAPI) — for reference during cutover only
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `pulse_orchestrator.py` | `backend/app/services/` | Main orchestration logic (ported to `_shared/pulse_pipeline.ts`) |
 | `query_generator.py` | `backend/app/services/` | LLM-powered search + discovery query generation |
 | `pulse.py` | `backend/app/routers/` | `/api/pulse/*` endpoints |
 | `news_utils.py` | `backend/app/services/` | FirecrawlTools, embedding dedup, URL heuristic filters, PDF enrichment |
@@ -100,7 +110,15 @@ Both panels expose a source mode toggle so users can switch between niche and re
 | `notification_service.py` | `backend/app/services/` | Localized email notifications |
 | `email_translations.py` | `backend/app/services/` | Email strings (12 languages) |
 
-**Dependencies:** `langdetect` (for language-aware deduplication scoring)
+## v1 → v2 parity notes
+
+The v2 port preserves all 8 pipeline stages with these clarifications:
+
+- **Stage 1 (query gen):** Gemini 2.5 Flash-Lite via Google direct API (legacy used OpenRouter). Schema-constrained output. Caching not yet ported — v1 kept a 24h in-memory query cache with TTL.
+- **Stage 5 (tourism pre-filter):** identical 11-domain + 6-title pattern list.
+- **Stage 6 (embedding dedup):** scope-aware thresholds preserved (combined 0.85 / location 0.82 / topic 0.80). The `+8` local-language bonus is approximated via a charset heuristic (`/[À-ÿ]/`) instead of `langdetect`, to avoid shipping a heavy ML model in the Edge runtime. Slight precision loss on non-Latin scripts (JP/KR/ZH); flagged as a follow-up if needed.
+- **Stage 9 (email summary):** LLM-composed bulletin per category. When the user supplied explicit `priority_sources`, falls back to a plain bulleted statement list.
+- **Credit:** 7 credits per run unchanged from legacy. Refunded via `refund_credits` RPC when the pipeline yields 0 URLs or the run errors.
 
 ## Deduplication Mechanisms
 

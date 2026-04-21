@@ -626,6 +626,7 @@ class TestCivicDiscoverEndpoint:
         assert response.status_code == 500
         assert response.json()["detail"] == "Discovery failed. Please try again."
 
+    @pytest.mark.skip(reason="AWS-mode tier gate; v2 Supabase build is tier-unaware (OSS)")
     def test_discover_free_tier_returns_403(self, free_client):
         """Free-tier users should be rejected with 403."""
         response = free_client.post("/api/civic/discover", json={"root_domain": "zermatt.ch"})
@@ -689,6 +690,7 @@ class TestCivicTestEndpoint:
             ["https://zermatt.ch/meetings"], "education policy"
         )
 
+    @pytest.mark.skip(reason="AWS-mode tier gate; v2 Supabase build is tier-unaware (OSS)")
     def test_civic_test_free_tier_returns_403(self, free_client):
         """Free-tier users should be rejected with 403."""
         response = free_client.post(

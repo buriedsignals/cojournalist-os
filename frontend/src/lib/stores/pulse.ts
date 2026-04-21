@@ -1,7 +1,7 @@
 /**
- * Pulse Store -- Smart Scout (type pulse) search state.
+ * Pulse Store -- Beat Scout (type pulse) search state.
  *
- * USED BY: SmartScoutView.svelte
+ * USED BY: BeatScoutView.svelte
  * DEPENDS ON: $lib/api-client (searchPulse), $lib/types (AINewsArticle,
  *             GeocodedLocation, SearchCategory, etc.),
  *             $lib/utils/local-storage (TTL persistence)

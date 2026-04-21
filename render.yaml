@@ -14,8 +14,27 @@ services:
       - key: AWS_API_BASE_URL
         value: https://kubbp7dr0b.execute-api.eu-central-1.amazonaws.com/dev
       - key: VITE_API_URL
-        value: ''
+        value: https://gfmdziplticfoakhrfpt.supabase.co/functions/v1
       - key: DEBUG
         value: false
       - key: PUBLIC_MAPTILER_API_KEY
         sync: false
+      # Supabase — auth broker (backend runtime)
+      - key: SUPABASE_URL
+        value: https://gfmdziplticfoakhrfpt.supabase.co
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_POST_LOGIN_REDIRECT
+        value: https://cojournalist.ai/auth/callback
+      # Webhook paused until PR 2a ships post-cutover
+      - key: MUCKROCK_WEBHOOK_PAUSED
+        value: "true"
+      # Supabase — frontend build-time (baked into SPA bundle via Vite)
+      - key: PUBLIC_SUPABASE_URL
+        value: https://gfmdziplticfoakhrfpt.supabase.co
+      - key: PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: PUBLIC_DEPLOYMENT_TARGET
+        value: supabase

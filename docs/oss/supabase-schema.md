@@ -135,7 +135,7 @@ One row per scout (enforced by `UNIQUE(scout_id)`). Each execution overwrites `p
 
 ### `seen_records`
 
-URL-level deduplication for Smart Scouts (type `pulse`). A `signature` is a stable hash
+URL-level deduplication for Beat Scouts (type `pulse`). A `signature` is a stable hash
 of a URL. If the signature exists for a given `(scout_id, user_id)`, the article is
 skipped. Replaces `SEEN#` records.
 
@@ -198,8 +198,7 @@ expires_at      TIMESTAMPTZ  -- NOW() + 90 days (TTL)
 
 ### `user_preferences`
 
-User configuration. Simplified from the SaaS version — no credits, no billing tier, no
-MuckRock-specific fields. Replaces `USER#`/`PROFILE` records.
+User configuration. Replaces `USER#`/`PROFILE` records. Tier + active_org_id added by `00025_credits.sql` drive credit entitlements.
 
 ```
 user_id                    UUID PRIMARY KEY → auth.users(id)
@@ -208,11 +207,11 @@ preferred_language         TEXT DEFAULT 'en'
 notification_email         TEXT
 default_location           JSONB
 excluded_domains           TEXT[]
-cms_api_url                TEXT
-cms_api_token              TEXT
 preferences                JSONB DEFAULT '{}'
 onboarding_completed       BOOLEAN DEFAULT FALSE
 onboarding_tour_completed  BOOLEAN DEFAULT FALSE
+tier                       TEXT DEFAULT 'free'           -- added by 00025_credits.sql
+active_org_id              UUID → orgs(id)                -- added by 00025_credits.sql
 created_at / updated_at    TIMESTAMPTZ
 ```
 

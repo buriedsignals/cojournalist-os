@@ -10,13 +10,13 @@
 	import TimePicker from '$lib/components/ui/TimePicker.svelte';
 	import LocationAutocomplete from '$lib/components/ui/LocationAutocomplete.svelte';
 	import TopicChips from '$lib/components/ui/TopicChips.svelte';
-	import { getScoutCost } from '$lib/utils/scouts';
+	import { getScoutCost, validateScheduleCredits } from '$lib/utils/scouts';
 	import * as m from '$lib/paraglide/messages';
 
 	export let open = false;
 	export let scoutType: ScoutType = 'pulse';
 
-	// Smart Scout context (pulse)
+	// Beat Scout context (pulse)
 	export let location: GeocodedLocation | null = null;
 	export let topic: string = '';
 	export let criteria: string = '';
@@ -40,9 +40,12 @@
 	export let tracked_urls: string[] = [];
 	export let initialPromises: Array<{ promise_text: string; context: string; source_url: string; source_date: string; due_date?: string; date_confidence: string; criteria_match: boolean }> = [];
 
-	$: perRunCost = scoutType === 'pulse' && sourceMode === 'niche' && location
-		? 10
-		: getScoutCost(scoutType, scoutType === 'social' ? platform : undefined);
+	// Flat cost from getScoutCost (pulse: 7). Matches the server-of-record in
+	// scout-beat-execute/index.ts:153, which ignores sourceMode/location. The
+	// prod UI used to override to 10 for pulse+niche+location, but that was
+	// cosmetic — actual decrement was always 7. We keep one source of truth.
+	$: perRunCost = getScoutCost(scoutType, scoutType === 'social' ? platform : undefined);
+	let upgradeRequiredCredits = 0;
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -177,23 +180,18 @@
 		isSubmitting = true;
 		errorMessage = '';
 
-		// Validate credits
-		try {
-			await apiClient.validateMonitoringCredits({
-				channel: 'website',
-				regularity,
-				scout_type: scoutType,
-				...(scoutType === 'social' && platform ? { platform } : {}),
-				...(scoutType === 'pulse' ? { source_mode: sourceMode, has_location: !!location } : {})
-			});
-		} catch (err: unknown) {
+		// Validate credits client-side. The authoritative charge happens inside
+		// each executor Edge Function via decrement_credits; this is UX only.
+		const creditCheck = validateScheduleCredits({
+			scoutType,
+			regularity: regularity as 'daily' | 'weekly' | 'monthly',
+			platform: scoutType === 'social' ? platform : undefined,
+			currentCredits: 999999
+		});
+		if (!creditCheck.valid) {
 			isSubmitting = false;
-			const errObj = err as Record<string, unknown>;
-			if (errObj?.status === 402 || (err instanceof Error && err.message.includes('insufficient_credits'))) {
-				showUpgradeModal = true;
-				return;
-			}
-			errorMessage = err instanceof Error ? err.message : 'Failed to validate credits';
+			upgradeRequiredCredits = creditCheck.monthlyCost;
+			showUpgradeModal = true;
 			return;
 		}
 

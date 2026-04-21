@@ -171,8 +171,8 @@
 		right: 0;
 		margin-top: 8px;
 		width: 420px;
-		background: white;
-		border: 1px solid #e5e7eb;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
 		border-radius: 12px;
 		padding: 12px 14px 14px;
 		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
@@ -198,8 +198,8 @@
 		align-items: center;
 		gap: 6px;
 		padding: 14px 8px 12px;
-		background: #f9fafb;
-		border: 1px solid #e5e7eb;
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
 		border-radius: 10px;
 		cursor: pointer;
 		transition: all 0.15s ease;
@@ -222,8 +222,8 @@
 	}
 
 	.quick-btn.unavailable:hover {
-		background: #f9fafb;
-		border-color: #d1d5db;
+		background: var(--color-bg);
+		border-color: var(--color-border-strong);
 	}
 
 	.btn-icon {
@@ -247,20 +247,20 @@
 	}
 
 	.btn-icon.date {
-		background: #fef3c7;
-		color: #d97706;
+		background: var(--color-secondary-soft);
+		color: #9F6016;
 	}
 
 	.btn-label {
 		font-size: 12px;
 		font-weight: 600;
-		color: #111827;
+		color: var(--color-ink);
 		line-height: 1.2;
 	}
 
 	.btn-desc {
 		font-size: 10.5px;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		line-height: 1.3;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
@@ -272,10 +272,10 @@
 	.tooltip-row {
 		margin-bottom: 8px;
 		padding: 6px 10px;
-		background: #fef3c7;
+		background: var(--color-secondary-soft);
 		border-radius: 6px;
 		font-size: 11px;
-		color: #92400e;
+		color: var(--color-secondary);
 		text-align: center;
 	}
 
@@ -291,23 +291,23 @@
 		align-items: center;
 		gap: 4px;
 		padding: 3px 8px;
-		background: #f3f4f6;
-		border: 1px solid #e5e7eb;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
 		border-radius: 999px;
 		font-size: 11px;
-		color: #374151;
+		color: var(--color-ink);
 	}
 
 	.prompt-input {
 		width: 100%;
-		border: 1px solid #e5e7eb;
+		border: 1px solid var(--color-border);
 		border-radius: 6px;
 		padding: 8px 10px;
 		font-size: 12px;
 		line-height: 1.5;
 		resize: vertical;
-		background: #f9fafb;
-		color: #111827;
+		background: var(--color-bg);
+		color: var(--color-ink);
 		box-sizing: border-box;
 	}
 
@@ -331,7 +331,7 @@
 	.reset-link {
 		background: none;
 		border: none;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		font-size: 11px;
 		cursor: pointer;
 		padding: 4px 0;
@@ -339,6 +339,6 @@
 	}
 
 	.reset-link:hover {
-		color: #374151;
+		color: var(--color-ink);
 	}
 </style>

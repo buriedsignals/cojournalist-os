@@ -336,6 +336,7 @@ class TestCreateScout:
         assert item["cron_expression"] == "0 10 * * ? *"
         assert item["timezone"] == "Europe/Oslo"
 
+    @pytest.mark.skip(reason="AWS-specific (Decimal coercion for DynamoDB); v2 uses Supabase floats")
     @pytest.mark.asyncio
     async def test_writes_scraper_record_pulse(self, schedule_service, mock_scout_storage, mock_scheduler, mock_cron_schedule):
         mock_scout_storage.create_scout.return_value = {"scraper_name": "Oslo News"}
@@ -364,6 +365,7 @@ class TestCreateScout:
         # Location floats should be converted to Decimal
         assert isinstance(item["location"]["lat"], Decimal)
 
+    @pytest.mark.skip(reason="AWS-specific (EventBridge lambda target); v2 uses pg_cron + Edge Functions")
     @pytest.mark.asyncio
     async def test_creates_eventbridge_schedule(self, schedule_service, mock_scout_storage, mock_scheduler, mock_cron_schedule):
         mock_scout_storage.create_scout.return_value = {"scraper_name": "Test"}

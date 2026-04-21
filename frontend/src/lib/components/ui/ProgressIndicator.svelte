@@ -146,7 +146,7 @@
 		font-family: 'DM Sans', sans-serif;
 		font-size: 0.9375rem;
 		font-weight: 600;
-		color: #065f46;
+		color: var(--color-success);
 	}
 
 	.extraction-progress__success-details {
@@ -161,7 +161,7 @@
 	}
 
 	.extraction-progress--error::before {
-		background: linear-gradient(90deg, #ef4444, #dc2626);
+		background: linear-gradient(90deg, #ef4444, var(--color-error));
 	}
 
 	.extraction-progress__error {
@@ -181,7 +181,7 @@
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
-		color: #dc2626;
+		color: var(--color-error);
 	}
 
 	.extraction-progress__error-text {
@@ -194,12 +194,12 @@
 		font-family: 'DM Sans', sans-serif;
 		font-size: 0.9375rem;
 		font-weight: 600;
-		color: #991b1b;
+		color: var(--color-error);
 	}
 
 	.extraction-progress__error-details {
 		font-size: 0.8125rem;
-		color: #b91c1c;
+		color: var(--color-error);
 	}
 
 	.extraction-progress__track--error {
@@ -207,6 +207,6 @@
 	}
 
 	.extraction-progress__fill--error {
-		background: linear-gradient(90deg, #ef4444, #dc2626);
+		background: linear-gradient(90deg, #ef4444, var(--color-error));
 	}
 </style>

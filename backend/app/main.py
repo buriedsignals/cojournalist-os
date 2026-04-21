@@ -199,19 +199,6 @@ async def normalize_api_prefix(request: Request, call_next):
     return await call_next(request)
 
 
-# Internal routers — hidden from public API docs
-# MuckRock auth router is SaaS-only (stripped in OSS mirror)
-if settings.deployment_target != "supabase":
-    from app.routers import auth
-    app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"], include_in_schema=False)
-else:
-    # Supabase mode: minimal /auth/me endpoint (login/logout handled client-side)
-    from fastapi import Depends
-    from app.dependencies.auth import get_current_user as _get_current_user
-
-    @app.get("/api/auth/me", include_in_schema=False)
-    async def supabase_auth_me(user: dict = Depends(_get_current_user)):
-        return user
 app.include_router(onboarding.router, prefix="/api/onboarding", tags=["Onboarding"], include_in_schema=False)
 app.include_router(scraper.router, prefix="/api", tags=["Scraper"], include_in_schema=False)
 app.include_router(data_extractor.router, prefix="/api", tags=["Data"], include_in_schema=False)

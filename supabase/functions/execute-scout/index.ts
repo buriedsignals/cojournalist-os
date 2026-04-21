@@ -1,101 +1,216 @@
 /**
- * execute-scout Edge Function
+ * execute-scout Edge Function — scout run dispatcher.
  *
- * Replaces the scraper-lambda. Receives scout configuration from pg_cron
- * (via pg_net.http_post) and calls the appropriate FastAPI execute endpoint.
+ * Triggered by pg_cron (via pg_net.http_post using the service-role key) or by
+ * the authenticated frontend through `trigger_scout_run`. The dispatcher
+ * resolves the scout's type and forwards the request to the type-specific
+ * worker Edge Function over HTTP (fire-and-forget with a short timeout).
  *
- * Scout type routing:
- *   web   -> POST /api/scouts/execute
- *   pulse -> POST /api/pulse/execute
- *   social -> POST /api/social/execute
- *   civic -> POST /api/civic/execute
+ * Auth: either a valid user JWT (requireUser) OR an exact service-role Bearer
+ *       (SUPABASE_SERVICE_ROLE_KEY) match.
+ *
+ * Body: { scout_id: uuid, run_id?: uuid, user_id?: uuid }
+ *
+ * Dispatch table:
+ *   web    -> POST /functions/v1/scout-web-execute
+ *   pulse  -> POST /functions/v1/scout-beat-execute
+ *   civic  -> POST /functions/v1/civic-execute
+ *   social -> POST /functions/v1/social-kickoff
  */
 
-const BACKEND_URL = Deno.env.get("BACKEND_URL") ?? "http://backend:8000";
-const SERVICE_KEY = Deno.env.get("INTERNAL_SERVICE_KEY") ?? "";
+import { z } from "https://esm.sh/zod@3";
+import { handleCors } from "../_shared/cors.ts";
+import { requireUser } from "../_shared/auth.ts";
+import { getServiceClient } from "../_shared/supabase.ts";
+import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
+import {
+  AuthError,
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "../_shared/errors.ts";
+import { logEvent } from "../_shared/log.ts";
 
-/** Map scout type to FastAPI execute endpoint. */
-const EXECUTE_ENDPOINTS: Record<string, string> = {
-  web: "/api/scouts/execute",
-  pulse: "/api/pulse/execute",
-  social: "/api/social/execute",
-  civic: "/api/civic/execute",
+const DispatchSchema = z.object({
+  scout_id: z.string().uuid(),
+  run_id: z.string().uuid().optional(),
+  user_id: z.string().uuid().optional(),
+});
+
+const WORKERS: Record<string, string> = {
+  web: "scout-web-execute",
+  pulse: "scout-beat-execute",
+  civic: "civic-execute",
+  social: "social-kickoff",
 };
 
+const WORKER_TIMEOUT_MS = 5_000;
+
 Deno.serve(async (req: Request): Promise<Response> => {
-  // Only accept POST requests
+  const cors = handleCors(req);
+  if (cors) return cors;
+
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonError("method not allowed", 405);
   }
 
-  try {
-    // Verify the request has a valid Authorization header (exact match, not substring)
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const expectedToken = `Bearer ${supabaseServiceKey}`;
+  // Accept either the service-role Bearer (pg_cron / internal) OR a valid
+  // user JWT (frontend-initiated run via trigger_scout_run).
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const authHeader = req.headers.get("authorization") ??
+    req.headers.get("Authorization") ?? "";
 
-    if (!supabaseServiceKey) {
-      return new Response(
-        JSON.stringify({ error: "Server misconfigured: missing service key" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      );
+  const isServiceCaller = !!serviceKey && authHeader === `Bearer ${serviceKey}`;
+
+  let callerId = "service-role";
+  if (!isServiceCaller) {
+    try {
+      const user = await requireUser(req);
+      callerId = user.id;
+    } catch (e) {
+      return jsonFromError(e instanceof AuthError ? e : new AuthError());
+    }
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return jsonFromError(new ValidationError("invalid JSON body"));
+  }
+
+  const parsed = DispatchSchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonFromError(
+      new ValidationError(parsed.error.issues.map((i) => i.message).join("; ")),
+    );
+  }
+  const { scout_id, run_id, user_id } = parsed.data;
+
+  const svc = getServiceClient();
+
+  try {
+    const { data: scout, error: scoutErr } = await svc
+      .from("scouts")
+      .select("id, type, is_active, user_id")
+      .eq("id", scout_id)
+      .maybeSingle();
+    if (scoutErr) throw new Error(scoutErr.message);
+    if (!scout) throw new NotFoundError("scout");
+    if (scout.is_active === false) {
+      throw new ConflictError("scout is paused");
     }
 
-    if (authHeader !== expectedToken) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
+    const worker = WORKERS[scout.type as string];
+    if (!worker) {
+      throw new ValidationError(`unknown scout type: ${scout.type}`);
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    if (!supabaseUrl) throw new Error("SUPABASE_URL not configured");
+    if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
+
+    const workerUrl = `${supabaseUrl}/functions/v1/${worker}`;
+    const forwardBody = JSON.stringify({
+      scout_id,
+      run_id,
+      user_id: user_id ?? scout.user_id,
+    });
+
+    logEvent({
+      level: "info",
+      fn: "execute-scout",
+      event: "dispatching",
+      scout_id,
+      run_id,
+      scout_type: scout.type,
+      worker,
+      caller: callerId,
+    });
+
+    // Fire-and-forget with a short timeout. If the worker takes longer than
+    // WORKER_TIMEOUT_MS we return 202 anyway — the worker keeps running server
+    // side. Deno doesn't expose ctx.waitUntil, so we do a bounded await.
+    try {
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), WORKER_TIMEOUT_MS);
+      let workerRes: Response | null = null;
+      try {
+        workerRes = await fetch(workerUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+          },
+          body: forwardBody,
+          signal: ac.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+
+      if (workerRes && !workerRes.ok) {
+        const detail = await safeText(workerRes);
+        logEvent({
+          level: "error",
+          fn: "execute-scout",
+          event: "worker_failed",
+          scout_id,
+          status: workerRes.status,
+          msg: detail.slice(0, 500),
+        });
+        await svc.rpc("increment_scout_failures", { p_scout_id: scout_id });
+        return jsonError(
+          `worker ${worker} responded ${workerRes.status}: ${detail.slice(0, 500)}`,
+          502,
+          "worker_failed",
+        );
+      }
+
+      // workerRes is null only if the fetch threw (caught below); if it's
+      // OK, drain the body so the connection can be reused.
+      if (workerRes) await workerRes.body?.cancel();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // AbortError => took longer than WORKER_TIMEOUT_MS: treat as dispatched.
+      const isTimeout = e instanceof DOMException && e.name === "AbortError";
+      if (!isTimeout) {
+        logEvent({
+          level: "error",
+          fn: "execute-scout",
+          event: "dispatch_error",
+          scout_id,
+          msg,
+        });
+        await svc.rpc("increment_scout_failures", { p_scout_id: scout_id });
+        return jsonError(`dispatch to ${worker} failed: ${msg}`, 502, "dispatch_error");
+      }
+      logEvent({
+        level: "info",
+        fn: "execute-scout",
+        event: "worker_timeout_ok",
+        scout_id,
+        msg: "worker still running; returning 202",
       });
     }
 
-    const body = await req.json();
-    const scoutType: string = body.scout_type ?? body.type ?? "";
-    const endpoint = EXECUTE_ENDPOINTS[scoutType];
-
-    if (!endpoint) {
-      return new Response(
-        JSON.stringify({ error: `Unknown scout type: ${scoutType}` }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    console.log(`Executing ${scoutType} scout: ${body.scout_id ?? body.scraper_name ?? "unknown"}`);
-
-    // Forward the request to FastAPI
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Service-Key": SERVICE_KEY,
-      },
-      body: JSON.stringify(body),
+    return jsonOk({ dispatched: scout.type, scout_id, run_id }, 202);
+  } catch (e) {
+    logEvent({
+      level: "error",
+      fn: "execute-scout",
+      event: "unhandled",
+      scout_id,
+      msg: e instanceof Error ? e.message : String(e),
     });
-
-    const responseBody = await response.text();
-
-    console.log(`Scout execution completed: ${response.status}`);
-
-    return new Response(responseBody, {
-      status: response.status,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("Error executing scout:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        detail: error instanceof Error ? error.message : String(error),
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return jsonFromError(e);
   }
 });
+
+async function safeText(res: Response): Promise<string> {
+  try {
+    return await res.text();
+  } catch {
+    return "";
+  }
+}

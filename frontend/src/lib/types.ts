@@ -5,7 +5,7 @@
  *          stores/notifications.ts, stores/pulse.ts, stores/recent-locations.ts,
  *          utils/scouts.ts, data/onboarding-placeholders.ts,
  *          ActiveJobsModal, OnboardingModal, ScoutScheduleModal, AINewsCard,
- *          SmartScoutView, ScoutsPanel, DataExtract, LocationAutocomplete,
+ *          BeatScoutView, ScoutsPanel, DataExtract, LocationAutocomplete,
  *          +layout.svelte
  * DEPENDS ON: (none)
  *
@@ -148,6 +148,7 @@ export interface TeamInfo {
 
 export interface User {
 	user_id: string;
+	email?: string | null;
 	muckrock_id: string;
 	username?: string;
 	credits: number;
@@ -160,10 +161,10 @@ export interface User {
 	upgrade_url?: string;
 	team_upgrade_url?: string;
 	excluded_domains: string[];
-	cms_api_url: string | null;
-	has_cms_token: boolean;
 	team?: TeamInfo | null;
 	org_id?: string | null;
+	// Weekly scout-health-monitor digest opt-in (default true server-side).
+	health_notifications_enabled?: boolean;
 }
 
 export interface AuthState {
@@ -216,7 +217,7 @@ interface BaseSearchResponse {
 }
 
 /**
- * Pulse search response (Smart Scout).
+ * Pulse search response (Beat Scout).
  * Primary output: summary field.
  */
 export interface PulseSearchResponse extends BaseSearchResponse {

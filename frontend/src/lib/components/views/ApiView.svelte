@@ -22,8 +22,22 @@
 	let copiedAgent = false;
 	let revokeConfirmId: string | null = null;
 
-	const AGENT_INSTRUCTIONS = `Base URL: ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1
-API Spec: ${typeof window !== 'undefined' ? window.location.origin : ''}/api/openapi.json
+	const isSupabase = import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase';
+	const supabaseUrl = (import.meta.env.PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
+	const apiBase = isSupabase
+		? `${supabaseUrl}/functions/v1`
+		: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1`;
+	const specUrl = isSupabase
+		? `${supabaseUrl}/functions/v1/openapi-spec`
+		: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/openapi.json`;
+	// Swagger UI: Supabase has no auto-generated /api/docs, so we serve our own
+	// SvelteKit route (/swagger) that loads swagger-ui-dist from CDN and points at specUrl.
+	// Route name deliberately avoids the `/api` prefix so the Vite dev proxy doesn't
+	// catch it and forward to the FastAPI backend.
+	const swaggerUrl = isSupabase ? '/swagger' : '/api/docs';
+
+	const AGENT_INSTRUCTIONS = `Base URL: ${apiBase}
+API Spec: ${specUrl}
 Auth: Bearer <your-api-key>`;
 
 	// --- Lifecycle ---
@@ -99,12 +113,6 @@ Auth: Bearer <your-api-key>`;
 
 <div class="api-view">
 	<div class="api-content">
-		<!-- Header -->
-		<header class="api-header">
-			<h1 class="api-title">{m.api_title()}</h1>
-			<p class="api-subtitle">{m.api_subtitle()}</p>
-		</header>
-
 		<!-- Section A: Getting Started -->
 		<div class="form-group">
 			<label class="field-label">{m.api_gettingStarted()}</label>
@@ -228,14 +236,14 @@ Auth: Bearer <your-api-key>`;
 		<div class="form-group">
 			<label class="field-label">{m.api_reference()}</label>
 			<div class="ref-links">
-				<a href="/api/docs" target="_blank" rel="noopener noreferrer" class="ref-link">
+				<a href={swaggerUrl} target="_blank" rel="noopener noreferrer" class="ref-link">
 					<ExternalLink size={16} />
 					<div>
 						<span class="ref-link-title">{m.api_reference()}</span>
 						<span class="ref-link-desc">Interactive Swagger UI</span>
 					</div>
 				</a>
-				<a href="/api/openapi.json" target="_blank" rel="noopener noreferrer" class="ref-link">
+				<a href={specUrl} target="_blank" rel="noopener noreferrer" class="ref-link">
 					<ExternalLink size={16} />
 					<div>
 						<span class="ref-link-title">{m.api_openApiSpec()}</span>
@@ -251,29 +259,12 @@ Auth: Bearer <your-api-key>`;
 	.api-view {
 		height: 100%;
 		overflow-y: auto;
-		padding: 2rem;
+		padding: 1.5rem;
 	}
 
 	.api-content {
 		max-width: 640px;
 		margin: 0 auto;
-	}
-
-	.api-header {
-		margin-bottom: 2rem;
-	}
-
-	.api-title {
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: #111827;
-		margin: 0 0 0.25rem;
-	}
-
-	.api-subtitle {
-		font-size: 0.875rem;
-		color: #6b7280;
-		margin: 0;
 	}
 
 	/* Form groups — matches DataExtract, PageScoutView, etc. */
@@ -288,7 +279,7 @@ Auth: Bearer <your-api-key>`;
 		display: block;
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: #374151;
+		color: var(--color-ink);
 		margin: 0;
 	}
 
@@ -300,14 +291,14 @@ Auth: Bearer <your-api-key>`;
 
 	.max-keys-badge {
 		font-size: 0.6875rem;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		font-weight: 500;
 	}
 
 	/* Agent instructions block */
 	.agent-block {
-		background: #ffffff;
-		border: 1px solid #e5e7eb;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
 		border-radius: 0.5rem;
 		overflow: hidden;
 	}
@@ -317,13 +308,13 @@ Auth: Bearer <your-api-key>`;
 		align-items: center;
 		justify-content: space-between;
 		padding: 0.625rem 0.875rem;
-		border-bottom: 1px solid #e5e7eb;
+		border-bottom: 1px solid var(--color-border);
 	}
 
 	.agent-label {
 		font-size: 0.75rem;
 		font-weight: 600;
-		color: #374151;
+		color: var(--color-ink);
 	}
 
 	.agent-code {
@@ -331,7 +322,7 @@ Auth: Bearer <your-api-key>`;
 		padding: 0.875rem;
 		font-size: 0.8125rem;
 		line-height: 1.6;
-		color: #1f2937;
+		color: var(--color-ink);
 		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, monospace;
 		white-space: pre;
 		overflow-x: auto;
@@ -345,17 +336,17 @@ Auth: Bearer <your-api-key>`;
 		padding: 0.25rem 0.5rem;
 		font-size: 0.75rem;
 		font-weight: 500;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		background: transparent;
-		border: 1px solid #e5e7eb;
+		border: 1px solid var(--color-border);
 		border-radius: 0.375rem;
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.copy-btn:hover {
-		background: #f3f4f6;
-		color: #374151;
+		background: var(--color-surface);
+		color: var(--color-ink);
 	}
 
 	/* New key banner */
@@ -363,14 +354,14 @@ Auth: Bearer <your-api-key>`;
 		display: flex;
 		gap: 0.75rem;
 		padding: 0.875rem;
-		background: linear-gradient(135deg, rgba(150, 139, 223, 0.06) 0%, rgba(124, 111, 199, 0.1) 100%);
-		border: 1px solid rgba(124, 111, 199, 0.2);
+		background: linear-gradient(135deg, rgba(107, 63, 160, 0.06) 0%, rgba(78, 44, 120, 0.1) 100%);
+		border: 1px solid rgba(78, 44, 120, 0.2);
 		border-radius: 0.5rem;
 		margin-bottom: 0.75rem;
 	}
 
 	.new-key-banner-icon {
-		color: #7c6fc7;
+		color: var(--color-primary-deep);
 		flex-shrink: 0;
 		margin-top: 0.125rem;
 	}
@@ -383,7 +374,7 @@ Auth: Bearer <your-api-key>`;
 	.new-key-warning {
 		font-size: 0.8125rem;
 		font-weight: 600;
-		color: #4c1d95;
+		color: var(--color-primary-deep);
 		margin: 0 0 0.5rem;
 	}
 
@@ -396,7 +387,7 @@ Auth: Bearer <your-api-key>`;
 	.new-key-value {
 		font-size: 0.8125rem;
 		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, monospace;
-		color: #1f2937;
+		color: var(--color-ink);
 		background: rgba(255, 255, 255, 0.6);
 		padding: 0.25rem 0.5rem;
 		border-radius: 0.25rem;
@@ -418,21 +409,21 @@ Auth: Bearer <your-api-key>`;
 		flex: 1;
 		padding: 0.5rem 0.75rem;
 		font-size: 0.8125rem;
-		border: 1px solid #e5e7eb;
+		border: 1px solid var(--color-border);
 		border-radius: 0.375rem;
-		background: #ffffff;
-		color: #111827;
+		background: var(--color-surface-alt);
+		color: var(--color-ink);
 		outline: none;
 		transition: border-color 0.15s ease;
 	}
 
 	.key-name-input:focus {
-		border-color: #7c6fc7;
-		box-shadow: 0 0 0 2px rgba(124, 111, 199, 0.1);
+		border-color: var(--color-primary-deep);
+		box-shadow: 0 0 0 2px rgba(78, 44, 120, 0.1);
 	}
 
 	.key-name-input::placeholder {
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 	}
 
 	.create-key-btn {
@@ -442,8 +433,8 @@ Auth: Bearer <your-api-key>`;
 		padding: 0.5rem 0.875rem;
 		font-size: 0.8125rem;
 		font-weight: 600;
-		color: #ffffff;
-		background: linear-gradient(to right, #968bdf, #7c6fc7);
+		color: var(--color-surface-alt);
+		background: linear-gradient(to right, var(--color-primary), var(--color-primary-deep));
 		border: none;
 		border-radius: 0.375rem;
 		cursor: pointer;
@@ -453,7 +444,7 @@ Auth: Bearer <your-api-key>`;
 
 	.create-key-btn:hover:not(:disabled) {
 		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(150, 139, 223, 0.3);
+		box-shadow: 0 4px 12px rgba(107, 63, 160, 0.3);
 	}
 
 	.create-key-btn:disabled {
@@ -465,7 +456,7 @@ Auth: Bearer <your-api-key>`;
 	.keys-list {
 		display: flex;
 		flex-direction: column;
-		border: 1px solid #e5e7eb;
+		border: 1px solid var(--color-border);
 		border-radius: 0.5rem;
 		overflow: hidden;
 	}
@@ -475,8 +466,8 @@ Auth: Bearer <your-api-key>`;
 		align-items: center;
 		gap: 1rem;
 		padding: 0.75rem 0.875rem;
-		background: #ffffff;
-		border-bottom: 1px solid #f3f4f6;
+		background: var(--color-surface-alt);
+		border-bottom: 1px solid var(--color-surface);
 	}
 
 	.key-row:last-child {
@@ -494,7 +485,7 @@ Auth: Bearer <your-api-key>`;
 	.key-name {
 		font-size: 0.8125rem;
 		font-weight: 600;
-		color: #111827;
+		color: var(--color-ink);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -503,7 +494,7 @@ Auth: Bearer <your-api-key>`;
 	.key-prefix {
 		font-size: 0.75rem;
 		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, monospace;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		white-space: nowrap;
 	}
 
@@ -517,13 +508,13 @@ Auth: Bearer <your-api-key>`;
 
 	.key-date {
 		font-size: 0.6875rem;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		white-space: nowrap;
 	}
 
 	.key-usage {
 		font-size: 0.6875rem;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		white-space: nowrap;
 	}
 
@@ -543,22 +534,22 @@ Auth: Bearer <your-api-key>`;
 		border: none;
 		border-radius: 0.25rem;
 		background: transparent;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.revoke-btn:hover {
-		background: #fef2f2;
-		color: #ef4444;
+		background: rgba(179, 62, 46, 0.08);
+		color: var(--color-error);
 	}
 
 	.revoke-confirm-btn {
 		padding: 0.25rem 0.5rem;
 		font-size: 0.6875rem;
 		font-weight: 600;
-		color: #ffffff;
-		background: #ef4444;
+		color: var(--color-surface-alt);
+		background: var(--color-error);
 		border: none;
 		border-radius: 0.25rem;
 		cursor: pointer;
@@ -566,16 +557,16 @@ Auth: Bearer <your-api-key>`;
 	}
 
 	.revoke-confirm-btn:hover {
-		background: #dc2626;
+		background: var(--color-error);
 	}
 
 	.cancel-btn {
 		padding: 0.25rem 0.5rem;
 		font-size: 0.6875rem;
 		font-weight: 500;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		background: transparent;
-		border: 1px solid #e5e7eb;
+		border: 1px solid var(--color-border);
 		border-radius: 0.25rem;
 		cursor: pointer;
 	}
@@ -587,18 +578,18 @@ Auth: Bearer <your-api-key>`;
 		justify-content: center;
 		gap: 0.5rem;
 		padding: 2rem;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		font-size: 0.8125rem;
-		border: 1px dashed #e5e7eb;
+		border: 1px dashed var(--color-border);
 		border-radius: 0.5rem;
 	}
 
 	.keys-empty :global(.empty-icon) {
-		color: #d1d5db;
+		color: var(--color-border-strong);
 	}
 
 	.loading-text {
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 	}
 
 	/* Reference links */
@@ -613,17 +604,17 @@ Auth: Bearer <your-api-key>`;
 		align-items: center;
 		gap: 0.75rem;
 		padding: 0.75rem 0.875rem;
-		background: #ffffff;
-		border: 1px solid #e5e7eb;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
 		border-radius: 0.5rem;
 		text-decoration: none;
-		color: #374151;
+		color: var(--color-ink);
 		transition: all 0.15s ease;
 	}
 
 	.ref-link:hover {
-		border-color: #d1d5db;
-		background: #f9fafb;
+		border-color: var(--color-border-strong);
+		background: var(--color-bg);
 	}
 
 	.ref-link div {
@@ -635,11 +626,11 @@ Auth: Bearer <your-api-key>`;
 	.ref-link-title {
 		font-size: 0.8125rem;
 		font-weight: 600;
-		color: #111827;
+		color: var(--color-ink);
 	}
 
 	.ref-link-desc {
 		font-size: 0.6875rem;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 	}
 </style>

@@ -1,0 +1,202 @@
+[
+  {
+    "slug": "city-council-minutes",
+    "name": "City council minutes monitor",
+    "type": "civic",
+    "description": "Track a city council's meeting minutes page for new agendas and resolutions.",
+    "defaults": {
+      "criteria": "Track new resolutions, ordinances, and votes.",
+      "regularity": "weekly",
+      "schedule_cron": "0 9 * * 1"
+    },
+    "fields": [
+      { "key": "root_domain", "label": "Council website domain (e.g. example.gov)", "required": true },
+      { "key": "tracked_urls", "label": "Minutes / agenda page URLs (one per line)", "required": true, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "Zurich council monitor",
+      "root_domain": "stadt-zuerich.ch",
+      "tracked_urls": ["https://www.stadt-zuerich.ch/gemeinderat/meetings"]
+    }
+  },
+  {
+    "slug": "county-commission",
+    "name": "County commission tracker",
+    "type": "civic",
+    "description": "Follow a county commission for board decisions, budget votes, and land-use rulings.",
+    "defaults": {
+      "criteria": "Surface budget votes, zoning rulings, and contract awards.",
+      "regularity": "weekly",
+      "schedule_cron": "0 10 * * 2"
+    },
+    "fields": [
+      { "key": "root_domain", "label": "County website domain", "required": true },
+      { "key": "tracked_urls", "label": "Commission meeting/agenda page URLs (one per line)", "required": true, "multiline": true },
+      { "key": "criteria", "label": "What to watch for (optional)", "required": false, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "King County commission tracker",
+      "root_domain": "kingcounty.gov",
+      "tracked_urls": ["https://kingcounty.gov/council/meetings"]
+    }
+  },
+  {
+    "slug": "state-legislature",
+    "name": "State legislature bill monitor",
+    "type": "civic",
+    "description": "Monitor a state legislature page for new bills, committee votes, and floor actions.",
+    "defaults": {
+      "criteria": "Track new bills, committee reports, and recorded votes.",
+      "regularity": "daily",
+      "schedule_cron": "0 8 * * *"
+    },
+    "fields": [
+      { "key": "root_domain", "label": "Legislature website domain", "required": true },
+      { "key": "tracked_urls", "label": "Bill tracker / calendar URLs (one per line)", "required": true, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "California legislature monitor",
+      "root_domain": "leginfo.legislature.ca.gov",
+      "tracked_urls": ["https://leginfo.legislature.ca.gov/faces/billSearchClient.xhtml"]
+    }
+  },
+  {
+    "slug": "regulator-docket",
+    "name": "Regulator docket watch",
+    "type": "civic",
+    "description": "Track a regulator's docket or filings page for new filings, rulings, and enforcement actions.",
+    "defaults": {
+      "criteria": "Surface new filings, orders, and enforcement actions.",
+      "regularity": "daily",
+      "schedule_cron": "0 12 * * *"
+    },
+    "fields": [
+      { "key": "root_domain", "label": "Regulator website domain", "required": true },
+      { "key": "tracked_urls", "label": "Docket / filings page URLs (one per line)", "required": true, "multiline": true },
+      { "key": "criteria", "label": "Filter keywords (optional)", "required": false, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "FERC docket watch",
+      "root_domain": "ferc.gov",
+      "tracked_urls": ["https://elibrary.ferc.gov/eLibrary/search"]
+    }
+  },
+  {
+    "slug": "court-calendar",
+    "name": "Court calendar watch",
+    "type": "civic",
+    "description": "Monitor a court's public calendar for upcoming hearings and filings.",
+    "defaults": {
+      "criteria": "Track upcoming hearings, motions, and rulings.",
+      "regularity": "daily",
+      "schedule_cron": "30 7 * * *"
+    },
+    "fields": [
+      { "key": "root_domain", "label": "Court website domain", "required": true },
+      { "key": "tracked_urls", "label": "Calendar / docket page URLs (one per line)", "required": true, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "SDNY calendar watch",
+      "root_domain": "nysd.uscourts.gov",
+      "tracked_urls": ["https://www.nysd.uscourts.gov/calendars"]
+    }
+  },
+  {
+    "slug": "press-release-monitor",
+    "name": "Press release page monitor",
+    "type": "web",
+    "description": "Watch an organisation's press release page and alert when new items matching a topic appear.",
+    "defaults": {
+      "regularity": "daily",
+      "schedule_cron": "0 9 * * *"
+    },
+    "fields": [
+      { "key": "url", "label": "Press release page URL", "required": true },
+      { "key": "criteria", "label": "What should trigger an alert?", "required": true, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "Acme press releases",
+      "url": "https://www.acme.com/news",
+      "criteria": "New product launches, executive changes, legal actions."
+    }
+  },
+  {
+    "slug": "company-news-page",
+    "name": "Company news page monitor",
+    "type": "web",
+    "description": "Watch a company's newsroom or investor page for announcements matching your criteria.",
+    "defaults": {
+      "regularity": "daily",
+      "schedule_cron": "0 11 * * *"
+    },
+    "fields": [
+      { "key": "url", "label": "Company news / investor page URL", "required": true },
+      { "key": "criteria", "label": "What should trigger an alert?", "required": true, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "Tesla investor news",
+      "url": "https://ir.tesla.com/press-releases",
+      "criteria": "Quarterly earnings, product announcements, executive changes."
+    }
+  },
+  {
+    "slug": "city-housing-beat",
+    "name": "City housing beat",
+    "type": "pulse",
+    "description": "Pulse search focused on housing news in a given city, prioritising trusted local sources.",
+    "defaults": {
+      "regularity": "daily",
+      "schedule_cron": "0 8 * * *",
+      "criteria": "Evictions, zoning decisions, affordable housing funding, rent changes."
+    },
+    "fields": [
+      { "key": "location", "label": "City (JSON object with city/country)", "required": true },
+      { "key": "priority_sources", "label": "Preferred sources (one per line)", "required": false, "multiline": true },
+      { "key": "criteria", "label": "Criteria (optional override)", "required": false, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "Zurich housing beat",
+      "location": { "city": "Zurich", "country": "Switzerland" },
+      "priority_sources": ["tagesanzeiger.ch", "nzz.ch"]
+    }
+  },
+  {
+    "slug": "education-policy-beat",
+    "name": "Education policy beat",
+    "type": "pulse",
+    "description": "Pulse search focused on K-12 and higher-ed policy changes in a given region.",
+    "defaults": {
+      "regularity": "daily",
+      "schedule_cron": "15 9 * * *",
+      "criteria": "School board decisions, funding changes, curriculum debates, university policy."
+    },
+    "fields": [
+      { "key": "location", "label": "Region (JSON object with state/country)", "required": true },
+      { "key": "criteria", "label": "Criteria (optional override)", "required": false, "multiline": true },
+      { "key": "priority_sources", "label": "Preferred sources (one per line)", "required": false, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "California education policy",
+      "location": { "state": "California", "country": "United States" },
+      "priority_sources": ["edsource.org", "latimes.com"]
+    }
+  },
+  {
+    "slug": "instagram-profile-monitor",
+    "name": "Instagram profile monitor",
+    "type": "social",
+    "description": "Monitor an Instagram profile for new posts and alert when content matches criteria.",
+    "defaults": {
+      "regularity": "daily",
+      "schedule_cron": "0 14 * * *"
+    },
+    "fields": [
+      { "key": "url", "label": "Instagram profile URL (e.g. https://instagram.com/handle)", "required": true },
+      { "key": "criteria", "label": "What should trigger an alert? (optional)", "required": false, "multiline": true }
+    ],
+    "example_fill": {
+      "name": "@whitehouse monitor",
+      "url": "https://instagram.com/whitehouse"
+    }
+  }
+]

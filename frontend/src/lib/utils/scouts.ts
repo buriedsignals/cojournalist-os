@@ -10,13 +10,36 @@
  * consolidated scout status cascade (priority-ordered condition matching).
  */
 
+import type { ComponentType } from 'svelte';
+import { Globe, Radar, Users, Landmark } from 'lucide-svelte';
 import type { ScoutType } from '$lib/types';
 
-/** Credit costs per scout type (see backend/app/utils/credits.py:CREDIT_COSTS) */
+/**
+ * Per-scout-type display config: the icon for the eyebrow glyph, the CSS
+ * className used to wire up the left-stripe + eyebrow color ("web" and
+ * "pulse" take plum; "social" and "civic" take ochre), and the human label.
+ *
+ * Single source of truth for ScoutCard, ScoutFocus, and NewScoutDropdown.
+ */
+export interface ScoutTypeDisplay {
+	icon: ComponentType;
+	className: 'web' | 'pulse' | 'social' | 'civic';
+	label: string;
+}
+
+export const SCOUT_TYPE_CONFIG: Record<ScoutType, ScoutTypeDisplay> = {
+	web:    { icon: Globe,    className: 'web',    label: 'Page Monitor' },
+	pulse:  { icon: Radar,    className: 'pulse',  label: 'Beat Monitor' },
+	social: { icon: Users,    className: 'social', label: 'Social Monitor' },
+	civic:  { icon: Landmark, className: 'civic',  label: 'Civic Monitor' }
+};
+
+/** Credit costs per scout type (see supabase/functions/_shared/credits.ts:CREDIT_COSTS) */
 export const SCOUT_COSTS: Record<ScoutType, number> = {
-	civic: 20,
+	// Civic: weekly/monthly only, refunded when a run queues zero docs.
+	civic: 10,
 	pulse: 7,
-	social: 2, // Base cost (Instagram/X). Facebook is 15.
+	social: 2, // Base cost (Instagram/X/TikTok). Facebook is 15.
 	web: 1
 };
 
@@ -35,6 +58,46 @@ export function getScoutCost(type: ScoutType, platform?: string): number {
 		return SOCIAL_SCOUT_COSTS[platform] ?? SCOUT_COSTS.social;
 	}
 	return SCOUT_COSTS[type] ?? 1;
+}
+
+/** Regularity → number of runs per month (matches backend/app/utils/pricing.py:82-84). */
+export function getRegularityMultiplier(regularity: 'daily' | 'weekly' | 'monthly'): number {
+	if (regularity === 'daily') return 30;
+	if (regularity === 'weekly') return 4;
+	return 1;
+}
+
+/**
+ * Client-side credit pre-check for scout scheduling. Replaces the dead network
+ * call to POST /scrapers/monitoring/validate (FastAPI-only, 404s in Supabase
+ * mode). The authoritative charge still happens inside each executor Edge
+ * Function via decrement_credits — this is UX only.
+ *
+ * Flat getScoutCost() applies even for pulse+niche+location, matching
+ * scout-beat-execute/index.ts:153 (server of record), not the prod UI's
+ * cosmetic 10-credit override.
+ */
+export function validateScheduleCredits(params: {
+	scoutType: ScoutType;
+	regularity: 'daily' | 'weekly' | 'monthly';
+	platform?: string;
+	currentCredits: number;
+}): {
+	valid: boolean;
+	perRunCost: number;
+	monthlyCost: number;
+	currentCredits: number;
+	remainingAfter: number;
+} {
+	const perRunCost = getScoutCost(params.scoutType, params.platform);
+	const monthlyCost = perRunCost * getRegularityMultiplier(params.regularity);
+	return {
+		valid: params.currentCredits >= monthlyCost,
+		perRunCost,
+		monthlyCost,
+		currentCredits: params.currentCredits,
+		remainingAfter: params.currentCredits - monthlyCost
+	};
 }
 
 /** Channel-specific costs for data extraction */

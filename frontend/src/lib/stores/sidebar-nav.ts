@@ -1,7 +1,7 @@
 /**
  * Sidebar Nav Store -- active view, scout filter, and collapsed state.
  *
- * USED BY: FeedView.svelte, PageScoutView.svelte, SmartScoutView.svelte,
+ * USED BY: FeedView.svelte, PageScoutView.svelte, BeatScoutView.svelte,
  *          UnifiedSidebar.svelte, GuidedTourController.svelte, +page.svelte
  * DEPENDS ON: (none)
  *

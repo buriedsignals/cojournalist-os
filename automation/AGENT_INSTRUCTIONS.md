@@ -19,34 +19,16 @@ You are deploying coJournalist, an AI-powered local news monitoring platform, fo
 ## Prerequisites
 
 Before starting, confirm the user has:
-1. A coJournalist license key (starts with `cjl_`)
-2. A GitHub account with the `gh` CLI installed and authenticated
-3. API keys for: Gemini, Firecrawl, Resend, Apify (required), MapTiler and OpenRouter (optional)
-4. A Supabase account (https://supabase.com) OR Docker installed for self-hosting
-5. A Render account (https://render.com) OR Docker for self-hosting
+1. A GitHub account with the `gh` CLI installed and authenticated
+2. API keys for: Gemini, Firecrawl, Resend, Apify (required), MapTiler and OpenRouter (optional)
+3. A Supabase account (https://supabase.com) OR Docker installed for self-hosting
+4. A Render account (https://render.com) OR Docker for self-hosting
 
 If any prerequisite is missing, help them set it up before proceeding.
 
-## Step 1: Validate License Key
+No license key is required — the repository is public and self-hosting is free under the Sustainable Use License.
 
-Ask the user for their license key, then validate it:
-
-```bash
-export COJOURNALIST_LICENSE_KEY="<user's key>"
-
-curl -s -X POST \
-  -H "Content-Type: application/json" \
-  -d "{\"key\": \"${COJOURNALIST_LICENSE_KEY}\"}" \
-  "https://www.cojournalist.ai/api/license/validate"
-```
-
-Expected response: `{"valid": true, "status": "active", ...}`
-
-If the response is `403`, tell the user their key is invalid or expired and direct them to https://www.cojournalist.ai/license.
-
-If the endpoint is unreachable, proceed anyway (fail open policy).
-
-## Step 2: Fork the Repository
+## Step 1: Fork the Repository
 
 ```bash
 gh repo fork buriedsignals/cojournalist-os --clone
@@ -54,7 +36,7 @@ cd cojournalist-os
 git remote add upstream https://github.com/buriedsignals/cojournalist-os.git
 ```
 
-## Step 3: Set Up Supabase
+## Step 2: Set Up Supabase
 
 Ask the user: "Do you want to use Supabase Cloud (managed) or self-hosted Docker?"
 
@@ -126,7 +108,7 @@ docker compose exec db psql -U postgres -d postgres -f /docker-entrypoint-initdb
 # Repeat for each migration file in order
 ```
 
-## Step 4: Collect API Keys
+## Step 3: Collect API Keys
 
 Ask the user for each API key. Present them one at a time with the signup URL:
 
@@ -139,7 +121,7 @@ Ask the user for each API key. Present them one at a time with the signup URL:
 | `PUBLIC_MAPTILER_API_KEY` | MapTiler (geocoding, optional) | https://www.maptiler.com |
 | `OPENROUTER_API_KEY` | OpenRouter (alt LLMs, optional) | https://openrouter.ai |
 
-## Step 5: Write Configuration
+## Step 4: Write Configuration
 
 Create the `.env` file in the repository root:
 
@@ -165,7 +147,7 @@ EOF
 
 Replace all `<collected>` and `<generated>` placeholders with actual values.
 
-## Step 6: Deploy
+## Step 5: Deploy
 
 Ask the user: "Deploy to Render or Docker Compose?"
 
@@ -192,17 +174,14 @@ Wait 30 seconds for services to start, then verify:
 docker compose ps
 ```
 
-## Step 7: Install Sync Action
+## Step 6: Install Sync Action
 
 ```bash
 # Copy the sync workflow to the fork
 mkdir -p .github/workflows
 cp automation/sync-upstream.yml .github/workflows/sync-upstream.yml
 
-# Set the license key as a secret
-echo "${COJOURNALIST_LICENSE_KEY}" | gh secret set COJOURNALIST_LICENSE_KEY
-
-# If using Render, set the deploy hook
+# Optional: set the Render deploy hook so merges auto-deploy
 # gh secret set RENDER_DEPLOY_HOOK  (ask user for the URL from Render dashboard)
 
 # Commit and push
@@ -211,7 +190,7 @@ git commit -m "ci: install sync-upstream action"
 git push origin main
 ```
 
-## Step 8: Verify
+## Step 7: Verify
 
 Run a health check:
 

@@ -319,38 +319,22 @@ async def step_download_and_parse(
     doc_type = CivicOrchestrator._detect_document_type(doc_url)
     logging.info("step_download_and_parse: detected format=%s for %s", doc_type, doc_url)
     try:
-        if doc_type == "pdf":
-            local_path = await orchestrator._download_pdf(doc_url)
-            import os
-            file_size_kb = round(os.path.getsize(local_path) / 1024, 1) if os.path.exists(local_path) else 0
-            text = await orchestrator._parse_pdf(local_path, language=language)
-            estimated_pages = max(1, len(text) // 2000) if text else 0
-            elapsed_ms = int((time.time() - start) * 1000)
-            return {
-                "step": "download_and_parse",
-                "doc_type": "pdf",
-                "elapsed_ms": elapsed_ms,
-                "text": text,
-                "text_length": len(text),
-                "text_preview": text[:300] if text else "",
-                "file_size_kb": file_size_kb,
-                "llamaparse_pages": estimated_pages,
-                "error": None,
-            }
-        else:
-            text = await orchestrator._parse_html(doc_url)
-            elapsed_ms = int((time.time() - start) * 1000)
-            return {
-                "step": "download_and_parse",
-                "doc_type": "html",
-                "elapsed_ms": elapsed_ms,
-                "text": text,
-                "text_length": len(text),
-                "text_preview": text[:300] if text else "",
-                "file_size_kb": 0,
-                "llamaparse_pages": 0,
-                "error": None,
-            }
+        # Civic pipeline routes both PDF and HTML through Firecrawl's /v2/scrape
+        # with parsers:[{type:'pdf',mode:'fast'}]. The legacy _download_pdf +
+        # _parse_pdf (LlamaParse) path was removed when we consolidated.
+        text = await orchestrator._parse_html(doc_url)
+        elapsed_ms = int((time.time() - start) * 1000)
+        return {
+            "step": "download_and_parse",
+            "doc_type": doc_type,
+            "elapsed_ms": elapsed_ms,
+            "text": text,
+            "text_length": len(text),
+            "text_preview": text[:300] if text else "",
+            "file_size_kb": 0,
+            "llamaparse_pages": 0,
+            "error": None,
+        }
     except Exception as e:
         return {
             "step": "download_and_parse",

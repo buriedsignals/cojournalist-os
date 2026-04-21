@@ -117,8 +117,8 @@
 	}
 
 	.modal-container {
-		background: #ffffff;
-		border-radius: 1rem;
+		background: var(--color-surface-alt);
+		border-radius: 0;
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.1);
 		max-width: 800px;
 		width: 100%;
@@ -149,7 +149,7 @@
 		position: relative;
 		width: 100%;
 		padding-bottom: 56.25%; /* 16:9 aspect ratio */
-		background: #0f172a;
+		background: var(--color-ink);
 	}
 
 	.video-loading {
@@ -163,15 +163,15 @@
 		align-items: center;
 		justify-content: center;
 		gap: 1rem;
-		color: #94a3b8;
+		color: var(--color-ink-subtle);
 		font-size: 0.875rem;
 	}
 
 	.loading-spinner {
 		width: 32px;
 		height: 32px;
-		border: 3px solid rgba(150, 139, 223, 0.3);
-		border-top-color: #968bdf;
+		border: 3px solid rgba(107, 63, 160, 0.3);
+		border-top-color: var(--color-primary);
 		border-radius: 50%;
 		animation: spin 1s linear infinite;
 	}
@@ -198,7 +198,7 @@
 
 	.modal-footer {
 		padding: 1.25rem 1.5rem;
-		background: linear-gradient(180deg, #fafbfc 0%, #f8f9fb 100%);
+		background: linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg) 100%);
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
@@ -209,25 +209,25 @@
 		padding: 0.875rem 1.5rem;
 		font-size: 0.9375rem;
 		font-weight: 600;
-		color: #ffffff;
-		background: linear-gradient(135deg, #968bdf 0%, #7c6fc7 100%);
+		color: var(--color-surface-alt);
+		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-deep) 100%);
 		border: none;
-		border-radius: 0.75rem;
+		border-radius: 0;
 		cursor: pointer;
 		transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 		font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-		box-shadow: 0 2px 8px rgba(150, 139, 223, 0.25);
+		box-shadow: 0 2px 8px rgba(107, 63, 160, 0.25);
 	}
 
 	.ready-btn:hover {
-		background: linear-gradient(135deg, #8a7ed3 0%, #6f63bb 100%);
+		background: linear-gradient(135deg, var(--color-primary-soft) 0%, var(--color-primary) 100%);
 		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(150, 139, 223, 0.35);
+		box-shadow: 0 4px 12px rgba(107, 63, 160, 0.35);
 	}
 
 	.ready-btn:active {
 		transform: translateY(0);
-		box-shadow: 0 2px 6px rgba(150, 139, 223, 0.25);
+		box-shadow: 0 2px 6px rgba(107, 63, 160, 0.25);
 	}
 
 	.skip-btn {
@@ -235,7 +235,7 @@
 		padding: 0.5rem 1rem;
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: #64748b;
+		color: var(--color-ink-subtle);
 		background: transparent;
 		border: none;
 		cursor: pointer;
@@ -244,7 +244,7 @@
 	}
 
 	.skip-btn:hover {
-		color: #475569;
+		color: var(--color-ink-muted);
 	}
 
 	/* Responsive */

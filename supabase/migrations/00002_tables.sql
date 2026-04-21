@@ -168,7 +168,7 @@ CREATE TABLE information_units (
 
 -- ============================================================
 -- USER PREFERENCES (replaces USER#/PROFILE -- simplified)
--- No credits, no tier, no billing
+-- Tier + entitlements added by 00025_credits.sql
 -- ============================================================
 CREATE TABLE user_preferences (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -177,8 +177,6 @@ CREATE TABLE user_preferences (
     notification_email TEXT,
     default_location JSONB,
     excluded_domains TEXT[],
-    cms_api_url TEXT,
-    cms_api_token TEXT,
     preferences JSONB DEFAULT '{}',
     onboarding_completed BOOLEAN DEFAULT FALSE,
     onboarding_tour_completed BOOLEAN DEFAULT FALSE,

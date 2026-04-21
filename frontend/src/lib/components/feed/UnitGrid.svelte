@@ -117,8 +117,8 @@
 		font-weight: 700;
 		letter-spacing: 0.05em;
 		text-transform: uppercase;
-		color: #7c3aed;
-		background: #ede9fe;
+		color: var(--color-primary);
+		background: var(--color-primary-soft);
 		padding: 0.125rem 0.5rem;
 		border-radius: 9999px;
 		z-index: 1;

@@ -1,7 +1,7 @@
 /**
  * Tests for the API client — verifies request URLs, methods, bodies, and error handling.
  * Mocks fetch to test the frontend->backend contract.
- * Auth is handled via httpOnly session cookies (credentials: 'include').
+ * Auth is Bearer JWT via authStore.getToken() — no cookies.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -36,19 +36,21 @@ beforeEach(() => {
 // ===========================================================================
 
 describe('getActiveJobs', () => {
-	it('calls GET /scrapers/active with credentials', async () => {
+	it('calls GET /scrapers/active with Bearer auth', async () => {
 		fetchSpy = mockFetchResponse({ scrapers: [] });
 		vi.stubGlobal('fetch', fetchSpy);
 
 		await apiClient.getActiveJobs();
 
-		expect(fetchSpy).toHaveBeenCalledWith('/api/scrapers/active', {
-			method: 'GET',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			credentials: 'include'
-		});
+		expect(fetchSpy).toHaveBeenCalledWith(
+			'/api/scrapers/active',
+			expect.objectContaining({
+				method: 'GET',
+				headers: expect.objectContaining({ 'Content-Type': 'application/json' })
+			})
+		);
+		const options = fetchSpy.mock.calls[0][1];
+		expect(options.credentials).toBeUndefined();
 	});
 
 	it('returns parsed response', async () => {
@@ -81,7 +83,7 @@ describe('deleteActiveJob', () => {
 
 		expect(fetchSpy).toHaveBeenCalledWith(
 			'/api/scrapers/active/my%20scout%20name',
-			expect.objectContaining({ method: 'DELETE', credentials: 'include' })
+			expect.objectContaining({ method: 'DELETE' })
 		);
 	});
 
@@ -112,8 +114,7 @@ describe('runScoutNow', () => {
 			'/api/scrapers/run-now',
 			expect.objectContaining({
 				method: 'POST',
-				credentials: 'include',
-				body: JSON.stringify({ scraper_name: 'test-scout' })
+					body: JSON.stringify({ scraper_name: 'test-scout' })
 			})
 		);
 		expect(result).toEqual(mockResult);
@@ -223,8 +224,7 @@ describe('scheduleMonitoring', () => {
 			'/api/scrapers/monitoring',
 			expect.objectContaining({
 				method: 'POST',
-				credentials: 'include',
-				body: JSON.stringify(payload)
+					body: JSON.stringify(payload)
 			})
 		);
 	});
@@ -279,40 +279,17 @@ describe('Information Units', () => {
 			'/api/units/mark-used',
 			expect.objectContaining({
 				method: 'PATCH',
-				credentials: 'include',
-				body: JSON.stringify({ unit_keys: keys })
+					body: JSON.stringify({ unit_keys: keys })
 			})
 		);
 	});
 });
 
 // ===========================================================================
-// updateUserPreferences (CMS fields)
+// updateUserPreferences
 // ===========================================================================
 
 describe('updateUserPreferences', () => {
-	it('sends PUT /user/preferences with CMS fields', async () => {
-		fetchSpy = mockFetchResponse({ success: true, cms_api_url: 'https://my-cms.com/api' });
-		vi.stubGlobal('fetch', fetchSpy);
-
-		await apiClient.updateUserPreferences({
-			cms_api_url: 'https://my-cms.com/api',
-			cms_api_token: 'secret-token'
-		});
-
-		expect(fetchSpy).toHaveBeenCalledWith(
-			'/api/user/preferences',
-			expect.objectContaining({
-				method: 'PUT',
-				credentials: 'include',
-				body: JSON.stringify({
-					cms_api_url: 'https://my-cms.com/api',
-					cms_api_token: 'secret-token'
-				})
-			})
-		);
-	});
-
 	it('sends only changed fields', async () => {
 		fetchSpy = mockFetchResponse({ success: true, preferred_language: 'fr' });
 		vi.stubGlobal('fetch', fetchSpy);
@@ -321,77 +298,6 @@ describe('updateUserPreferences', () => {
 
 		const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
 		expect(body).toEqual({ preferred_language: 'fr' });
-		expect(body.cms_api_url).toBeUndefined();
-	});
-
-	it('throws on API error', async () => {
-		fetchSpy = mockFetchResponse({ detail: 'CMS API URL must use HTTPS' }, 422);
-		vi.stubGlobal('fetch', fetchSpy);
-
-		await expect(
-			apiClient.updateUserPreferences({ cms_api_url: 'http://insecure.com' })
-		).rejects.toThrow('CMS API URL must use HTTPS');
-	});
-});
-
-// ===========================================================================
-// exportToCms
-// ===========================================================================
-
-describe('exportToCms', () => {
-	const mockDraft = {
-		title: 'Test Article',
-		headline: 'A test headline',
-		sections: [{ heading: 'Overview', content: 'Some content' }],
-		gaps: [],
-		bullet_points: [],
-		sources: [{ title: 'Source 1', url: 'https://example.com' }]
-	};
-
-	const mockUnits = [
-		{ statement: 'Fact one', source_title: 'Source 1', source_url: 'https://example.com' }
-	];
-
-	it('calls POST /export/to-cms with draft and units', async () => {
-		fetchSpy = mockFetchResponse({ success: true });
-		vi.stubGlobal('fetch', fetchSpy);
-
-		await apiClient.exportToCms({ draft: mockDraft, units: mockUnits });
-
-		expect(fetchSpy).toHaveBeenCalledWith(
-			'/api/export/to-cms',
-			expect.objectContaining({
-				method: 'POST',
-				credentials: 'include',
-				body: JSON.stringify({ draft: mockDraft, units: mockUnits })
-			})
-		);
-	});
-
-	it('returns success response', async () => {
-		fetchSpy = mockFetchResponse({ success: true });
-		vi.stubGlobal('fetch', fetchSpy);
-
-		const result = await apiClient.exportToCms({ draft: mockDraft, units: mockUnits });
-		expect(result).toEqual({ success: true });
-	});
-
-	it('throws on 400 when no CMS configured', async () => {
-		fetchSpy = mockFetchResponse({ detail: 'No CMS API endpoint configured' }, 400);
-		vi.stubGlobal('fetch', fetchSpy);
-
-		await expect(
-			apiClient.exportToCms({ draft: mockDraft, units: mockUnits })
-		).rejects.toThrow('No CMS API endpoint configured');
-	});
-
-	it('throws on 502 when CMS returns error', async () => {
-		fetchSpy = mockFetchResponse({ detail: 'CMS returned 500' }, 502);
-		vi.stubGlobal('fetch', fetchSpy);
-
-		await expect(
-			apiClient.exportToCms({ draft: mockDraft, units: mockUnits })
-		).rejects.toThrow('CMS returned 500');
 	});
 });
 
@@ -442,8 +348,7 @@ describe('autoSelectUnits', () => {
 			'/api/export/auto-select',
 			expect.objectContaining({
 				method: 'POST',
-				credentials: 'include',
-				body: JSON.stringify(mockParams)
+					body: JSON.stringify(mockParams)
 			})
 		);
 	});
@@ -486,17 +391,20 @@ describe('autoSelectUnits', () => {
 // Cookie-based auth
 // ===========================================================================
 
-describe('Cookie-based auth', () => {
-	it('all requests include credentials: include', async () => {
+describe('Bearer auth', () => {
+	it('all requests omit credentials (Authorization attached only when token exists)', async () => {
 		fetchSpy = mockFetchResponse({ scrapers: [] });
 		vi.stubGlobal('fetch', fetchSpy);
 
 		await apiClient.getActiveJobs();
 
 		const options = fetchSpy.mock.calls[0][1];
-		expect(options.credentials).toBe('include');
+		// credentials dropped — Supabase Edge Functions return '*' origin;
+		// browsers reject credentials:'include' with wildcard CORS.
+		expect(options.credentials).toBeUndefined();
 		expect(options.headers['Content-Type']).toBe('application/json');
-		// No Authorization header -- cookies are used instead
-		expect(options.headers.Authorization).toBeUndefined();
+		// In this test the authStore is unmocked, so getToken returns null and
+		// no Authorization header is attached. api-client-workspace.test.ts
+		// covers the Bearer-token-present path with a mocked authStore.
 	});
 });

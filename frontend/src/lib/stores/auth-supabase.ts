@@ -54,18 +54,33 @@ function createAuthStore() {
 				} = await sb.auth.getSession();
 
 				if (session) {
-					// Fetch user profile from backend using Supabase JWT
-					const response = await fetch(buildApiUrl('/auth/me'), {
-						headers: {
-							Authorization: `Bearer ${session.access_token}`
-						}
-					});
+					// Authentication proven by the session alone — don't gate the
+					// authenticated flag on a profile fetch. Use the session's
+					// user + metadata immediately so a refresh never bounces back
+					// to /login while we wait on the backend.
+					const sessionUser = {
+						user_id: session.user.id,
+						email: session.user.email ?? null,
+						credits: 0,
+						...(session.user.user_metadata ?? {})
+					} as unknown as User;
+					set({ authenticated: true, user: sessionUser });
 
-					if (response.ok) {
-						const data = await response.json();
-						set({ authenticated: true, user: data });
-					} else {
-						set({ authenticated: false, user: null });
+					// Try to enrich with the full profile from the `user` Edge
+					// Function. Silently fall back to session-derived user if
+					// the endpoint isn't reachable.
+					try {
+						const response = await fetch(buildApiUrl('/user/me'), {
+							headers: {
+								Authorization: `Bearer ${session.access_token}`
+							}
+						});
+						if (response.ok) {
+							const data = await response.json();
+							update((s) => ({ ...s, user: { ...sessionUser, ...data } }));
+						}
+					} catch {
+						/* keep session-derived user */
 					}
 				} else {
 					set({ authenticated: false, user: null });
@@ -88,7 +103,7 @@ function createAuthStore() {
 		 */
 		login() {
 			if (!browser) return;
-			window.location.href = '/login';
+			window.location.href = '/api/auth/login';
 		},
 
 		/**
@@ -118,7 +133,7 @@ function createAuthStore() {
 			if (!session) return;
 
 			try {
-				const response = await fetch(buildApiUrl('/auth/me'), {
+				const response = await fetch(buildApiUrl('/user/me'), {
 					headers: {
 						Authorization: `Bearer ${session.access_token}`
 					}
@@ -134,11 +149,21 @@ function createAuthStore() {
 		},
 
 		/**
-		 * Force-set the current credit balance.
-		 * In Supabase mode this is a no-op (unlimited credits).
+		 * Optimistically update the current credit balance in the store.
+		 * Called after a scout run returns a new balance in its response; the
+		 * next /user/me refresh reconciles against the server-of-record.
 		 */
-		setCredits(_credits: number) {
-			// No-op in self-hosted mode
+		setCredits(credits: number) {
+			update((state) => {
+				if (!state.user) return state;
+				return {
+					...state,
+					user: {
+						...state.user,
+						credits
+					}
+				};
+			});
 		},
 
 		/**
@@ -203,8 +228,7 @@ function createAuthStore() {
 		async updatePreferences(params: {
 			preferred_language?: string;
 			timezone?: string;
-			cms_api_url?: string;
-			cms_api_token?: string;
+			health_notifications_enabled?: boolean;
 		}): Promise<void> {
 			const { apiClient } = await import('$lib/api-client');
 			const result = await apiClient.updateUserPreferences(params);
@@ -223,11 +247,8 @@ function createAuthStore() {
 							preferred_language: params.preferred_language
 						}),
 						...(params.timezone && { timezone: params.timezone }),
-						...(params.cms_api_url !== undefined && {
-							cms_api_url: params.cms_api_url || null
-						}),
-						...(params.cms_api_token !== undefined && {
-							has_cms_token: !!params.cms_api_token
+						...(params.health_notifications_enabled !== undefined && {
+							health_notifications_enabled: params.health_notifications_enabled
 						})
 					}
 				};

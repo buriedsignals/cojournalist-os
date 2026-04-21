@@ -34,64 +34,70 @@
 <style>
 	.form-panel {
 		width: 480px;
-		background: white;
-		border: 1px solid #e5e7eb;
-		border-radius: 0.75rem;
-		padding: 1.5rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-		transition: box-shadow 0.15s ease;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		border-radius: 0;
+		padding: 1.75rem;
+		transition: border-color 150ms ease;
+		font-family: var(--font-body);
 	}
 
 	.form-panel:hover {
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+		border-color: var(--color-border-strong);
 	}
 
 	.form-panel__header {
-		margin-bottom: 1.25rem;
+		margin-bottom: 1.5rem;
 	}
 
 	.form-panel__badge {
 		display: inline-flex;
 		align-items: center;
-		font-family: 'DM Sans', sans-serif;
-		font-size: 0.75rem;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
 		font-weight: 500;
-		color: #6d28d9;
-		background: #ede9fe;
-		padding: 0.125rem 0.625rem;
-		border-radius: 9999px;
-		margin-bottom: 0.5rem;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-primary-deep);
+		background: var(--color-primary-soft);
+		border: 1px solid var(--color-primary);
+		padding: 0.1875rem 0.625rem;
+		margin-bottom: 0.625rem;
 	}
 
 	.form-panel__badge--blue {
-		color: #2563eb;
-		background: #dbeafe;
+		color: var(--color-info);
+		background: rgba(63, 94, 166, 0.1);
+		border-color: var(--color-info);
 	}
 
 	.form-panel__badge--amber {
-		color: #92400e;
-		background: #fef3c7;
+		color: var(--color-secondary);
+		background: var(--color-secondary-soft);
+		border-color: var(--color-secondary);
 	}
 
 	.form-panel__title {
-		font-family: 'Crimson Pro', Georgia, serif;
-		font-size: 1.5rem;
+		font-family: var(--font-display);
+		font-size: 1.625rem;
 		font-weight: 600;
-		color: #111827;
+		color: var(--color-ink);
 		margin: 0 0 0.375rem 0;
-		line-height: 1.2;
+		line-height: 1.15;
+		letter-spacing: -0.02em;
 	}
 
 	.form-panel__subtitle {
-		font-size: 0.875rem;
-		color: #6b7280;
+		font-size: 0.9375rem;
+		font-weight: 300;
+		color: var(--color-ink-muted);
 		margin: 0;
-		line-height: 1.5;
+		line-height: 1.55;
 	}
 
 	.form-panel__footer {
 		margin-top: 1.5rem;
 		padding-top: 1.25rem;
-		border-top: 1px solid #f3f4f6;
+		border-top: 1px solid var(--color-border);
 	}
 </style>

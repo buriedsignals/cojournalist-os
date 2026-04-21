@@ -2,8 +2,8 @@
 Application configuration using environment variables.
 
 PURPOSE: Single Settings class loaded from environment variables via
-pydantic_settings. Provides API keys, AWS config, feature flags, and
-credit amounts used throughout the application.
+pydantic_settings. Provides API keys, feature flags, and credit amounts
+used throughout the application.
 
 DEPENDS ON: (pydantic_settings only — no app imports)
 USED BY: Nearly all services and routers (imported as `settings` or `get_settings()`)
@@ -69,19 +69,6 @@ class Settings(BaseSettings):
     # Apify
     apify_api_token: str = os.getenv("APIFY_API_TOKEN", "")
 
-    # AWS API Gateway
-    aws_api_base_url: str = os.getenv(
-        "AWS_API_BASE_URL",
-        "https://kubbp7dr0b.execute-api.eu-central-1.amazonaws.com/dev"
-    )
-
-    # AWS DynamoDB (for scout embeddings)
-    aws_region: str = os.getenv("AWS_DEFAULT_REGION", "eu-central-1")
-
-    # AWS EventBridge Scheduler (for direct scout management via ScheduleService)
-    scraper_lambda_arn: str = os.getenv("SCRAPER_LAMBDA_ARN", "")
-    eventbridge_role_arn: str = os.getenv("EVENTBRIDGE_ROLE_ARN", "")
-
     # LLM model — Gemini models (gemini-*) route to Google AI direct API,
     # all others route to OpenRouter. See docs/benchmarks/ for model comparison.
     llm_model: str = os.getenv("LLM_MODEL", "gemini-2.5-flash-lite")
@@ -94,8 +81,10 @@ class Settings(BaseSettings):
     scraper_service_key: str = os.getenv("SCRAPER_SERVICE_KEY", "")
     promise_service_key: str = os.getenv("PROMISE_SERVICE_KEY", "")
 
-    # Deployment target — selects adapter set (aws | supabase)
-    deployment_target: str = os.getenv("DEPLOYMENT_TARGET", "aws")
+    # Deployment target — retained as a hard-coded constant after AWS retirement,
+    # so existing `settings.deployment_target == "supabase"` checks keep working
+    # while v2 refactoring is in progress. Remove once all branches are cleaned up.
+    deployment_target: str = "supabase"
 
     # Supabase / asyncpg
     database_url: str = os.getenv("DATABASE_URL", "")
@@ -103,6 +92,14 @@ class Settings(BaseSettings):
     supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
     supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")
     supabase_jwt_secret: str = os.getenv("SUPABASE_JWT_SECRET", "")
+
+    # Auth broker — post-login redirect target (frontend route that reads hash tokens)
+    supabase_post_login_redirect: str = os.getenv("SUPABASE_POST_LOGIN_REDIRECT", "")
+
+    # MuckRock webhook pause — set to true during cutover window.
+    # When true, /api/auth/webhook returns 503 without processing.
+    # Flipped to false after PR 2a (webhook port) ships post-cutover.
+    muckrock_webhook_paused: bool = os.getenv("MUCKROCK_WEBHOOK_PAUSED", "true").lower() == "true"
 
     # Linear (feedback)
     linear_api_key: str = os.getenv("LINEAR_API_KEY", "")
@@ -124,13 +121,6 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
-
-# Startup validation — fail fast on bad DEPLOYMENT_TARGET
-if settings.deployment_target not in ("aws", "supabase"):
-    raise ValueError(
-        f"Invalid DEPLOYMENT_TARGET: {settings.deployment_target!r}. "
-        "Must be 'aws' or 'supabase'."
-    )
 
 
 def get_settings() -> Settings:

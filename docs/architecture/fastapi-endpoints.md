@@ -1083,62 +1083,6 @@ Generate a structured export from selected information units. Rate limited: 10 r
 
 ---
 
-### POST /api/export/to-cms
-
-Proxy export of a draft to the user's configured CMS API endpoint. Rate limited: 10 requests/minute.
-
-**Auth:** Session cookie
-
-**Request:**
-```json
-{
-  "draft": {
-    "title": "San Francisco Commits $50M to Climate Action",
-    "headline": "City officials unveiled a major climate investment package.",
-    "sections": [
-      {
-        "heading": "Investment Details",
-        "content": "The $50M package will fund renewable energy projects."
-      }
-    ],
-    "gaps": [],
-    "bullet_points": [],
-    "sources": [
-      {"title": "SF Chronicle", "url": "https://sfchronicle.com/article/123"}
-    ]
-  },
-  "units": [
-    {
-      "statement": "City officials announced a $50M climate investment",
-      "source_title": "SF Chronicle",
-      "source_url": "https://sfchronicle.com/article/123"
-    }
-  ]
-}
-```
-
-**Response (success):**
-```json
-{
-  "success": true
-}
-```
-
-**Error responses:**
-| Status | Detail | When |
-|--------|--------|------|
-| `400` | `No CMS API endpoint configured` | User has no `cms_api_url` in metadata |
-| `502` | `CMS returned {status}` | CMS endpoint returned HTTP 4xx/5xx |
-| `504` | `CMS endpoint timed out` | CMS did not respond within 30 seconds |
-
-**Flow:**
-1. Fetch user's CMS config from user metadata (`cms_api_url` from public, `cms_api_token` from private)
-2. Validate URL for SSRF (HTTPS required, private IPs blocked)
-3. POST draft + units + `exported_at` timestamp to CMS endpoint
-4. Include `Authorization: Bearer {token}` header if token is configured
-
----
-
 ## User Preferences Endpoints
 
 **Location:** `backend/app/routers/user.py`
@@ -1147,20 +1091,16 @@ Proxy export of a draft to the user's configured CMS API endpoint. Rate limited:
 
 ### GET /api/user/preferences
 
-Get user's preferences including CMS configuration.
+Get user's preferences.
 
 **Response:**
 ```json
 {
   "preferred_language": "en",
   "timezone": "Europe/Zurich",
-  "excluded_domains": ["tabloid.com"],
-  "cms_api_url": "https://my-cms.com/api/import",
-  "has_cms_token": true
+  "excluded_domains": ["tabloid.com"]
 }
 ```
-
-**Note:** `has_cms_token` is a boolean indicating whether a CMS bearer token is stored in private metadata. The actual token is never returned.
 
 ---
 
@@ -1173,9 +1113,7 @@ Update user preferences. At least one field must be provided.
 {
   "preferred_language": "fr",
   "timezone": "Europe/Paris",
-  "excluded_domains": ["tabloid.com"],
-  "cms_api_url": "https://my-cms.com/api/import",
-  "cms_api_token": "secret-bearer-token"
+  "excluded_domains": ["tabloid.com"]
 }
 ```
 
@@ -1184,19 +1122,12 @@ Update user preferences. At least one field must be provided.
 | `preferred_language` | string | ISO 639-1 code (2-5 chars) |
 | `timezone` | string | IANA timezone identifier |
 | `excluded_domains` | string[] | Domains to exclude from Pulse (max 50) |
-| `cms_api_url` | string | CMS API endpoint (must be HTTPS, empty string clears) |
-| `cms_api_token` | string | Bearer token for CMS (stored in private metadata, empty string clears) |
-
-**Storage:** `cms_api_url` and other visible fields → DynamoDB user record. `cms_api_token` → DynamoDB user record (private).
-
-**Validation:** `cms_api_url` must use HTTPS. Private/internal IP addresses are rejected (SSRF protection).
 
 **Response:**
 ```json
 {
   "success": true,
-  "preferred_language": "fr",
-  "cms_api_url": "https://my-cms.com/api/import"
+  "preferred_language": "fr"
 }
 ```
 
@@ -1721,7 +1652,7 @@ All endpoints return valid JSON responses, never raw HTTP exceptions.
 | `backend/app/schemas/scouts.py` | Web scout request/response schemas |
 | `backend/app/schemas/pulse.py` | Pulse request/response schemas |
 | `backend/app/schemas/social.py` | Social Scout request/response schemas |
-| `backend/app/services/pulse_orchestrator.py` | Smart Scout (type `pulse`) orchestrator |
+| `backend/app/services/pulse_orchestrator.py` | Beat Scout (type `pulse`) orchestrator |
 | `backend/app/services/social_orchestrator.py` | Social Scout orchestrator (Apify scrapers) |
 | `backend/app/services/notification_service.py` | Unified email notifications (markdown→HTML) |
 | `backend/app/services/execution_deduplication.py` | Execution-level dedup (EXEC# records, embeddings) |

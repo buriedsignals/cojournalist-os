@@ -1,0 +1,113 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "coJournalist API",
+    "version": "2.0.0",
+    "description": "coJournalist v2 Edge Functions — projects, scouts, units, entities, reflections, ingest, export, user preferences."
+  },
+  "servers": [
+    { "url": "/functions/v1" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "visibility": { "type": "string", "enum": ["private", "team"] },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Paginated": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "type": "object" } },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "integer" },
+              "offset": { "type": "integer" },
+              "limit": { "type": "integer" },
+              "has_more": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "code": { "type": "string" }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/projects": {
+      "get": {
+        "summary": "List projects",
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Paginated" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create project",
+        "responses": { "201": { "description": "created" } }
+      }
+    },
+    "/scouts": {
+      "get": { "summary": "List scouts" },
+      "post": { "summary": "Create scout" }
+    },
+    "/units": {
+      "get": { "summary": "List units" }
+    },
+    "/units/search": {
+      "post": { "summary": "Semantic search over units" }
+    },
+    "/entities": {
+      "get": { "summary": "List entities" },
+      "post": { "summary": "Create entity" }
+    },
+    "/entities/merge": {
+      "post": { "summary": "Merge duplicate entities" }
+    },
+    "/reflections": {
+      "get": { "summary": "List reflections" },
+      "post": { "summary": "Create reflection" }
+    },
+    "/reflections/search": {
+      "post": { "summary": "Semantic search over reflections" }
+    },
+    "/ingest": {
+      "post": { "summary": "Ingest URL or text → units" }
+    },
+    "/export-claude": {
+      "get": { "summary": "Markdown export of verified unused units" }
+    },
+    "/user/me": {
+      "get": { "summary": "Authed user profile" }
+    },
+    "/user/preferences": {
+      "get": { "summary": "Get preferences" },
+      "patch": { "summary": "Update preferences" }
+    },
+    "/openapi-spec": {
+      "get": { "summary": "This spec" }
+    }
+  }
+}

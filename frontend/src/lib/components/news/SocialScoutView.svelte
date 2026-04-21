@@ -74,13 +74,12 @@
 		try {
 			const { authStore } = await import('$lib/stores/auth');
 			const token = await authStore.getToken();
-			const response = await fetch(buildApiUrl('/social/test'), {
+			const response = await fetch(buildApiUrl('/social-test'), {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 					...(token ? { Authorization: `Bearer ${token}` } : {})
 				},
-				credentials: 'include',
 				body: JSON.stringify({ platform, handle: normalizedHandle })
 			});
 
@@ -310,7 +309,7 @@
 	.field-label {
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: #374151;
+		color: var(--color-ink);
 		margin: 0 0 0.5rem 0;
 	}
 
@@ -326,7 +325,7 @@
 	.form-checkbox {
 		width: 0.875rem;
 		height: 0.875rem;
-		accent-color: var(--color-accent, #7c3aed);
+		accent-color: var(--color-accent, var(--color-primary));
 		flex-shrink: 0;
 	}
 
@@ -339,7 +338,7 @@
 	.checkbox-label {
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: #374151;
+		color: var(--color-ink);
 	}
 
 	.checkbox-desc {
@@ -350,15 +349,15 @@
 	.baseline-preview {
 		margin-top: 1rem;
 		padding: 0.75rem;
-		background: #f9fafb;
-		border: 1px solid #e5e7eb;
-		border-radius: 0.5rem;
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: 0;
 	}
 
 	.preview-label {
 		font-size: 0.75rem;
 		font-weight: 600;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		text-transform: uppercase;
 		margin: 0 0 0.5rem 0;
 	}
@@ -368,7 +367,7 @@
 		flex-direction: column;
 		gap: 0.125rem;
 		padding: 0.375rem 0;
-		border-bottom: 1px solid #f3f4f6;
+		border-bottom: 1px solid var(--color-border);
 	}
 
 	.preview-post:last-child {
@@ -377,21 +376,21 @@
 
 	.preview-text {
 		font-size: 0.8125rem;
-		color: #374151;
+		color: var(--color-ink);
 		line-height: 1.3;
 	}
 
 	.preview-ts {
 		font-size: 0.6875rem;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 	}
 
 	.scan-warning {
 		font-size: 0.75rem;
-		color: #d97706;
+		color: #9F6016;
 		margin: 0 0 0.5rem 0;
 		padding: 0.375rem 0.5rem;
 		background: #fffbeb;
-		border-radius: 0.25rem;
+		border-radius: 0;
 	}
 </style>

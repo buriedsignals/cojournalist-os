@@ -1,7 +1,7 @@
 /**
  * Progress Timer Utilities -- calibrated progress bar for long-running API calls.
  *
- * USED BY: SmartScoutView.svelte
+ * USED BY: BeatScoutView.svelte
  * DEPENDS ON: (none)
  *
  * Uses an ease-out curve so the bar starts fast (responsive feel) and
@@ -10,7 +10,7 @@
  */
 
 /**
- * Expected wall-clock duration for Smart Scout (type pulse) pipeline in ms.
+ * Expected wall-clock duration for Beat Scout (type pulse) pipeline in ms.
  *
  * Measured via benchmark_pulse.py (3 runs, 2 categories in parallel):
  *   Location queries: 35.6–49.1s (gov queries now functional after get_country_code fix)

@@ -29,10 +29,13 @@
 </div>
 
 <style>
-	.toggle-picker { display: flex; padding: 3px; background: #f0f0f3; border-radius: 10px; gap: 3px; }
-	.toggle-option { flex: 1; padding: 9px 10px; border-radius: 8px; text-align: center; border: none; cursor: pointer; transition: all 0.15s ease; background: transparent; }
-	.toggle-option.active { background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
-	.toggle-option .toggle-name { display: block; font-size: 0.8125rem; font-weight: 600; color: #374151; }
-	.toggle-option.active .toggle-name { color: var(--color-accent, #6c5ce7); }
-	.toggle-option .toggle-desc { display: block; font-size: 0.6875rem; color: #6b7280; text-align: center; margin-top: 2px; }
+	.toggle-picker { display: flex; gap: 0; border: 1px solid var(--color-border); background: var(--color-bg); }
+	.toggle-option { flex: 1; padding: 12px 14px; text-align: center; border: none; border-right: 1px solid var(--color-border); cursor: pointer; transition: background 150ms ease; background: transparent; font-family: var(--font-body); }
+	.toggle-option:last-child { border-right: none; }
+	.toggle-option:hover:not(.active) { background: var(--color-surface); }
+	.toggle-option.active { background: var(--color-primary-soft); }
+	.toggle-option .toggle-name { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--color-ink-muted); }
+	.toggle-option.active .toggle-name { color: var(--color-primary-deep); }
+	.toggle-option .toggle-desc { display: block; font-size: 0.6875rem; font-weight: 300; color: var(--color-ink-subtle); text-align: center; margin-top: 3px; }
+	.toggle-option.active .toggle-desc { color: var(--color-ink-muted); }
 </style>

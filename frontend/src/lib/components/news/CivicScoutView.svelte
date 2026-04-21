@@ -354,7 +354,7 @@
 		display: block;
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: #374151;
+		color: var(--color-ink);
 		margin-bottom: 0.375rem;
 	}
 
@@ -382,10 +382,10 @@
 		max-height: 400px;
 		overflow-y: auto;
 		border: 1px solid var(--color-border, #e5e7eb);
-		border-radius: 0.5rem;
+		border-radius: 0;
 		padding: 0.375rem;
 		margin-top: 1rem;
-		background: white;
+		background: var(--color-surface-alt);
 	}
 
 	.url-item {
@@ -393,14 +393,14 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 0.625rem;
-		border-radius: 0.375rem;
+		border-radius: 0;
 		cursor: pointer;
 		transition: background 0.15s ease;
 		user-select: none;
 	}
 
 	.url-item:hover {
-		background: #f9fafb;
+		background: var(--color-bg);
 	}
 
 	.url-item--selected {
@@ -408,31 +408,31 @@
 	}
 
 	.url-item--selected:hover {
-		background: #fef3c7;
+		background: var(--color-secondary-soft);
 	}
 
 	.url-check {
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 	}
 
 	.url-item--selected .url-check {
-		color: #d97706;
+		color: #9F6016;
 	}
 
 	.url-check :global(.url-check-icon--checked) {
-		color: #d97706;
+		color: #9F6016;
 	}
 
 	.url-check :global(.url-check-icon) {
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 	}
 
 	.url-text {
 		font-size: 0.8125rem;
-		color: #374151;
+		color: var(--color-ink);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -441,12 +441,12 @@
 	}
 
 	.url-item--selected .url-text {
-		color: #92400e;
+		color: var(--color-secondary);
 	}
 
 	/* Results summary panel */
 	.results-summary {
-		background: white;
+		background: var(--color-surface-alt);
 		border: 1px solid var(--color-border, #e5e7eb);
 		border-radius: var(--radius-xl, 0.75rem);
 		padding: 1.25rem 1.5rem;
@@ -461,26 +461,26 @@
 	}
 
 	.results-summary-header :global(.results-icon) {
-		color: #d97706;
+		color: #9F6016;
 		flex-shrink: 0;
 	}
 
 	.results-count {
 		font-size: 1rem;
 		font-weight: 600;
-		color: #111827;
+		color: var(--color-ink);
 		margin: 0;
 	}
 
 	.results-domain {
 		font-size: 0.8125rem;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		margin: 0;
 	}
 
 	.results-hint {
 		font-size: 0.8125rem;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		margin: 0;
 		line-height: 1.5;
 	}
@@ -488,7 +488,7 @@
 	.results-selection-count {
 		font-size: 0.75rem;
 		font-weight: 600;
-		color: #d97706;
+		color: #9F6016;
 		margin: 0.5rem 0 0;
 	}
 
@@ -502,7 +502,7 @@
 
 	.url-description {
 		font-size: 0.6875rem;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		line-height: 1.3;
 	}
 
@@ -519,24 +519,24 @@
 	/* Promises preview */
 	.promises-preview {
 		margin-top: 1rem;
-		background: white;
+		background: var(--color-surface-alt);
 		border: 1px solid var(--color-border, #e5e7eb);
-		border-radius: 0.75rem;
+		border-radius: 0;
 		padding: 1rem;
 	}
 
 	.preview-label {
 		font-size: 0.8125rem;
 		font-weight: 600;
-		color: #374151;
+		color: var(--color-ink);
 		margin: 0 0 0.75rem;
 	}
 
 	.promise-item {
 		padding: 0.75rem;
 		background: #fffbeb;
-		border: 1px solid #fef3c7;
-		border-radius: 0.5rem;
+		border: 1px solid var(--color-secondary-soft);
+		border-radius: 0;
 		margin-bottom: 0.5rem;
 	}
 
@@ -546,7 +546,7 @@
 
 	.promise-text {
 		font-size: 0.875rem;
-		color: #111827;
+		color: var(--color-ink);
 		margin: 0 0 0.375rem;
 		line-height: 1.5;
 	}
@@ -555,8 +555,8 @@
 		display: inline-block;
 		font-size: 0.75rem;
 		font-weight: 500;
-		color: #d97706;
-		background: #fef3c7;
+		color: #9F6016;
+		background: var(--color-secondary-soft);
 		padding: 0.125rem 0.5rem;
 		border-radius: 9999px;
 		margin-right: 0.5rem;
@@ -564,6 +564,6 @@
 
 	.promise-source {
 		font-size: 0.75rem;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 	}
 </style>

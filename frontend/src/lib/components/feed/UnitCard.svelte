@@ -117,8 +117,8 @@
 		flex-direction: column;
 		gap: 0.375rem;
 		padding: 0.75rem;
-		background: white;
-		border: 1px solid #e5e7eb;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
 		border-radius: 10px;
 		text-align: left;
 		cursor: pointer;
@@ -126,13 +126,13 @@
 	}
 
 	.unit-card:hover {
-		border-color: #d1d5db;
+		border-color: var(--color-border-strong);
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 	}
 
 	.unit-card.selected {
 		border-color: #818cf8;
-		background: #f5f3ff;
+		background: var(--color-primary-soft);
 		box-shadow: 0 0 0 1px #818cf8;
 	}
 
@@ -143,7 +143,7 @@
 	}
 
 	.check {
-		color: #d1d5db;
+		color: var(--color-border-strong);
 	}
 
 	.unit-card.selected .check {
@@ -157,20 +157,20 @@
 		letter-spacing: 0.03em;
 		padding: 0.125rem 0.3125rem;
 		border-radius: 3px;
-		color: #6b7280;
-		background: #f3f4f6;
+		color: var(--color-ink-muted);
+		background: var(--color-surface);
 	}
 
-	.type-tag-web { color: #1d4ed8; background: #dbeafe; }
+	.type-tag-web { color: #1d4ed8; background: var(--color-primary-soft); }
 	.type-tag-pulse { color: #ea580c; background: #ffedd5; }
-	.type-tag-social { color: #7c3aed; background: #ede9fe; }
+	.type-tag-social { color: var(--color-primary); background: var(--color-primary-soft); }
 	.type-tag-civic { color: #059669; background: #d1fae5; }
 
 	.statement {
 		position: relative;
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: #1f2937;
+		color: var(--color-ink);
 		margin: 0;
 		line-height: 1.45;
 		display: -webkit-box;
@@ -204,15 +204,15 @@
 
 	.entity-chip {
 		font-size: 0.6875rem;
-		color: #6b7280;
-		background: #f3f4f6;
+		color: var(--color-ink-muted);
+		background: var(--color-surface);
 		padding: 0.125rem 0.5rem;
 		border-radius: 9999px;
 		white-space: nowrap;
 	}
 
 	.entity-chip.overflow {
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		background: transparent;
 		padding-left: 0.25rem;
 	}
@@ -230,7 +230,7 @@
 		align-items: center;
 		gap: 0.25rem;
 		font-size: 0.6875rem;
-		color: #6b7280;
+		color: var(--color-ink-muted);
 		text-decoration: none;
 	}
 
@@ -243,7 +243,7 @@
 		align-items: center;
 		gap: 0.25rem;
 		font-size: 0.6875rem;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		margin-left: auto;
 	}
 

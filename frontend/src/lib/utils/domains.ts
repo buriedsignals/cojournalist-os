@@ -1,7 +1,7 @@
 /**
  * Domain Parsing Utilities -- clean and normalize user-entered domain lists.
  *
- * USED BY: SmartScoutView.svelte, tests/utils/domains.test.ts
+ * USED BY: BeatScoutView.svelte, tests/utils/domains.test.ts
  * DEPENDS ON: (none)
  */
 

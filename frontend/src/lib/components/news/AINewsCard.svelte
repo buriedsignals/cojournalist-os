@@ -149,7 +149,7 @@
 		align-self: stretch;
 		border-radius: var(--radius-md);
 		overflow: hidden;
-		background: #f3f4f6;
+		background: var(--color-surface);
 	}
 
 	.card-image img {

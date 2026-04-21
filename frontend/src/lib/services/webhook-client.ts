@@ -49,7 +49,6 @@ class WebhookClient {
 					'Content-Type': 'application/json',
 					...(token ? { Authorization: `Bearer ${token}` } : {})
 				},
-				credentials: 'include',
 				body: JSON.stringify({
 					url: request.url,
 					criteria: request.criteria,

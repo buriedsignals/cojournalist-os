@@ -245,7 +245,7 @@
 	.field-label {
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: #374151;
+		color: var(--color-ink);
 		margin: 0 0 0.5rem 0;
 	}
 

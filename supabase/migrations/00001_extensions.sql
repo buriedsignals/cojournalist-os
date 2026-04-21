@@ -3,10 +3,12 @@
 -- vector: pgvector for embedding storage and similarity search
 -- pg_cron: scheduled job execution (replaces EventBridge)
 -- pg_net: HTTP requests from within PostgreSQL (used by pg_cron to trigger Edge Functions)
+-- pg_trgm: trigram index for fuzzy entity name search (Phase 1)
 
 CREATE EXTENSION IF NOT EXISTS "vector";
 CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA pg_catalog;
 CREATE EXTENSION IF NOT EXISTS "pg_net";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- Required grants for pg_cron on self-hosted Postgres (not needed on Supabase Cloud,
 -- but harmless to include). Allows the postgres role to manage cron jobs.

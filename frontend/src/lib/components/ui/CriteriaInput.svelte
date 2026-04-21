@@ -27,63 +27,67 @@
 <style>
 	.criteria-field {
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: var(--color-bg-secondary);
-		transition: border-color 0.2s ease, box-shadow 0.2s ease;
+		background: var(--color-bg);
+		transition: border-color 150ms ease, box-shadow 150ms ease;
 		overflow: hidden;
 	}
 
 	.criteria-field:focus-within {
-		border-color: var(--color-accent);
-		box-shadow: 0 0 0 3px rgba(150, 139, 223, 0.1);
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 3px var(--color-primary-soft);
 	}
 
 	.criteria-field:hover:not(:focus-within) {
-		border-color: var(--color-border-hover);
+		border-color: var(--color-border-strong);
 	}
 
 	.criteria-textarea {
 		width: 100%;
-		padding: 0.5rem 0.75rem;
+		padding: 0.625rem 0.875rem;
 		border: none;
 		background: transparent;
 		font-size: 0.875rem;
-		font-family: 'DM Sans', sans-serif;
-		color: var(--color-text-primary);
+		font-family: var(--font-body);
+		color: var(--color-ink);
 		resize: none;
 		outline: none;
 	}
 
-	.criteria-textarea::placeholder { color: #94a3b8; }
+	.criteria-textarea::placeholder { color: var(--color-ink-subtle); }
 
 	.criteria-pills {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.375rem;
-		padding: 0 0.75rem 0.5rem;
+		padding: 0 0.875rem 0.625rem;
 	}
 
 	.criteria-pills-label {
-		font-size: 0.6875rem;
-		color: var(--color-text-tertiary);
+		font-family: var(--font-mono);
+		font-size: 0.625rem;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-ink-subtle);
 	}
 
 	.criteria-pill {
-		padding: 0.2rem 0.5rem;
-		font-size: 0.6875rem;
-		font-family: 'DM Sans', sans-serif;
-		background: #f3f4f6;
-		border: 1px solid #e5e7eb;
-		border-radius: 9999px;
+		padding: 0.25rem 0.625rem;
+		font-family: var(--font-body);
+		font-size: 0.75rem;
+		font-weight: 500;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-pill);
 		cursor: pointer;
-		transition: all 0.15s ease;
-		color: var(--color-text-secondary);
+		transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+		color: var(--color-ink-muted);
 	}
 
 	.criteria-pill:hover {
-		background: #eff6ff;
-		border-color: #3b82f6;
-		color: #2563eb;
+		background: var(--color-primary-soft);
+		border-color: var(--color-primary);
+		color: var(--color-primary-deep);
 	}
 </style>

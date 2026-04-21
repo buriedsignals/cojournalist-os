@@ -18,7 +18,7 @@
 	import { onboardingTour } from '$lib/stores/onboarding-tour';
 	import { tooltip } from '$lib/utils/tooltip';
 	import * as m from '$lib/paraglide/messages';
-	import NewScoutDropdown from '$lib/components/ui/NewScoutDropdown.svelte';
+	import NewScoutDropdown from '$lib/components/workspace/NewScoutDropdown.svelte';
 
 	let showNewScoutDropdown = false;
 
@@ -238,16 +238,18 @@
 </div>
 
 <style>
+	/* Sidebar — editorial, hairline, sharp edges */
 	.sidebar {
 		display: flex;
 		flex-direction: column;
 		width: 220px;
 		height: 100%;
-		background: #ffffff;
-		border-right: 1px solid #e5e7eb;
+		background: var(--color-surface-alt);
+		border-right: 1px solid var(--color-border);
 		padding: 0;
 		overflow-y: auto;
 		transition: width 200ms ease;
+		font-family: var(--font-body);
 	}
 
 	.sidebar.collapsed {
@@ -262,7 +264,7 @@
 		padding: 0 1rem;
 		height: 53px;
 		box-sizing: border-box;
-		border-bottom: 1px solid #e5e7eb;
+		border-bottom: 1px solid var(--color-border);
 		flex-shrink: 0;
 	}
 
@@ -280,7 +282,7 @@
 
 	.section {
 		padding: 1rem;
-		border-bottom: 1px solid #f3f4f6;
+		border-bottom: 1px solid var(--color-border);
 	}
 
 	.sidebar.collapsed .section {
@@ -292,11 +294,12 @@
 	}
 
 	.section-label {
-		font-size: 0.6875rem;
-		font-weight: 700;
-		letter-spacing: 0.12em;
+		font-family: var(--font-mono);
+		font-size: 0.625rem;
+		font-weight: 500;
+		letter-spacing: 0.1em;
 		text-transform: uppercase;
-		color: #9ca3af;
+		color: var(--color-secondary);
 		margin: 0 0 0.75rem 0;
 		padding-left: 0.25rem;
 	}
@@ -306,15 +309,15 @@
 		align-items: center;
 		gap: 0.625rem;
 		width: 100%;
-		padding: 0.625rem 0.75rem;
-		border-radius: 0.5rem;
-		border: none;
+		padding: 0.5625rem 0.625rem;
+		border: 1px solid transparent;
 		background: transparent;
-		color: #4b5563;
+		color: var(--color-ink-muted);
+		font-family: var(--font-body);
 		font-size: 0.875rem;
 		font-weight: 500;
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 		text-align: left;
 		margin-bottom: 0.25rem;
 	}
@@ -326,27 +329,30 @@
 	}
 
 	.nav-item:hover:not(.disabled):not(.active) {
-		background: #f9fafb;
-		color: #1f2937;
+		background: var(--color-bg);
+		border-color: var(--color-border);
+		color: var(--color-ink);
 	}
 
 	.nav-item.active {
-		background: linear-gradient(135deg, rgba(150, 139, 223, 0.12) 0%, rgba(124, 111, 199, 0.18) 100%);
-		color: #6d28d9;
+		background: var(--color-primary-soft);
+		border-color: var(--color-primary);
+		color: var(--color-primary-deep);
+		font-weight: 600;
 	}
 
 	.nav-item.active :global(.nav-icon) {
-		color: #7c3aed;
+		color: var(--color-primary);
 	}
 
 	:global(.nav-icon) {
 		flex-shrink: 0;
-		color: #9ca3af;
-		transition: color 0.15s ease;
+		color: var(--color-ink-subtle);
+		transition: color 150ms ease;
 	}
 
 	.nav-item:hover:not(.disabled):not(.active) :global(.nav-icon) {
-		color: #6b7280;
+		color: var(--color-ink-muted);
 	}
 
 	.nav-text {
@@ -356,51 +362,29 @@
 		text-overflow: ellipsis;
 	}
 
-
 	.sidebar-new-scout {
 		display: flex;
 		align-items: center;
 		gap: 0.625rem;
 		width: 100%;
 		padding: 0.625rem 0.75rem;
-		border-radius: 0.5rem;
-		border: none;
-		font-size: 0.875rem;
-		font-weight: 600;
+		border: 1px solid var(--color-ink);
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
 		text-align: left;
 		cursor: pointer;
-		margin-bottom: 0.25rem;
-		background: linear-gradient(to right, #968bdf, #7c6fc7);
-		color: #ffffff;
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-		position: relative;
-		overflow: hidden;
-		transition: all 0.15s ease;
-	}
-
-	.sidebar-new-scout::before {
-		content: '';
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
-		opacity: 0;
-		transition: opacity 0.3s ease;
-	}
-
-	.sidebar-new-scout:hover::before {
-		opacity: 1;
+		margin-bottom: 0.5rem;
+		background: var(--color-ink);
+		color: var(--color-bg);
+		transition: background 150ms ease, border-color 150ms ease;
 	}
 
 	.sidebar-new-scout:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 8px 16px rgba(150, 139, 223, 0.25);
-	}
-
-	.sidebar-new-scout:active {
-		transform: translateY(0);
+		background: var(--color-primary-deep);
+		border-color: var(--color-primary-deep);
 	}
 
 	.sidebar.collapsed .sidebar-new-scout {
@@ -413,7 +397,8 @@
 		display: flex;
 		align-items: center;
 		margin-left: auto;
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--color-bg);
+		opacity: 0.7;
 	}
 
 	.spacer {
@@ -427,22 +412,21 @@
 		width: 28px;
 		height: 28px;
 		border: none;
-		border-radius: 6px;
 		background: transparent;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: background 150ms ease, color 150ms ease;
 		flex-shrink: 0;
 	}
 
 	.collapse-toggle:hover {
-		background: #f3f4f6;
-		color: #374151;
+		background: var(--color-surface);
+		color: var(--color-ink);
 	}
 
 	.sidebar-footer {
 		padding: 1rem;
-		border-top: 1px solid #f3f4f6;
+		border-top: 1px solid var(--color-border);
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
@@ -458,10 +442,10 @@
 	.credits-display {
 		display: flex;
 		align-items: baseline;
-		gap: 0.25rem;
+		gap: 0.375rem;
 		padding: 0.375rem 0.625rem;
-		background: linear-gradient(135deg, rgba(150, 139, 223, 0.08) 0%, rgba(124, 111, 199, 0.06) 100%);
-		border-radius: 0.375rem;
+		background: var(--color-secondary-soft);
+		border: 1px solid var(--color-secondary);
 		overflow: hidden;
 		white-space: nowrap;
 		opacity: 1;
@@ -475,17 +459,20 @@
 		padding: 0;
 	}
 
-.credits-value {
+	.credits-value {
+		font-family: var(--font-display);
 		font-size: 0.9375rem;
-		font-weight: 700;
-		color: #1f2937;
+		font-weight: 600;
+		color: var(--color-ink);
 	}
 
 	.credits-label {
-		font-size: 0.6875rem;
+		font-family: var(--font-mono);
+		font-size: 0.625rem;
 		font-weight: 500;
-		color: #6b7280;
-		text-transform: lowercase;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-secondary);
 	}
 
 	.settings-btn {
@@ -494,17 +481,16 @@
 		justify-content: center;
 		width: 32px;
 		height: 32px;
-		border-radius: 0.375rem;
 		border: none;
 		background: transparent;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: background 150ms ease, color 150ms ease;
 	}
 
 	.settings-btn:hover {
-		background: #f3f4f6;
-		color: #6b7280;
+		background: var(--color-primary-soft);
+		color: var(--color-primary);
 	}
 
 	.profile-actions {
@@ -518,14 +504,15 @@
 		gap: 0.375rem;
 	}
 
-
 	.sidebar-attribution {
 		padding: 0 1rem 0.75rem;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		font-family: var(--font-mono);
 		font-size: 0.625rem;
-		color: #9ca3af;
+		letter-spacing: 0.05em;
+		color: var(--color-ink-subtle);
 		white-space: nowrap;
 		overflow: hidden;
 		opacity: 1;
@@ -535,13 +522,13 @@
 
 	.sidebar-attribution .terms-link {
 		font-size: 0.625rem;
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		text-decoration: none;
 		font-weight: 500;
 	}
 
 	.sidebar-attribution .terms-link:hover {
-		color: #7c6fc7;
+		color: var(--color-primary);
 	}
 
 	.sidebar-attribution.hidden {
@@ -551,14 +538,14 @@
 	}
 
 	.sidebar-attribution a {
-		color: #9ca3af;
+		color: var(--color-ink-subtle);
 		text-decoration: none;
 		font-weight: 500;
-		transition: color 0.15s ease;
+		transition: color 150ms ease;
 	}
 
 	.sidebar-attribution a:hover {
-		color: #7c6fc7;
+		color: var(--color-primary);
 	}
 
 	.dev-replay-row {
@@ -568,18 +555,19 @@
 	.dev-replay-btn {
 		width: 100%;
 		padding: 0.375rem 0.5rem;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		color: #92400e;
+		font-family: var(--font-mono);
+		font-size: 0.625rem;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--color-secondary);
 		background: transparent;
-		border: 1px dashed #fbbf24;
-		border-radius: 9999px;
+		border: 1px dashed var(--color-secondary);
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: background 150ms ease;
 	}
 
 	.dev-replay-btn:hover {
-		background: #fef3c7;
-		border-color: #f59e0b;
+		background: var(--color-secondary-soft);
 	}
 </style>

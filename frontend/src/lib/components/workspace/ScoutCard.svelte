@@ -1,0 +1,251 @@
+<script lang="ts">
+	import { createEventDispatcher } from 'svelte';
+	import { Globe, MapPin, Tag, Calendar, Play, Trash2, X, Check } from 'lucide-svelte';
+	import Spinner from '$lib/components/ui/Spinner.svelte';
+	import DemoBadge from '$lib/components/ui/DemoBadge.svelte';
+	import { truncateUrl, SCOUT_TYPE_CONFIG } from '$lib/utils/scouts';
+	import { tooltip } from '$lib/utils/tooltip';
+	import type { Scout } from '$lib/types/workspace';
+
+	export let scout: Scout;
+	export let dimmed = false;
+	export let running = false;
+	export let confirmingDelete = false;
+	export let deleting = false;
+	export let demo = false;
+
+	const dispatch = createEventDispatcher<{
+		open: { scout: Scout };
+		run: { id: string };
+		requestDelete: { id: string };
+		confirmDelete: { id: string };
+		cancelDelete: { id: string };
+	}>();
+
+	$: cfg = SCOUT_TYPE_CONFIG[scout.type];
+
+	function locationDisplay(loc: unknown): string | null {
+		if (!loc || typeof loc !== 'object') return null;
+		const rec = loc as Record<string, unknown>;
+		const dn = rec.displayName ?? rec.display_name;
+		return typeof dn === 'string' ? dn : null;
+	}
+
+	$: locDisplay = locationDisplay(scout.location);
+
+	function timeSince(iso: string | null | undefined): string | null {
+		if (!iso) return null;
+		const then = new Date(iso).getTime();
+		if (!Number.isFinite(then)) return null;
+		const seconds = Math.floor((Date.now() - then) / 1000);
+		if (seconds < 60) return `${seconds}s ago`;
+		if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+		if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+		const days = Math.floor(seconds / 86400);
+		return days === 1 ? '1d ago' : `${days}d ago`;
+	}
+
+	$: lastRunText = (() => {
+		if (!scout.last_run?.started_at) return 'Awaiting first run';
+		const rel = timeSince(scout.last_run.started_at);
+		return rel ? `Last run ${rel}` : 'Awaiting first run';
+	})();
+
+	interface StatusDisplay {
+		variant: 'success' | 'error' | 'waiting' | 'neutral';
+		label: string;
+	}
+
+	$: status = ((): StatusDisplay => {
+		if (!scout.last_run?.started_at) return { variant: 'waiting', label: 'Awaiting first run' };
+		const runStatus = scout.last_run.status;
+		if (runStatus === 'failed' || runStatus === 'error') return { variant: 'error', label: 'Run failed' };
+		const count = scout.last_run.articles_count ?? 0;
+		if (count > 0) return { variant: 'success', label: 'New findings' };
+		return { variant: 'neutral', label: 'No new findings' };
+	})();
+
+	$: scheduleLabel = (() => {
+		if (!scout.regularity) return null;
+		const r = scout.regularity.toLowerCase();
+		if (r === 'daily') return 'Daily';
+		if (r === 'weekly') return 'Weekly';
+		if (r === 'monthly') return 'Monthly';
+		return r.charAt(0).toUpperCase() + r.slice(1);
+	})();
+
+	function handleCardClick() {
+		dispatch('open', { scout });
+	}
+
+	function handleKey(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			handleCardClick();
+		}
+	}
+</script>
+
+<div
+	class="scout-shell scout-card {cfg.className}"
+	class:dimmed
+	class:deleting
+	class:demo
+	on:click={handleCardClick}
+	on:keydown={handleKey}
+	role="button"
+	tabindex="0"
+>
+	{#if demo}
+		<DemoBadge variant="ribbon" />
+	{/if}
+	<div class="scout-shell-eyebrow-row">
+		<span class="scout-shell-eyebrow {cfg.className}">
+			<svelte:component this={cfg.icon} size={12} />
+			<span>{cfg.label}</span>
+		</span>
+		{#if !demo}
+		<div class="scout-shell-actions">
+			{#if running}
+				<div class="scout-shell-spinner" on:click|stopPropagation on:keydown|stopPropagation role="presentation">
+					<Spinner size="sm" />
+				</div>
+			{:else}
+				<button
+					on:click|stopPropagation={() => dispatch('run', { id: scout.id })}
+					class="scout-shell-icon-btn run-btn"
+					aria-label="Run now"
+					use:tooltip={'Run now'}
+				>
+					<Play size={14} />
+				</button>
+			{/if}
+			{#if confirmingDelete}
+				<div class="scout-shell-confirm" on:click|stopPropagation on:keydown|stopPropagation role="toolbar" tabindex="-1">
+					{#if deleting}
+						<Spinner size="sm" />
+					{:else}
+						<button
+							on:click|stopPropagation={() => dispatch('cancelDelete', { id: scout.id })}
+							class="scout-shell-confirm-btn cancel"
+							aria-label="Cancel"
+						>
+							<X size={12} />
+						</button>
+						<span class="scout-shell-confirm-label">Delete?</span>
+						<button
+							on:click|stopPropagation={() => dispatch('confirmDelete', { id: scout.id })}
+							class="scout-shell-confirm-btn confirm"
+							aria-label="Yes"
+						>
+							<Check size={12} />
+						</button>
+					{/if}
+				</div>
+			{:else}
+				<button
+					on:click|stopPropagation={() => dispatch('requestDelete', { id: scout.id })}
+					class="scout-shell-icon-btn trash-btn"
+					aria-label="Delete scout"
+				>
+					<Trash2 size={14} />
+				</button>
+			{/if}
+		</div>
+		{/if}
+	</div>
+
+	<h3 class="scout-shell-name scout-card-name">{scout.name}</h3>
+
+	<div class="scout-card-body">
+		{#if locDisplay}
+			<div class="scout-meta-item">
+				<MapPin size={14} />
+				<span>{locDisplay}</span>
+			</div>
+		{/if}
+		{#if scout.criteria}
+			<div class="scout-meta-item">
+				<Tag size={14} />
+				<span>{scout.criteria}</span>
+			</div>
+		{/if}
+		{#if scout.type === 'web' && scout.url}
+			<div class="scout-meta-item scout-url">
+				<Globe size={14} />
+				<span class="scout-url-text" title={scout.url}>{truncateUrl(scout.url)}</span>
+			</div>
+		{/if}
+		<div class="scout-meta-item">
+			<Calendar size={14} />
+			<span>{lastRunText}</span>
+		</div>
+	</div>
+
+	<div class="scout-card-footer">
+		<span
+			class="scout-shell-status"
+			class:status-success={status.variant === 'success'}
+			class:status-error={status.variant === 'error'}
+			class:status-neutral={status.variant === 'neutral'}
+			class:status-waiting={status.variant === 'waiting'}
+		>
+			<span class="scout-shell-status-dot"></span>
+			{status.label}
+		</span>
+		{#if scheduleLabel}
+			<span class="scout-shell-schedule">{scheduleLabel}</span>
+		{/if}
+	</div>
+</div>
+
+<style>
+	/* Size/padding overrides for the workspace-grid variant — shell
+	   primitives live in app.css under "Scout display primitives". */
+	.scout-card {
+		padding: 0.875rem 1.125rem;
+		cursor: pointer;
+		min-height: 180px;
+	}
+
+	.scout-card-name {
+		font-size: 1.25rem;
+	}
+
+	.scout-card-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.scout-meta-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.8125rem;
+		font-weight: 300;
+		color: var(--color-ink-muted);
+	}
+
+	.scout-url {
+		color: var(--color-primary);
+	}
+
+	.scout-url-text {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		max-width: 200px;
+	}
+
+	.scout-card-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--color-border);
+		margin-top: auto;
+	}
+</style>

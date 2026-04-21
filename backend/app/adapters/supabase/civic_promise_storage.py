@@ -36,11 +36,33 @@ class SupabaseCivicPromiseStorage(PromiseStoragePort):
 
     async def store_promises(self, user_id: str, scraper_name: str,
                               promises: list) -> None:
-        """Bulk insert civic promises. Resolves scraper_name to scout_id."""
+        """Bulk insert civic promises. Resolves scraper_name to scout_id.
+
+        Maps Pydantic ``Promise`` fields onto the DB columns:
+          * ``source_date`` (date of the council document) → ``meeting_date``
+          * ``due_date`` (when the promise is due) → ``due_date``
+          * ``date_confidence`` (high|medium|low) → ``date_confidence``
+
+        The old adapter read ``p.get("meeting_date")``, which the Pydantic
+        model never emits, so the meeting_date column was always NULL for
+        civic promises. Reading ``source_date`` fixes that.
+        """
         await self._ensure_pool()
 
         if not promises:
             return
+
+        from datetime import date as date_type
+
+        def _parse_date(raw):
+            if not raw:
+                return None
+            if isinstance(raw, str):
+                try:
+                    return date_type.fromisoformat(raw)
+                except ValueError:
+                    return None
+            return raw
 
         records = []
         for promise in promises:
@@ -48,17 +70,12 @@ class SupabaseCivicPromiseStorage(PromiseStoragePort):
             p = promise.model_dump() if hasattr(promise, 'model_dump') else (
                 promise.dict() if hasattr(promise, 'dict') else promise
             )
-            meeting_date_raw = p.get("meeting_date")
-            meeting_date = None
-            if meeting_date_raw:
-                if isinstance(meeting_date_raw, str):
-                    from datetime import date as date_type
-                    try:
-                        meeting_date = date_type.fromisoformat(meeting_date_raw)
-                    except ValueError:
-                        meeting_date = None
-                else:
-                    meeting_date = meeting_date_raw
+            meeting_date = _parse_date(p.get("source_date") or p.get("meeting_date"))
+            due_date = _parse_date(p.get("due_date"))
+            date_confidence = p.get("date_confidence")
+            if date_confidence not in ("high", "medium", "low"):
+                date_confidence = None
+
             records.append((
                 user_id,
                 scraper_name,
@@ -68,17 +85,19 @@ class SupabaseCivicPromiseStorage(PromiseStoragePort):
                 p.get("source_url"),
                 p.get("source_title"),
                 meeting_date,
+                due_date,
+                date_confidence,
             ))
 
         await self.pool.executemany(
             """
             INSERT INTO promises (
                 scout_id, user_id, promise_text, context,
-                source_url, source_title, meeting_date
+                source_url, source_title, meeting_date, due_date, date_confidence
             )
             VALUES (
                 (SELECT id FROM scouts WHERE user_id = $1::uuid AND name = $2::text),
-                $3::uuid, $4::text, $5::text, $6::text, $7::text, $8
+                $3::uuid, $4::text, $5::text, $6::text, $7::text, $8, $9, $10
             )
             """,
             records,

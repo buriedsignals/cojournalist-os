@@ -86,12 +86,12 @@
 		font-size: 2.5rem;
 		font-weight: 700;
 		margin-bottom: 2rem;
-		color: #1c1917;
+		color: var(--color-ink);
 		letter-spacing: -0.02em;
 	}
 
 	.gradient-text {
-		background: linear-gradient(135deg, #968bdf 0%, #7c6fc7 100%);
+		background: linear-gradient(135deg, #6B3FA0 0%, #4E2C78 100%);
 		-webkit-background-clip: text;
 		background-clip: text;
 		-webkit-text-fill-color: transparent;
@@ -103,14 +103,14 @@
 		font-size: 1.5rem;
 		font-weight: 600;
 		margin-bottom: 1rem;
-		color: #1c1917;
+		color: var(--color-ink);
 	}
 
 	.message {
 		font-family: 'DM Sans', sans-serif;
 		font-size: 1rem;
 		line-height: 1.6;
-		color: #57534e;
+		color: var(--color-ink-muted);
 		margin-bottom: 1rem;
 	}
 
@@ -118,7 +118,7 @@
 		font-family: 'DM Sans', sans-serif;
 		font-size: 0.875rem;
 		line-height: 1.6;
-		color: #a8a29e;
+		color: var(--color-ink-subtle);
 		margin-bottom: 2rem;
 	}
 </style>

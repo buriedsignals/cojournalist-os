@@ -1,10 +1,10 @@
 /**
  * Location Store -- shared geocoded location for location-aware features.
  *
- * USED BY: SmartScoutView.svelte
+ * USED BY: BeatScoutView.svelte
  * DEPENDS ON: $lib/types (GeocodedLocation)
  *
- * Holds the currently selected GeocodedLocation for Smart Scout search
+ * Holds the currently selected GeocodedLocation for Beat Scout search
  * and criteria-based search. Components read this to pass location context
  * to API calls. No side effects (no localStorage, no API calls).
  */
