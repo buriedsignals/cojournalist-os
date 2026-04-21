@@ -215,6 +215,15 @@ src = src.replace("Sign in with MuckRock", "Sign in")
 src = re.sub(r'\.muckrock-toggle\s*\{[^}]*\}', '', src)
 src = re.sub(r'\.muckrock-toggle\s+input\s*\{[^}]*\}', '', src)
 src = re.sub(r'\.muckrock-toggle:hover\s*\{[^}]*\}', '', src)
+# Collapse the PUBLIC_MUCKROCK_ENABLED conditional to always pick the
+# email/password branch for OSS. The validator greps for the literal
+# string 'MuckRock' so we must avoid that identifier in OSS source.
+src = re.sub(
+    r"import\.meta\.env\.PUBLIC_MUCKROCK_ENABLED\s*===\s*'true'\s*\|\|\s*(\w+)",
+    r"false || \1",
+    src,
+)
+src = re.sub(r"import\.meta\.env\.PUBLIC_MUCKROCK_ENABLED\s*===\s*'true'", "false", src)
 p.write_text(src)
 PY
 

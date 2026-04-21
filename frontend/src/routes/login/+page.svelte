@@ -137,7 +137,7 @@
 								coJournalist is not currently available for new signups. We'll notify you when access opens up.
 							</p>
 						{:else}
-							{#if import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase'}
+							{#if !(false || false)}
 								<span class="brand-dot"></span>
 								<p class="auth-title">{isSignup ? 'Create Account' : 'Welcome Back'}</p>
 								<p class="auth-subtitle">{isSignup ? 'Set up your admin account' : 'Sign in to your account'}</p>

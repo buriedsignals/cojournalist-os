@@ -38,3 +38,6 @@ services:
         sync: false
       - key: PUBLIC_DEPLOYMENT_TARGET
         value: supabase
+      # SaaS: MuckRock button on /login. OSS leaves this blank and the email/password form renders.
+      - key: PUBLIC_MUCKROCK_ENABLED
+        value: "true"
