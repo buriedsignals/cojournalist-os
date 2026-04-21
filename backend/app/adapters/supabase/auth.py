@@ -16,6 +16,7 @@ from typing import Optional
 
 import jwt as pyjwt
 from fastapi import HTTPException, Request, status
+from jwt import PyJWKClient
 from supabase import AsyncClient, acreate_client
 
 from app.config import get_settings
@@ -35,6 +36,18 @@ class SupabaseAuth(AuthPort):
         self._supabase_url = settings.supabase_url
         self._supabase_service_key = settings.supabase_service_key
         self._supabase_client: AsyncClient | None = None
+        self._jwks_client: PyJWKClient | None = None
+
+    def _get_jwks_client(self) -> PyJWKClient:
+        """Lazy-init JWKS client for ES256 verification.
+
+        Supabase rotates signing keys infrequently; a 1h cache is plenty.
+        The endpoint is publicly accessible (project-scoped, no auth).
+        """
+        if self._jwks_client is None:
+            jwks_url = f"{self._supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+            self._jwks_client = PyJWKClient(jwks_url, lifespan=3600)
+        return self._jwks_client
 
     async def get_current_user(self, request: Request) -> dict:
         """Validate Supabase JWT from Authorization header and return user data.
@@ -59,12 +72,36 @@ class SupabaseAuth(AuthPort):
             )
 
         try:
-            payload = pyjwt.decode(
-                token,
-                self.jwt_secret,
-                algorithms=["HS256"],
-                options={"verify_aud": False},
-            )
+            # Sniff alg first so we use the right key for the right algorithm.
+            # Supabase issues ES256 (asymmetric) for new projects via JWKS.
+            # Legacy projects (and any pre-asymmetric token still in flight)
+            # remain HS256 against the shared jwt_secret. PyJWT would refuse
+            # to verify an ES256 token with the symmetric secret, so we
+            # branch instead of merging both algs into a single decode call.
+            header = pyjwt.get_unverified_header(token)
+            alg = header.get("alg")
+            if alg == "ES256":
+                signing_key = (
+                    self._get_jwks_client().get_signing_key_from_jwt(token).key
+                )
+                payload = pyjwt.decode(
+                    token,
+                    signing_key,
+                    algorithms=["ES256"],
+                    options={"verify_aud": False},
+                )
+            elif alg == "HS256":
+                payload = pyjwt.decode(
+                    token,
+                    self.jwt_secret,
+                    algorithms=["HS256"],
+                    options={"verify_aud": False},
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid token: unsupported alg {alg!r}",
+                )
         except pyjwt.ExpiredSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
