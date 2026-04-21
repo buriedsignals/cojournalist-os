@@ -33,7 +33,7 @@ ENV PUBLIC_DEPLOYMENT_TARGET=supabase
 ENV PUBLIC_SUPABASE_URL=https://gfmdziplticfoakhrfpt.supabase.co
 ENV PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmbWR6aXBsdGljZm9ha2hyZnB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MDYzMjIsImV4cCI6MjA4MzE4MjMyMn0.Liz22BqK2qfHBcIsIJxGTT4VvMzfBE_yRFraVrUPKq4
 ENV PUBLIC_MUCKROCK_ENABLED=true
-ENV VITE_API_URL=/api
+ENV VITE_API_URL=https://gfmdziplticfoakhrfpt.supabase.co/functions/v1
 # MapTiler key stays as ARG — it's a secret managed in Render dashboard.
 ARG PUBLIC_MAPTILER_API_KEY=''
 ENV PUBLIC_MAPTILER_API_KEY=${PUBLIC_MAPTILER_API_KEY}

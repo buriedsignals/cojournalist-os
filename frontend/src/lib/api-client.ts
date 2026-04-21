@@ -476,9 +476,14 @@ export const apiClient = {
 
 	/**
 	 * Get distinct locations where user has information units.
+	 *
+	 * Adapter: the units Edge Function does not expose /units/locations.
+	 * Stub returns empty list so the FeedView location-filter dropdown
+	 * shows no options instead of throwing. Real implementation moves
+	 * server-side as a SECURITY DEFINER RPC (POST-CUTOVER-TODO #2).
 	 */
 	async getUserUnitLocations(): Promise<{ locations: string[] }> {
-		return apiRequest('GET', '/units/locations');
+		return { locations: [] };
 	},
 
 	/**
@@ -593,13 +598,21 @@ export const apiClient = {
 
 	/**
 	 * Get distinct topics where user has information units.
+	 *
+	 * Adapter: stubbed (units EF doesn't expose /units/topics yet).
+	 * See POST-CUTOVER-TODO #2.
 	 */
 	async getUserUnitTopics(): Promise<{ topics: string[] }> {
-		return apiRequest('GET', '/units/topics');
+		return { topics: [] };
 	},
 
 	/**
 	 * Get information units for a specific topic.
+	 *
+	 * Adapter: units EF GET /units doesn't filter by topic today
+	 * (filterable fields are scout_id, project_id, country, state, city).
+	 * Returns empty until topic-filter is added to the EF or moved to
+	 * client-side filtering of the unfiltered list.
 	 */
 	async getUnitsByTopic(params: {
 		topic: string;
@@ -608,8 +621,8 @@ export const apiClient = {
 		units: InformationUnit[];
 		count: number;
 	}> {
-		const qs = buildQueryString({ topic: params.topic, limit: params.limit });
-		return apiRequest('GET', `/units/by-topic?${qs}`);
+		void params; // avoid unused-arg lint
+		return { units: [], count: 0 };
 	},
 
 	/**
