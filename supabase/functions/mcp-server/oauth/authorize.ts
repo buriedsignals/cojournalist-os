@@ -24,6 +24,8 @@ function randUrlSafe(bytes: number): string {
   return base64urlEncode(buf);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function brokerBaseUrl(): string {
   // Post-cutover broker: auth-muckrock EF. Override with MCP_BROKER_URL
   // if a self-hosted deployment exposes the broker elsewhere.
@@ -51,6 +53,12 @@ export async function authorize(req: Request): Promise<Response> {
   const codeChallengeMethod = params.get("code_challenge_method") ?? "S256";
 
   if (!clientId) return oauthError("invalid_request", "client_id required", 400);
+  // client_id must be a UUID (mcp_oauth_clients.client_id is uuid-typed in
+  // Postgres). Reject non-UUID values up front — otherwise the downstream
+  // .eq() throws a type-cast error that surfaces as a 500.
+  if (!UUID_RE.test(clientId)) {
+    return oauthError("invalid_request", "client_id must be a UUID", 400);
+  }
   if (!redirectUri) return oauthError("invalid_request", "redirect_uri required", 400);
   if (responseType !== "code") {
     return oauthError("unsupported_response_type", "response_type must be 'code'", 400);
