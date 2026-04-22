@@ -14,11 +14,8 @@ from __future__ import annotations
 _scout_storage = None
 _execution_storage = None
 _run_storage = None
-_post_snapshot_storage = None
 _unit_storage = None
-_seen_record_storage = None
 _user_storage = None
-_promise_storage = None
 _scheduler = None
 _auth = None
 _billing = None
@@ -55,15 +52,6 @@ def get_run_storage():
     return _run_storage
 
 
-def get_post_snapshot_storage():
-    """Return the PostSnapshotStorage adapter singleton."""
-    global _post_snapshot_storage
-    if _post_snapshot_storage is None:
-        from app.adapters.supabase.post_snapshot_storage import SupabasePostSnapshotStorage
-        _post_snapshot_storage = SupabasePostSnapshotStorage()
-    return _post_snapshot_storage
-
-
 def get_unit_storage():
     """Return the UnitStorage adapter singleton."""
     global _unit_storage
@@ -73,15 +61,6 @@ def get_unit_storage():
     return _unit_storage
 
 
-def get_seen_record_storage():
-    """Return the SeenRecordStorage adapter singleton."""
-    global _seen_record_storage
-    if _seen_record_storage is None:
-        from app.adapters.supabase.seen_record_storage import SupabaseSeenRecordStorage
-        _seen_record_storage = SupabaseSeenRecordStorage()
-    return _seen_record_storage
-
-
 def get_user_storage():
     """Return the UserStorage adapter singleton."""
     global _user_storage
@@ -89,15 +68,6 @@ def get_user_storage():
         from app.adapters.supabase.user_storage import SupabaseUserStorage
         _user_storage = SupabaseUserStorage()
     return _user_storage
-
-
-def get_promise_storage():
-    """Return the PromiseStorage adapter singleton."""
-    global _promise_storage
-    if _promise_storage is None:
-        from app.adapters.supabase.civic_promise_storage import SupabaseCivicPromiseStorage
-        _promise_storage = SupabaseCivicPromiseStorage()
-    return _promise_storage
 
 
 def get_scheduler():

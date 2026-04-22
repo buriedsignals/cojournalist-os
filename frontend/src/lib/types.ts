@@ -47,12 +47,12 @@ export interface MonitoringSetupResponse {
 	metadata: Record<string, unknown>;
 }
 
-// AWS Active Jobs types
+// Active Jobs types
 export interface ActiveJobLastRun {
 	last_run: string; // Format: MM:DD:YYYY HH:MM
 	scraper_status: boolean;
 	criteria_status: boolean;
-	// Extended fields from Lambda (for expanded card view)
+	// Extended fields from scout execution (for expanded card view)
 	summary?: string;
 	card_summary?: string; // AI-generated 1-sentence summary from EXEC# (max 150 chars)
 	url?: string;

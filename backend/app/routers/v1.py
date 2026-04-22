@@ -4,10 +4,10 @@ v1 external API router.
 PURPOSE: Public REST API for programmatic access to coJournalist.
 Three endpoint groups:
   1. Key management (POST/GET/DELETE /keys) — session cookie auth
-  2. Scout CRUD + run (GET/POST/DELETE /scouts, POST /scouts/{name}/run) — API key auth
+  2. Scout CRUD (GET/POST/DELETE /scouts) — API key auth
   3. Information units (GET /units, GET /units/search) — API key auth
 
-DEPENDS ON: dependencies (get_current_user, verify_api_key, decrement_credit),
+DEPENDS ON: dependencies (get_current_user, verify_api_key, validate_credits),
     services/api_key_service, services/schedule_service, services/feed_search_service,
     services/cron, utils/credits, schemas/v1, config
 USED BY: main.py (mounted at /api/v1)
@@ -21,7 +21,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.config import get_settings
-from app.dependencies import decrement_credit, get_current_user, verify_api_key, validate_credits
+from app.dependencies import get_current_user, verify_api_key, validate_credits
 from app.schemas.scouts import GeocodedLocation
 from app.schemas.v1 import (
     ApiKeyListResponse,
@@ -51,7 +51,6 @@ except ImportError:
     class CronBuilderError(Exception): pass
 from app.services.feed_search_service import FeedSearchService
 from app.services.schedule_service import ScheduleService
-from app.services.scout_runner import ScoutRunner
 from app.utils.pricing import CREDIT_COSTS, get_pulse_cost, get_social_monitoring_cost
 
 logger = logging.getLogger(__name__)
@@ -491,78 +490,6 @@ async def delete_scout(
         )
 
     return {"message": "Scout deleted"}
-
-
-@router.post(
-    "/scouts/{name}/run",
-    response_model=ScoutRunResponse,
-    responses={
-        402: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
-        429: {"model": ErrorResponse},
-    },
-    tags=["v1-scouts"],
-)
-@limiter.limit("5/minute")
-async def run_scout(
-    request: Request,
-    name: str,
-    user: dict = Depends(verify_api_key),
-):
-    """Manually trigger a scout execution. Deducts credits."""
-    svc = _get_schedule_service()
-
-    # Verify scout exists
-    existing = await svc.get_scout(user["user_id"], name)
-    if existing is None:
-        _error(status.HTTP_404_NOT_FOUND, "Scout not found", "NOT_FOUND")
-
-    # Determine credit cost
-    org_id = user.get("org_id")
-    scout_type = existing.get("scout_type", "web")
-    if scout_type == "pulse":
-        cost = get_pulse_cost(existing.get("source_mode"), existing.get("location") is not None)
-    elif scout_type == "social":
-        cost = get_social_monitoring_cost(existing.get("platform", "instagram"))
-    else:
-        cost = CREDIT_COSTS.get("website_extraction", 1)
-
-    # Validate credits (check balance without deducting)
-    await validate_credits(user["user_id"], cost, org_id=org_id)
-
-    # Execute first — only charge credits on success
-    try:
-        runner = ScoutRunner()
-        result = await runner.run_scout(user["user_id"], name)
-    except Exception as exc:
-        logger.exception("Failed to run scout: %s", exc)
-        _error(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            "Failed to run scout",
-            "INTERNAL_ERROR",
-        )
-
-    # Deduct credits after successful execution
-    success = await decrement_credit(
-        user["user_id"], cost, org_id=org_id,
-        operation=scout_type, scout_name=name, scout_type=scout_type,
-    )
-    if not success:
-        # Execution succeeded but credit deduction failed (race condition
-        # where balance dropped between validate and deduct).  Return the
-        # result anyway — the user received value.
-        logger.warning(
-            "Credit deduction failed after successful run for user %s (cost=%d)",
-            user["user_id"], cost,
-        )
-
-    return ScoutRunResponse(
-        scraper_status=result.get("scraper_status", False),
-        criteria_status=result.get("criteria_status", False),
-        summary=result.get("summary", ""),
-        notification_sent=result.get("notification_sent"),
-        change_status=result.get("change_status"),
-    )
 
 
 # =============================================================================

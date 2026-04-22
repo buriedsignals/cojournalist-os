@@ -94,7 +94,7 @@
 		error = null;
 
 		try {
-			// Fetch all scouts from AWS (includes all scout types)
+			// Fetch all scouts (includes all scout types)
 			const response: ActiveJobsResponse = await apiClient.getActiveJobs();
 			const realScouts: TypedActiveJob[] = (response.scrapers || []).map(scout => ({
 				...scout,
@@ -104,7 +104,6 @@
 				schedule: scout.regularity ? formatRegularity(scout.regularity, scout.time) : undefined
 			}));
 
-			// All scouts come from AWS now
 			allScouts = realScouts;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load active scouts';

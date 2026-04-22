@@ -1,9 +1,20 @@
 # Adapter Pattern Architecture
 
-coJournalist targets two deployment environments from a single codebase: the SaaS product
-running on AWS (DynamoDB + EventBridge + MuckRock OAuth) and the self-hosted OSS version
-running on Supabase (PostgreSQL + pg_cron + Supabase Auth). The port/adapter pattern is the
-mechanism that makes this work without duplicating any business logic.
+> **Post-cutover status (2026-04-22):** AWS adapters were retired in the v2 migration.
+> Supabase is the only registered backend. The port/adapter pattern is kept because
+> the residual FastAPI service still benefits from DI (test seams, future adapters),
+> but there is no longer a live second backend. Expect to see `backend/app/adapters/aws/`
+> absent and `DEPLOYMENT_TARGET` unused.
+>
+> Three ports — `PostSnapshotStoragePort`, `SeenRecordStoragePort`, `PromiseStoragePort` —
+> were deleted in the post-cutover sweep: the Social Scout baselines, dedup, and Civic
+> promise persistence all moved into Supabase Edge Functions and are no longer accessed
+> via the FastAPI adapter layer.
+
+coJournalist originally targeted two deployment environments from a single codebase: the
+SaaS product running on AWS (DynamoDB + EventBridge + MuckRock OAuth) and the self-hosted
+OSS version running on Supabase (PostgreSQL + pg_cron + Supabase Auth). The port/adapter
+pattern was the mechanism that made this work without duplicating business logic.
 
 ---
 

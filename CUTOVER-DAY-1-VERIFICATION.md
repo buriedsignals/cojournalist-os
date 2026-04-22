@@ -47,8 +47,11 @@ traffic stopped routing to them on 2026-04-22; they're idle but billing.
 
 **Sequence (Tom executes manually — destructive, prod, irreversible):**
 
-1. **Disable EventBridge schedules first.** `aws scheduler list-schedules`
-   then disable each. Stops Lambda invocations cleanly.
+1. **Disable EventBridge schedules first.** — DONE 2026-04-22. All 30
+   schedules (29 `scout-*` + `promise-checker-daily`) flipped to
+   DISABLED via `aws scheduler update-schedule`. Full JSON definitions
+   backed up to `/tmp/eb-schedules-backup-20260422/def-*.json` on Tom's
+   laptop should re-enable be needed.
 2. **Wait 7 days** for any straggler invocations / debugging window.
 3. **Delete Lambda functions:**
    ```bash
@@ -111,73 +114,52 @@ cost controls"):**
 
 ## Tracked but lower priority
 
-### #11 — Adapter pattern review
+### #11 — Adapter pattern review — DONE 2026-04-22
 
-**Status:** `docs/oss/adapter-pattern.md` describes a port/adapter
-design. After the EF migration, half the adapters may be obsolete
-(anything that abstracted DynamoDB vs Supabase).
+Port/adapter layer audited. Three ports retired (no live FastAPI caller
+post-cutover; their data now persists directly from Edge Functions):
+`PostSnapshotStoragePort`, `SeenRecordStoragePort`, `PromiseStoragePort`.
+Their Supabase adapters and adapter tests were deleted.
+`docs/oss/adapter-pattern.md` now carries a post-cutover banner. Surviving
+ports: `Scout`, `Execution`, `Run`, `Unit`, `User`, `Scheduler`, `Auth`,
+`Billing`.
 
-**What to do:** audit `backend/app/adapters/` — keep only what's still
-load-bearing post-cutover. Update the doc if the model changed.
+### #16 — Orphan code delete — DONE 2026-04-22
 
-**Status note:** cleanup-adjacent; explicitly dropped from the
-2026-04-22 cutover-finish session.
+Deleted `backend/app/services/` orphans with zero live importers:
+`pulse_orchestrator.py`, `social_orchestrator.py`, `civic_orchestrator.py`,
+`post_snapshot_service.py`, `execute_pipeline.py`, plus their
+`backend/tests/unit/{pulse,social,civic,shared}/...` test files and
+`backend/scripts/benchmark_{pulse,social,civic,scrapers}.py`. 553 backend
+tests still pass.
 
-### #16 — General code cleanup (`/cleanup` skill)
+Residual `aws/` tree will be deleted with item #18 (AWS wipe).
 
-**Status:** lots of orphaned code surfaced by the cutover. Run the
-`/cleanup` skill across the repo.
+**Remaining stranded code (filed — out of scope for cleanup):**
+`backend/app/services/scout_runner.py` / `routers/v1.py:535`
+(`POST /api/v1/scouts/{name}/run`) still calls `/api/scouts/execute` etc.
+which were deleted in PR #71. The CLI's `cojo scout run` command is
+broken against production until `ScoutRunner` is rewritten to dispatch
+to the `execute-scout` Edge Function URL. Track as its own follow-up.
 
-**Specifically:**
-- `backend/app/services/` orphans listed in
-  `docs/architecture/api-surface-audit.md`: `pulse_orchestrator.py`,
-  `social_orchestrator.py`, `civic_orchestrator.py`,
-  `post_snapshot_service.py`, `execute_pipeline.py`. No live
-  importers after PR #72.
-- `frontend/src/lib/utils/` — any helpers only used by deleted AI Select.
-- `aws/` — anything left after the EventBridge teardown (item #18).
+### #19 — Manual delete `export-select` EF — DONE
 
-**Status note:** explicitly dropped from the 2026-04-22 cutover-finish session.
-
-### #19 — Manual delete `export-select` EF
-
-**Status:** Orphaned in Supabase since PR #71. No caller hits it.
-
-**What to do:** delete from the Supabase dashboard when convenient
-(GUI action; no code change).
+Deleted from the Supabase dashboard.
 
 ---
 
-## Documentation drift (sweep when adjacent work happens)
+## Documentation drift — DONE 2026-04-22
 
-### Frontend AWS-era references
-
-Cosmetic but stale:
-- `frontend/src/lib/components/panels/ScoutsPanel.svelte:99` — comment
-  reads "Fetch all scouts from AWS"; now it's Supabase.
-- `frontend/src/lib/types.ts:50` — `ActiveJobLastRun` documented as
-  "AWS Active Jobs types".
-- `frontend/CLAUDE.md` may still mention AWS in places.
-
-**Bundle with #18 (AWS wipe) — same scope.**
-
-### `backend/CLAUDE.md` is pre-cutover
-
-Still describes `/api/scouts/*`, `/api/pulse/*` etc. as live with
-Lambda triggers. Replace with the post-cutover surface (auth broker +
-feedback + `/api/v1` + adapter notes).
-
-**Bundle with #18.**
-
-### Historical architecture docs
-
-- `docs/architecture/aws-architecture.md` — describes Lambda +
-  EventBridge + DynamoDB as authoritative. Add a "historical / removed
-  YYYY-MM-DD" banner OR delete entirely after item #18 lands.
-- `docs/architecture/records-and-deduplication.md` — same; describes
-  DynamoDB record types. Banner or delete.
-
-**Bundle with #18.**
+- Stale frontend AWS comments fixed in
+  `frontend/src/lib/components/panels/ScoutsPanel.svelte` and
+  `frontend/src/lib/types.ts`. Legal copy in `frontend/src/routes/terms/+page.svelte`
+  intentionally unchanged (Supabase hosts on AWS eu-central-1 underneath —
+  ToS text remains accurate; explicit legal review required before changing).
+- `backend/CLAUDE.md` rewritten to describe the post-cutover residual surface
+  (auth broker + feedback + `/api/v1` + surviving services + adapters).
+- `docs/architecture/aws-architecture.md` and
+  `docs/architecture/records-and-deduplication.md` now carry HISTORICAL banners
+  at the top. Delete entirely once item #18 (AWS wipe) lands.
 
 ### Render env vars audit
 
@@ -185,27 +167,45 @@ Listed in `docs/architecture/api-surface-audit.md` but not actioned.
 Once item #18 ships, drop `AWS_API_BASE_URL` and audit
 `INTERNAL_SERVICE_KEY` callers via grep — likely now safe to remove.
 
-**Bundle with #18.**
+**Bundle with #18.** A smart-alfred read-only verification pass was run
+2026-04-22 — see separate punch list from that session for current
+Supabase/Render/AWS state.
 
 ---
 
 ## Verification & validation gaps (no action required, just notes)
 
-### #17 — Smart-Alfred verification pass
+### #17 — Smart-Alfred verification pass — DONE 2026-04-22
 
-**Status:** deferred. Read-only verification of the cloud architecture
-post-cutover.
+Read-only Supabase/Render/AWS verification run via smart-alfred subagent.
 
-**Recommended prompt for a standalone session:**
+**OK**
+- AWS Lambda (eu-central-1): 6 functions present as expected — `scraper-lambda`,
+  `promise-checker-lambda`, `return-scraper-results`, `delete-schedule`,
+  `create-eventbridge-schedule`, `service-key-authorizer`. Idle, consistent with
+  the 30-day retention hold.
+- DynamoDB tables (eu-central-1): `information-units`, `scout-embeddings`,
+  `scraping-jobs` — still present as expected.
+- API Gateway: single REST API `coJournalist-schedule-scrapper`
+  (id `kubbp7dr0b`) — expected.
+- Render services: `cojournalist` active, `osint-navigator` active,
+  `n8n-service` suspended — expected.
 
-> Verify Supabase config (RLS policies, EF deployment status, pg_cron
-> jobs), Render envVars (still-required vs prunable per
-> `docs/architecture/api-surface-audit.md`), and AWS resources (alive
-> but soon-to-be-deleted per item #18). Output: punchlist or "all wired"
-> confirmation. Read-only.
+**Action needed — HIGH PRIORITY — RESOLVED 2026-04-22**
+- ~~AWS EventBridge Scheduler: all 30 schedules still ENABLED.~~ DONE.
+  Flipped to DISABLED (#18 step 1). Backups at
+  `/tmp/eb-schedules-backup-20260422/` on Tom's laptop.
 
-Run this *after* item #18 is at least started so the AWS state is
-known.
+**Investigate**
+- Supabase MCP returned the wrong project (`ayksajwtwyjhvpqngvcb` = Dorfkönig,
+  not coJournalist `gfmdziplticfoakhrfpt`). Edge-function / advisor / migration
+  findings from that pass are irrelevant to coJournalist. Re-run after pointing
+  the MCP at the right project/org.
+- Render `cojournalist` env-var sweep pending workspace selection — cross-check
+  against `docs/architecture/api-surface-audit.md:123` (especially
+  `AWS_API_BASE_URL`, `INTERNAL_SERVICE_KEY`).
+
+Re-run once item #18 step 1 is done so the AWS delta is visible.
 
 ### #13 / #14 — OSS mirror local validation
 
