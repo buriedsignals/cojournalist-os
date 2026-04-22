@@ -194,11 +194,6 @@
 							<div class="terms-footer">
 								<a href="/terms">Terms & Privacy</a>
 							</div>
-							<div class="terms-footer">
-								<a href="https://buriedsignals.com" target="_blank" rel="noopener noreferrer">
-									Built by Buried Signals ↗
-								</a>
-							</div>
 						{/if}
 					</div>
 				</div>

@@ -164,6 +164,12 @@
 				<span>{locDisplay}</span>
 			</div>
 		{/if}
+		{#if scout.topic}
+			<div class="scout-meta-item">
+				<Tag size={14} />
+				<span>{scout.topic}</span>
+			</div>
+		{/if}
 		{#if scout.criteria}
 			<div class="scout-meta-item">
 				<Tag size={14} />

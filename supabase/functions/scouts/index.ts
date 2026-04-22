@@ -67,16 +67,23 @@ const FromTemplateSchema = z.object({
 
 const ScoutType = z.enum(["web", "pulse", "social", "civic"]);
 const Regularity = z.enum(["daily", "weekly", "monthly"]);
+const TimeStr = z.string().regex(/^\d{1,2}:\d{2}$/);
 
 const CreateSchema = z
   .object({
     name: z.string().min(1).max(200),
     type: ScoutType,
     criteria: z.string().max(4000).optional(),
+    topic: z.string().max(200).optional(),
     url: z.string().url().max(2000).optional(),
     location: z.record(z.unknown()).optional(),
     regularity: Regularity.optional(),
     schedule_cron: z.string().min(1).max(200).optional(),
+    // Legacy schedule fields — server synthesises schedule_cron from these
+    // when schedule_cron isn't provided.
+    day_number: z.number().int().min(0).max(31).optional(),
+    time: TimeStr.optional(),
+    provider: z.string().max(100).optional(),
     project_id: z.string().uuid().optional(),
     priority_sources: z.array(z.string().max(500)).max(100).optional(),
   })
@@ -90,10 +97,14 @@ const UpdateSchema = z
     name: z.string().min(1).max(200).optional(),
     type: ScoutType.optional(),
     criteria: z.string().max(4000).nullable().optional(),
+    topic: z.string().max(200).nullable().optional(),
     url: z.string().url().max(2000).nullable().optional(),
     location: z.record(z.unknown()).nullable().optional(),
     regularity: Regularity.nullable().optional(),
     schedule_cron: z.string().min(1).max(200).nullable().optional(),
+    day_number: z.number().int().min(0).max(31).optional(),
+    time: TimeStr.optional(),
+    provider: z.string().max(100).nullable().optional(),
     project_id: z.string().uuid().nullable().optional(),
     priority_sources: z.array(z.string().max(500)).max(100).nullable().optional(),
     is_active: z.boolean().optional(),
@@ -102,6 +113,34 @@ const UpdateSchema = z
     (v) => v.type !== "civic" || v.regularity == null || v.regularity !== "daily",
     { message: "civic scouts support weekly or monthly schedules only", path: ["regularity"] },
   );
+
+/** Derive a cron expression from the legacy (regularity, day_number, time)
+ *  triple the UI's "Set Up Page Scout" modal still sends. day_number is
+ *  1=Mon..7=Sun for weekly, 1..31 for monthly, ignored for daily.
+ *  Returns null if inputs are insufficient. */
+function cronFromParts(
+  regularity: string | undefined,
+  day: number | undefined,
+  time: string | undefined,
+): string | null {
+  if (!regularity || !time) return null;
+  const [hh, mm] = time.split(":").map((s) => parseInt(s, 10));
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  switch (regularity) {
+    case "daily":
+      return `${mm} ${hh} * * *`;
+    case "weekly": {
+      // day_number 1=Mon..7=Sun → cron 0=Sun..6=Sat (so 7→0).
+      const d = day ?? 1;
+      const cronDay = d === 7 ? 0 : d;
+      return `${mm} ${hh} * * ${cronDay}`;
+    }
+    case "monthly":
+      return `${mm} ${hh} ${day ?? 1} * *`;
+    default:
+      return null;
+  }
+}
 
 Deno.serve(async (req): Promise<Response> => {
   const cors = handleCors(req);
@@ -187,6 +226,24 @@ async function listScouts(req: Request, user: AuthedUser): Promise<Response> {
   return jsonPaginated(shaped, count ?? 0, offset, limit);
 }
 
+/** Pre-parse normalisation: accept legacy field aliases the v1 UI still
+ *  sends (`scout_type` → `type`). Also coerces `day_number` from string
+ *  if it arrived that way. Doesn't validate — that's zod's job. */
+function normalizeScoutBody(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null) return raw;
+  const r = raw as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...r };
+  if (out.type === undefined && typeof out.scout_type === "string") {
+    out.type = out.scout_type;
+  }
+  delete out.scout_type;
+  if (typeof out.day_number === "string") {
+    const n = parseInt(out.day_number, 10);
+    if (!Number.isNaN(n)) out.day_number = n;
+  }
+  return out;
+}
+
 async function createScout(req: Request, user: AuthedUser): Promise<Response> {
   let body: unknown;
   try {
@@ -194,14 +251,18 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
   } catch {
     throw new ValidationError("invalid JSON body");
   }
-  const parsed = CreateSchema.safeParse(body);
+  const parsed = CreateSchema.safeParse(normalizeScoutBody(body));
   if (!parsed.success) {
     throw new ValidationError(
-      parsed.error.issues.map((i) => i.message).join("; "),
+      parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
     );
   }
 
-  const { schedule_cron, ...rest } = parsed.data;
+  // Strip legacy schedule fields; synthesise schedule_cron from them when
+  // the client didn't provide one explicitly.
+  const { schedule_cron: explicitCron, time, day_number, ...rest } = parsed.data;
+  const schedule_cron = explicitCron ??
+    cronFromParts(rest.regularity, day_number, time);
 
   const db = getUserClient(user.token);
   const { data, error } = await db
@@ -275,15 +336,23 @@ async function updateScout(
   } catch {
     throw new ValidationError("invalid JSON body");
   }
-  const parsed = UpdateSchema.safeParse(body);
+  const parsed = UpdateSchema.safeParse(normalizeScoutBody(body));
   if (!parsed.success) {
     throw new ValidationError(
-      parsed.error.issues.map((i) => i.message).join("; "),
+      parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
     );
   }
-  if (Object.keys(parsed.data).length === 0) {
+  // Synthesize schedule_cron from legacy fields if explicit one not given.
+  const { time, day_number, ...rest } = parsed.data;
+  if (rest.schedule_cron === undefined && (time !== undefined || day_number !== undefined)) {
+    const synth = cronFromParts(rest.regularity ?? undefined, day_number, time);
+    if (synth) rest.schedule_cron = synth;
+  }
+  if (Object.keys(rest).length === 0) {
     throw new ValidationError("no updatable fields provided");
   }
+  // Replace parsed.data so the rest of the function sees the cleaned shape.
+  (parsed as { data: typeof rest }).data = rest;
 
   const db = getUserClient(user.token);
   // Fetch current row so we can diff schedule / is_active

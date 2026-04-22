@@ -250,19 +250,25 @@ export const apiClient = {
 	 * shaped response back even if EF returns a richer shape.
 	 */
 	async scheduleMonitoring(payload: MonitoringSetupRequest): Promise<MonitoringSetupResponse> {
+		// scheduleMonitoring is the web-scout entry point; the v1 payload
+		// shape doesn't include `type`, so add it explicitly. The EF derives
+		// schedule_cron from regularity + day_number + time server-side.
+		const body = { ...payload, type: 'web' as const };
 		const res = await apiRequestSafeError<Record<string, unknown>>(
 			'POST',
 			'/scouts',
-			payload as unknown,
+			body as unknown,
 			'Failed to schedule monitoring'
 		);
 		return res as unknown as MonitoringSetupResponse;
 	},
 
 	/**
-	 * Schedule a local scout (pulse).
+	 * Schedule a local scout (pulse / social / civic).
 	 *
-	 * Adapter: same as scheduleMonitoring — POST /scouts.
+	 * Adapter: same as scheduleMonitoring — POST /scouts. The legacy v1 shape
+	 * carries the discriminator as `scout_type`; the EF accepts it as an alias
+	 * for `type` (see normalizeScoutBody). Forward as-is.
 	 */
 	async scheduleLocalScout(payload: ScoutSetupRequest): Promise<ScoutSetupResponse> {
 		const res = await apiRequestSafeError<Record<string, unknown>>(
@@ -603,28 +609,6 @@ export const apiClient = {
 	},
 
 	/**
-	 * AI-powered auto-selection of information units based on a prompt.
-	 * Returns IDs of selected units and a summary of why they were chosen.
-	 */
-	async autoSelectUnits(params: {
-		units: {
-			unit_id: string;
-			statement: string;
-			entities: string[];
-			source_title: string;
-			created_at: string;
-			date: string | null;
-			unit_type: string;
-			scout_type: string;
-		}[];
-		prompt: string;
-		location: string | null;
-		topic: string | null;
-	}): Promise<{ selected_unit_ids: string[]; selection_summary: string }> {
-		return apiRequest('POST', '/export-select', params);
-	},
-
-	/**
 	 * Update user preferences (language, timezone, and/or excluded domains).
 	 */
 	async updateUserPreferences(params: {
@@ -732,7 +716,7 @@ export const apiClient = {
 		name: string;
 		created_at: string;
 	}> {
-		return apiRequest('POST', '/v1/keys', { name: name || 'My API Key' });
+		return apiRequest('POST', '/api-keys', { name: name || 'My API Key' });
 	},
 
 	/**
@@ -748,14 +732,14 @@ export const apiClient = {
 		}>;
 		count: number;
 	}> {
-		return apiRequest('GET', '/v1/keys');
+		return apiRequest('GET', '/api-keys');
 	},
 
 	/**
 	 * Revoke an API key.
 	 */
 	async revokeApiKey(keyId: string): Promise<void> {
-		return apiRequest('DELETE', `/v1/keys/${keyId}`);
+		return apiRequest('DELETE', `/api-keys/${keyId}`);
 	},
 
 	/**

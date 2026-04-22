@@ -38,6 +38,11 @@ On scout success: resets counter to 0.
 ### `check_unit_dedup(p_embedding vector(1536), p_scout_id UUID, p_threshold REAL DEFAULT 0.85, p_days INT DEFAULT 90) RETURNS BOOLEAN`
 Returns TRUE if any `execution_records` row under the same scout within `p_days` has cosine ≥ `p_threshold`. Used pre-insert in scout-execute functions.
 
+## API keys (00036)
+
+### `validate_api_key(p_key text) RETURNS uuid`
+SECURITY DEFINER. Hashes `p_key` with `sha256`, looks up the matching `api_keys` row, stamps `last_used_at` on a hit, and returns the owning `user_id` (or NULL on miss). EXECUTE granted to `anon, authenticated, service_role` so the unauthenticated EF gateway can validate before resolving the caller. Only the `requireUserOrApiKey()` helper in `_shared/auth.ts` calls it. See [auth-users.md](./auth-users.md#api-keys-agent-tokens).
+
 ## Search (00016, 00018)
 
 ### `semantic_search_units(p_embedding vector(1536), p_user_id UUID, p_project_id UUID DEFAULT NULL, p_limit INT DEFAULT 20) RETURNS TABLE(id UUID, statement TEXT, type TEXT, source_url TEXT, source_title TEXT, occurred_at TIMESTAMPTZ, extracted_at TIMESTAMPTZ, similarity_score REAL)`
@@ -100,6 +105,7 @@ Wraps `cron.unschedule()`.
 | `semantic_search_units`, `semantic_search_reflections` | authenticated (filter by `p_user_id`) |
 | `merge_entities` | authenticated (internal ownership check) |
 | `claim_civic_queue_item`, `civic_queue_failsafe`, `apify_mark_timeouts` | service_role only |
+| `validate_api_key` | anon, authenticated, service_role (called by `requireUserOrApiKey` before the caller is known) |
 | `cleanup_*` | service_role only (called from pg_cron) |
 | `schedule_cron_job`, `unschedule_cron_job` | service_role only |
 

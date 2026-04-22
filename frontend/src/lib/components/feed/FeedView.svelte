@@ -10,11 +10,10 @@
 	import FilterBar from '$lib/components/ui/FilterBar.svelte';
 	import FilterSelect from '$lib/components/ui/FilterSelect.svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
-	import { Trash2, FileText, MapPin, Tag, Radio, Sparkles, ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { Trash2, FileText, MapPin, Tag, Radio } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
 	import UnitGrid from './UnitGrid.svelte';
 	import ExportSlideOver from './ExportSlideOver.svelte';
-	import AISelectPanel from './AISelectPanel.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	/** Bridge PlaceholderUnit → InformationUnit for tour demo data. */
@@ -32,9 +31,6 @@
 	let showingPlaceholders = false;
 
 	// Upgrade modal
-
-	// CMS export
-	let showAIPrompt = false;
 
 	// Filter state
 	let locations: string[] = [];
@@ -102,13 +98,7 @@
 		.filter(u => !u.used_in_article)
 		.filter(u => !selectedScoutId || u.scout_id === selectedScoutId);
 
-	// In AI select mode with results, show only the AI-selected units
-	$: displayedUnits = $feedStore.aiSelectMode && $feedStore.aiSelectedUnitIds.length > 0
-		? filteredUnits.filter(u => $feedStore.aiSelectedUnitIds.includes(u.unit_id))
-		: filteredUnits;
-
-	// Location display name for AI select panel
-	$: selectedLocationName = selectedLocationKey ? parseLocationKey(selectedLocationKey).displayName : null;
+	$: displayedUnits = filteredUnits;
 
 	// Has any filter been applied
 	$: hasFilters = !!(selectedLocationKey || selectedTopic || searchQuery);
@@ -394,64 +384,6 @@
 		markExportedUnitsUsed();
 	}
 
-	// --- AI Select ---
-
-	function isWithinDateWindow(dateStr: string, windowDays: number): boolean {
-		const date = new Date(dateStr);
-		if (isNaN(date.getTime())) return true; // unparseable → keep
-		const now = new Date();
-		const diffMs = date.getTime() - now.getTime();
-		const diffDays = diffMs / (1000 * 60 * 60 * 24);
-		return diffDays >= -windowDays && diffDays <= windowDays;
-	}
-
-	async function handleAISelectRun(event: CustomEvent<{ prompt: string }>) {
-		const { prompt } = event.detail;
-		showAIPrompt = false;
-		feedStore.enterAISelectMode();
-		feedStore.setAISelectLoading(true);
-
-		// Date pre-filter: if using the date prompt, exclude units
-		// whose date is set but falls outside ±2 days
-		const isDateMode = prompt.startsWith(m.export_aiSelectDefaultPrompt());
-		const eligibleUnits = isDateMode
-			? filteredUnits.filter(u => !u.date || isWithinDateWindow(u.date, 2))
-			: filteredUnits;
-
-		const unitsForSelection = eligibleUnits.map(u => ({
-			unit_id: u.unit_id,
-			statement: u.statement,
-			entities: u.entities,
-			source_title: u.source_title,
-			created_at: u.created_at,
-			date: u.date ?? null,
-			unit_type: u.unit_type,
-			scout_type: u.scout_type,
-		}));
-
-		try {
-			const result = await apiClient.autoSelectUnits({
-				units: unitsForSelection,
-				prompt,
-				location: selectedLocationKey || null,
-				topic: selectedTopic || null,
-			});
-
-			feedStore.setAISelectedUnitIds(result.selected_unit_ids);
-			feedStore.setAISelectionSummary(result.selection_summary);
-		} catch (err) {
-			console.error('AI select failed, using fallback:', err);
-			feedStore.setAISelectedUnitIds(unitsForSelection.slice(0, 10).map(u => u.unit_id));
-			feedStore.setAISelectionSummary(m.export_aiSelectFallback());
-		} finally {
-			feedStore.setAISelectLoading(false);
-		}
-	}
-
-	function handleClearAISelect() {
-		showAIPrompt = false;
-		feedStore.exitAISelectMode();
-	}
 </script>
 
 <div class="feed-workspace">
@@ -488,23 +420,7 @@
 		{/if}
 
 		<svelte:fragment slot="toolbar">
-			{#if $feedStore.aiSelectLoading}
-				<!-- State: AI loading -->
-				<span class="count-label">{m.feed_availableCount({ count: filteredUnits.length })}</span>
-				<Spinner size="sm" />
-				<span class="count-label">{m.export_aiSelectRunning()}</span>
-
-			{:else if $feedStore.aiSelectMode && $feedStore.aiSelectedUnitIds.length > 0}
-				<!-- State: AI results -->
-				<span class="count-label">{m.export_aiSelectResultCount({ count: $feedStore.aiSelectedUnitIds.length })}</span>
-				<button class="select-toggle" on:click={handleClearAISelect}>{m.export_aiSelectClear()}</button>
-				<button class="btn-primary" on:click={handleGenerate} disabled={$feedStore.selectedUnitIds.size === 0}>
-					<FileText size={12} />
-					{m.export_dropdown()} ({$feedStore.selectedUnitIds.size})
-				</button>
-
-			{:else if filteredUnits.length > 0}
-				<!-- State: Default / Manual select -->
+			{#if filteredUnits.length > 0}
 				<span class="count-label">
 					{searchQuery
 						? m.feed_availableForQuery({ count: filteredUnits.length, query: searchQuery })
@@ -519,33 +435,12 @@
 				<button class="select-toggle" on:click={handleToggleSelectAll}>
 					{$feedStore.selectedUnitIds.size === filteredUnits.length ? m.feed_deselectAll() : m.feed_selectAll()}
 				</button>
-				<div style="position: relative;">
-					{#if $feedStore.selectedUnitIds.size > 0}
-						<button class="btn-primary" on:click={handleGenerate}>
-							<FileText size={12} />
-							{m.export_dropdown()} ({$feedStore.selectedUnitIds.size})
-						</button>
-					{:else}
-						<button class="btn-primary" data-tour="ai-select" on:click={() => showAIPrompt = !showAIPrompt}>
-							<Sparkles size={12} />
-							{m.export_aiSelect()}
-							{#if showAIPrompt}
-								<ChevronUp size={10} />
-							{:else}
-								<ChevronDown size={10} />
-							{/if}
-						</button>
-					{/if}
-					{#if showAIPrompt}
-						<AISelectPanel
-							location={selectedLocationName}
-							topic={selectedTopic}
-							loading={$feedStore.aiSelectLoading}
-							on:run={handleAISelectRun}
-							on:close={() => showAIPrompt = false}
-						/>
-					{/if}
-				</div>
+				{#if $feedStore.selectedUnitIds.size > 0}
+					<button class="btn-primary" on:click={handleGenerate}>
+						<FileText size={12} />
+						{m.export_dropdown()} ({$feedStore.selectedUnitIds.size})
+					</button>
+				{/if}
 			{/if}
 		</svelte:fragment>
 	</FilterBar>
@@ -570,7 +465,6 @@
 		units={displayedUnits}
 		selectedUnitIds={$feedStore.selectedUnitIds}
 		loading={loadingLocations || loadingUnits}
-		dimmed={$feedStore.aiSelectLoading}
 		showDemoBadge={$isTourActive}
 		{hasFilters}
 		{hasUnfilteredUnits}

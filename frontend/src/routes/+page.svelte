@@ -654,7 +654,6 @@
 	}
 
 	.credits-pill {
-		display: inline-flex;
 		align-items: baseline;
 		gap: 0.375rem;
 		height: 32px;
@@ -867,7 +866,9 @@
 	.section-heading {
 		display: flex;
 		align-items: baseline;
-		justify-content: space-between;
+		justify-content: flex-start;
+		gap: 0.75rem;
+		margin-left: 15px;
 		margin-bottom: 0.875rem;
 	}
 

@@ -12,6 +12,7 @@ function usage(): void {
       "  verify <id> [--notes <text>] [--by <name>]",
       "  reject <id> [--notes <text>]",
       "  mark-used <id> [--url <published-url>]",
+      "  delete <id>",
       "  search --query \"<text>\" [--project <id>] [--limit N]",
     ].join("\n"),
   );
@@ -150,6 +151,16 @@ export async function run(argv: string[]): Promise<void> {
         body: JSON.stringify(body),
       });
       printJSON(res);
+      return;
+    }
+    case "delete": {
+      const id = positional[0];
+      if (!id) {
+        console.error("Usage: cojo units delete <id>");
+        Deno.exit(1);
+      }
+      await apiFetch(`/functions/v1/units/${id}`, { method: "DELETE" });
+      console.log(`Deleted unit ${id}`);
       return;
     }
     case "search": {

@@ -9,7 +9,7 @@ import { ApiError } from "./errors.ts";
 
 const FIRECRAWL_BASE = "https://api.firecrawl.dev/v2";
 
-function apiKey(): string {
+function firecrawlApiKey(): string {
   const k = Deno.env.get("FIRECRAWL_API_KEY");
   if (!k) throw new ApiError("FIRECRAWL_API_KEY not configured", 500);
   return k;
@@ -65,7 +65,7 @@ export async function firecrawlScrape(
     res = await fetch(`${FIRECRAWL_BASE}/scrape`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey()}`,
+        "Authorization": `Bearer ${firecrawlApiKey()}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -122,7 +122,7 @@ export async function firecrawlSearch(
   const res = await fetch(`${FIRECRAWL_BASE}/search`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey()}`,
+      "Authorization": `Bearer ${firecrawlApiKey()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -159,7 +159,7 @@ export async function firecrawlMap(
   const res = await fetch(`${FIRECRAWL_BASE}/map`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey()}`,
+      "Authorization": `Bearer ${firecrawlApiKey()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -247,7 +247,7 @@ export async function firecrawlChangeTrackingScrape(
   const res = await fetch(`${FIRECRAWL_BASE}/scrape`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey()}`,
+      "Authorization": `Bearer ${firecrawlApiKey()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

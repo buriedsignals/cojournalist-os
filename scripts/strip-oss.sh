@@ -73,6 +73,7 @@ rm -f docs/architecture/license-key-infrastructure.md
 rm -f docs/architecture/aws-architecture.md
 rm -f docs/architecture/records-and-deduplication.md
 rm -f docs/v2-migration-runbook.md
+rm -f DESIGN.md
 rm -rf .firecrawl/
 
 # -------------------------------------------------------------------

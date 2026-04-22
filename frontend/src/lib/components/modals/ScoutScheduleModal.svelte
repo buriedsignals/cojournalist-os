@@ -317,7 +317,7 @@
 	>
 		<!-- Modal Card -->
 		<div
-			class="relative w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto"
+			class="relative w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl border border-[var(--color-border)] max-h-[90vh] overflow-y-auto"
 			on:click|stopPropagation
 			on:keydown|stopPropagation
 			role="dialog"
@@ -325,24 +325,24 @@
 			tabindex="-1"
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between p-5 border-b border-gray-200">
+			<div class="flex items-center justify-between p-5 border-b border-[var(--color-border)]">
 				<div class="flex items-center gap-3">
 					<div
-						class="flex h-10 w-10 items-center justify-center rounded-lg {info.color === 'purple' ? 'bg-purple-100' : ''} {info.color === 'blue' ? 'bg-blue-100' : ''} {info.color === 'pink' ? 'bg-pink-100' : ''} {info.color === 'green' ? 'bg-green-100' : ''}"
+						class="flex h-10 w-10 items-center justify-center rounded-lg {info.color === 'purple' ? 'bg-[var(--color-primary-soft)]' : ''} {info.color === 'blue' ? 'bg-[var(--color-primary-soft)]' : ''} {info.color === 'pink' ? 'bg-pink-100' : ''} {info.color === 'green' ? 'bg-green-100' : ''}"
 					>
 						<svelte:component
 							this={info.icon}
-							class="h-5 w-5 {info.color === 'purple' ? 'text-purple-600' : ''} {info.color === 'blue' ? 'text-blue-600' : ''} {info.color === 'pink' ? 'text-pink-600' : ''} {info.color === 'green' ? 'text-green-600' : ''}"
+							class="h-5 w-5 {info.color === 'purple' ? 'text-[var(--color-primary)]' : ''} {info.color === 'blue' ? 'text-[var(--color-primary)]' : ''} {info.color === 'pink' ? 'text-pink-600' : ''} {info.color === 'green' ? 'text-green-600' : ''}"
 						/>
 					</div>
 					<div>
-						<h2 class="text-lg font-semibold text-gray-900">{scoutType === 'web' ? m.scheduleSearch_titlePageScout() : scoutType === 'social' ? m.scheduleSearch_titleSocialScout() : scoutType === 'civic' ? m.scheduleSearch_titleCivicScout() : m.scheduleSearch_title()}</h2>
-						<p class="text-xs text-gray-600">{info.description}</p>
+						<h2 class="text-lg font-semibold text-[var(--color-ink)]">{scoutType === 'web' ? m.scheduleSearch_titlePageScout() : scoutType === 'social' ? m.scheduleSearch_titleSocialScout() : scoutType === 'civic' ? m.scheduleSearch_titleCivicScout() : m.scheduleSearch_title()}</h2>
+						<p class="text-xs text-[var(--color-ink-muted)]">{info.description}</p>
 					</div>
 				</div>
 				<button
 					on:click={handleClose}
-					class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+					class="rounded-lg p-1.5 text-[var(--color-ink-subtle)] hover:bg-[var(--color-surface)] hover:text-[var(--color-ink-muted)] transition-colors"
 					aria-label="Close modal"
 				>
 					<X class="h-5 w-5" />
@@ -356,9 +356,9 @@
 						<div class="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
 							<CheckCircle class="h-8 w-8 text-green-600" />
 						</div>
-						<h3 class="text-xl font-semibold text-gray-900 mb-2">{m.scheduleSearch_scoutScheduled()}</h3>
-						<p class="text-gray-600 mb-1">{scoutName}</p>
-						<p class="text-sm text-gray-500">{getScheduleSummary()}</p>
+						<h3 class="text-xl font-semibold text-[var(--color-ink)] mb-2">{m.scheduleSearch_scoutScheduled()}</h3>
+						<p class="text-[var(--color-ink-muted)] mb-1">{scoutName}</p>
+						<p class="text-sm text-[var(--color-ink-subtle)]">{getScheduleSummary()}</p>
 					</div>
 
 					<button
@@ -372,82 +372,82 @@
 				<!-- Form -->
 				<form on:submit={handleSubmit} class="p-6 space-y-5">
 					<!-- Context Display -->
-					<div class="rounded-lg bg-gray-100 p-4 space-y-2">
+					<div class="rounded-lg bg-[var(--color-surface)] p-4 space-y-2">
 						{#if scoutType === 'web' && url}
 							<div class="flex items-center gap-2 text-sm">
-								<Globe class="h-4 w-4 text-gray-500" />
-								<span class="font-medium text-gray-700">URL:</span>
-								<span class="text-gray-600 truncate">{url}</span>
+								<Globe class="h-4 w-4 text-[var(--color-ink-subtle)]" />
+								<span class="font-medium text-[var(--color-ink)]">URL:</span>
+								<span class="text-[var(--color-ink-muted)] truncate">{url}</span>
 							</div>
 						{/if}
 
 						{#if scoutType === 'web' && webCriteria}
 							<div class="flex items-start gap-2 text-sm">
-								<Filter class="h-4 w-4 text-gray-500 mt-0.5" />
-								<span class="font-medium text-gray-700">{m.scheduleSearch_criteriaLabel()}</span>
-								<span class="text-gray-600 italic">{webCriteria}</span>
+								<Filter class="h-4 w-4 text-[var(--color-ink-subtle)] mt-0.5" />
+								<span class="font-medium text-[var(--color-ink)]">{m.scheduleSearch_criteriaLabel()}</span>
+								<span class="text-[var(--color-ink-muted)] italic">{webCriteria}</span>
 							</div>
 						{/if}
 
 						{#if location && scoutType === 'pulse'}
 							<div class="flex items-center gap-2 text-sm">
-								<MapPin class="h-4 w-4 text-gray-500" />
-								<span class="font-medium text-gray-700">{m.scheduleSearch_locationLabel()}</span>
-								<span class="text-gray-600">{location.displayName}</span>
+								<MapPin class="h-4 w-4 text-[var(--color-ink-subtle)]" />
+								<span class="font-medium text-[var(--color-ink)]">{m.scheduleSearch_locationLabel()}</span>
+								<span class="text-[var(--color-ink-muted)]">{location.displayName}</span>
 							</div>
 						{/if}
 
 						{#if criteria && scoutType === 'pulse'}
 							<div class="flex items-center gap-2 text-sm">
-								<Tag class="h-4 w-4 text-gray-500" />
-								<span class="font-medium text-gray-700">{m.scheduleSearch_searchLabel()}</span>
-								<span class="text-gray-600">{criteria}</span>
+								<Tag class="h-4 w-4 text-[var(--color-ink-subtle)]" />
+								<span class="font-medium text-[var(--color-ink)]">{m.scheduleSearch_searchLabel()}</span>
+								<span class="text-[var(--color-ink-muted)]">{criteria}</span>
 							</div>
 						{/if}
 
 						{#if excludedDomains.length > 0 && scoutType === 'pulse'}
-							<div class="flex items-start gap-2 text-sm mt-2 pt-2 border-t border-gray-200">
-								<Ban class="h-4 w-4 text-gray-500 mt-0.5" />
-								<span class="font-medium text-gray-700">{m.pulse_excludedDomains()}:</span>
-								<span class="text-gray-600">{excludedDomains.join(', ')}</span>
+							<div class="flex items-start gap-2 text-sm mt-2 pt-2 border-t border-[var(--color-border)]">
+								<Ban class="h-4 w-4 text-[var(--color-ink-subtle)] mt-0.5" />
+								<span class="font-medium text-[var(--color-ink)]">{m.pulse_excludedDomains()}:</span>
+								<span class="text-[var(--color-ink-muted)]">{excludedDomains.join(', ')}</span>
 							</div>
 						{/if}
 
 						{#if prioritySources.length > 0 && scoutType === 'pulse'}
-							<div class="flex items-start gap-2 text-sm mt-2 pt-2 border-t border-gray-200">
-								<Star class="h-4 w-4 text-gray-500 mt-0.5" />
-								<span class="font-medium text-gray-700">{m.pulse_prioritySources()}:</span>
-								<span class="text-gray-600">{prioritySources.join(', ')}</span>
+							<div class="flex items-start gap-2 text-sm mt-2 pt-2 border-t border-[var(--color-border)]">
+								<Star class="h-4 w-4 text-[var(--color-ink-subtle)] mt-0.5" />
+								<span class="font-medium text-[var(--color-ink)]">{m.pulse_prioritySources()}:</span>
+								<span class="text-[var(--color-ink-muted)]">{prioritySources.join(', ')}</span>
 							</div>
 						{/if}
 
 						{#if scoutType === 'social' && profile_handle}
 							<div class="flex items-center gap-2 text-sm">
-								<Users class="h-4 w-4 text-gray-500" />
-								<span class="font-medium text-gray-700">{m.socialScout_handleLabel()}:</span>
-								<span class="text-gray-600">@{profile_handle} ({platform})</span>
+								<Users class="h-4 w-4 text-[var(--color-ink-subtle)]" />
+								<span class="font-medium text-[var(--color-ink)]">{m.socialScout_handleLabel()}:</span>
+								<span class="text-[var(--color-ink-muted)]">@{profile_handle} ({platform})</span>
 							</div>
 						{/if}
 
 						{#if scoutType === 'civic' && root_domain}
 							<div class="flex items-center gap-2 text-sm">
-								<Globe class="h-4 w-4 text-gray-500" />
-								<span class="font-medium text-gray-700">{m.civic_monitorTitle()}:</span>
-								<span class="text-gray-600">{root_domain}</span>
+								<Globe class="h-4 w-4 text-[var(--color-ink-subtle)]" />
+								<span class="font-medium text-[var(--color-ink)]">{m.civic_monitorTitle()}:</span>
+								<span class="text-[var(--color-ink-muted)]">{root_domain}</span>
 							</div>
 						{/if}
 						{#if scoutType === 'civic' && tracked_urls.length > 0}
 							<div class="flex items-start gap-2 text-sm">
-								<ScanSearch class="h-4 w-4 text-gray-500 mt-0.5" />
-								<span class="font-medium text-gray-700">{m.civic_selectUrls()}:</span>
-								<span class="text-gray-600">{tracked_urls.length} URLs</span>
+								<ScanSearch class="h-4 w-4 text-[var(--color-ink-subtle)] mt-0.5" />
+								<span class="font-medium text-[var(--color-ink)]">{m.civic_selectUrls()}:</span>
+								<span class="text-[var(--color-ink-muted)]">{tracked_urls.length} URLs</span>
 							</div>
 						{/if}
 					</div>
 
 					<!-- Email disclaimer for web scouts (near context) -->
 					{#if scoutType === 'web'}
-						<div class="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">
+						<div class="flex items-center gap-2 rounded-lg bg-[var(--color-secondary-soft)] border border-[var(--color-primary-soft)] px-3 py-2 text-xs text-[var(--color-primary-deep)]">
 							<Mail size={14} />
 							<span>{webCriteria ? m.schedule_emailDisclaimer_webCriteria() : m.schedule_emailDisclaimer_webAny()}</span>
 						</div>
@@ -456,7 +456,7 @@
 					<!-- Scope (web + civic) -->
 					{#if scoutType === 'web' || scoutType === 'civic'}
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-1">{m.filter_locationLabel()}</label>
+							<label class="block text-sm font-medium text-[var(--color-ink)] mb-1">{m.filter_locationLabel()}</label>
 							<LocationAutocomplete
 								selectedLocation={selectedLocation}
 								on:select={handleLocationSelect}
@@ -467,7 +467,7 @@
 
 					<!-- Category (all scout types) -->
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">{m.schedule_categoryLabel()}</label>
+						<label class="block text-sm font-medium text-[var(--color-ink)] mb-1">{m.schedule_categoryLabel()}</label>
 						<TopicChips
 							bind:topic={topicInput}
 							{existingTopics}
@@ -478,7 +478,7 @@
 					<!-- Scout Name (hidden for web scouts — already set in PageScoutView) -->
 					{#if scoutType !== 'web'}
 						<div>
-							<label for="scout-name" class="block text-sm font-medium text-gray-700 mb-1.5">
+							<label for="scout-name" class="block text-sm font-medium text-[var(--color-ink)] mb-1.5">
 								{m.scout_name()} <span class="text-red-500">*</span>
 							</label>
 							<input
@@ -490,7 +490,7 @@
 								required
 								class="form-input w-full text-sm"
 							/>
-							<p class="mt-1 text-xs text-gray-500 flex justify-between">
+							<p class="mt-1 text-xs text-[var(--color-ink-subtle)] flex justify-between">
 								<span>{m.scout_nameHint()}</span>
 								<span class={scoutName.length > 25 ? 'text-amber-600' : ''}>{scoutName.length}/30</span>
 							</p>
@@ -500,11 +500,11 @@
 					<!-- Frequency Selector -->
 					<div>
 						<div class="flex items-center justify-between mb-1.5">
-							<label for="regularity" class="text-sm font-medium text-gray-700">
+							<label for="regularity" class="text-sm font-medium text-[var(--color-ink)]">
 								{m.scheduleSearch_monitoringFrequency()}
 							</label>
 							{#if import.meta.env.PUBLIC_DEPLOYMENT_TARGET !== 'supabase'}
-							<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-200">
+							<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-[var(--color-secondary-soft)] text-[var(--color-primary-deep)] text-xs font-medium border border-[var(--color-primary-soft)]">
 								{monthlyCost === 1 ? m.scout_monthlyCost({ count: monthlyCost }) : m.scout_monthlyCostPlural({ count: monthlyCost })}
 							</span>
 						{/if}
@@ -529,7 +529,7 @@
 					<!-- Day Selection (Conditional) -->
 					{#if regularity === 'weekly'}
 						<div>
-							<label for="day-of-week" class="block text-sm font-medium text-gray-700 mb-1.5">
+							<label for="day-of-week" class="block text-sm font-medium text-[var(--color-ink)] mb-1.5">
 								{m.schedule_dayOfWeek()}
 							</label>
 							<select
@@ -544,7 +544,7 @@
 						</div>
 					{:else if regularity === 'monthly'}
 						<div>
-							<label for="day-of-month" class="block text-sm font-medium text-gray-700 mb-1.5">
+							<label for="day-of-month" class="block text-sm font-medium text-[var(--color-ink)] mb-1.5">
 								{m.schedule_dayOfMonth()}
 							</label>
 							<input
@@ -555,7 +555,7 @@
 								max="31"
 								class="form-input w-full text-sm"
 							/>
-							<p class="mt-1 text-xs text-gray-500">{m.schedule_dayOfMonthHint()}</p>
+							<p class="mt-1 text-xs text-[var(--color-ink-subtle)]">{m.schedule_dayOfMonthHint()}</p>
 						</div>
 					{/if}
 
@@ -576,13 +576,13 @@
 
 					<!-- Email disclaimer (pulse/social — web shown above context) -->
 					{#if scoutType === 'pulse'}
-						<div class="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">
+						<div class="flex items-center gap-2 rounded-lg bg-[var(--color-secondary-soft)] border border-[var(--color-primary-soft)] px-3 py-2 text-xs text-[var(--color-primary-deep)]">
 							<Mail size={14} />
 							<span>{m.schedule_emailDisclaimer_pulse()}</span>
 						</div>
 					{/if}
 					{#if scoutType === 'social'}
-						<div class="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">
+						<div class="flex items-center gap-2 rounded-lg bg-[var(--color-secondary-soft)] border border-[var(--color-primary-soft)] px-3 py-2 text-xs text-[var(--color-primary-deep)]">
 							<Mail size={14} />
 							<span>{m.schedule_emailDisclaimer_social()}</span>
 						</div>

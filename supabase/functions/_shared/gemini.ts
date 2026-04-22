@@ -10,7 +10,7 @@ const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const EMBED_MODEL = "models/gemini-embedding-2-preview";
 const EMBED_DIM = 1536;
 
-function apiKey(): string {
+function geminiApiKey(): string {
   const k = Deno.env.get("GEMINI_API_KEY");
   if (!k) throw new ApiError("GEMINI_API_KEY not configured", 500);
   return k;
@@ -28,7 +28,7 @@ export async function geminiEmbed(
   taskType: GeminiTaskType = "SEMANTIC_SIMILARITY",
 ): Promise<number[]> {
   const res = await fetch(
-    `${GEMINI_BASE}/${EMBED_MODEL}:embedContent?key=${apiKey()}`,
+    `${GEMINI_BASE}/${EMBED_MODEL}:embedContent?key=${geminiApiKey()}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -78,7 +78,7 @@ export async function geminiExtract<T>(
     };
   }
   const res = await fetch(
-    `${GEMINI_BASE}/models/${modelId}:generateContent?key=${apiKey()}`,
+    `${GEMINI_BASE}/models/${modelId}:generateContent?key=${geminiApiKey()}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -39,12 +39,6 @@ interface FeedState {
 
 	// Frozen copy of units used for current export (for regeneration context)
 	unitsUsedForExport: InformationUnit[];
-
-	// AI select mode
-	aiSelectMode: boolean;
-	aiSelectedUnitIds: string[];
-	aiSelectionSummary: string;
-	aiSelectLoading: boolean;
 }
 
 const initialState: FeedState = {
@@ -54,11 +48,7 @@ const initialState: FeedState = {
 	generatedExport: null,
 	isGenerating: false,
 	generationError: null,
-	unitsUsedForExport: [],
-	aiSelectMode: false,
-	aiSelectedUnitIds: [],
-	aiSelectionSummary: '',
-	aiSelectLoading: false
+	unitsUsedForExport: []
 };
 
 function createFeedStore() {
@@ -144,39 +134,6 @@ function createFeedStore() {
 
 		setUnitsUsedForExport(units: InformationUnit[]) {
 			update((state) => ({ ...state, unitsUsedForExport: [...units] }));
-		},
-
-		// --- AI select mode ---
-
-		enterAISelectMode() {
-			update((state) => ({ ...state, aiSelectMode: true }));
-		},
-
-		exitAISelectMode() {
-			update((state) => ({
-				...state,
-				aiSelectMode: false,
-				aiSelectedUnitIds: [],
-				aiSelectionSummary: '',
-				aiSelectLoading: false,
-				selectedUnitIds: new Set()
-			}));
-		},
-
-		setAISelectedUnitIds(ids: string[]) {
-			update((state) => ({
-				...state,
-				aiSelectedUnitIds: ids,
-				selectedUnitIds: new Set(ids)
-			}));
-		},
-
-		setAISelectionSummary(summary: string) {
-			update((state) => ({ ...state, aiSelectionSummary: summary }));
-		},
-
-		setAISelectLoading(loading: boolean) {
-			update((state) => ({ ...state, aiSelectLoading: loading }));
 		},
 
 		// --- Testability ---

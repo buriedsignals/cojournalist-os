@@ -35,6 +35,7 @@ Zero-padded sequential. Never edit a shipped migration — add a new one.
 | 00029 | `civic_queue_scout_run_id.sql` | Adds `scout_run_id` to `civic_extraction_queue` + `apify_run_queue`; refreshes `claim_civic_queue_item` RPC to return it. Enables async workers to flip `scout_runs.notification_sent`. |
 | 00030 | `units_hybrid_search.sql` | Hybrid keyword + vector search RPC for information_units / inbox. |
 | 00031 | `promises_due_date_confidence.sql` | Adds `due_date` + `date_confidence` columns (+ index) to `promises`, previously computed by the extractor but dropped by the DB. Adds `append_processed_pdf_url_capped(scout_id, url, cap)` so the civic-extract-worker marks `scouts.processed_pdf_urls` only on successful extraction (fixing silent data loss when Firecrawl failed). |
+| 00036 | `api_keys.sql` | `api_keys` table (sha256 hashes, `cj_xxxxxxxx` prefix shown in UI, owner-scoped RLS) + `validate_api_key(p_key text) RETURNS uuid` SECURITY DEFINER RPC that returns the owning `user_id` and stamps `last_used_at`. Backs the `Authorization: Bearer cj_<key>` agent path used by the `units` Edge Function. |
 
 ## Conventions
 

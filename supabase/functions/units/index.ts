@@ -19,8 +19,8 @@
 
 import { z } from "https://esm.sh/zod@3";
 import { handleCors } from "../_shared/cors.ts";
-import { requireUser, AuthedUser } from "../_shared/auth.ts";
-import { getServiceClient, getUserClient } from "../_shared/supabase.ts";
+import { AuthedUser, getCallerClient, requireUserOrApiKey } from "../_shared/auth.ts";
+import { getServiceClient } from "../_shared/supabase.ts";
 import {
   jsonError,
   jsonFromError,
@@ -53,7 +53,7 @@ Deno.serve(async (req): Promise<Response> => {
 
   let user: AuthedUser;
   try {
-    user = await requireUser(req);
+    user = await requireUserOrApiKey(req);
   } catch (e) {
     return jsonFromError(e);
   }
@@ -76,6 +76,9 @@ Deno.serve(async (req): Promise<Response> => {
     }
     if (idMatch && req.method === "PATCH") {
       return await updateUnit(req, user, idMatch[1]);
+    }
+    if (idMatch && req.method === "DELETE") {
+      return await deleteUnit(user, idMatch[1]);
     }
     return jsonError("method not allowed", 405);
   } catch (e) {
@@ -115,12 +118,13 @@ async function listUnits(req: Request, user: AuthedUser): Promise<Response> {
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
 
-  const db = getUserClient(user.token);
+  const { db, needsExplicitScope } = getCallerClient(user);
   let q = db
     .from("information_units")
     .select("*", { count: "exact" })
     .order("extracted_at", { ascending: false });
 
+  if (needsExplicitScope) q = q.eq("user_id", user.id);
   if (projectId) q = q.eq("project_id", projectId);
   if (scoutId) q = q.eq("scout_id", scoutId);
   if (verified !== null) q = q.eq("verified", verified);
@@ -153,10 +157,12 @@ async function searchUnits(req: Request, user: AuthedUser): Promise<Response> {
   const effectiveLimit = limit ?? 20;
 
   // Short-circuit: if the user has no units at all, skip the embedding call.
-  const userDb = getUserClient(user.token);
-  const { count: unitCount, error: countErr } = await userDb
+  const { db: userDb, needsExplicitScope } = getCallerClient(user);
+  let countQ = userDb
     .from("information_units")
     .select("id", { count: "exact", head: true });
+  if (needsExplicitScope) countQ = countQ.eq("user_id", user.id);
+  const { count: unitCount, error: countErr } = await countQ;
   if (countErr) throw new Error(countErr.message);
   if (!unitCount) {
     return jsonOk({ items: [] });
@@ -194,11 +200,12 @@ async function searchUnits(req: Request, user: AuthedUser): Promise<Response> {
   // preserve the similarity score.
   const items = await Promise.all(
     (data ?? []).map(async (row: Record<string, unknown>) => {
-      const { data: full, error: fetchErr } = await userDb
+      let fetchQ = userDb
         .from("information_units")
         .select("*")
-        .eq("id", row.id as string)
-        .maybeSingle();
+        .eq("id", row.id as string);
+      if (needsExplicitScope) fetchQ = fetchQ.eq("user_id", user.id);
+      const { data: full, error: fetchErr } = await fetchQ.maybeSingle();
       if (fetchErr) throw new Error(fetchErr.message);
       if (!full) {
         // Row filtered by RLS (shouldn't happen since the RPC already scoped
@@ -214,12 +221,10 @@ async function searchUnits(req: Request, user: AuthedUser): Promise<Response> {
 }
 
 async function getUnit(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
-  const { data, error } = await db
-    .from("information_units")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const { db, needsExplicitScope } = getCallerClient(user);
+  let q = db.from("information_units").select("*").eq("id", id);
+  if (needsExplicitScope) q = q.eq("user_id", user.id);
+  const { data, error } = await q.maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new NotFoundError("unit");
   return jsonOk(await shapeUnitResponse(db, data));
@@ -254,13 +259,10 @@ async function updateUnit(
     patch.verified_at = null;
   }
 
-  const db = getUserClient(user.token);
-  const { data, error } = await db
-    .from("information_units")
-    .update(patch)
-    .eq("id", id)
-    .select("*")
-    .maybeSingle();
+  const { db, needsExplicitScope } = getCallerClient(user);
+  let updQ = db.from("information_units").update(patch).eq("id", id);
+  if (needsExplicitScope) updQ = updQ.eq("user_id", user.id);
+  const { data, error } = await updQ.select("*").maybeSingle();
 
   if (error) throw new Error(error.message);
   if (!data) throw new NotFoundError("unit");
@@ -273,4 +275,25 @@ async function updateUnit(
     unit_id: id,
   });
   return jsonOk(await shapeUnitResponse(db, data));
+}
+
+async function deleteUnit(user: AuthedUser, id: string): Promise<Response> {
+  const { db, needsExplicitScope } = getCallerClient(user);
+  let q = db.from("information_units").delete({ count: "exact" }).eq("id", id);
+  if (needsExplicitScope) q = q.eq("user_id", user.id);
+  const { error, count } = await q;
+  if (error) throw new Error(error.message);
+  if (!count) throw new NotFoundError("unit");
+
+  logEvent({
+    level: "info",
+    fn: "units",
+    event: "deleted",
+    user_id: user.id,
+    unit_id: id,
+  });
+  return new Response(null, {
+    status: 204,
+    headers: { "Access-Control-Allow-Origin": "*" },
+  });
 }
