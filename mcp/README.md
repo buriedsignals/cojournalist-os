@@ -43,6 +43,26 @@ macOS binaries are codesigned + notarized by Apple. Linux binaries are
 statically linked; verify with the published `.sha256` sibling if you'd
 like.
 
+> **macOS binary not on the latest release?** Apple's notary service has been
+> intermittently stuck. If the `curl` above returns 404 for Darwin, use the
+> from-source block below.
+
+### From source (macOS fallback — no signing required)
+
+Needs [Deno](https://deno.com) v2.x (`brew install deno`).
+
+```bash
+git clone https://github.com/buriedsignals/cojournalist-os.git
+cd cojournalist-os/mcp
+deno task compile-mac-arm        # or compile-mac-x86 on Intel
+sudo mv dist/cojo-mcp-darwin-arm64 /usr/local/bin/cojo-mcp
+sudo chmod +x /usr/local/bin/cojo-mcp
+# Gatekeeper blocks unsigned binaries — strip the quarantine attr:
+sudo xattr -d com.apple.quarantine /usr/local/bin/cojo-mcp
+```
+
+Verify: `cojo-mcp --version`.
+
 ## Configure
 
 Reuse the cojo CLI's config file at `~/.cojournalist/config.json`. If

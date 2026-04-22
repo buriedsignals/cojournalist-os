@@ -170,11 +170,11 @@
 								</div>
 							{:else}
 								<span class="brand-dot"></span>
-								<p class="auth-title">Welcome</p>
-								<p class="auth-subtitle">Sign in</p>
+								<p class="auth-prompt">Sign in</p>
 								<button class="sign-in-button" onclick={() => auth.login()}>
 									Sign in
 								</button>
+								
 								<div class="auth-cta-row">
 									
 									<span class="auth-cta-sep">·</span>
@@ -662,6 +662,33 @@
 		color: var(--color-ink);
 		margin: 0;
 		letter-spacing: -0.01em;
+	}
+
+	
+	.auth-prompt {
+		font-family: var(--font-body);
+		font-size: 1rem;
+		font-weight: 500;
+		color: var(--color-ink);
+		margin: 0;
+		text-align: center;
+		line-height: 1.4;
+	}
+
+	.auth-signup-link {
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--color-ink-muted);
+		text-decoration: none;
+		padding: 0.375rem 0.5rem;
+		transition: color 150ms ease;
+	}
+
+	.auth-signup-link:hover {
+		color: var(--color-primary);
 	}
 
 	.auth-subtitle {

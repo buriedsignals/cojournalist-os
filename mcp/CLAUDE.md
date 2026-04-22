@@ -6,6 +6,25 @@ The hosted HTTP MCP server at
 `${SUPABASE_URL}/functions/v1/mcp-server/` is always the source of truth;
 this bridge is just transport translation.
 
+## ⚠️ Release cost controls — read before you tag
+
+Same pattern + same guardrails as `cli/CLAUDE.md` §"Release cost
+controls". Short version, re-stated so you don't miss it:
+
+- macOS runners bill at **10× Linux**. One stuck `notarytool submit
+  --wait` on 2026-04-22 burned ~1,650 billable minutes.
+- `.github/workflows/mcp-release.yml` keeps `timeout-minutes: 25` on the
+  Notarize step + a 20-min inner poll loop. Don't remove.
+- macOS matrix legs are `continue-on-error: true` + `required: false`.
+  A stuck macOS job does NOT block the Linux release. Don't change.
+- Release job uses `if: always() && …` so Linux publishes even if macOS
+  fails. Don't change.
+- Never switch notarization back to `xcrun notarytool submit --wait` as
+  a single call. Use the split submit + poll pattern.
+- Before tagging, check Apple's Developer System Status — if
+  "Developer ID Notary Service" looks stuck, wait.
+- To cancel a stuck run: `gh run cancel <run-id>`.
+
 ## Architecture
 
 ```

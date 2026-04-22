@@ -70,6 +70,42 @@ traffic stopped routing to them on 2026-04-22; they're idle but billing.
 
 ---
 
+## macOS release binaries — attach when Apple notary recovers
+
+**Status as of 2026-04-22:** Linux binaries for `cojo` and `cojo-mcp`
+ship on every tag via `cli-release.yml` / `mcp-release.yml`. macOS
+binaries are **best-effort** (`continue-on-error: true`,
+`required: false`) because Apple's notary service had an extended
+"stuck In Progress" period during our first releases that burned
+~1,650 billable GitHub Actions minutes before we caught it (macOS
+runners bill at 10× Linux).
+
+**Current release state:** the latest `cli-v*` / `mcp-v*` tag
+publishes Linux binaries immediately. macOS binaries are missing from
+the release page until Apple's notary clears.
+
+**To attach macOS binaries later (once Apple is healthy):**
+
+1. Check https://developer.apple.com/system-status/ — "Developer ID
+   Notary Service" should be green AND recent submissions should be
+   clearing in < 5 min (not the "stuck In Progress" pattern).
+2. From GitHub Actions UI → `CLI Release` or `MCP Bridge Release` →
+   select the tagged run → **Re-run failed jobs**. Only the macOS
+   legs rerun; Linux binaries already in the release remain untouched.
+3. The `release` job reruns too and `files: dist/*` + softprops-
+   action-gh-release upload the new macOS binaries alongside the
+   existing Linux ones. Tag + release URL stay the same.
+
+**Guardrails in place (don't remove — see `cli/CLAUDE.md` § "Release
+cost controls"):**
+- `timeout-minutes: 25` on the Notarize step + 20-min internal poll
+  loop → no more runaway macOS jobs.
+- macOS legs `continue-on-error: true` → they never block Linux.
+- Notarization uses explicit submit + UUID poll (not `--wait`) — see
+  electron/notarize#179.
+
+---
+
 ## Tracked but lower priority
 
 ### #11 — Adapter pattern review

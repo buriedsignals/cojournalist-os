@@ -24,7 +24,11 @@
  *   MUCKROCK_BASE_URL (optional, default https://accounts.muckrock.com)
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto-injected by Supabase)
  *   SESSION_SECRET — HMAC key for stateless OAuth state tokens
- *   PUBLIC_APP_URL — app origin for error redirects (e.g. https://www.cojournalist.ai)
+ *   PUBLIC_APP_URL — app origin. Used for (a) error redirects and (b) the
+ *     MuckRock-registered `redirect_uri`: `${PUBLIC_APP_URL}/api/auth/callback`
+ *     is proxied by Render to this EF's /callback, preserving signed state.
+ *   MUCKROCK_CALLBACK_URL (optional) — override the computed redirect_uri
+ *     if MuckRock is pointed at a non-proxied URL.
  *   APP_POST_LOGIN_REDIRECT — frontend route that parses the hash tokens
  *     (named APP_* not SUPABASE_* because Supabase reserves SUPABASE_* for
  *     its own auto-injected env vars and rejects user-set names there)
@@ -59,8 +63,18 @@ function stripPrefix(pathname: string): string {
 }
 
 function callbackUrl(): string {
-  const base = envOrThrow("SUPABASE_URL").replace(/\/$/, "");
-  return `${base}/functions/v1/auth-muckrock/callback`;
+  // MUST match the redirect_uri registered with MuckRock's OAuth client.
+  // We keep MuckRock pointing at the pre-cutover cojournalist.ai URL
+  // (no OAuth client reconfiguration needed) and proxy that URL on the
+  // Render backend to this EF — see backend/app/routers/muckrock_proxy.py
+  // for the 302 that preserves the signed `state` byte-for-byte.
+  //
+  // If you ever want to switch MuckRock to register the Supabase URL
+  // directly, override MUCKROCK_CALLBACK_URL on the EF.
+  const override = Deno.env.get("MUCKROCK_CALLBACK_URL");
+  if (override) return override;
+  const base = envOrThrow("PUBLIC_APP_URL").replace(/\/$/, "");
+  return `${base}/api/auth/callback`;
 }
 
 function authorizeUrl(state: string): string {

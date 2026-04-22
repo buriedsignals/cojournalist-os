@@ -4,6 +4,42 @@ Shipping product. Users install from GitHub releases and run against prod.
 Breaking changes need a version bump; do not rename flags, subcommands, or
 env vars without thinking about existing installs.
 
+## ⚠️ Release cost controls — read before you tag
+
+GitHub Actions macOS runners bill at **10×** the Linux rate. A stuck
+macOS job eats 10 minutes of quota for every 1 wall-clock minute. One
+runaway `notarytool submit --wait` hang on 2026-04-22 consumed ~1,650
+billable minutes before we caught it.
+
+Guardrails in `.github/workflows/cli-release.yml` that must stay in place:
+
+1. **Notarize step has `timeout-minutes: 25`** (outer backstop) **and an
+   inner 20-minute poll loop**. The tool will exit cleanly at 20 min with
+   `notarization did not finish in 20 minutes (last status: X)` rather
+   than long-polling Apple indefinitely. Don't remove these.
+2. **macOS matrix legs are `continue-on-error: true` + `required: false`**
+   in the matrix `include:` blocks. A stuck macOS job does not block the
+   Linux release. Don't flip these to required without a plan for Apple
+   notary outages.
+3. **Release job uses `if: always() && …`** so the Linux binaries publish
+   even when macOS legs fail or time out. macOS binaries re-attach on a
+   workflow rerun once Apple's queue is healthy.
+4. **Do NOT switch notarization back to `xcrun notarytool submit --wait`
+   (single call).** That's the long-poll pattern that hangs; we split it
+   into submit → explicit UUID polling. See electron/notarize#179 for
+   the canonical write-up.
+
+**Budget check before tagging:** if you're about to burn runner minutes
+on a release and Apple's notary service looks stuck
+(`https://developer.apple.com/system-status/` → "Developer ID Notary
+Service"), wait. A failed macOS arm64 leg + x86 leg together burn
+~400 billable minutes at the 20-min cap.
+
+**Cancelling stuck runs saves money:**
+```bash
+gh run cancel <run-id>
+```
+
 ## Release procedure
 
 1. Ensure `main`/`migration` is clean and tests pass:

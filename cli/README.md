@@ -36,6 +36,32 @@ Verify install:
 cojo --version
 ```
 
+> **macOS binary not on the latest release?** Apple's notary service has been
+> intermittently stuck on our release window. The Linux binaries always
+> publish; the macOS binaries sometimes attach later when Apple unsticks.
+> If the `curl` command above returns a 404, use the "From source" block
+> below until a macOS binary appears on the release page.
+
+### From source (macOS fallback — no signing required)
+
+Needs [Deno](https://deno.com) v2.x installed (`brew install deno`).
+
+```bash
+git clone https://github.com/buriedsignals/cojournalist-os.git
+cd cojournalist-os/cli
+deno task compile-mac-arm        # or compile-mac-x86 on Intel
+sudo mv dist/cojo-darwin-arm64 /usr/local/bin/cojo
+sudo chmod +x /usr/local/bin/cojo
+# Gatekeeper will block unsigned binaries — strip the quarantine attr:
+sudo xattr -d com.apple.quarantine /usr/local/bin/cojo
+```
+
+Verify:
+
+```bash
+cojo --version
+```
+
 ### Verify the checksum (optional)
 
 Each binary ships with a matching `.sha256` file:

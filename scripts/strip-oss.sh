@@ -121,6 +121,10 @@ sed -i 's|href="/pricing"|href="/"|' frontend/src/routes/setup/+page.svelte
 sed -i "s#\$page.url.pathname === '/pricing' || ##" frontend/src/lib/components/ui/MobileBlocker.svelte
 sed -i "s|goto('/pricing');|return; // unlimited in self-hosted|" frontend/src/lib/components/workspace/NewScoutDropdown.svelte
 sed -i "s|https://accounts.muckrock.com/[^']*|#|g" frontend/src/lib/components/modals/PreferencesModal.svelte
+# Login page carries the MuckRock signup link in the OAuth branch (dead
+# code in OSS since PUBLIC_MUCKROCK_ENABLED is never true there, but the
+# URL still appears in the source and fails the OSS mirror grep check).
+sed -i 's|https://accounts.muckrock.com/[^"]*|#|g' frontend/src/routes/login/+page.svelte
 # Remove UpgradeModal and all credit-gating logic (no credits in OSS)
 rm -f frontend/src/lib/components/modals/UpgradeModal.svelte
 
@@ -202,6 +206,13 @@ src = re.sub(r'<label class="muckrock-toggle">.*?</label>', '', src, flags=re.DO
 # Strip the MuckRock preview text comment lines
 src = re.sub(r'<p class="auth-subtitle">Sign in via MuckRock</p>', '<p class="auth-subtitle">Sign in</p>', src)
 src = src.replace("Sign in with MuckRock", "Sign in")
+# Collapse the MuckRock-authenticate prompt + signup link (post-2026-04-22 copy)
+src = re.sub(r'<p class="auth-prompt">Authenticate with MuckRock to continue</p>', '<p class="auth-prompt">Sign in</p>', src)
+src = re.sub(r'<a\s+class="auth-signup-link"[^>]*>.*?</a>', '', src, flags=re.DOTALL)
+# Strip CSS / JS comments that name MuckRock (validator greps the file
+# content case-insensitively, so even a doc-comment inside <style> trips it).
+src = re.sub(r'/\*[^*]*?[Mm]uck[Rr]ock[^/]*?\*/', '', src, flags=re.DOTALL)
+src = re.sub(r'//[^\n]*[Mm]uck[Rr]ock[^\n]*', '', src)
 # Strip muckrock-toggle CSS rules
 src = re.sub(r'\.muckrock-toggle\s*\{[^}]*\}', '', src)
 src = re.sub(r'\.muckrock-toggle\s+input\s*\{[^}]*\}', '', src)
