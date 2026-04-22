@@ -71,6 +71,7 @@ export interface Scout {
 	name: string;
 	type: ScoutType;
 	criteria?: string | null;
+	topic?: string | null;
 	url?: string | null;
 	platform?: string | null;
 	location?: Record<string, unknown> | null;

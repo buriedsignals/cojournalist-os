@@ -17,7 +17,7 @@ coJournalist exposes two paths — use whichever is wired up in the agent you're
 
 Both paths surface the same operations. The table in "Tools available" below gives CLI commands and MCP tool names side-by-side. If both are available, **prefer the CLI** — it's lower-latency and its output appears in the conversation transcript, making your reasoning auditable.
 
-If neither is available, stop and tell the user to install the CLI (`curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-darwin-arm64 | sudo tee /usr/local/bin/cojo > /dev/null && sudo chmod +x /usr/local/bin/cojo` — substitute the right platform suffix) or connect the MCP server at `https://www.cojournalist.ai/mcp`.
+If neither is available, stop and tell the user to install the CLI (`curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-darwin-arm64 | sudo tee /usr/local/bin/cojo > /dev/null && sudo chmod +x /usr/local/bin/cojo` — substitute the right platform suffix) or connect the MCP server at `https://gfmdziplticfoakhrfpt.supabase.co/functions/v1/mcp-server/` (protocol: MCP 2024-11-05, bearer = `cj_…` API key).
 
 ---
 
@@ -41,35 +41,60 @@ Credits are the currency — the journalist has a monthly budget. Always warn th
 
 ## Tools available
 
-Prefer the **primary** operations for day-to-day work. The secondary ones are for specific power-user tasks — don't call them unless the journalist asks or the workflow clearly requires them.
+Every operation has the same behaviour on CLI and MCP — identical inputs, identical results. Pick whichever path is connected to your agent.
 
-### Primary (use these first)
-
-| Operation | CLI | MCP tool |
-|---|---|---|
-| List scouts (id, name, type, schedule, active) | `cojo scouts list` | `list_scouts` |
-| Create a scout (confirm with user first — creates schedule + spends credits) | `cojo scouts add --name "..." --type web --url "..."` (flags depend on type) | `create_scout` |
-| Run a scout on demand (confirm with user first — spends credits) | `cojo scouts run <id>` | `run_scout` |
-| Semantic search over information units | `cojo units search --query "..."` | `search_units` |
-| Export a project's verified units as a Markdown brief | `cojo export claude --project <id>` | `export_project_to_claude` |
-
-### Secondary
+### Scouts
 
 | Operation | CLI | MCP tool |
 |---|---|---|
-| List / create / inspect projects | `cojo projects list`, `cojo projects add`, `cojo projects show <id>` | `list_projects`, `create_project`, `get_project` |
-| Inspect the last N runs of a scout | `cojo scouts runs <id>` (if available in your installed version) | `get_scout_runs` |
-| Change a scout's schedule or criteria | `cojo scouts update <id> --flag ...` | `update_scout` |
-| Full detail of a single unit (incl. `verified_by`) | `cojo units show <id>` | `get_unit` |
-| List entities mentioned by a unit | — | `list_unit_entities` |
-| Find a person / org / place across the KB | — | `search_entities` |
-| Collapse duplicate entities | — | `merge_entities` |
-| Create / list durable editorial notes | — | `create_reflection`, `list_reflections` |
+| List scouts (id, name, type, schedule, is_active) | `cojo scouts list` | `list_scouts` |
+| Create a scout (confirm first — makes a schedule) | `cojo scouts add --name "..." --type web --url "..."` | `create_scout` |
+| Show one scout | `cojo scouts show <id>` | `get_scout` |
+| Update a scout (name, criteria, cron, active) | `cojo scouts update <id> --criteria "..."` | `update_scout` |
+| Run a scout on demand (confirm first — spends credits) | `cojo scouts run <id>` | `run_scout` |
+| Pause a scout | `cojo scouts pause <id>` | `pause_scout` |
+| Resume a paused scout | `cojo scouts resume <id>` | `resume_scout` |
+| Delete a scout | `cojo scouts delete <id>` | `delete_scout` |
+
+### Information units + editorial verification
+
+The verification loop is the whole point of the product: each scout run drops atomic facts (information units) into an editorial inbox. Journalists accept, reject, or publish them. You must not cite a unit that hasn't been verified.
+
+| Operation | CLI | MCP tool |
+|---|---|---|
+| List all units | `cojo units list` | `list_units` |
+| **List needs-review inbox** (verified=false) | `cojo units list --verified false` | `list_units {verified:false}` |
+| Show one unit | `cojo units show <id>` | `get_unit` |
+| Semantic search | `cojo units search --query "..."` | `search_units` |
+| **Verify a unit** (accept for editorial use) | `cojo units verify <id> --notes "..." --by "..."` | `verify_unit` |
+| **Reject a unit** (with reason) | `cojo units reject <id> --notes "..."` | `reject_unit` |
+| **Mark unit used in a published article** | `cojo units mark-used <id> --url "..."` | `mark_unit_used` |
+| Delete a unit | `cojo units delete <id>` | `delete_unit` |
+
+Editorial workflow the journalist expects:
+
+1. Morning: `list_units {verified:false}` to see what new facts are waiting.
+2. For each lead: `get_unit <id>` → read statement + source URL; talk to sources / corroborate.
+3. If it's solid: `verify_unit {id, verified_by, verification_notes}`.
+4. If not: `reject_unit {id, verification_notes}` with a one-line reason so you remember next time.
+5. After publishing: `mark_unit_used {id, used_in_url, used_at}` so the unit leaves the inbox.
+
+### Projects, ingest, export, reflections, entities
+
+| Operation | CLI | MCP tool |
+|---|---|---|
+| List / create / show / delete projects | `cojo projects list / add / show / delete` | `list_projects`, `create_project`, `get_project`, `update_project`, `delete_project` |
 | Ingest a URL or pasted text one-shot | `cojo ingest url <url>` / `cojo ingest text` | `ingest_content` |
+| Export a project's verified, unused units as a markdown brief | `cojo export claude --project <id>` | `export_project_to_claude` |
+| List reflections (durable editorial notes) | — | `list_reflections` |
+| Write a reflection tied to units / scouts / entities | — | `create_reflection` |
+| Semantic search over reflections | — | `search_reflections` |
+| Find an entity (person, org, place, policy) | — | `search_entities` |
+| Collapse duplicate entities | — | `merge_entities` |
 
-Operations marked `—` for CLI exist only through MCP today; if you need them and you're on the CLI path, tell the user to use the MCP connector for that specific task, or to wait for a future CLI release.
+Operations marked `—` for CLI are only on MCP today.
 
-If you're using the CLI, run `cojo --help` once to see what's actually installed on the journalist's machine — capabilities may have grown or shrunk since this document was written.
+If you're using the CLI, run `cojo --help` once to see what's actually installed on the journalist's machine — and `cojo --version` to check the release.
 
 ---
 
@@ -118,7 +143,7 @@ If you're using the CLI, run `cojo --help` once to see what's actually installed
 - **429 / rate limited** — wait and retry once. If it happens twice, tell the user rather than looping.
 - **5xx / server error** — report clearly. Do not retry automatically. Suggest the user check `https://status.cojournalist.ai` if they mention this is persistent.
 - **CLI `command not found: cojo`** — it isn't installed on this machine. Give the install one-liner from "How you're connected" above.
-- **CLI `api_url not set`** — first-time config. `cojo config set api_url=https://www.cojournalist.ai/api` (pre-cutover) or `cojo config set api_url=https://gfmdziplticfoakhrfpt.supabase.co/functions/v1` (post-cutover). The CLI auto-adjusts paths between the two.
+- **CLI `api_url not set`** — first-time config. Run `cojo config set api_url=https://gfmdziplticfoakhrfpt.supabase.co` and `cojo config set supabase_anon_key=<public anon key>`. The CLI builds the `/functions/v1/...` paths itself. On Supabase, both `Authorization: Bearer cj_…` and the `apikey: <anon>` header are required — the CLI sends both automatically when `supabase_anon_key` is set.
 
 ---
 

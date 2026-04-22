@@ -24,7 +24,7 @@ function printUsage(): void {
     "Commands:",
     "  config     Manage ~/.cojournalist/config.json (api_url, auth_token)",
     "  projects   List, add, show, delete projects",
-    "  scouts     List, add, run, pause, resume, delete scouts",
+    "  scouts     List, add, show, update, run, pause, resume, delete scouts",
     "  units      List, show, verify, reject, mark-used, search information units",
     "  ingest     Ingest a URL or raw text into the knowledge base",
     "  export     Export a project (e.g. export claude → markdown for LLM)",

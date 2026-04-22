@@ -27,16 +27,10 @@ from starlette.types import Scope
 
 from app.config import settings
 from app.routers import (
-    scraper,
     onboarding,
-    data_extractor,
     user,
-    scouts,
     units,
     export,
-    pulse,
-    social,
-    civic,
     license,
     v1,
 )
@@ -199,23 +193,30 @@ async def normalize_api_prefix(request: Request, call_next):
     return await call_next(request)
 
 
+# The FastAPI /api/auth/* surface is gone; /api/auth/has-users below and the
+# MuckRock compatibility proxy (webhook POST + OAuth callback GET) are all
+# that remain. The proxy lets us keep MuckRock's registered pre-cutover URLs
+# alive while the real handlers live in Supabase Edge Functions.
+from app.routers import muckrock_proxy
+app.include_router(
+    muckrock_proxy.router,
+    prefix="/api/auth",
+    tags=["Auth (MuckRock proxy)"],
+    include_in_schema=False,
+)
 app.include_router(onboarding.router, prefix="/api/onboarding", tags=["Onboarding"], include_in_schema=False)
-app.include_router(scraper.router, prefix="/api", tags=["Scraper"], include_in_schema=False)
-app.include_router(data_extractor.router, prefix="/api", tags=["Data"], include_in_schema=False)
 app.include_router(user.router, prefix="/api", tags=["User"], include_in_schema=False)
-app.include_router(scouts.router, prefix="/api", tags=["Scouts"], include_in_schema=False)
 app.include_router(units.router, prefix="/api", tags=["Units"], include_in_schema=False)
 app.include_router(export.router, prefix="/api", tags=["Export"], include_in_schema=False)
-app.include_router(pulse.router, prefix="/api", tags=["Pulse"], include_in_schema=False)
-app.include_router(social.router, prefix="/api", tags=["Social"], include_in_schema=False)
-app.include_router(civic.router, prefix="/api", tags=["Civic"], include_in_schema=False)
+# scouts, pulse, social, civic, scraper, data_extractor data routers removed
+# in the Supabase Edge Functions cutover (2026-04-22). All scout
+# scheduling/execution now lives in supabase/functions/. v1.py + units.py
+# remain for the external API + feed surface; feedback stays.
 
-# Admin — SaaS-only (stripped from OSS mirror), gated by require_admin
+# Threat modeling — SaaS-only (stripped from OSS mirror), gated by require_admin.
+# (The admin revenue dashboard moved to supabase/functions/admin-report/ in the
+# post-cutover sweep; its FastAPI router was deleted.)
 if settings.deployment_target != "supabase":
-    from app.routers import admin
-    app.include_router(admin.router, prefix="/api/admin", tags=["Admin"], include_in_schema=False)
-
-    # Threat modeling — SaaS-only (stripped from OSS mirror), gated by require_admin
     from app.routers import threat_modeling
     app.include_router(threat_modeling.router, prefix="/api/threat-modeling", tags=["Threat Modeling"], include_in_schema=False)
 

@@ -4,12 +4,10 @@ How identity flows from MuckRock → Supabase Auth → the `user` Edge Function 
 
 ## Identity
 
-- **Identity provider**: MuckRock OIDC (Custom OIDC provider on Supabase Auth). Designed in `docs/auth-db-migration.md`; cutover executed in the 4-hour Sunday window per `docs/v2-migration-runbook.md`.
+- **Identity provider**: MuckRock OIDC (Custom OIDC provider on Supabase Auth). The cutover ran in the 4-hour Sunday window 2026-04-21; design and preflight gates archived in the closed migration PRs.
 - **User ID**: `auth.users.id` is the **MuckRock user UUID** preserved across the migration. Pre-seeded via `scripts/migrate/main.ts` Phase 0 using `supabase.auth.admin.createUser({ id: muckrock_uuid, email, email_confirm: true, user_metadata: { muckrock_subject, muckrock_username } })`.
 - **Sign-in**: `supabase.auth.signInWithOAuth({ provider: 'muckrock', options: { redirectTo: 'https://cojournalist.ai/auth/callback' } })`. Supabase handles the OIDC dance; issues a JWT with `user_metadata.muckrock_subject`.
 - **Session**: Supabase JS stores the JWT client-side. API calls send `Authorization: Bearer <jwt>` to Edge Functions.
-
-See `docs/auth-db-migration.md` for the full cutover design and preflight gates.
 
 ## Tables
 
@@ -123,7 +121,6 @@ Subsequent scout runs update balance server-side and return it in the 200/402 re
 
 ## See also
 
-- `docs/auth-db-migration.md` — MuckRock OIDC cutover design
 - `docs/supabase/credits-entitlements.md` — how tier + active_org_id drive credits
 - `docs/muckrock/oauth-integration.md` — upstream OIDC details
 - `scripts/migrate/main.ts` Phase 0 — preseeding of `auth.users`

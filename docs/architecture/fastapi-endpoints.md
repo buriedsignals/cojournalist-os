@@ -1,11 +1,13 @@
 # FastAPI Endpoints Specification
 
-> Last Updated: 2026-03-28
-> Production URL: `https://www.cojournalist.ai` (backend hosted on Render, served behind the same domain)
+> Last Updated: 2026-04-22 (post-cutover — see [api-surface-audit.md](api-surface-audit.md))
+> Production URL: `https://www.cojournalist.ai` (FastAPI on Render, SPA served from same domain)
 
 ## Overview
 
-FastAPI backend providing scout execution endpoints, news search, and scheduling APIs. Scouts are executed on-demand by AWS Lambda or manually via frontend.
+FastAPI now hosts a thin set of endpoints: the auth broker (MuckRock OAuth + Supabase magiclink handoff), feedback (Linear), admin/billing (SaaS-only), the public `/api/v1` API, and a few legacy helpers (`/api/units/*`, `/api/export/*`, `/api/onboarding/*`, `/api/user/*`).
+
+**All scout scheduling, execution, and data persistence moved to Supabase Edge Functions in the 2026-04-22 cutover.** The dead routers — `scouts.py`, `pulse.py`, `social.py`, `civic.py`, `scraper.py`, `data_extractor.py` — were deleted; the frontend api-client routes to EFs when `PUBLIC_DEPLOYMENT_TARGET=supabase`. Sections below that reference Lambda or AWS API Gateway describe the historical pre-cutover behavior; production no longer uses them and they're slated for removal once the AWS infra teardown completes.
 
 ---
 

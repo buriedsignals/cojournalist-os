@@ -99,11 +99,14 @@ function createAuthStore() {
 		},
 
 		/**
-		 * Redirect to Supabase login page.
+		 * Redirect to the MuckRock OAuth broker Edge Function. The browser
+		 * returns via the Supabase magiclink handoff, which lands back on this
+		 * app with access/refresh tokens in the URL fragment.
 		 */
 		login() {
 			if (!browser) return;
-			window.location.href = '/api/auth/login';
+			const base = (SUPABASE_URL ?? '').replace(/\/$/, '');
+			window.location.href = `${base}/functions/v1/auth-muckrock/login`;
 		},
 
 		/**

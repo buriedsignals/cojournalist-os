@@ -3,6 +3,12 @@
 export interface Config {
   api_url?: string;
   auth_token?: string;
+  // api_key takes precedence over auth_token. Generated at /api in the app
+  // (Agents → API → Create key). Format: cj_<base62>.
+  api_key?: string;
+  // Required by Supabase Edge Functions when sending a non-anon Bearer token.
+  // Set alongside api_key when api_url points at a *.supabase.co URL.
+  supabase_anon_key?: string;
 }
 
 export function configDir(): string {
@@ -30,19 +36,44 @@ export function writeConfigFile(cfg: Config): void {
   Deno.writeTextFileSync(configPath(), JSON.stringify(cfg, null, 2) + "\n");
 }
 
-export function loadConfig(): Required<Config> {
+// Resolved config — guaranteed to have an api_url and *some* credential
+// (either api_key or auth_token). Optional fields stay optional so callers
+// can detect which auth path is in use.
+export interface ResolvedConfig {
+  api_url: string;
+  api_key?: string;
+  auth_token?: string;
+  supabase_anon_key?: string;
+}
+
+export function loadConfig(): ResolvedConfig {
   const cfg = readConfigFile();
   if (!cfg.api_url) {
     throw new Error(
-      "api_url not set. Run: cojo config set api_url=https://www.cojournalist.ai/api",
+      "api_url not set.\n" +
+        "  For Supabase:    cojo config set api_url=https://<project>.supabase.co\n" +
+        "  For legacy SaaS: cojo config set api_url=https://www.cojournalist.ai/api",
     );
   }
-  if (!cfg.auth_token) {
+  if (!cfg.api_key && !cfg.auth_token) {
     throw new Error(
-      "auth_token not set. Generate an API key at https://www.cojournalist.ai → Agents → API → Create key, then run: cojo config set auth_token=<cj_... key>",
+      "No credential set. Generate an API key at https://www.cojournalist.ai → Agents → API → Create key, then:\n" +
+        "  cojo config set api_key=cj_xxx\n" +
+        "  cojo config set supabase_anon_key=<SUPABASE_ANON_KEY>   # required for Supabase EFs",
     );
   }
-  return cfg as Required<Config>;
+  // Warn (don't fail) if api_key is set against a Supabase URL without anon key —
+  // requests will return 401 from Supabase's auth layer otherwise.
+  if (
+    cfg.api_key && cfg.api_url.includes("supabase.co") &&
+    !cfg.supabase_anon_key
+  ) {
+    console.error(
+      "[warning] api_key set without supabase_anon_key. Supabase EFs require " +
+        "an `apikey:` header. Run: cojo config set supabase_anon_key=<anon key>",
+    );
+  }
+  return cfg as ResolvedConfig;
 }
 
 // Rewrite `/functions/v1/<rest>` → `/<rest>` when talking to the pre-cutover
@@ -63,7 +94,14 @@ export async function apiFetch<T = unknown>(
     resolvePath(path, cfg.api_url)
   }`;
   const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${cfg.auth_token}`);
+  // api_key wins over auth_token. Supabase EFs additionally need an `apikey:`
+  // header populated with the project's anon key — without it the auth layer
+  // refuses the request before it ever hits the function code.
+  const bearer = cfg.api_key ?? cfg.auth_token!;
+  headers.set("Authorization", `Bearer ${bearer}`);
+  if (cfg.supabase_anon_key && cfg.api_url.includes("supabase.co")) {
+    headers.set("apikey", cfg.supabase_anon_key);
+  }
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }

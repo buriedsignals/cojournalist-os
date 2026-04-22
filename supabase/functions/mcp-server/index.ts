@@ -3,8 +3,8 @@
  * server for coJournalist, with an embedded OAuth 2.1 authorization
  * server.
  *
- * This PR (03 PR 1+2) ships the OAuth skeleton only. The JSON-RPC
- * dispatcher + 17 tool handlers live in a follow-up (PR 3).
+ * PR 1+2 shipped the OAuth skeleton. PR 3 wires the JSON-RPC dispatcher
+ * (rpc.ts) — 11 tools forwarded to the units/scouts/projects EFs.
  *
  * Routes (after Kong strips `/mcp-server/` from the path):
  *
@@ -25,9 +25,10 @@ import { handleCors } from "../_shared/cors.ts";
 import { logEvent } from "../_shared/log.ts";
 import { metadataHandler } from "./oauth/metadata.ts";
 import { registerHandler } from "./oauth/register.ts";
-import { authorize, callback } from "./oauth/authorize.ts";
+import { authorize, commitCallback, renderCallbackPage } from "./oauth/authorize.ts";
 import { tokenHandler } from "./oauth/token.ts";
 import { oauthError } from "./oauth/errors.ts";
+import { handleRpc } from "./rpc.ts";
 
 function stripPrefix(pathname: string): string {
   // Kong may keep the function name in the path ("/mcp-server/x") or strip
@@ -57,21 +58,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return await authorize(req);
     }
     if (path === "/authorize-callback" && req.method === "GET") {
-      return await callback(req);
+      return await renderCallbackPage(req);
+    }
+    if (path === "/authorize-callback-commit" && req.method === "POST") {
+      return await commitCallback(req);
     }
     // OAuth token endpoint
     if (path === "/token" && req.method === "POST") {
       return await tokenHandler(req);
     }
 
-    // JSON-RPC body (PR 3). Until then we return 501 so MCP clients get a
-    // clear signal rather than a mysterious 404.
+    // JSON-RPC body — MCP protocol surface.
     if (path === "/" && req.method === "POST") {
-      return oauthError(
-        "server_error",
-        "JSON-RPC dispatcher not yet implemented (Plan 03 PR 3)",
-        501,
-      );
+      return await handleRpc(req);
     }
 
     return oauthError("invalid_request", `no route for ${req.method} ${path}`, 404);

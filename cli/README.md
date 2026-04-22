@@ -70,21 +70,36 @@ deno task compile-mac-arm                   # or -mac-x86 / -linux-arm / -linux-
 
 ## Configure
 
-Config lives at `~/.cojournalist/config.json`:
+Config lives at `~/.cojournalist/config.json`. Set an api_url and **either**
+an `api_key` (preferred — generated in the app at /api → Agents → API → Create
+key) or a legacy `auth_token` JWT.
 
 ```bash
-# Point at production (pre-cutover — current FastAPI backend)
+# Post-cutover (Supabase Edge Functions) — recommended
+cojo config set api_url=https://gfmdziplticfoakhrfpt.supabase.co
+cojo config set api_key=cj_xxxxxxxxxxxxxxxxxx
+cojo config set supabase_anon_key=<SUPABASE_ANON_KEY>
+
+# Or — pre-cutover FastAPI backend (legacy; the CLI strips /functions/v1/ paths)
 cojo config set api_url=https://www.cojournalist.ai/api
-
-# Post-cutover (Supabase Edge Functions) — the CLI auto-adjusts paths
-cojo config set api_url=https://gfmdziplticfoakhrfpt.supabase.co/functions/v1
-
-# Paste your JWT from the browser devtools (Application → Cookies or
-# localStorage, whichever holds the access token in your session)
-cojo config set auth_token=<JWT>
+cojo config set auth_token=<JWT>          # paste from browser devtools
 
 cojo config show
 ```
+
+### Auth precedence
+
+`apiFetch` picks the first credential found, in this order:
+
+1. `api_key` — sent as `Authorization: Bearer cj_…`. When `api_url`
+   contains `supabase.co`, `supabase_anon_key` is also sent as the
+   `apikey:` header (Supabase Edge Functions reject bearer tokens
+   without it).
+2. `auth_token` — sent as `Authorization: Bearer <jwt>`. Use this only
+   for legacy SaaS sessions.
+
+If both are set, `api_key` wins. If neither is set, every command exits
+with a setup hint.
 
 No OAuth flow in the CLI — tokens are pasted manually.
 

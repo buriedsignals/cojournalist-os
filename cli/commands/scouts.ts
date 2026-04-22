@@ -9,6 +9,9 @@ function usage(): void {
       "  list",
       "  add --name <name> --type <web|pulse|social|civic> [--url <url>]",
       "                   [--criteria <text>] [--project <id>] [--cron <expr>]",
+      "  update <id> [--name <name>] [--criteria <text>] [--url <url>]",
+      "              [--cron <expr>] [--active true|false]",
+      "  show <id>",
       "  run <id>",
       "  pause <id>",
       "  resume <id>",
@@ -75,6 +78,40 @@ export async function run(argv: string[]): Promise<void> {
         body: JSON.stringify(body),
       });
       printJSON(created);
+      return;
+    }
+    case "show": {
+      const id = positional[0];
+      if (!id) {
+        console.error("Usage: cojo scouts show <id>");
+        Deno.exit(1);
+      }
+      const scout = await apiFetch<Scout>(`/functions/v1/scouts/${id}`);
+      printJSON(scout);
+      return;
+    }
+    case "update": {
+      const id = positional[0];
+      if (!id) {
+        console.error("Usage: cojo scouts update <id> [--name ...] [--criteria ...] [--url ...] [--cron ...] [--active true|false]");
+        Deno.exit(1);
+      }
+      const patch: Record<string, unknown> = {};
+      if (typeof flags.name === "string") patch.name = flags.name;
+      if (typeof flags.criteria === "string") patch.criteria = flags.criteria;
+      if (typeof flags.url === "string") patch.url = flags.url;
+      if (typeof flags.cron === "string") patch.schedule_cron = flags.cron;
+      if (flags.active === "true" || flags.active === true) patch.is_active = true;
+      if (flags.active === "false" || flags.active === false) patch.is_active = false;
+      if (Object.keys(patch).length === 0) {
+        console.error("Pass at least one field to update (--name, --criteria, --url, --cron, --active)");
+        Deno.exit(1);
+      }
+      const updated = await apiFetch<Scout>(`/functions/v1/scouts/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+      printJSON(updated);
       return;
     }
     case "run":

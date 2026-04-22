@@ -1,7 +1,15 @@
 // Deno tests for cojo CLI
-import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert";
 import {
+  assert,
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+  assertThrows,
+} from "jsr:@std/assert";
+import {
+  apiFetch,
   configPath,
+  loadConfig,
   printTable,
   readConfigFile,
   resolvePath,
@@ -144,4 +152,132 @@ Deno.test("resolvePath — leaves non-/functions/v1 paths alone on both backends
 Deno.test("VERSION — exports a non-empty string", () => {
   assert(typeof VERSION === "string");
   assert(VERSION.length > 0, "VERSION must not be empty");
+});
+
+// ---- api-key / supabase_anon_key auth path ------------------------------
+
+Deno.test("loadConfig — accepts api_key only (no auth_token required)", async () => {
+  await withTempHome(() => {
+    writeConfigFile({
+      api_url: "https://example.test/api",
+      api_key: "cj_test_key",
+    });
+    const cfg = loadConfig();
+    assertEquals(cfg.api_url, "https://example.test/api");
+    assertEquals(cfg.api_key, "cj_test_key");
+    assertEquals(cfg.auth_token, undefined);
+  });
+});
+
+Deno.test("loadConfig — throws if neither api_key nor auth_token set", async () => {
+  await withTempHome(() => {
+    writeConfigFile({ api_url: "https://example.test/api" });
+    assertThrows(() => loadConfig(), Error, "No credential set");
+  });
+});
+
+Deno.test("loadConfig — throws if api_url missing", async () => {
+  await withTempHome(() => {
+    writeConfigFile({ api_key: "cj_test_key" });
+    assertThrows(() => loadConfig(), Error, "api_url not set");
+  });
+});
+
+Deno.test("apiFetch — uses api_key over auth_token, sends apikey header for Supabase", async () => {
+  await withTempHome(async () => {
+    // Convention: api_url is the bare Supabase host. The /functions/v1/ prefix
+    // lives in the path so resolvePath can strip it for the FastAPI backend.
+    writeConfigFile({
+      api_url: "https://x.supabase.co",
+      auth_token: "legacy_token_should_be_ignored",
+      api_key: "cj_preferred",
+      supabase_anon_key: "anon_test_key",
+    });
+
+    let observed: { url: string; auth: string | null; apikey: string | null } | null = null;
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      const headers = new Headers(init?.headers);
+      observed = {
+        url,
+        auth: headers.get("Authorization"),
+        apikey: headers.get("apikey"),
+      };
+      return Promise.resolve(new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }));
+    }) as typeof fetch;
+
+    try {
+      await apiFetch("/functions/v1/units?limit=1");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+
+    assert(observed !== null, "fetch was not called");
+    const obs = observed as unknown as { url: string; auth: string; apikey: string };
+    assertStringIncludes(obs.url, "x.supabase.co/functions/v1/units");
+    assertEquals(obs.auth, "Bearer cj_preferred");
+    assertEquals(obs.apikey, "anon_test_key");
+  });
+});
+
+Deno.test("apiFetch — falls back to auth_token when api_key absent, omits apikey header for non-Supabase", async () => {
+  await withTempHome(async () => {
+    writeConfigFile({
+      api_url: "https://www.cojournalist.ai/api",
+      auth_token: "cj_legacy",
+    });
+
+    let observed: { url: string; auth: string | null; apikey: string | null } | null = null;
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      const headers = new Headers(init?.headers);
+      observed = {
+        url,
+        auth: headers.get("Authorization"),
+        apikey: headers.get("apikey"),
+      };
+      return Promise.resolve(new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }));
+    }) as typeof fetch;
+
+    try {
+      await apiFetch("/functions/v1/units?limit=1");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+
+    assert(observed !== null);
+    const obs = observed as unknown as { url: string; auth: string; apikey: string | null };
+    assertStringIncludes(obs.url, "www.cojournalist.ai/api/units");
+    assertEquals(obs.auth, "Bearer cj_legacy");
+    assertEquals(obs.apikey, null);
+  });
+});
+
+Deno.test("apiFetch — surfaces non-2xx as a thrown Error", async () => {
+  await withTempHome(async () => {
+    writeConfigFile({
+      api_url: "https://x.supabase.co",
+      api_key: "cj_test",
+      supabase_anon_key: "anon",
+    });
+
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response(JSON.stringify({ error: "nope" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }))) as typeof fetch;
+
+    try {
+      await assertRejects(
+        () => apiFetch("/functions/v1/units"),
+        Error,
+        "401",
+      );
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
 });

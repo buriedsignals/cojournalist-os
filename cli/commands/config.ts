@@ -5,7 +5,12 @@ import {
   writeConfigFile,
 } from "../lib/client.ts";
 
-const VALID_KEYS = ["api_url", "auth_token"] as const;
+const VALID_KEYS = [
+  "api_url",
+  "auth_token",
+  "api_key",
+  "supabase_anon_key",
+] as const;
 type Key = typeof VALID_KEYS[number];
 
 function usage(): void {
@@ -13,9 +18,16 @@ function usage(): void {
     [
       "Usage: cojo config <subcommand>",
       "",
-      "  get <key>            Print value of api_url | auth_token",
+      "  get <key>            Print value of a config key",
       "  set <key>=<value>    Write key/value to config",
-      "  show                 Show the full config (auth_token redacted)",
+      "  show                 Show the full config (secrets redacted)",
+      "",
+      "Keys:",
+      "  api_url              Base URL for the cojo API (FastAPI or Supabase EF)",
+      "  auth_token           Bearer JWT (legacy SaaS / cookieless session)",
+      "  api_key              cj_… API key — preferred over auth_token when set",
+      "  supabase_anon_key    Supabase anon key — required as `apikey:` header when",
+      "                       talking to Supabase Edge Functions with an api_key",
       "",
       `Config file: ${configPath()}`,
     ].join("\n"),
@@ -28,6 +40,12 @@ function redact(token: string): string {
   return `${token.slice(0, 4)}...${token.slice(-4)}`;
 }
 
+const SECRET_KEYS: ReadonlySet<Key> = new Set([
+  "auth_token",
+  "api_key",
+  "supabase_anon_key",
+]);
+
 export function run(argv: string[]): void {
   const [sub, ...rest] = argv;
 
@@ -39,10 +57,17 @@ export function run(argv: string[]): void {
 
   if (sub === "show") {
     const cfg = readConfigFile();
-    const display = {
-      api_url: cfg.api_url ?? "(unset)",
-      auth_token: cfg.auth_token ? redact(cfg.auth_token) : "(unset)",
-    };
+    const display: Record<string, string> = {};
+    for (const k of VALID_KEYS) {
+      const v = cfg[k];
+      if (v === undefined) {
+        display[k] = "(unset)";
+      } else if (SECRET_KEYS.has(k)) {
+        display[k] = redact(v);
+      } else {
+        display[k] = v;
+      }
+    }
     console.log(JSON.stringify(display, null, 2));
     return;
   }

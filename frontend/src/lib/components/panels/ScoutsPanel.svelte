@@ -176,8 +176,39 @@
 		}
 
 		// Credits validated - run the scout
+		// Snapshot the current last_run timestamp so we can detect completion by polling.
+		const previousLastRun = scout.last_run?.last_run ?? null;
+
 		try {
 			await apiClient.runScoutNow(scoutName);
+
+			// Poll the scouts list until last_run advances (or timeout).
+			// Backend returns 202 immediately; the run executes async in an EF.
+			// Cap at 100 iterations × 3s = 5 min — long enough for any normal scout.
+			const POLL_INTERVAL_MS = 3000;
+			const MAX_POLLS = 100;
+			let detected = false;
+			for (let i = 0; i < MAX_POLLS; i++) {
+				await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+				try {
+					const response = await apiClient.getActiveJobs();
+					const updated = (response.scrapers || []).find(
+						(s) => s.scraper_name === scoutName
+					);
+					const newLastRun = updated?.last_run?.last_run ?? null;
+					if (newLastRun && newLastRun !== previousLastRun) {
+						detected = true;
+						break;
+					}
+				} catch (pollErr) {
+					console.warn('Poll iteration failed, will retry:', pollErr);
+				}
+			}
+
+			if (!detected) {
+				console.warn(`Scout ${scoutName} run did not complete within ${(MAX_POLLS * POLL_INTERVAL_MS) / 1000}s`);
+			}
+
 			await handleRefresh();
 			triggerFeedRefresh();
 		} catch (err) {

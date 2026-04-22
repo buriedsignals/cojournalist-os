@@ -52,8 +52,33 @@ in shipped binaries. Local dev builds stay `"dev"`.
 `resolvePath` in `lib/client.ts` strips `/functions/v1/` from paths when
 `api_url` doesn't contain `supabase.co`. Lets the same CLI talk to both the
 pre-cutover FastAPI backend (`https://www.cojournalist.ai/api`) and the
-post-cutover Supabase Edge Functions (`https://*.supabase.co/functions/v1`).
-Remove the shim after the cutover is complete and all users have migrated.
+post-cutover Supabase Edge Functions (`https://*.supabase.co`). Remove the
+shim after the cutover is complete and all users have migrated.
+
+**api_url convention:** the bare host without any path. So
+`https://x.supabase.co` (NOT `https://x.supabase.co/functions/v1`) on the
+Supabase side. The `/functions/v1/` prefix lives in the path string each
+command builds. resolvePath leaves it intact for Supabase URLs and strips
+it for FastAPI.
+
+## Auth — api_key vs auth_token
+
+Two credentials are accepted:
+
+- `api_key` (preferred) — `cj_…` key generated in the app at /api →
+  Agents → API. Sent as `Authorization: Bearer cj_…`. When `api_url`
+  contains `supabase.co`, `supabase_anon_key` is **also** required and
+  sent as the `apikey:` header — Supabase Edge Functions reject bearer
+  tokens without it.
+- `auth_token` (legacy) — Supabase JWT pasted from browser devtools.
+  Sent as `Authorization: Bearer <jwt>`. Used only for legacy SaaS
+  sessions.
+
+If both are set, `api_key` wins. Both can coexist for fallback flexibility
+during migration.
+
+The four valid config keys are: `api_url`, `auth_token`, `api_key`,
+`supabase_anon_key`. `cojo config show` redacts all credentials.
 
 ## Secrets
 

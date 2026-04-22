@@ -37,20 +37,11 @@ rm -f backend/app/services/cron.py
 rm -f backend/app/services/seed_data_service.py
 rm -f backend/app/services/api_key_service.py
 
-# Backend: remove admin dashboard (SaaS revenue reporting)
-rm -f backend/app/routers/admin.py
-rm -f backend/app/services/admin_report_service.py
-rm -f backend/app/schemas/admin.py
-
 # Backend: remove feedback router (Linear integration — SaaS-only)
 rm -f backend/app/routers/feedback.py
 
 # Backend: remove threat modeling dashboard (internal security assessment)
 rm -rf backend/app/routers/threat_modeling/
-
-# Backend: remove SaaS-only test files
-rm -f backend/tests/unit/api/test_admin.py
-rm -f backend/tests/unit/shared/test_admin_report.py
 
 # -------------------------------------------------------------------
 # CI/CD: remove workflows that reference the dev repo
@@ -72,7 +63,6 @@ rm -rf docs/research/
 rm -f docs/architecture/license-key-infrastructure.md
 rm -f docs/architecture/aws-architecture.md
 rm -f docs/architecture/records-and-deduplication.md
-rm -f docs/v2-migration-runbook.md
 rm -f DESIGN.md
 rm -rf .firecrawl/
 

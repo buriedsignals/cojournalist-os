@@ -38,6 +38,34 @@
 	type ActivePanel = 'workspace' | 'pulse' | 'web' | 'social' | 'civic';
 	let activePanel: ActivePanel = 'workspace';
 
+	// After scheduling succeeds, views dispatch `scheduled` and we want to
+	// (a) jump back to the workspace, (b) show a skeleton card while the
+	// refresh lands, (c) kick off an immediate reload. Cleared once the new
+	// scout appears or a watchdog expires.
+	let pendingNewScoutType: ActivePanel | null = null;
+	let pendingWatchdog: ReturnType<typeof setTimeout> | null = null;
+
+	async function handleScheduled(
+		event: CustomEvent<{ scoutType: 'pulse' | 'web' | 'social' | 'civic' }>,
+	) {
+		pendingNewScoutType = event.detail.scoutType;
+		activePanel = 'workspace';
+		if (pendingWatchdog) clearTimeout(pendingWatchdog);
+		pendingWatchdog = setTimeout(() => {
+			pendingNewScoutType = null;
+			pendingWatchdog = null;
+		}, 20000);
+		try {
+			await scoutsStore.load();
+		} finally {
+			pendingNewScoutType = null;
+			if (pendingWatchdog) {
+				clearTimeout(pendingWatchdog);
+				pendingWatchdog = null;
+			}
+		}
+	}
+
 	function openPanel(type: ActivePanel) {
 		activePanel = type;
 		newScoutOpen = false;
@@ -440,13 +468,13 @@
 			<!-- Scout creation panel (inline, reactive) -->
 			<div class="panel-content">
 				{#if activePanel === 'pulse'}
-					<BeatScoutView />
+					<BeatScoutView on:scheduled={handleScheduled} />
 				{:else if activePanel === 'web'}
-					<PageScoutView />
+					<PageScoutView on:scheduled={handleScheduled} />
 				{:else if activePanel === 'social'}
-					<SocialScoutView />
+					<SocialScoutView on:scheduled={handleScheduled} />
 				{:else if activePanel === 'civic'}
-					<CivicScoutView />
+					<CivicScoutView on:scheduled={handleScheduled} />
 				{/if}
 			</div>
 		{:else if !bootstrapped}
@@ -469,6 +497,19 @@
 				on:cancelDelete={handleCancelDelete}
 				on:confirmDelete={(e) => handleConfirmDelete(e.detail.id)}
 			/>
+		{:else if scoutsState.scouts.length === 0 && pendingNewScoutType}
+			<!-- FIRST-SCOUT LOADING — empty array but we know one is on its way -->
+			<div class="scouts-section">
+				<div class="section-heading">
+					<h2>Scouts</h2>
+				</div>
+				<div class="scouts-grid">
+					<div class="scout-card-pending" role="status" aria-live="polite">
+						<Spinner size="sm" />
+						<span>Creating your new scout…</span>
+					</div>
+				</div>
+			</div>
 		{:else if scoutsState.scouts.length === 0}
 			<!-- RETURNING-USER EMPTY: single centered card, not two stacked placeholders -->
 			<div class="workspace-empty">
@@ -503,6 +544,12 @@
 					/>
 				{:else}
 					<div class="scouts-grid">
+						{#if pendingNewScoutType}
+							<div class="scout-card-pending" role="status" aria-live="polite">
+								<Spinner size="sm" />
+								<span>Creating your new scout…</span>
+							</div>
+						{/if}
 						{#each dimensionFiltered as scout (scout.id)}
 							<ScoutCard
 								{scout}
@@ -923,6 +970,19 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 		gap: 1rem;
+	}
+
+	.scout-card-pending {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		min-height: 120px;
+		padding: 1rem;
+		border: 1px dashed var(--color-border-strong);
+		background: var(--color-surface-alt);
+		color: var(--color-ink-muted);
+		font-size: 0.875rem;
+		border-radius: 4px;
 	}
 
 	.back-to-workspace {

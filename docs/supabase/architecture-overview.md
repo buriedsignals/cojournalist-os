@@ -111,7 +111,7 @@ High-level map of the Supabase layer. If you're new to this codebase, start here
 - **LLM prompts & schemas** — live in Edge Function source.
 - **Secrets** (API keys for Gemini/Apify/etc.) — Edge Function env vars (Dashboard → Edge Functions → Secrets). The only secrets *inside* the DB are the two vault entries `project_url` + `service_role_key` used by SECURITY DEFINER RPCs.
 - **Render cron schedules** — none; all scheduling is pg_cron.
-- **AWS anything** — legacy, decommissioning per `docs/v2-migration-runbook.md`.
+- **AWS anything** — legacy, decommissioning post-2026-04-22 cutover. See `CUTOVER-DAY-1-VERIFICATION.md` for remaining teardown work.
 
 ## Migration philosophy
 
@@ -125,5 +125,5 @@ High-level map of the Supabase layer. If you're new to this codebase, start here
 ## Further reading
 
 - Per-system docs in this directory — see [README](./README.md) index.
-- `docs/auth-db-migration.md` — the cutover plan that brought MuckRock users into `auth.users`.
-- `docs/v2-migration-runbook.md` — operational playbook.
+- `docs/architecture/api-surface-audit.md` — post-cutover endpoint inventory (FastAPI + EFs side by side).
+- `CUTOVER-DAY-1-VERIFICATION.md` — remaining post-cutover work (admin port, MCP, AWS wipe).

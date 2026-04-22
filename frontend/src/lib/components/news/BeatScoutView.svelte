@@ -22,6 +22,9 @@
 	import { easeOutProgress, formatEstimatedTime, PULSE_EXPECTED_DURATION_MS } from '$lib/utils/progress-timer';
 	import * as m from '$lib/paraglide/messages';
 	import { sidebarNav } from '$lib/stores/sidebar-nav';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher<{ scheduled: { scoutType: 'pulse' } }>();
 
 	// Custom renderer to show external link icon instead of link text
 	const renderer = new Renderer();
@@ -624,6 +627,7 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	on:success={() => {
 		showScheduleModal = false;
 		sidebarNav.setView('scouts');
+		dispatch('scheduled', { scoutType: 'pulse' });
 	}}
 />
 

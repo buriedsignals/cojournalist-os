@@ -2,6 +2,13 @@
 
 Export generation from information units with source citation.
 
+> **Post-2026-04-22 cutover note:** The Feed panel reads from Supabase
+> (`/functions/v1/units` + hybrid `/functions/v1/units/search`). The
+> Export router on FastAPI (`/api/export/*`) stays for the legacy
+> "Generate article draft" flow; the agent-friendly bundle export lives
+> in `supabase/functions/export-claude/`. See
+> [api-surface-audit.md](../architecture/api-surface-audit.md).
+
 ## Overview
 
 The Feed panel displays information units from the knowledge base. The Export service generates structured exports from selected units using GPT-4o, synthesizing facts with proper source citations.

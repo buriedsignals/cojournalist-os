@@ -44,7 +44,6 @@ Each system doc covers: tables, indexes, triggers, RPCs, RLS, cron jobs, Edge Fu
 
 ## Related docs (not Supabase-specific)
 
-- `docs/v2-migration-runbook.md` — operational cutover plan
-- `docs/auth-db-migration.md` — MuckRock OIDC → Supabase Auth design
+- `docs/architecture/api-surface-audit.md` — post-cutover endpoint inventory
 - `docs/muckrock/plans-and-entitlements.md` — tier definitions, credit costs; implementation lives in `credits-entitlements.md`
 - `docs/architecture/records-and-deduplication.md` — legacy DDB layout for context

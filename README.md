@@ -15,58 +15,71 @@ Scouts run on schedules and send email notifications when criteria are met.
 
 ## Tech Stack
 
-- **Frontend**: SvelteKit + TailwindCSS
-- **Backend**: FastAPI (Python)
-- **Infrastructure**: AWS Lambda + EventBridge + DynamoDB
-- **Auth**: MuckRock OAuth 2.0
-- **AI**: OpenRouter (configurable LLM)
-- **Hosting**: Render (Docker)
+- **Frontend**: SvelteKit + TailwindCSS (static SPA)
+- **Backend**: FastAPI (Python) — auth broker, feedback, admin, public `/api/v1`
+- **Scout runtime**: Supabase Edge Functions + pg_cron (post-2026-04-22 cutover)
+- **Database**: Supabase Postgres with pgvector + HNSW for hybrid search
+- **Auth**: MuckRock OAuth 2.0 (SaaS) / Supabase Auth (OSS / self-hosted)
+- **AI**: Gemini 2.5 Flash-Lite (default) + OpenRouter (fallback) + Firecrawl
+- **Hosting**: Render (Docker) for the FastAPI service; Supabase for EFs + DB
+
+> Pre-cutover (now historical): scout scheduling lived on AWS Lambda +
+> EventBridge with DynamoDB. The infra is being torn down — see
+> `CUTOVER-DAY-1-VERIFICATION.md` for the punch list.
 
 ## Quick Start
 
 ### Prerequisites
 - Node.js 22 LTS
-- Python 3.11+
-- AWS CLI configured
+- Python 3.13+ (3.11 works locally but CI runs 3.13)
+- Deno 2.x (for the `cli/` package)
 
 ### Local Development
 
 ```bash
 # Frontend
-cd frontend
-npm install
-npm run dev
+cd frontend && nvm use && npm install && npm run dev
 
 # Backend
-cd backend
+cd backend && python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+
+# CLI (cojo)
+cd cli && deno task run -- --help
 ```
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` and fill in the values.
+Copy `.env.example` to `.env` and fill in the values. See
+`docs/architecture/api-surface-audit.md` for the current set of
+load-bearing variables.
 
 ## Deployment
 
-The app deploys to Render via Docker. Push to `main` triggers automatic deployment.
+The FastAPI service auto-deploys to Render on push to `main`.
+Supabase Edge Functions deploy via `supabase functions deploy <name>`
+(see `supabase/functions/CLAUDE.md`).
 
-```bash
-git push origin main
-```
+**Always go via PR** — never push to `main`. CI must show 4 green
+checks (`build-frontend`, `test-frontend`, `test-backend`, `lint`)
+before merge.
 
 ## Documentation
 
-- [AWS Architecture](docs/architecture/aws-architecture.md)
-- [API Endpoints](docs/architecture/fastapi-endpoints.md)
-- [AWS Deployment](aws/README.md)
+- [API surface audit (post-cutover)](docs/architecture/api-surface-audit.md)
+- [FastAPI endpoints (legacy + auth + v1)](docs/architecture/fastapi-endpoints.md)
+- [Supabase Edge Functions](docs/supabase/edge-functions.md)
+- [`cojo` CLI](cli/README.md)
 
 ## Project Structure
 
 ```
-├── frontend/     # SvelteKit SPA
-├── backend/      # FastAPI backend
-├── aws/          # Lambda functions
-├── docs/         # Architecture docs
-└── Dockerfile    # Production build
+├── frontend/        # SvelteKit SPA
+├── backend/         # FastAPI service (auth, feedback, admin, /api/v1)
+├── supabase/        # Edge Functions + migrations + pg_cron
+├── cli/             # `cojo` Deno CLI — talks to FastAPI or EFs
+├── docs/            # Architecture + features + supabase docs
+├── scripts/         # OSS strip + EF bundler + helpers
+└── Dockerfile       # Production build for the FastAPI service
 ```

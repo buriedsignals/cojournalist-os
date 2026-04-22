@@ -93,8 +93,10 @@ class Settings(BaseSettings):
     supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")
     supabase_jwt_secret: str = os.getenv("SUPABASE_JWT_SECRET", "")
 
-    # Auth broker — post-login redirect target (frontend route that reads hash tokens)
-    supabase_post_login_redirect: str = os.getenv("SUPABASE_POST_LOGIN_REDIRECT", "")
+    # Auth broker — post-login redirect target (frontend route that reads hash tokens).
+    # Renamed from SUPABASE_POST_LOGIN_REDIRECT — Supabase reserves SUPABASE_*
+    # for its own env-var injection and rejects user-set names there.
+    app_post_login_redirect: str = os.getenv("APP_POST_LOGIN_REDIRECT", "")
 
     # MuckRock webhook pause — set to true during cutover window.
     # When true, /api/auth/webhook returns 503 without processing.

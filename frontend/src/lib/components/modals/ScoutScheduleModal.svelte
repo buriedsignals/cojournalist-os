@@ -271,10 +271,8 @@
 			isSubmitting = false;
 			dispatch('success', { name: scoutName, scoutType });
 			authStore.refreshUser();
-			setTimeout(() => {
-				triggerScoutsRefresh();
-				triggerFeedRefresh();
-			}, 1500);
+			triggerScoutsRefresh();
+			triggerFeedRefresh();
 		}).catch((error) => {
 			isSubmitting = false;
 			errorMessage = error instanceof Error ? error.message : 'Failed to schedule scout';
@@ -317,7 +315,7 @@
 	>
 		<!-- Modal Card -->
 		<div
-			class="relative w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl border border-[var(--color-border)] max-h-[90vh] overflow-y-auto"
+			class="modal-card"
 			on:click|stopPropagation
 			on:keydown|stopPropagation
 			role="dialog"
@@ -325,129 +323,111 @@
 			tabindex="-1"
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between p-5 border-b border-[var(--color-border)]">
-				<div class="flex items-center gap-3">
-					<div
-						class="flex h-10 w-10 items-center justify-center rounded-lg {info.color === 'purple' ? 'bg-[var(--color-primary-soft)]' : ''} {info.color === 'blue' ? 'bg-[var(--color-primary-soft)]' : ''} {info.color === 'pink' ? 'bg-pink-100' : ''} {info.color === 'green' ? 'bg-green-100' : ''}"
-					>
-						<svelte:component
-							this={info.icon}
-							class="h-5 w-5 {info.color === 'purple' ? 'text-[var(--color-primary)]' : ''} {info.color === 'blue' ? 'text-[var(--color-primary)]' : ''} {info.color === 'pink' ? 'text-pink-600' : ''} {info.color === 'green' ? 'text-green-600' : ''}"
-						/>
+			<div class="modal-header">
+				<div class="modal-header-left">
+					<div class="modal-icon icon-{info.color}">
+						<svelte:component this={info.icon} size={20} />
 					</div>
 					<div>
-						<h2 class="text-lg font-semibold text-[var(--color-ink)]">{scoutType === 'web' ? m.scheduleSearch_titlePageScout() : scoutType === 'social' ? m.scheduleSearch_titleSocialScout() : scoutType === 'civic' ? m.scheduleSearch_titleCivicScout() : m.scheduleSearch_title()}</h2>
-						<p class="text-xs text-[var(--color-ink-muted)]">{info.description}</p>
+						<h2 class="modal-title">{scoutType === 'web' ? m.scheduleSearch_titlePageScout() : scoutType === 'social' ? m.scheduleSearch_titleSocialScout() : scoutType === 'civic' ? m.scheduleSearch_titleCivicScout() : m.scheduleSearch_title()}</h2>
+						<p class="modal-subtitle">{info.description}</p>
 					</div>
 				</div>
-				<button
-					on:click={handleClose}
-					class="rounded-lg p-1.5 text-[var(--color-ink-subtle)] hover:bg-[var(--color-surface)] hover:text-[var(--color-ink-muted)] transition-colors"
-					aria-label="Close modal"
-				>
-					<X class="h-5 w-5" />
+				<button on:click={handleClose} class="modal-close" aria-label="Close modal">
+					<X size={20} />
 				</button>
 			</div>
 
 			{#if scheduleSuccess}
 				<!-- Success Confirmation -->
-				<div class="p-6" transition:fade={{ duration: 200 }}>
-					<div class="text-center py-6">
-						<div class="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-							<CheckCircle class="h-8 w-8 text-green-600" />
+				<div class="modal-body" transition:fade={{ duration: 200 }}>
+					<div class="success-block">
+						<div class="success-icon">
+							<CheckCircle size={32} />
 						</div>
-						<h3 class="text-xl font-semibold text-[var(--color-ink)] mb-2">{m.scheduleSearch_scoutScheduled()}</h3>
-						<p class="text-[var(--color-ink-muted)] mb-1">{scoutName}</p>
-						<p class="text-sm text-[var(--color-ink-subtle)]">{getScheduleSummary()}</p>
+						<h3 class="success-title">{m.scheduleSearch_scoutScheduled()}</h3>
+						<p class="success-name">{scoutName}</p>
+						<p class="success-summary">{getScheduleSummary()}</p>
 					</div>
-
-					<button
-						on:click={handleClose}
-						class="btn-primary w-full mt-4"
-					>
+					<button on:click={handleClose} class="btn-primary modal-action">
 						{m.common_done()}
 					</button>
 				</div>
 			{:else}
 				<!-- Form -->
-				<form on:submit={handleSubmit} class="p-6 space-y-5">
-					<!-- Context Display -->
-					<div class="rounded-lg bg-[var(--color-surface)] p-4 space-y-2">
-						{#if scoutType === 'web' && url}
-							<div class="flex items-center gap-2 text-sm">
-								<Globe class="h-4 w-4 text-[var(--color-ink-subtle)]" />
-								<span class="font-medium text-[var(--color-ink)]">URL:</span>
-								<span class="text-[var(--color-ink-muted)] truncate">{url}</span>
-							</div>
-						{/if}
-
-						{#if scoutType === 'web' && webCriteria}
-							<div class="flex items-start gap-2 text-sm">
-								<Filter class="h-4 w-4 text-[var(--color-ink-subtle)] mt-0.5" />
-								<span class="font-medium text-[var(--color-ink)]">{m.scheduleSearch_criteriaLabel()}</span>
-								<span class="text-[var(--color-ink-muted)] italic">{webCriteria}</span>
-							</div>
-						{/if}
-
-						{#if location && scoutType === 'pulse'}
-							<div class="flex items-center gap-2 text-sm">
-								<MapPin class="h-4 w-4 text-[var(--color-ink-subtle)]" />
-								<span class="font-medium text-[var(--color-ink)]">{m.scheduleSearch_locationLabel()}</span>
-								<span class="text-[var(--color-ink-muted)]">{location.displayName}</span>
-							</div>
-						{/if}
-
-						{#if criteria && scoutType === 'pulse'}
-							<div class="flex items-center gap-2 text-sm">
-								<Tag class="h-4 w-4 text-[var(--color-ink-subtle)]" />
-								<span class="font-medium text-[var(--color-ink)]">{m.scheduleSearch_searchLabel()}</span>
-								<span class="text-[var(--color-ink-muted)]">{criteria}</span>
-							</div>
-						{/if}
-
-						{#if excludedDomains.length > 0 && scoutType === 'pulse'}
-							<div class="flex items-start gap-2 text-sm mt-2 pt-2 border-t border-[var(--color-border)]">
-								<Ban class="h-4 w-4 text-[var(--color-ink-subtle)] mt-0.5" />
-								<span class="font-medium text-[var(--color-ink)]">{m.pulse_excludedDomains()}:</span>
-								<span class="text-[var(--color-ink-muted)]">{excludedDomains.join(', ')}</span>
-							</div>
-						{/if}
-
-						{#if prioritySources.length > 0 && scoutType === 'pulse'}
-							<div class="flex items-start gap-2 text-sm mt-2 pt-2 border-t border-[var(--color-border)]">
-								<Star class="h-4 w-4 text-[var(--color-ink-subtle)] mt-0.5" />
-								<span class="font-medium text-[var(--color-ink)]">{m.pulse_prioritySources()}:</span>
-								<span class="text-[var(--color-ink-muted)]">{prioritySources.join(', ')}</span>
-							</div>
-						{/if}
-
-						{#if scoutType === 'social' && profile_handle}
-							<div class="flex items-center gap-2 text-sm">
-								<Users class="h-4 w-4 text-[var(--color-ink-subtle)]" />
-								<span class="font-medium text-[var(--color-ink)]">{m.socialScout_handleLabel()}:</span>
-								<span class="text-[var(--color-ink-muted)]">@{profile_handle} ({platform})</span>
-							</div>
-						{/if}
-
-						{#if scoutType === 'civic' && root_domain}
-							<div class="flex items-center gap-2 text-sm">
-								<Globe class="h-4 w-4 text-[var(--color-ink-subtle)]" />
-								<span class="font-medium text-[var(--color-ink)]">{m.civic_monitorTitle()}:</span>
-								<span class="text-[var(--color-ink-muted)]">{root_domain}</span>
-							</div>
-						{/if}
-						{#if scoutType === 'civic' && tracked_urls.length > 0}
-							<div class="flex items-start gap-2 text-sm">
-								<ScanSearch class="h-4 w-4 text-[var(--color-ink-subtle)] mt-0.5" />
-								<span class="font-medium text-[var(--color-ink)]">{m.civic_selectUrls()}:</span>
-								<span class="text-[var(--color-ink-muted)]">{tracked_urls.length} URLs</span>
-							</div>
-						{/if}
+				<form on:submit={handleSubmit} class="modal-body">
+					<!-- Context Display (mirrors ApiView's .agent-block pattern) -->
+					<div class="context-wrap">
+						<div class="context-block">
+							{#if scoutType === 'web' && url}
+								<div class="context-row">
+									<Globe size={14} class="context-icon" />
+									<span class="context-key">URL:</span>
+									<span class="context-value truncate">{url}</span>
+								</div>
+							{/if}
+							{#if scoutType === 'web' && webCriteria}
+								<div class="context-row">
+									<Filter size={14} class="context-icon" />
+									<span class="context-key">{m.scheduleSearch_criteriaLabel()}</span>
+									<span class="context-value italic">{webCriteria}</span>
+								</div>
+							{/if}
+							{#if location && scoutType === 'pulse'}
+								<div class="context-row">
+									<MapPin size={14} class="context-icon" />
+									<span class="context-key">{m.scheduleSearch_locationLabel()}</span>
+									<span class="context-value">{location.displayName}</span>
+								</div>
+							{/if}
+							{#if criteria && scoutType === 'pulse'}
+								<div class="context-row">
+									<Tag size={14} class="context-icon" />
+									<span class="context-key">{m.scheduleSearch_searchLabel()}</span>
+									<span class="context-value">{criteria}</span>
+								</div>
+							{/if}
+							{#if excludedDomains.length > 0 && scoutType === 'pulse'}
+								<div class="context-row context-row-divider">
+									<Ban size={14} class="context-icon" />
+									<span class="context-key">{m.pulse_excludedDomains()}:</span>
+									<span class="context-value">{excludedDomains.join(', ')}</span>
+								</div>
+							{/if}
+							{#if prioritySources.length > 0 && scoutType === 'pulse'}
+								<div class="context-row context-row-divider">
+									<Star size={14} class="context-icon" />
+									<span class="context-key">{m.pulse_prioritySources()}:</span>
+									<span class="context-value">{prioritySources.join(', ')}</span>
+								</div>
+							{/if}
+							{#if scoutType === 'social' && profile_handle}
+								<div class="context-row">
+									<Users size={14} class="context-icon" />
+									<span class="context-key">{m.socialScout_handleLabel()}:</span>
+									<span class="context-value">@{profile_handle} ({platform})</span>
+								</div>
+							{/if}
+							{#if scoutType === 'civic' && root_domain}
+								<div class="context-row">
+									<Globe size={14} class="context-icon" />
+									<span class="context-key">{m.civic_monitorTitle()}:</span>
+									<span class="context-value">{root_domain}</span>
+								</div>
+							{/if}
+							{#if scoutType === 'civic' && tracked_urls.length > 0}
+								<div class="context-row">
+									<ScanSearch size={14} class="context-icon" />
+									<span class="context-key">{m.civic_selectUrls()}:</span>
+									<span class="context-value">{tracked_urls.length} URLs</span>
+								</div>
+							{/if}
+						</div>
 					</div>
 
 					<!-- Email disclaimer for web scouts (near context) -->
 					{#if scoutType === 'web'}
-						<div class="flex items-center gap-2 rounded-lg bg-[var(--color-secondary-soft)] border border-[var(--color-primary-soft)] px-3 py-2 text-xs text-[var(--color-primary-deep)]">
+						<div class="email-disclaimer">
 							<Mail size={14} />
 							<span>{webCriteria ? m.schedule_emailDisclaimer_webCriteria() : m.schedule_emailDisclaimer_webAny()}</span>
 						</div>
@@ -455,8 +435,8 @@
 
 					<!-- Scope (web + civic) -->
 					{#if scoutType === 'web' || scoutType === 'civic'}
-						<div>
-							<label class="block text-sm font-medium text-[var(--color-ink)] mb-1">{m.filter_locationLabel()}</label>
+						<div class="form-group">
+							<label class="field-label">{m.filter_locationLabel()}</label>
 							<LocationAutocomplete
 								selectedLocation={selectedLocation}
 								on:select={handleLocationSelect}
@@ -466,8 +446,8 @@
 					{/if}
 
 					<!-- Category (all scout types) -->
-					<div>
-						<label class="block text-sm font-medium text-[var(--color-ink)] mb-1">{m.schedule_categoryLabel()}</label>
+					<div class="form-group">
+						<label class="field-label">{m.schedule_categoryLabel()}</label>
 						<TopicChips
 							bind:topic={topicInput}
 							{existingTopics}
@@ -477,9 +457,9 @@
 
 					<!-- Scout Name (hidden for web scouts — already set in PageScoutView) -->
 					{#if scoutType !== 'web'}
-						<div>
-							<label for="scout-name" class="block text-sm font-medium text-[var(--color-ink)] mb-1.5">
-								{m.scout_name()} <span class="text-red-500">*</span>
+						<div class="form-group">
+							<label for="scout-name" class="field-label">
+								{m.scout_name()} <span class="required-mark">*</span>
 							</label>
 							<input
 								id="scout-name"
@@ -488,33 +468,32 @@
 								maxlength="30"
 								placeholder={m.scheduleSearch_scoutNamePlaceholder()}
 								required
-								class="form-input w-full text-sm"
+								class="form-input"
 							/>
-							<p class="mt-1 text-xs text-[var(--color-ink-subtle)] flex justify-between">
+							<p class="field-hint">
 								<span>{m.scout_nameHint()}</span>
-								<span class={scoutName.length > 25 ? 'text-amber-600' : ''}>{scoutName.length}/30</span>
+								<span class={scoutName.length > 25 ? 'count-warning' : ''}>{scoutName.length}/30</span>
 							</p>
 						</div>
 					{/if}
 
 					<!-- Frequency Selector -->
-					<div>
-						<div class="flex items-center justify-between mb-1.5">
-							<label for="regularity" class="text-sm font-medium text-[var(--color-ink)]">
+					<div class="form-group">
+						<div class="field-label-row">
+							<label for="regularity" class="field-label">
 								{m.scheduleSearch_monitoringFrequency()}
 							</label>
 							{#if import.meta.env.PUBLIC_DEPLOYMENT_TARGET !== 'supabase'}
-							<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-[var(--color-secondary-soft)] text-[var(--color-primary-deep)] text-xs font-medium border border-[var(--color-primary-soft)]">
-								{monthlyCost === 1 ? m.scout_monthlyCost({ count: monthlyCost }) : m.scout_monthlyCostPlural({ count: monthlyCost })}
-							</span>
-						{/if}
+								<span class="cost-badge">
+									{monthlyCost === 1 ? m.scout_monthlyCost({ count: monthlyCost }) : m.scout_monthlyCostPlural({ count: monthlyCost })}
+								</span>
+							{/if}
 						</div>
 						<select
 							id="regularity"
 							bind:value={regularity}
-							class="form-input w-full text-sm"
+							class="form-input"
 							disabled={scoutType === 'civic'}
-							style={scoutType === 'civic' ? 'opacity: 0.5; cursor: not-allowed;' : ''}
 						>
 							{#if scoutType !== 'social' && scoutType !== 'civic'}
 								<option value="daily">{m.schedule_daily()}</option>
@@ -528,34 +507,26 @@
 
 					<!-- Day Selection (Conditional) -->
 					{#if regularity === 'weekly'}
-						<div>
-							<label for="day-of-week" class="block text-sm font-medium text-[var(--color-ink)] mb-1.5">
-								{m.schedule_dayOfWeek()}
-							</label>
-							<select
-								id="day-of-week"
-								bind:value={dayNumber}
-								class="form-input w-full text-sm"
-							>
+						<div class="form-group">
+							<label for="day-of-week" class="field-label">{m.schedule_dayOfWeek()}</label>
+							<select id="day-of-week" bind:value={dayNumber} class="form-input">
 								{#each daysOfWeek as day}
 									<option value={day.value}>{day.label}</option>
 								{/each}
 							</select>
 						</div>
 					{:else if regularity === 'monthly'}
-						<div>
-							<label for="day-of-month" class="block text-sm font-medium text-[var(--color-ink)] mb-1.5">
-								{m.schedule_dayOfMonth()}
-							</label>
+						<div class="form-group">
+							<label for="day-of-month" class="field-label">{m.schedule_dayOfMonth()}</label>
 							<input
 								id="day-of-month"
 								type="number"
 								bind:value={dayNumber}
 								min="1"
 								max="31"
-								class="form-input w-full text-sm"
+								class="form-input"
 							/>
-							<p class="mt-1 text-xs text-[var(--color-ink-subtle)]">{m.schedule_dayOfMonthHint()}</p>
+							<p class="field-hint">{m.schedule_dayOfMonthHint()}</p>
 						</div>
 					{/if}
 
@@ -569,45 +540,41 @@
 
 					<!-- Error Message -->
 					{#if errorMessage}
-						<div class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-							{errorMessage}
-						</div>
+						<div class="error-block">{errorMessage}</div>
 					{/if}
 
 					<!-- Email disclaimer (pulse/social — web shown above context) -->
 					{#if scoutType === 'pulse'}
-						<div class="flex items-center gap-2 rounded-lg bg-[var(--color-secondary-soft)] border border-[var(--color-primary-soft)] px-3 py-2 text-xs text-[var(--color-primary-deep)]">
+						<div class="email-disclaimer">
 							<Mail size={14} />
 							<span>{m.schedule_emailDisclaimer_pulse()}</span>
 						</div>
 					{/if}
 					{#if scoutType === 'social'}
-						<div class="flex items-center gap-2 rounded-lg bg-[var(--color-secondary-soft)] border border-[var(--color-primary-soft)] px-3 py-2 text-xs text-[var(--color-primary-deep)]">
+						<div class="email-disclaimer">
 							<Mail size={14} />
 							<span>{m.schedule_emailDisclaimer_social()}</span>
 						</div>
 					{/if}
 
 					<!-- Action Button -->
-					<div class="pt-1">
-						<button
-							type="submit"
-							disabled={isSubmitting}
-							class="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-						>
-							{#if isSubmitting}
-								<span class="flex items-center justify-center gap-2">
-									<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-									</svg>
-									{m.common_scheduling()}
-								</span>
-							{:else}
-								{m.scout_scheduleScout()}
-							{/if}
-						</button>
-					</div>
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="btn-primary modal-action"
+					>
+						{#if isSubmitting}
+							<span class="btn-spinner-row">
+								<svg class="btn-spinner" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+								{m.common_scheduling()}
+							</span>
+						{:else}
+							{m.scout_scheduleScout()}
+						{/if}
+					</button>
 				</form>
 			{/if}
 		</div>
@@ -616,4 +583,282 @@
 
 
 <style>
+	/* Card — matches ApiView width (640px) and surface tokens */
+	.modal-card {
+		position: relative;
+		width: 100%;
+		max-width: 640px;
+		margin: 0 1rem;
+		background: var(--color-canvas, #fff);
+		border-radius: 0.75rem;
+		box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+		border: 1px solid var(--color-border);
+		max-height: 90vh;
+		overflow-y: auto;
+	}
+
+	/* Header */
+	.modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 1.25rem 1.5rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+	.modal-header-left {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+	.modal-icon {
+		display: flex;
+		height: 2.5rem;
+		width: 2.5rem;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.5rem;
+	}
+	.modal-icon.icon-purple,
+	.modal-icon.icon-blue {
+		background: var(--color-primary-soft);
+		color: var(--color-primary);
+	}
+	.modal-icon.icon-pink {
+		background: #fce7f3;
+		color: #db2777;
+	}
+	.modal-icon.icon-green {
+		background: #d1fae5;
+		color: #059669;
+	}
+	.modal-title {
+		font-size: 1rem;
+		font-weight: 600;
+		color: var(--color-ink);
+		margin: 0;
+		line-height: 1.3;
+	}
+	.modal-subtitle {
+		font-size: 0.75rem;
+		color: var(--color-ink-muted);
+		margin: 0.125rem 0 0;
+		line-height: 1.4;
+	}
+	.modal-close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.375rem;
+		color: var(--color-ink-subtle);
+		background: transparent;
+		border: none;
+		border-radius: 0.5rem;
+		cursor: pointer;
+		transition: background-color 0.15s ease, color 0.15s ease;
+	}
+	.modal-close:hover {
+		background: var(--color-surface);
+		color: var(--color-ink-muted);
+	}
+
+	/* Body — uses ApiView form-group rhythm */
+	.modal-body {
+		padding: 1.5rem;
+	}
+
+	/* Form groups — matches ApiView */
+	.form-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		margin-bottom: 1rem;
+	}
+	.form-group:last-of-type {
+		margin-bottom: 0;
+	}
+	.field-label {
+		display: block;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		color: var(--color-ink);
+		margin: 0;
+	}
+	.field-label-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.field-hint {
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.75rem;
+		color: var(--color-ink-subtle);
+		margin: 0.25rem 0 0;
+	}
+	.required-mark {
+		color: #dc2626;
+	}
+	.count-warning {
+		color: #d97706;
+	}
+
+	/* Context block — mirrors ApiView .agent-block */
+	.context-wrap {
+		margin-bottom: 1rem;
+	}
+	.context-block {
+		background: var(--color-surface-alt, var(--color-surface));
+		border: 1px solid var(--color-border);
+		border-radius: 0.5rem;
+		padding: 0.75rem 0.875rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+	}
+	.context-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		font-size: 0.8125rem;
+		line-height: 1.5;
+	}
+	.context-row-divider {
+		margin-top: 0.375rem;
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.context-icon {
+		color: var(--color-ink-subtle);
+		flex-shrink: 0;
+		margin-top: 0.125rem;
+	}
+	.context-key {
+		font-weight: 500;
+		color: var(--color-ink);
+	}
+	.context-value {
+		color: var(--color-ink-muted);
+		min-width: 0;
+		overflow: hidden;
+	}
+	.truncate {
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.italic {
+		font-style: italic;
+	}
+
+	/* Disclaimer pill */
+	.email-disclaimer {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.75rem;
+		color: var(--color-primary-deep);
+		background: var(--color-secondary-soft);
+		border: 1px solid var(--color-primary-soft);
+		border-radius: 0.5rem;
+		margin-bottom: 1rem;
+	}
+
+	.cost-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.125rem 0.5rem;
+		font-size: 0.6875rem;
+		font-weight: 500;
+		color: var(--color-primary-deep);
+		background: var(--color-secondary-soft);
+		border: 1px solid var(--color-primary-soft);
+		border-radius: 9999px;
+	}
+
+	/* Form inputs — consistent sizing */
+	.form-input {
+		width: 100%;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.8125rem;
+		border: 1px solid var(--color-border);
+		border-radius: 0.375rem;
+		background: var(--color-canvas, #fff);
+		color: var(--color-ink);
+		outline: none;
+		transition: border-color 0.15s ease;
+	}
+	.form-input:focus {
+		border-color: var(--color-primary);
+	}
+	.form-input:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	/* Error block */
+	.error-block {
+		padding: 0.75rem;
+		font-size: 0.8125rem;
+		color: #b91c1c;
+		background: #fef2f2;
+		border: 1px solid #fecaca;
+		border-radius: 0.5rem;
+		margin-bottom: 1rem;
+	}
+
+	/* Submit button */
+	.modal-action {
+		width: 100%;
+		margin-top: 0.25rem;
+	}
+	.modal-action:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.btn-spinner-row {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+	}
+	.btn-spinner {
+		height: 1rem;
+		width: 1rem;
+		animation: spin 1s linear infinite;
+	}
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
+
+	/* Success block */
+	.success-block {
+		text-align: center;
+		padding: 1.5rem 0;
+	}
+	.success-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 4rem;
+		height: 4rem;
+		border-radius: 9999px;
+		background: #d1fae5;
+		color: #059669;
+		margin-bottom: 1rem;
+	}
+	.success-title {
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: var(--color-ink);
+		margin: 0 0 0.5rem;
+	}
+	.success-name {
+		color: var(--color-ink-muted);
+		margin: 0 0 0.25rem;
+	}
+	.success-summary {
+		font-size: 0.8125rem;
+		color: var(--color-ink-subtle);
+		margin: 0;
+	}
 </style>

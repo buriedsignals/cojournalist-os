@@ -26,15 +26,20 @@
 		subscribing = true;
 		subscribeError = '';
 		try {
-			const res = await fetch('/functions/v1/newsletter-subscribe', {
+			const supabaseUrl = (import.meta.env.PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
+			const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY ?? '';
+			const res = await fetch(`${supabaseUrl}/functions/v1/newsletter-subscribe`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					apikey: supabaseAnonKey
+				},
 				body: JSON.stringify({ email: value, newsletters: ['buried_signals'] })
 			});
+			const data = await res.json().catch(() => ({}));
 			if (res.ok) {
 				subscribed = true;
 			} else {
-				const data = await res.json().catch(() => ({}));
 				subscribeError = data.error || data.detail || 'Something went wrong. Please try again.';
 			}
 		} catch {

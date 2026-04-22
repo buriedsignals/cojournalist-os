@@ -8,6 +8,9 @@
 	import { apiClient } from '$lib/api-client';
 	import { sidebarNav } from '$lib/stores/sidebar-nav';
 	import type { ScoutType } from '$lib/types';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher<{ scheduled: { scoutType: 'civic' } }>();
 	import * as m from '$lib/paraglide/messages';
 
 	// Step state: domain (initial) → results (after search, shows criteria + schedule)
@@ -342,6 +345,7 @@
 	on:success={() => {
 		showScheduleModal = false;
 		sidebarNav.setView('scouts');
+		dispatch('scheduled', { scoutType: 'civic' });
 	}}
 />
 

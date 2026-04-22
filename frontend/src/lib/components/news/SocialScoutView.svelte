@@ -8,6 +8,9 @@
 	import * as m from '$lib/paraglide/messages';
 	import { sidebarNav } from '$lib/stores/sidebar-nav';
 	import { buildApiUrl } from '$lib/config/api';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher<{ scheduled: { scoutType: 'social' } }>();
 
 	// Form state
 	let platform: 'instagram' | 'x' | 'facebook' | 'tiktok' = 'instagram';
@@ -300,6 +303,7 @@
 		scanWarning = '';
 		showScheduleModal = false;
 		sidebarNav.setView('scouts');
+		dispatch('scheduled', { scoutType: 'social' });
 	}}
 />
 
