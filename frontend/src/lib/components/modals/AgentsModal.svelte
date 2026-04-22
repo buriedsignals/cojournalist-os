@@ -284,7 +284,7 @@
 		background: var(--color-surface-alt);
 		border: 1px solid var(--color-border);
 		box-shadow: var(--shadow-modal);
-		overflow: hidden;
+		overflow-y: auto;
 		animation: modalPop 300ms cubic-bezier(0.4, 0, 0.2, 1);
 		font-family: var(--font-body);
 	}
@@ -350,7 +350,6 @@
 
 	.agents-body {
 		padding: 1.25rem 1.5rem 1.5rem;
-		overflow-y: auto;
 	}
 
 	.toolbar {

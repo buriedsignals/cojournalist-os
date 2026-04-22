@@ -491,9 +491,7 @@
 						</ul>
 						<div class="promo-action promo-action--inline">
 							<a
-								href="https://github.com/buriedsignals/cojournalist-os/issues/new?labels=consulting&amp;title=Consulting%20inquiry"
-								target="_blank"
-								rel="noopener"
+								href="mailto:tom@buriedsignals.com?subject=Consulting%20inquiry"
 								class="promo-btn-primary"
 							>
 								Get in touch →

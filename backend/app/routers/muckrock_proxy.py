@@ -2,12 +2,20 @@
 MuckRock compatibility proxy — keeps the pre-cutover cojournalist.ai URLs
 alive while the real handlers live in Supabase Edge Functions.
 
-Why this exists: MuckRock has two URLs registered against our OAuth client:
+Why this exists: MuckRock has two URLs registered against our OAuth client
+(client_id 879742):
 
     - webhook:          https://www.cojournalist.ai/api/auth/webhook
-    - OAuth callback:   https://www.cojournalist.ai/api/auth/callback
+    - OAuth callback:   https://cojournalist.ai/api/auth/callback   (apex — NOT www)
 
-Both used to point at the FastAPI auth router. Post-cutover the handlers
+The apex vs www mismatch on the callback is deliberate: MuckRock's OAuth
+registration predates the www-only app origin and requires the bare domain.
+RFC 6749 §3.1.2.3 requires byte-exact match, so the `auth-muckrock` EF sends
+`${MUCKROCK_CALLBACK_URL}` (= apex string) on both the authorize and token
+exchange calls. Cloudflare/Render serves both apex and www, so this proxy
+is reached regardless of which subdomain MuckRock calls back on.
+
+Both URLs used to point at the FastAPI auth router. Post-cutover the handlers
 moved to `billing-webhook` and `auth-muckrock` Edge Functions. Rather than
 ask MuckRock to update their registration (paperwork, coordination, risk
 of drift during the window), we proxy:

@@ -15,19 +15,22 @@ list where applicable so cross-references stay stable.
 Code-side work is done for #20, #21, #5, #23 as of 2026-04-22. These
 console-only actions unblock real user flows:
 
-- **MuckRock admin (#21):** set the OAuth client's webhook URL to
-  `https://gfmdziplticfoakhrfpt.supabase.co/functions/v1/billing-webhook`
-  and re-enable if it auto-disabled during the cutover. Signing secret
-  is unchanged (still `MUCKROCK_CLIENT_SECRET`). Trigger a test event
-  and confirm a `200 OK` reaches the EF.
-- **MuckRock admin (#20 followup):** register the new OAuth callback URL
-  `https://gfmdziplticfoakhrfpt.supabase.co/functions/v1/auth-muckrock/callback`
-  alongside the existing Render URL.
-- **Supabase dashboard (EF secrets):** set `SESSION_SECRET`,
+- **MuckRock admin — NO action required.** The `muckrock_proxy.py`
+  router on Render forwards both MuckRock-registered URLs to the right
+  Supabase EFs byte-for-byte:
+    `POST https://www.cojournalist.ai/api/auth/webhook` → `billing-webhook`
+    `GET  https://cojournalist.ai/api/auth/callback`   → `auth-muckrock/callback`
+  (The OAuth callback is registered on the **apex** `cojournalist.ai`,
+  not `www` — MuckRock rejects `www` with "Redirect URI Error". See
+  `docs/muckrock/oauth-integration.md` for the byte-exact-match rationale.)
+- **Supabase EF secrets — DONE 2026-04-22:** `SESSION_SECRET`,
   `PUBLIC_APP_URL=https://www.cojournalist.ai`,
-  `APP_POST_LOGIN_REDIRECT=https://www.cojournalist.ai/` (name changed
-  from SUPABASE_POST_LOGIN_REDIRECT — Supabase reserves SUPABASE_*), and
-  `EMAIL_ALLOWLIST` (if restricting) on the `auth-muckrock` EF.
+  `APP_POST_LOGIN_REDIRECT=https://www.cojournalist.ai/`,
+  `MCP_STATE_SECRET`, and
+  `MUCKROCK_CALLBACK_URL=https://cojournalist.ai/api/auth/callback`
+  **(apex — critical for MuckRock byte-exact match on both the
+  authorize call and the token-exchange call)** all set on the
+  `auth-muckrock` EF. `EMAIL_ALLOWLIST` optional.
 
 ---
 

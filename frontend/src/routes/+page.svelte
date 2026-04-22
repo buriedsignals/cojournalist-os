@@ -145,7 +145,7 @@
 	$: topicOptions = (() => {
 		const counts: Record<string, number> = {};
 		for (const s of scoutsState.scouts) {
-			if (s.criteria) counts[s.criteria] = (counts[s.criteria] || 0) + 1;
+			if (s.topic) counts[s.topic] = (counts[s.topic] || 0) + 1;
 		}
 		const entries = Object.entries(counts).sort(([a], [b]) => a.localeCompare(b));
 		if (entries.length === 0) return [{ value: '', label: 'No topics' }];
@@ -157,7 +157,7 @@
 
 	$: dimensionFiltered = scoutsState.scouts
 		.filter((s) => !selectedLocation || locationDisplay(s.location) === selectedLocation)
-		.filter((s) => !selectedTopic || s.criteria === selectedTopic);
+		.filter((s) => !selectedTopic || s.topic === selectedTopic);
 
 	$: scoutNameOptions = [
 		{ value: '', label: 'All scouts' },
@@ -240,8 +240,16 @@
 		runningScoutId = id;
 		try {
 			await workspaceApi.runScout(id);
-			// Refetch scouts + units to pick up new findings
-			await scoutsStore.load();
+			// Poll scout.last_run.status until terminal. runScout returns 202
+			// immediately; the actual execution happens async server-side.
+			const deadline = Date.now() + 5 * 60_000;
+			while (Date.now() < deadline) {
+				await new Promise((r) => setTimeout(r, 2000));
+				await scoutsStore.load();
+				const fresh = $scoutsStore.scouts.find((s) => s.id === id);
+				const status = fresh?.last_run?.status;
+				if (status && status !== 'running' && status !== 'queued') break;
+			}
 			await unitsStore.load(selection.scoutId);
 			// Refresh credits so the next Run Now click sees the post-decrement
 			// balance (mirrors ScoutScheduleModal production behaviour).
@@ -397,10 +405,10 @@
 		</div>
 		<div class="topnav-right">
 			{#if $authStore.authenticated || $authStore.user}
-				<a class="credits-pill" href="/" title="Credits remaining this month">
+				<span class="credits-pill" title="Credits remaining this month">
 					<span class="credits-value">{$authStore.user?.credits ?? 0}</span>
 					<span class="credits-label">credits</span>
-				</a>
+				</span>
 			{/if}
 			<div class="user-menu-wrap">
 				<button
@@ -701,19 +709,14 @@
 	}
 
 	.credits-pill {
+		display: inline-flex;
 		align-items: baseline;
 		gap: 0.375rem;
 		height: 32px;
 		padding: 0 0.75rem;
 		background: var(--color-secondary-soft);
 		border: 1px solid var(--color-secondary);
-		text-decoration: none;
 		white-space: nowrap;
-		transition: background 150ms ease;
-	}
-
-	.credits-pill:hover {
-		background: var(--color-bg);
 	}
 
 	.credits-value {

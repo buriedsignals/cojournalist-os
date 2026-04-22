@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { ArrowLeft, Copy, Check, ExternalLink, FileCode, Terminal, Plug, Bot } from 'lucide-svelte';
+	import { authStore } from '$lib/stores/auth';
+
+	$: backHref = $authStore.authenticated ? '/' : '/login';
 
 	type Section = { id: string; title: string; children?: { id: string; title: string }[] };
 
@@ -126,7 +129,7 @@
 </svelte:head>
 
 <div class="docs">
-	<a href="/" class="mobile-back" aria-label="Back">
+	<a href={backHref} class="mobile-back" aria-label="Back">
 		<ArrowLeft size={14} />
 		<span>Back</span>
 	</a>
@@ -134,7 +137,7 @@
 	<div class="layout">
 		<aside class="sidebar" aria-label="Documentation table of contents">
 			<div class="sidebar-inner">
-				<a href="/" class="sidebar-back">
+				<a href={backHref} class="sidebar-back">
 					<ArrowLeft size={13} />
 					<span>Back</span>
 				</a>
@@ -838,7 +841,7 @@ cojo export claude --project phoenix-council --limit 50 \\
 				</section>
 
 				<footer class="foot">
-					<a href="/" class="foot-link">← Back to coJournalist</a>
+					<a href={backHref} class="foot-link">← Back to coJournalist</a>
 					<a
 						href="https://github.com/buriedsignals/cojournalist-os"
 						target="_blank"

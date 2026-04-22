@@ -1093,6 +1093,13 @@ export const workspaceApi = {
 		};
 	},
 
+	async deleteScout(id: string): Promise<void> {
+		await workspaceRequest<Record<string, unknown>>(
+			'DELETE',
+			`/scouts/${encodeURIComponent(id)}`
+		);
+	},
+
 	/**
 	 * List units, optionally scoped to a scout. Paginated.
 	 *

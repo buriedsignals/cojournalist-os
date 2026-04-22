@@ -34,8 +34,15 @@
  *     its own auto-injected env vars and rejects user-set names there)
  *   EMAIL_ALLOWLIST (optional) — comma-separated emails / @domain patterns
  *
- * Callback URL (register with MuckRock):
- *   ${SUPABASE_URL}/functions/v1/auth-muckrock/callback
+ * redirect_uri registered with MuckRock (client 879742):
+ *   production:  https://cojournalist.ai/api/auth/callback   (apex — NOT www)
+ *   development: http://localhost:5173/api/auth/callback
+ * Production requests proxy through the Render backend at
+ * backend/app/routers/muckrock_proxy.py which 302s to this EF's /callback.
+ * The `MUCKROCK_CALLBACK_URL` EF secret is set to the apex string so
+ * callbackUrl() returns it on both the authorize and token-exchange calls
+ * (RFC 6749 §4.1.3 byte-match). Do NOT change to `www.cojournalist.ai` —
+ * MuckRock will reject with "Redirect URI Error".
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
