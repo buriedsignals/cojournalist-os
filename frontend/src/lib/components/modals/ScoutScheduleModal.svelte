@@ -87,42 +87,53 @@
 		}
 	});
 
-	// Scout type display info
-	$: scoutTypeInfo = {
-		'pulse': {
+	// Per DESIGN.md §2.3: scout-type tiles use primary (plum) by default;
+	// social + civic use secondary (ochre) so the dashboard reads as a
+	// two-surface split instead of four competing colors.
+	type TileVariant = 'primary' | 'secondary';
+	const scoutTypeInfo: Record<ScoutType, {
+		title: string;
+		scheduleTitle: string;
+		description: string;
+		tile: TileVariant;
+		icon: typeof Bell;
+		notifyRule: string;
+	}> = {
+		pulse: {
 			title: m.scoutTypeInfo_newsPulse_title(),
+			scheduleTitle: m.scheduleSearch_title(),
 			description: m.scoutTypeInfo_newsPulse_description(),
-			color: 'purple',
+			tile: 'primary',
 			icon: Bell,
 			notifyRule: m.scoutTypeInfo_newsPulse_notifyRule()
 		},
-		'web': {
+		web: {
 			title: m.scoutTypeInfo_web_title(),
+			scheduleTitle: m.scheduleSearch_titlePageScout(),
 			description: m.scoutTypeInfo_web_description(),
-			color: 'blue',
+			tile: 'primary',
 			icon: ScanSearch,
 			notifyRule: m.scoutTypeInfo_web_notifyRule()
 		},
-		'social': {
+		social: {
 			title: m.scoutTypeInfo_social_title(),
+			scheduleTitle: m.scheduleSearch_titleSocialScout(),
 			description: m.scoutTypeInfo_social_description(),
-			color: 'pink',
+			tile: 'secondary',
 			icon: Users,
 			notifyRule: m.scoutTypeInfo_social_notifyRule()
 		},
-		'civic': {
+		civic: {
 			title: m.scoutTypeInfo_civic_title(),
+			scheduleTitle: m.scheduleSearch_titleCivicScout(),
 			description: m.scoutTypeInfo_civic_description(),
-			color: 'green',
+			tile: 'secondary',
 			icon: Landmark,
 			notifyRule: m.scoutTypeInfo_civic_notifyRule()
 		}
 	};
 
-	$: info = scoutTypeInfo[scoutType];
-	$: monthlyCost = regularity === 'daily' ? perRunCost * 30 : regularity === 'weekly' ? perRunCost * 4 : perRunCost;
-
-	$: daysOfWeek = [
+	const daysOfWeek = [
 		{ value: 1, label: m.schedule_monday() },
 		{ value: 2, label: m.schedule_tuesday() },
 		{ value: 3, label: m.schedule_wednesday() },
@@ -131,6 +142,21 @@
 		{ value: 6, label: m.schedule_saturday() },
 		{ value: 7, label: m.schedule_sunday() }
 	];
+
+	$: info = scoutTypeInfo[scoutType];
+	$: monthlyCost = regularity === 'daily' ? perRunCost * 30 : regularity === 'weekly' ? perRunCost * 4 : perRunCost;
+
+	$: preFormDisclaimers = scoutType === 'web'
+		? [
+			{ icon: Mail, text: webCriteria ? m.schedule_emailDisclaimer_webCriteria() : m.schedule_emailDisclaimer_webAny() },
+			{ icon: ScanSearch, text: 'Scheduling saves the current page as a baseline. Inbox units appear only after later changes.' }
+		]
+		: [];
+
+	$: postFormDisclaimers =
+		scoutType === 'pulse' ? [{ icon: Mail, text: m.schedule_emailDisclaimer_pulse() }] :
+		scoutType === 'social' ? [{ icon: Mail, text: m.schedule_emailDisclaimer_social() }] :
+		[];
 
 	function getScheduleSummary(): string {
 		let h = hour;
@@ -297,60 +323,54 @@
 </script>
 
 {#if open}
-	<!-- Modal Backdrop -->
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs"
+		class="modal-backdrop"
 		on:click={handleBackdropClick}
 		on:keydown={(event) => event.key === 'Escape' && handleClose()}
-		role="button"
-		tabindex="0"
-		aria-label="Close modal backdrop"
 	>
-		<!-- Modal Card -->
-		<div
-			class="modal-card"
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+		<form
+			class="modal-panel"
+			on:submit={handleSubmit}
 			on:click|stopPropagation
 			on:keydown|stopPropagation
-			role="dialog"
-			aria-modal="true"
-			tabindex="-1"
+			aria-labelledby="scout-schedule-title"
 		>
-			<!-- Header -->
-			<div class="modal-header">
-				<div class="modal-header-left">
-					<div class="modal-icon icon-{info.color}">
-						<svelte:component this={info.icon} size={20} />
-					</div>
-					<div>
-						<h2 class="modal-title">{scoutType === 'web' ? m.scheduleSearch_titlePageScout() : scoutType === 'social' ? m.scheduleSearch_titleSocialScout() : scoutType === 'civic' ? m.scheduleSearch_titleCivicScout() : m.scheduleSearch_title()}</h2>
-						<p class="modal-subtitle">{info.description}</p>
-					</div>
-				</div>
-				<button on:click={handleClose} class="modal-close" aria-label="Close modal">
-					<X size={20} />
-				</button>
-			</div>
-
 			{#if scheduleSuccess}
-				<!-- Success Confirmation -->
-				<div class="modal-body" transition:fade={{ duration: 200 }}>
-					<div class="success-block">
-						<div class="success-icon">
-							<CheckCircle size={32} />
-						</div>
-						<h3 class="success-title">{m.scheduleSearch_scoutScheduled()}</h3>
-						<p class="success-name">{scoutName}</p>
-						<p class="success-summary">{getScheduleSummary()}</p>
+				<div class="success" transition:fade={{ duration: 200 }}>
+					<div class="success-icon">
+						<CheckCircle size={28} />
 					</div>
-					<button on:click={handleClose} class="btn-primary modal-action">
+					<h3 class="success-title">{m.scheduleSearch_scoutScheduled()}</h3>
+					<p class="success-name">{scoutName}</p>
+					<p class="success-summary">{getScheduleSummary()}</p>
+				</div>
+				<footer class="modal-footer">
+					<button type="button" class="btn-primary" on:click={handleClose}>
 						{m.common_done()}
 					</button>
-				</div>
+				</footer>
 			{:else}
-				<!-- Form -->
-				<form on:submit={handleSubmit} class="modal-body">
-					<!-- Context Display (mirrors ApiView's .agent-block pattern) -->
-					<div class="context-wrap">
+				<header class="modal-header">
+					<div
+						class="modal-icon-tile"
+						class:modal-icon-tile--secondary={info.tile === 'secondary'}
+					>
+						<svelte:component this={info.icon} size={18} />
+					</div>
+					<div class="modal-header-text">
+						<h2 id="scout-schedule-title" class="modal-title">{info.scheduleTitle}</h2>
+						<p class="modal-subtitle">{info.description}</p>
+					</div>
+					<button type="button" class="modal-close" on:click={handleClose} aria-label="Close modal">
+						<X size={16} />
+					</button>
+				</header>
+
+				<div class="modal-body">
+					{#if (scoutType === 'web' && url) || (scoutType === 'web' && webCriteria) || (scoutType === 'pulse' && (location || criteria)) || (scoutType === 'pulse' && (excludedDomains.length || prioritySources.length)) || (scoutType === 'social' && profile_handle) || (scoutType === 'civic' && (root_domain || tracked_urls.length))}
 						<div class="context-block">
 							{#if scoutType === 'web' && url}
 								<div class="context-row">
@@ -416,51 +436,40 @@
 								</div>
 							{/if}
 						</div>
-					</div>
-
-					<!-- Email disclaimer for web scouts (near context) -->
-					{#if scoutType === 'web'}
-						<div class="email-disclaimer">
-							<Mail size={14} />
-							<span>{webCriteria ? m.schedule_emailDisclaimer_webCriteria() : m.schedule_emailDisclaimer_webAny()}</span>
-						</div>
-						<div class="baseline-note">
-							<ScanSearch size={14} />
-							<span>Scheduling saves the current page as a baseline. Inbox units appear only after later changes.</span>
-						</div>
 					{/if}
 
-					<!-- Scope (web + civic) -->
+					{#each preFormDisclaimers as d}
+						<p class="info-note">
+							<svelte:component this={d.icon} size={14} />
+							<span>{d.text}</span>
+						</p>
+					{/each}
+
 					{#if scoutType === 'web' || scoutType === 'civic'}
-						<div class="form-group">
-							<div class="field-label">{m.filter_locationLabel()}</div>
-							<div class="schedule-field-shell">
-								<LocationAutocomplete
-									selectedLocation={selectedLocation}
-									on:select={handleLocationSelect}
-									on:clear={handleLocationClear}
-								/>
-							</div>
-						</div>
-					{/if}
-
-					<!-- Category (all scout types) -->
-					<div class="form-group">
-						<div class="field-label">{m.schedule_categoryLabel()}</div>
-						<div class="schedule-field-shell">
-							<TopicChips
-								bind:topic={topicInput}
-								{existingTopics}
-								placeholder={m.schedule_categoryPlaceholder()}
+						<div class="form-field">
+							<span class="form-label">{m.filter_locationLabel()}</span>
+							<LocationAutocomplete
+								selectedLocation={selectedLocation}
+								on:select={handleLocationSelect}
+								on:clear={handleLocationClear}
 							/>
 						</div>
+					{/if}
+
+					<div class="form-field">
+						<span class="form-label">{m.schedule_categoryLabel()}</span>
+						<TopicChips
+							bind:topic={topicInput}
+							{existingTopics}
+							placeholder={m.schedule_categoryPlaceholder()}
+						/>
 					</div>
 
-					<!-- Scout Name (hidden for web scouts — already set in PageScoutView) -->
+					<!-- Web scouts set scoutName upstream in PageScoutView; skip here. -->
 					{#if scoutType !== 'web'}
-						<div class="form-group">
-							<label for="scout-name" class="field-label">
-								{m.scout_name()} <span class="required-mark">*</span>
+						<div class="form-field">
+							<label for="scout-name" class="form-label">
+								{m.scout_name()} <span class="required-star">*</span>
 							</label>
 							<input
 								id="scout-name"
@@ -471,21 +480,20 @@
 								required
 								class="form-input"
 							/>
-							<p class="field-hint">
+							<p class="form-helper helper-row">
 								<span>{m.scout_nameHint()}</span>
-								<span class={scoutName.length > 25 ? 'count-warning' : ''}>{scoutName.length}/30</span>
+								<span class={scoutName.length > 25 ? 'count--warn' : ''}>{scoutName.length}/30</span>
 							</p>
 						</div>
 					{/if}
 
-					<!-- Frequency Selector -->
-					<div class="form-group">
-						<div class="field-label-row">
-							<label for="regularity" class="field-label">
+					<div class="form-field">
+						<div class="label-row">
+							<label for="regularity" class="form-label">
 								{m.scheduleSearch_monitoringFrequency()}
 							</label>
 							{#if import.meta.env.PUBLIC_DEPLOYMENT_TARGET !== 'supabase'}
-								<span class="cost-badge">
+								<span class="cost-pill">
 									{monthlyCost === 1 ? m.scout_monthlyCost({ count: monthlyCost }) : m.scout_monthlyCostPlural({ count: monthlyCost })}
 								</span>
 							{/if}
@@ -493,7 +501,7 @@
 						<select
 							id="regularity"
 							bind:value={regularity}
-							class="form-input"
+							class="form-select"
 							disabled={scoutType === 'civic'}
 						>
 							{#if scoutType !== 'social' && scoutType !== 'civic'}
@@ -506,19 +514,18 @@
 						</select>
 					</div>
 
-					<!-- Day Selection (Conditional) -->
 					{#if regularity === 'weekly'}
-						<div class="form-group">
-							<label for="day-of-week" class="field-label">{m.schedule_dayOfWeek()}</label>
-							<select id="day-of-week" bind:value={dayNumber} class="form-input">
+						<div class="form-field">
+							<label for="day-of-week" class="form-label">{m.schedule_dayOfWeek()}</label>
+							<select id="day-of-week" bind:value={dayNumber} class="form-select">
 								{#each daysOfWeek as day}
 									<option value={day.value}>{day.label}</option>
 								{/each}
 							</select>
 						</div>
 					{:else if regularity === 'monthly'}
-						<div class="form-group">
-							<label for="day-of-month" class="field-label">{m.schedule_dayOfMonth()}</label>
+						<div class="form-field">
+							<label for="day-of-month" class="form-label">{m.schedule_dayOfMonth()}</label>
 							<input
 								id="day-of-month"
 								type="number"
@@ -527,11 +534,10 @@
 								max="31"
 								class="form-input"
 							/>
-							<p class="field-hint">{m.schedule_dayOfMonthHint()}</p>
+							<p class="form-helper">{m.schedule_dayOfMonthHint()}</p>
 						</div>
 					{/if}
 
-					<!-- Time Picker -->
 					<TimePicker
 						bind:hour
 						bind:minute
@@ -539,433 +545,211 @@
 						timezoneLabel={userTimezoneLabel}
 					/>
 
-					<!-- Error Message -->
+					{#each postFormDisclaimers as d}
+						<p class="info-note">
+							<svelte:component this={d.icon} size={14} />
+							<span>{d.text}</span>
+						</p>
+					{/each}
+
 					{#if errorMessage}
-						<div class="error-block">{errorMessage}</div>
+						<p class="error-text">{errorMessage}</p>
 					{/if}
+				</div>
 
-					<!-- Email disclaimer (pulse/social — web shown above context) -->
-					{#if scoutType === 'pulse'}
-						<div class="email-disclaimer">
-							<Mail size={14} />
-							<span>{m.schedule_emailDisclaimer_pulse()}</span>
-						</div>
-					{/if}
-					{#if scoutType === 'social'}
-						<div class="email-disclaimer">
-							<Mail size={14} />
-							<span>{m.schedule_emailDisclaimer_social()}</span>
-						</div>
-					{/if}
-
-					<!-- Action Button -->
-					<button
-						type="submit"
-						disabled={isSubmitting}
-						class="btn-primary modal-action"
-					>
+				<footer class="modal-footer">
+					<button type="button" class="btn-secondary" on:click={handleClose}>
+						{m.common_cancel()}
+					</button>
+					<button type="submit" class="btn-primary" disabled={isSubmitting}>
 						{#if isSubmitting}
-							<span class="btn-spinner-row">
-								<svg class="btn-spinner" viewBox="0 0 24 24">
-									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-								</svg>
-								{m.common_scheduling()}
-							</span>
+							<svg class="btn-spinner" viewBox="0 0 24 24" aria-hidden="true">
+								<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"></circle>
+								<path fill="currentColor" opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							<span>{m.common_scheduling()}</span>
 						{:else}
-							{m.scout_scheduleScout()}
+							<span>{m.scout_scheduleScout()}</span>
 						{/if}
 					</button>
-				</form>
+				</footer>
 			{/if}
-		</div>
+		</form>
 	</div>
 {/if}
 
 
 <style>
-	/* Card — matches ApiView width (640px) and surface tokens */
-	.modal-card {
-		position: relative;
-		width: 100%;
-		max-width: 640px;
-		margin: 0 1rem;
-		background: var(--color-canvas, #fff);
-		border-radius: 0.75rem;
-		box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-		border: 1px solid var(--color-border);
-		max-height: 90vh;
-		overflow-y: auto;
-	}
-
-	/* Header */
-	.modal-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 1.25rem 1.5rem;
-		border-bottom: 1px solid var(--color-border);
-	}
-	.modal-header-left {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-
-	.baseline-note {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.5rem;
-		margin: 0 0 1rem;
-		padding: 0.75rem 0.875rem;
-		background: rgba(30, 92, 179, 0.06);
-		border: 1px solid rgba(30, 92, 179, 0.18);
-		color: var(--color-primary-deep);
-		font-size: 0.8125rem;
-		line-height: 1.5;
-	}
-	.modal-icon {
-		display: flex;
-		height: 2.5rem;
-		width: 2.5rem;
-		align-items: center;
-		justify-content: center;
-		border-radius: 0.5rem;
-	}
-	.modal-icon.icon-purple,
-	.modal-icon.icon-blue {
-		background: var(--color-primary-soft);
-		color: var(--color-primary);
-	}
-	.modal-icon.icon-pink {
-		background: #fce7f3;
-		color: #db2777;
-	}
-	.modal-icon.icon-green {
-		background: #d1fae5;
-		color: #059669;
-	}
-	.modal-title {
-		font-size: 1rem;
-		font-weight: 600;
-		color: var(--color-ink);
-		margin: 0;
-		line-height: 1.3;
-	}
-	.modal-subtitle {
-		font-size: 0.75rem;
-		color: var(--color-ink-muted);
-		margin: 0.125rem 0 0;
-		line-height: 1.4;
-	}
-	.modal-close {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.375rem;
-		color: var(--color-ink-subtle);
-		background: transparent;
-		border: none;
-		border-radius: 0.5rem;
-		cursor: pointer;
-		transition: background-color 0.15s ease, color 0.15s ease;
-	}
-	.modal-close:hover {
-		background: var(--color-surface);
-		color: var(--color-ink-muted);
-	}
-
-	/* Body — uses ApiView form-group rhythm */
-	.modal-body {
-		padding: 1.5rem;
-	}
-
-	/* Form groups — matches ApiView */
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
-		margin-bottom: 1rem;
-	}
-	.form-group:last-of-type {
-		margin-bottom: 0;
-	}
-	.field-label {
-		display: block;
-		font-size: 0.8125rem;
-		font-weight: 500;
-		color: var(--color-ink);
-		margin: 0;
-	}
-	.field-label-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-	.field-hint {
-		display: flex;
-		justify-content: space-between;
-		font-size: 0.75rem;
-		color: var(--color-ink-subtle);
-		margin: 0.25rem 0 0;
-	}
-	.required-mark {
-		color: #dc2626;
-	}
-	.count-warning {
-		color: #d97706;
-	}
-
-	/* Context block — mirrors ApiView .agent-block */
-	.context-wrap {
-		margin-bottom: 1rem;
-	}
 	.context-block {
-		background: var(--color-surface-alt, var(--color-surface));
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		padding: 0.75rem 0.875rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.375rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		padding: 0.75rem 0.875rem;
+		margin-bottom: 1rem;
 	}
+
 	.context-row {
 		display: flex;
 		align-items: flex-start;
 		gap: 0.5rem;
 		font-size: 0.8125rem;
 		line-height: 1.5;
+		color: var(--color-ink-muted);
 	}
+
 	.context-row-divider {
 		margin-top: 0.375rem;
 		padding-top: 0.5rem;
 		border-top: 1px solid var(--color-border);
 	}
-	.context-icon {
+
+	.context-row :global(.context-icon) {
 		color: var(--color-ink-subtle);
 		flex-shrink: 0;
-		margin-top: 0.125rem;
+		margin-top: 0.1875rem;
 	}
+
 	.context-key {
-		font-weight: 500;
+		font-weight: 600;
 		color: var(--color-ink);
 	}
+
 	.context-value {
 		color: var(--color-ink-muted);
 		min-width: 0;
 		overflow: hidden;
 	}
+
 	.truncate {
 		white-space: nowrap;
 		text-overflow: ellipsis;
 	}
+
 	.italic {
 		font-style: italic;
 	}
 
-	/* Disclaimer pill */
-	.email-disclaimer {
+	.info-note {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		gap: 0.5rem;
+		margin: 0 0 1rem 0;
 		padding: 0.5rem 0.75rem;
-		font-size: 0.75rem;
-		color: var(--color-primary-deep);
 		background: var(--color-secondary-soft);
-		border: 1px solid var(--color-primary-soft);
-		border-radius: 0.5rem;
-		margin-bottom: 1rem;
+		border-left: 3px solid var(--color-secondary);
+		color: var(--color-ink);
+		font-size: 0.8125rem;
+		line-height: 1.5;
 	}
 
-	.cost-badge {
+	.info-note :global(svg) {
+		flex-shrink: 0;
+		margin-top: 0.125rem;
+		color: var(--color-secondary);
+	}
+
+	.label-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 0.375rem;
+	}
+
+	.label-row .form-label {
+		margin-bottom: 0;
+	}
+
+	.required-star {
+		color: var(--color-error);
+	}
+
+	.helper-row {
+		display: flex;
+		justify-content: space-between;
+	}
+
+	.count--warn {
+		color: var(--color-warning);
+	}
+
+	/* Pills are the only allowed radius per DESIGN.md §1. */
+	.cost-pill {
 		display: inline-flex;
 		align-items: center;
-		padding: 0.125rem 0.5rem;
+		font-family: var(--font-mono);
 		font-size: 0.6875rem;
 		font-weight: 500;
-		color: var(--color-primary-deep);
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		padding: 0.125rem 0.5rem;
+		color: var(--color-secondary);
 		background: var(--color-secondary-soft);
-		border: 1px solid var(--color-primary-soft);
+		border: 1px solid var(--color-secondary);
 		border-radius: 9999px;
 	}
 
-	/* Form inputs — consistent sizing */
-	.form-input {
-		width: 100%;
+	.error-text {
+		margin: 1rem 0 0 0;
 		padding: 0.5rem 0.75rem;
+		background: rgba(179, 62, 46, 0.08);
+		border-left: 3px solid var(--color-error);
+		color: var(--color-error);
 		font-size: 0.8125rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.375rem;
-		background: var(--color-canvas, #fff);
-		color: var(--color-ink);
-		outline: none;
-		transition: border-color 0.15s ease;
-	}
-	.form-input:focus {
-		border-color: var(--color-primary);
-	}
-	.form-input:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 
-	.schedule-field-shell {
-		width: 100%;
+	.success {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 2.5rem 1.5rem;
+		gap: 0.75rem;
 	}
 
-	.schedule-field-shell :global(.selected-location),
-	.schedule-field-shell :global(.selected-global),
-	.schedule-field-shell :global(.search-input),
-	.schedule-field-shell :global(.topic-chips-wrapper) {
-		border-radius: 0.375rem;
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		color: var(--color-ink);
-		font-family: var(--font-body);
-	}
-
-	.schedule-field-shell :global(.selected-location),
-	.schedule-field-shell :global(.selected-global),
-	.schedule-field-shell :global(.topic-chips-wrapper) {
-		min-height: 2.625rem;
-	}
-
-	.schedule-field-shell :global(.selected-location) {
-		background: var(--color-surface-alt);
-		color: var(--color-ink);
-	}
-
-	.schedule-field-shell :global(.selected-location:hover) {
-		background: var(--color-surface);
-		border-color: var(--color-border-strong);
-	}
-
-	.schedule-field-shell :global(.selected-global) {
-		background: var(--color-canvas, #fff);
-		color: var(--color-ink-muted);
-	}
-
-	.schedule-field-shell :global(.selected-global:hover) {
-		background: var(--color-surface-alt);
-		border-color: var(--color-border-strong);
-	}
-
-	.schedule-field-shell :global(.search-input) {
-		background: var(--color-surface-alt);
-	}
-
-	.schedule-field-shell :global(.search-input:focus) {
-		background: var(--color-canvas, #fff);
-		border-color: var(--color-primary-deep);
-		box-shadow: 0 0 0 2px rgba(78, 44, 120, 0.1);
-	}
-
-	.schedule-field-shell :global(.topic-chips-wrapper) {
-		gap: 0.375rem;
-		padding: 0.5rem 0.75rem;
-	}
-
-	.schedule-field-shell :global(.topic-chip) {
-		background: var(--color-canvas, #fff);
-		border: 1px solid var(--color-border);
-		color: var(--color-ink-muted);
-		font-family: var(--font-body);
-	}
-
-	.schedule-field-shell :global(.chip-remove) {
-		color: var(--color-ink-subtle);
-	}
-
-	.schedule-field-shell :global(.chip-remove:hover) {
-		background: var(--color-surface);
-		color: var(--color-ink);
-	}
-
-	.schedule-field-shell :global(.topic-chip-input) {
-		font-family: var(--font-body);
-		color: var(--color-ink);
-	}
-
-	.schedule-field-shell :global(.topic-chip-input::placeholder) {
-		color: var(--color-ink-subtle);
-	}
-
-	.schedule-field-shell :global(.topic-suggestions),
-	.schedule-field-shell :global(.suggestions-dropdown) {
-		border-radius: 0.375rem;
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-	}
-
-	.schedule-field-shell :global(.input-wrapper .input-icon),
-	.schedule-field-shell :global(.topic-field-icon) {
-		color: var(--color-ink-subtle);
-	}
-
-	/* Error block */
-	.error-block {
-		padding: 0.75rem;
-		font-size: 0.8125rem;
-		color: #b91c1c;
-		background: #fef2f2;
-		border: 1px solid #fecaca;
-		border-radius: 0.5rem;
-		margin-bottom: 1rem;
-	}
-
-	/* Submit button */
-	.modal-action {
-		width: 100%;
-		margin-top: 0.25rem;
-	}
-	.modal-action:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-	.btn-spinner-row {
+	.success-icon {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.5rem;
+		width: 3rem;
+		height: 3rem;
+		background: rgba(47, 143, 95, 0.12);
+		color: var(--color-success);
+		border: 1px solid var(--color-success);
 	}
+
+	.success-title {
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: var(--color-ink);
+		margin: 0;
+		letter-spacing: -0.01em;
+	}
+
+	.success-name {
+		font-size: 0.9375rem;
+		color: var(--color-ink-muted);
+		margin: 0;
+		text-align: center;
+	}
+
+	.success-summary {
+		font-size: 0.8125rem;
+		color: var(--color-ink-subtle);
+		margin: 0;
+		text-align: center;
+	}
+
 	.btn-spinner {
 		height: 1rem;
 		width: 1rem;
 		animation: spin 1s linear infinite;
 	}
-	@keyframes spin {
-		to { transform: rotate(360deg); }
-	}
 
-	/* Success block */
-	.success-block {
-		text-align: center;
-		padding: 1.5rem 0;
-	}
-	.success-icon {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 4rem;
-		height: 4rem;
-		border-radius: 9999px;
-		background: #d1fae5;
-		color: #059669;
-		margin-bottom: 1rem;
-	}
-	.success-title {
-		font-size: 1.125rem;
-		font-weight: 600;
-		color: var(--color-ink);
-		margin: 0 0 0.5rem;
-	}
-	.success-name {
-		color: var(--color-ink-muted);
-		margin: 0 0 0.25rem;
-	}
-	.success-summary {
-		font-size: 0.8125rem;
-		color: var(--color-ink-subtle);
-		margin: 0;
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>

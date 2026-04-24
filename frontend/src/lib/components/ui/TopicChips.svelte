@@ -151,17 +151,18 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 0.75rem;
-		background: #fafafa;
+		background: var(--color-surface-alt);
 		border: 1px solid var(--color-border);
 		border-radius: 0;
 		min-height: 2.5rem;
-		transition: all 0.2s ease;
+		transition:
+			border-color 150ms ease,
+			box-shadow 150ms ease;
 	}
 
 	.topic-chips-wrapper:focus-within {
-		border-color: #6B3FA0;
-		background: var(--color-surface-alt);
-		box-shadow: 0 0 0 3px rgba(107, 63, 160, 0.1);
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 3px var(--color-primary-soft);
 	}
 
 	.topic-chip {
@@ -169,13 +170,13 @@
 		align-items: center;
 		gap: 0.375rem;
 		padding: 0.25rem 0.5rem;
-		background: linear-gradient(135deg, #f0eeff 0%, #e8e4ff 100%);
-		border: 1px solid #d4cff7;
+		background: var(--color-primary-soft);
+		border: 1px solid var(--color-primary);
 		border-radius: 9999px;
-		color: #5b4dc7;
+		color: var(--color-primary-deep);
 		font-size: 0.75rem;
 		font-weight: 500;
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--font-body);
 	}
 
 	.topic-chip :global(svg) {
@@ -190,14 +191,16 @@
 		border-radius: 9999px;
 		background: transparent;
 		border: none;
-		color: #8b7fd4;
+		color: var(--color-primary);
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition:
+			background 150ms ease,
+			color 150ms ease;
 	}
 
 	.chip-remove:hover {
-		background: rgba(91, 77, 199, 0.2);
-		color: #5b4dc7;
+		background: color-mix(in srgb, var(--color-primary-soft) 60%, var(--color-surface-alt));
+		color: var(--color-primary-deep);
 	}
 
 	.topic-input-wrapper {
@@ -210,15 +213,15 @@
 		width: 100%;
 		padding: 0.25rem 0;
 		font-size: 0.8125rem;
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--font-body);
 		border: none;
-		color: #1e293b;
+		color: var(--color-ink);
 		background: transparent;
 		outline: none;
 	}
 
 	.topic-chip-input::placeholder {
-		color: #94a3b8;
+		color: var(--color-ink-subtle);
 	}
 
 	.max-topics-hint {
@@ -232,11 +235,10 @@
 		top: 100%;
 		left: 0;
 		right: 0;
-		margin-top: 0.5rem;
+		margin-top: 0.25rem;
 		background: var(--color-surface-alt);
 		border: 1px solid var(--color-border);
 		border-radius: 0;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 		z-index: 50;
 		max-height: 200px;
 		overflow-y: auto;
@@ -249,18 +251,18 @@
 		width: 100%;
 		padding: 0.5rem 0.75rem;
 		font-size: 0.8125rem;
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--font-body);
 		color: var(--color-ink);
 		background: none;
 		border: none;
 		cursor: pointer;
 		text-align: left;
-		transition: background 0.1s ease;
+		transition: background 150ms ease;
 	}
 
 	.topic-suggestion:hover {
 		background: var(--color-surface);
-		color: #4f46e5;
+		color: var(--color-primary);
 	}
 
 	.topic-suggestion :global(svg) {
@@ -269,11 +271,11 @@
 	}
 
 	.topic-suggestion:hover :global(svg) {
-		color: #4f46e5;
+		color: var(--color-primary);
 	}
 
 	.topic-chips-wrapper :global(.topic-field-icon) {
-		color: #6B3FA0;
+		color: var(--color-primary);
 		flex-shrink: 0;
 	}
 </style>

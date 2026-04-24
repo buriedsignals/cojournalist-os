@@ -136,7 +136,7 @@ sed -i "s|'/login', '/pricing', '/setup', '/terms'|'/login', '/setup', '/terms'|
 sed -i 's|href="/pricing"|href="/"|' frontend/src/routes/setup/+page.svelte
 sed_if_exists -i "s|'/login', '/pricing', '/faq', '/skills', '/terms'|'/login', '/faq', '/skills', '/terms'|" frontend/src/lib/components/ui/MobileBlocker.svelte
 sed -i "s|goto('/pricing');|return; // unlimited in self-hosted|" frontend/src/lib/components/workspace/NewScoutDropdown.svelte
-sed -i "s|https://accounts.muckrock.com/[^']*|#|g" frontend/src/lib/components/modals/PreferencesModal.svelte
+sed -i "s|https://accounts.muckrock.com/[^'\`]*|#|g" frontend/src/lib/components/modals/PreferencesModal.svelte
 # Login page carries the MuckRock signup link in the OAuth branch (dead
 # code in OSS since PUBLIC_MUCKROCK_ENABLED is never true there, but the
 # URL still appears in the source and fails the OSS mirror grep check).

@@ -191,7 +191,7 @@
 						</div>
 						<a
 							href={$authStore.user?.username
-								? `#
+								? `#`
 								: '#'}
 							target="_blank"
 							rel="noopener noreferrer"

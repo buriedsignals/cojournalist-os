@@ -357,7 +357,7 @@
 
 	.selected-global:hover :global(.remove-icon) {
 		opacity: 1;
-		color: #ef4444;
+		color: var(--color-error);
 	}
 
 	.location-text {
@@ -375,7 +375,7 @@
 
 	.selected-location:hover :global(.remove-icon) {
 		opacity: 1;
-		color: #ef4444;
+		color: var(--color-error);
 	}
 
 	.search-container {
@@ -391,7 +391,7 @@
 	.input-wrapper :global(.input-icon) {
 		position: absolute;
 		left: 0.75rem;
-		color: var(--color-accent, #6B3FA0);
+		color: var(--color-primary);
 		pointer-events: none;
 	}
 
@@ -450,7 +450,7 @@
 	.input-wrapper :global(.loading-icon) {
 		position: absolute;
 		right: 0.75rem;
-		color: #6B3FA0;
+		color: var(--color-primary);
 		animation: spin 1s linear infinite;
 	}
 
@@ -502,7 +502,7 @@
 	}
 
 	.suggestion-item :global(svg) {
-		color: #64748b;
+		color: var(--color-ink-subtle);
 		flex-shrink: 0;
 	}
 
@@ -511,22 +511,23 @@
 		padding: 0.75rem;
 		text-align: center;
 		font-size: 0.75rem;
-		color: #64748b;
+		color: var(--color-ink-muted);
 		font-style: italic;
 	}
 
 	.section-label {
 		padding: 0.375rem 0.75rem 0.25rem;
+		font-family: var(--font-mono);
 		font-size: 0.6875rem;
-		font-weight: 600;
-		color: #94a3b8;
+		font-weight: 500;
+		color: var(--color-ink-subtle);
 		text-transform: uppercase;
-		letter-spacing: 0.025em;
+		letter-spacing: 0.1em;
 	}
 
 	.section-divider {
 		height: 1px;
-		background: #e5e7eb;
+		background: var(--color-border);
 		margin: 0.375rem 0.5rem;
 	}
 </style>
