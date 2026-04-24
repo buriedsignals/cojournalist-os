@@ -1,0 +1,45 @@
+# coJournalist docs in text form
+
+This is the short plain-text gateway to the public documentation. The full rendered docs live at `https://www.cojournalist.ai/docs`, and the flattened one-shot ingestion file lives at `https://www.cojournalist.ai/llms-full.txt`.
+
+## What coJournalist does
+
+coJournalist lets journalists create scheduled scouts that monitor pages, local news, social profiles, and civic sources. Each run extracts information units, deduplicates them, and lands them in an editorial inbox for verification.
+
+## Key concepts
+
+- **Scouts**: the scheduled monitoring jobs.
+- **Information units**: atomic facts extracted from sources.
+- **Verification**: the editorial checkpoint that promotes a lead into a citeable fact.
+- **Credits**: the cost model for hosted runs.
+- **Projects**: the container for scouts and exports.
+
+## Integration surfaces
+
+- **MCP**: `https://www.cojournalist.ai/mcp`
+- **REST API**: `https://www.cojournalist.ai/functions/v1`
+- **OpenAPI**: `https://www.cojournalist.ai/functions/v1/openapi-spec`
+- **CLI**: `cojo`, documented at `https://github.com/buriedsignals/cojournalist-os/blob/main/cli/README.md`
+
+## Public docs
+
+- Docs home: https://www.cojournalist.ai/docs
+- Pricing: https://www.cojournalist.ai/pricing
+- Pricing text: https://www.cojournalist.ai/pricing.txt
+- FAQ: https://www.cojournalist.ai/faq
+- FAQ text: https://www.cojournalist.ai/faq.txt
+- Skills index: https://www.cojournalist.ai/skills
+- Skills text index: https://www.cojournalist.ai/skills.txt
+
+## Public skills
+
+- Product skill: https://www.cojournalist.ai/skills/cojournalist.md
+- Setup skill: https://www.cojournalist.ai/skills/cojournalist-setup.md
+
+## Product behavior to preserve
+
+- Page, Beat, Social, and Civic scouts are the public concepts.
+- Beat Scout may be scoped by topic or geography, but the geography-scoped flow is not a separate public surface.
+- Agents can help monitor, search, export, and summarize.
+- Verification remains a hard boundary before publication.
+- Hosted and self-hosted are both supported, but the hosted app is the primary public entrypoint.

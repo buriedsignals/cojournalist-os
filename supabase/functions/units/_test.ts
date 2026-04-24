@@ -2,6 +2,7 @@ import {
   assertEquals,
   assertExists,
 } from "https://deno.land/std@0.208.0/assert/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createTestUser, functionUrl } from "../_shared/_testing.ts";
 
 function headers(token: string): HeadersInit {
@@ -9,6 +10,14 @@ function headers(token: string): HeadersInit {
     "Authorization": `Bearer ${token}`,
     "Content-Type": "application/json",
   };
+}
+
+function serviceClient() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
 }
 
 Deno.test("units: unauthenticated request returns 401", async () => {
@@ -95,6 +104,47 @@ Deno.test("units: search on empty corpus returns empty items", async () => {
   }
 });
 
+Deno.test("units: search accepts optional scout_id", async () => {
+  const user = await createTestUser();
+  try {
+    const res = await fetch(functionUrl("units", "/search"), {
+      method: "POST",
+      headers: headers(user.token),
+      body: JSON.stringify({
+        query_text: "anything at all",
+        scout_id: "00000000-0000-0000-0000-000000000000",
+      }),
+    });
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.items, []);
+  } finally {
+    await user.cleanup();
+  }
+});
+
+Deno.test("units: search accepts mode + state filters", async () => {
+  const user = await createTestUser();
+  try {
+    const res = await fetch(functionUrl("units", "/search"), {
+      method: "POST",
+      headers: headers(user.token),
+      body: JSON.stringify({
+        query_text: "anything at all",
+        mode: "keyword",
+        verified: false,
+        used_in_article: false,
+        include_deleted: true,
+      }),
+    });
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.items, []);
+  } finally {
+    await user.cleanup();
+  }
+});
+
 Deno.test("units: GET on unknown id returns 404", async () => {
   const user = await createTestUser();
   try {
@@ -140,6 +190,59 @@ Deno.test("units: PATCH with empty body returns 400", async () => {
     );
     assertEquals(res.status, 400);
     await res.body?.cancel();
+  } finally {
+    await user.cleanup();
+  }
+});
+
+Deno.test("units: DELETE soft-deletes unit and hides it from default list", async () => {
+  const user = await createTestUser();
+  const svc = serviceClient();
+  try {
+    const { data: inserted, error: insertErr } = await svc
+      .from("information_units")
+      .insert({
+        user_id: user.id,
+        statement: "Budget hearing scheduled for Monday.",
+        type: "event",
+      })
+      .select("id")
+      .single();
+    if (insertErr) throw insertErr;
+
+    const unitId = inserted.id as string;
+
+    const delRes = await fetch(functionUrl("units", `/${unitId}`), {
+      method: "DELETE",
+      headers: headers(user.token),
+    });
+    await delRes.body?.cancel();
+    assertEquals(delRes.status, 204);
+
+    const listRes = await fetch(functionUrl("units"), {
+      headers: headers(user.token),
+    });
+    assertEquals(listRes.status, 200);
+    const listBody = await listRes.json();
+    assertEquals(listBody.items.length, 0);
+
+    const includeDeletedRes = await fetch(
+      functionUrl("units", "?include_deleted=true"),
+      { headers: headers(user.token) },
+    );
+    assertEquals(includeDeletedRes.status, 200);
+    const includeDeletedBody = await includeDeletedRes.json();
+    assertEquals(includeDeletedBody.items.length, 1);
+    assertEquals(includeDeletedBody.items[0].deletion.deleted, true);
+
+    const getRes = await fetch(functionUrl("units", `/${unitId}`), {
+      headers: headers(user.token),
+    });
+    assertEquals(getRes.status, 200);
+    const getBody = await getRes.json();
+    assertEquals(getBody.deletion.deleted, true);
+    assertExists(getBody.deletion.deleted_at);
+    assertEquals(getBody.deletion.deleted_by, user.id);
   } finally {
     await user.cleanup();
   }

@@ -13,7 +13,7 @@ def billing():
 class TestValidateCredits:
     @pytest.mark.asyncio
     async def test_always_returns_true(self, billing):
-        assert await billing.validate_credits("user-1", "pulse_search") is True
+        assert await billing.validate_credits("user-1", "beat") is True
         assert await billing.validate_credits("user-2", "web_scout") is True
         assert await billing.validate_credits("", "") is True
 
@@ -21,7 +21,7 @@ class TestValidateCredits:
 class TestDecrementCredit:
     @pytest.mark.asyncio
     async def test_always_returns_true(self, billing):
-        assert await billing.decrement_credit("user-1", "pulse_search") is True
+        assert await billing.decrement_credit("user-1", "beat") is True
         assert await billing.decrement_credit("user-2", "web_scout") is True
 
 

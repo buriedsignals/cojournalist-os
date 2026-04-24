@@ -239,6 +239,16 @@ describe('listScouts', () => {
 		expect(got).toEqual(scouts);
 	});
 
+	it('normalizes legacy scout types from live data', async () => {
+		fetchSpy = mockFetchResponse({
+			items: [{ id: 's3', name: 'Legacy Beat', type: 'beat', is_active: true }],
+			pagination: { has_more: false }
+		});
+		vi.stubGlobal('fetch', fetchSpy);
+		const got = await workspaceApi.listScouts();
+		expect(got[0].type).toBe('pulse');
+	});
+
 	it('omits project_id when not supplied', async () => {
 		fetchSpy = mockFetchResponse({ items: [], pagination: { has_more: false } });
 		vi.stubGlobal('fetch', fetchSpy);
@@ -368,6 +378,18 @@ describe('getUnit', () => {
 	});
 });
 
+describe('deleteUnit', () => {
+	it('DELETEs a unit by id', async () => {
+		fetchSpy = mockFetchResponse(null, 204);
+		vi.stubGlobal('fetch', fetchSpy);
+
+		await workspaceApi.deleteUnit('u1');
+		const { url, init } = getLastRequest();
+		expect(url).toBe('/api/units/u1');
+		expect(init.method).toBe('DELETE');
+	});
+});
+
 // ===========================================================================
 // searchUnits — POST /units/search
 // ===========================================================================
@@ -459,6 +481,7 @@ describe('ingest', () => {
 		expect(body.project_id).toBe('p1');
 		expect(got.ingest_id).toBe('i-1');
 		expect(got.job_id).toBe('i-1');
+		expect(got.units).toEqual([]);
 	});
 
 	it('POSTs kind=text when content is provided', async () => {
@@ -476,21 +499,6 @@ describe('ingest', () => {
 		await expect(
 			workspaceApi.ingest({ url: 'not-a-url', project_id: 'p1' })
 		).rejects.toMatchObject({ message: 'invalid url', status: 400 });
-	});
-});
-
-// ===========================================================================
-// exportToClaude — GET /export-claude?project_id=
-// ===========================================================================
-
-describe('exportToClaude', () => {
-	it('returns markdown as string body', async () => {
-		fetchSpy = mockFetchResponse('## heading\n', 200, { text: true });
-		vi.stubGlobal('fetch', fetchSpy);
-		const got = await workspaceApi.exportToClaude('p1');
-		expect(getLastRequest().url).toContain('project_id=p1');
-		expect(got.markdown).toBe('## heading\n');
-		expect(got.artifact_url).toBeNull();
 	});
 });
 

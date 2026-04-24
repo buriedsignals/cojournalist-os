@@ -61,9 +61,10 @@ Deno.serve(async (req): Promise<Response> => {
   // "/entities/<id>" -> "/<id>", "/entities/merge" -> "/merge".
   const path = url.pathname.replace(/^.*\/entities/, "") || "/";
   const idMatch = path.match(/^\/([0-9a-f-]{36})$/i);
+  const isRead = req.method === "GET" || req.method === "HEAD";
 
   try {
-    if (path === "/" && req.method === "GET") {
+    if (path === "/" && isRead) {
       return await listEntities(req, user);
     }
     if (path === "/" && req.method === "POST") {
@@ -72,7 +73,7 @@ Deno.serve(async (req): Promise<Response> => {
     if (path === "/merge" && req.method === "POST") {
       return await mergeEntities(req, user);
     }
-    if (idMatch && req.method === "GET") {
+    if (idMatch && isRead) {
       return await getEntity(user, idMatch[1]);
     }
     return jsonError("method not allowed", 405);

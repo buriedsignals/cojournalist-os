@@ -5,6 +5,9 @@
 <svelte:head>
 	<title>FAQ — coJournalist</title>
 	<meta name="description" content="Frequently asked questions about coJournalist — scouts, agent integration, the Sustainable Use License, and self-hosting." />
+	<link rel="alternate" type="text/plain" title="faq.txt" href="/faq.txt" />
+	<link rel="alternate" type="text/markdown" title="coJournalist skill" href="/skills/cojournalist.md" />
+	<link rel="alternate" type="text/markdown" title="coJournalist setup skill" href="/skills/cojournalist-setup.md" />
 </svelte:head>
 
 <div class="faq-page">
@@ -133,6 +136,7 @@
 
 		<p class="footer-note">
 			More questions? <a href="https://github.com/buriedsignals/cojournalist-os/issues" target="_blank" rel="noopener">Open an issue on GitHub</a>.
+			AI resources live at <a href="/skills">/skills</a> and <a href="/faq.txt">/faq.txt</a>.
 		</p>
 	</div>
 </div>

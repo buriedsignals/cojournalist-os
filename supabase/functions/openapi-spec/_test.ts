@@ -17,7 +17,6 @@ import {
   assertStringIncludes,
 } from "https://deno.land/std@0.208.0/assert/mod.ts";
 import spec from "./spec.json" with { type: "json" };
-import { functionUrl } from "../_shared/_testing.ts";
 
 type SpecDoc = {
   openapi: string;
@@ -30,6 +29,22 @@ type SpecDoc = {
 };
 
 const doc = spec as unknown as SpecDoc;
+
+function maybeEnv(name: string): string | null {
+  try {
+    return Deno.env.get(name) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function functionUrl(name: string, path = ""): string {
+  const base = maybeEnv("SUPABASE_URL");
+  if (!base) throw new Error("SUPABASE_URL not configured for online tests");
+  return `${base}/functions/v1/${name}${path}`;
+}
+
+const HAS_SUPABASE_URL = Boolean(maybeEnv("SUPABASE_URL"));
 
 // ---------------------------------------------------------------------------
 // Offline structural assertions — catch drift the moment a route disappears.
@@ -53,7 +68,6 @@ const REQUIRED_PATHS: Array<[string, string[]]> = [
   ["/reflections/search", ["post"]],
   ["/reflections/{id}", ["get", "delete"]],
   ["/ingest", ["post"]],
-  ["/export-claude", ["get"]],
   ["/user/me", ["get"]],
   ["/user/preferences", ["get", "patch"]],
   ["/api-keys", ["get", "post"]],
@@ -86,20 +100,27 @@ Deno.test("spec.json — security schemes bearer + apikey both declared", () => 
 });
 
 Deno.test("spec.json — verification workflow exposed via Unit + UnitUpdate", () => {
-  const unit = doc.components.schemas.Unit as { properties: Record<string, unknown> };
+  const unit = doc.components.schemas.Unit as {
+    properties: Record<string, unknown>;
+  };
   for (
     const field of [
-      "verified",
-      "verified_by",
-      "verification_notes",
-      "used_in_article",
-      "used_in_url",
-      "used_at",
+      "verification",
+      "usage",
+      "deletion",
+      "occurrence_count",
+      "sources",
+      "linked_scouts",
+      "scout_name",
     ]
   ) {
-    if (!unit.properties[field]) throw new Error(`Unit schema missing ${field}`);
+    if (!unit.properties[field]) {
+      throw new Error(`Unit schema missing ${field}`);
+    }
   }
-  const patch = doc.components.schemas.UnitUpdate as { properties: Record<string, unknown> };
+  const patch = doc.components.schemas.UnitUpdate as {
+    properties: Record<string, unknown>;
+  };
   for (
     const field of [
       "verified",
@@ -108,22 +129,84 @@ Deno.test("spec.json — verification workflow exposed via Unit + UnitUpdate", (
       "used_in_article",
       "used_in_url",
       "used_at",
+      "deletion_reason",
     ]
   ) {
-    if (!patch.properties[field]) throw new Error(`UnitUpdate schema missing ${field}`);
+    if (!patch.properties[field]) {
+      throw new Error(`UnitUpdate schema missing ${field}`);
+    }
   }
 });
 
 Deno.test("spec.json — Scout schema enumerates the 4 scout types", () => {
   const scoutType = doc.components.schemas.ScoutType as { enum: string[] };
-  assertEquals([...scoutType.enum].sort(), ["civic", "pulse", "social", "web"]);
+  assertEquals([...scoutType.enum].sort(), ["beat", "civic", "social", "web"]);
 });
 
 Deno.test("spec.json — inbox filter parameters present on GET /units", () => {
-  const get = doc.paths["/units"].get as { parameters: Array<{ name: string }> };
+  const get = doc.paths["/units"].get as {
+    parameters: Array<{ name: string }>;
+  };
   const names = get.parameters.map((p) => p.name);
-  for (const expected of ["verified", "used_in_article", "project_id", "since"]) {
-    if (!names.includes(expected)) throw new Error(`GET /units missing parameter: ${expected}`);
+  for (
+    const expected of [
+      "verified",
+      "used_in_article",
+      "include_deleted",
+      "project_id",
+      "scout_id",
+      "from",
+      "to",
+    ]
+  ) {
+    if (!names.includes(expected)) {
+      throw new Error(`GET /units missing parameter: ${expected}`);
+    }
+  }
+});
+
+Deno.test("spec.json — POST /units/search documents mode + scope/state filters", () => {
+  const post = doc.paths["/units/search"].post as {
+    requestBody: {
+      content: {
+        "application/json": {
+          schema: {
+            properties: Record<string, unknown>;
+          };
+        };
+      };
+    };
+  };
+  const props = post.requestBody.content["application/json"].schema.properties;
+  assertExists(props.query_text);
+  assertExists(props.mode);
+  assertExists(props.project_id);
+  assertExists(props.scout_id);
+  assertExists(props.verified);
+  assertExists(props.used_in_article);
+  assertExists(props.include_deleted);
+  assertExists(props.limit);
+});
+
+Deno.test("spec.json — Scout schema documents structured last_run", () => {
+  const scout = doc.components.schemas.Scout as {
+    properties: Record<string, { properties?: Record<string, unknown> }>;
+  };
+  const lastRun = scout.properties.last_run;
+  if (!lastRun?.properties) {
+    throw new Error("Scout schema last_run should be an object");
+  }
+  for (
+    const field of [
+      "started_at",
+      "status",
+      "articles_count",
+      "merged_existing_count",
+    ]
+  ) {
+    if (!lastRun.properties[field]) {
+      throw new Error(`Scout.last_run missing ${field}`);
+    }
   }
 });
 
@@ -133,8 +216,9 @@ Deno.test("spec.json — inbox filter parameters present on GET /units", () => {
 // ---------------------------------------------------------------------------
 
 Deno.test({
-  name: "openapi-spec HTTP: GET returns 200 application/json with openapi 3.1.0",
-  ignore: !Deno.env.get("SUPABASE_URL"),
+  name:
+    "openapi-spec HTTP: GET returns 200 application/json with openapi 3.1.0",
+  ignore: !HAS_SUPABASE_URL,
   fn: async () => {
     const res = await fetch(functionUrl("openapi-spec"), { method: "GET" });
     assertEquals(res.status, 200);
@@ -144,5 +228,18 @@ Deno.test({
     assertEquals(body.openapi, "3.1.0");
     assertExists(body.paths["/projects"]);
     assertExists(body.paths["/scouts/{id}/run"]);
+  },
+});
+
+Deno.test({
+  name: "openapi-spec HTTP: HEAD returns 200 application/json without 405",
+  ignore: !HAS_SUPABASE_URL,
+  fn: async () => {
+    const res = await fetch(functionUrl("openapi-spec"), { method: "HEAD" });
+    assertEquals(res.status, 200);
+    const ct = res.headers.get("content-type") ?? "";
+    assertStringIncludes(ct, "application/json");
+    const body = await res.text();
+    assertEquals(body, "");
   },
 });

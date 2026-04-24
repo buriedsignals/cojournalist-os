@@ -20,10 +20,16 @@ import { getServiceClient, SupabaseClient } from "../_shared/supabase.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { AuthError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
+import { normalizeDate } from "../_shared/date_utils.ts";
 import { firecrawlScrape } from "../_shared/firecrawl.ts";
-import { geminiExtract } from "../_shared/gemini.ts";
+import { EMBEDDING_MODEL_TAG, geminiEmbed, geminiExtract } from "../_shared/gemini.ts";
 import { languageName } from "../_shared/atomic_extract.ts";
 import { sendCivicAlert } from "../_shared/notifications.ts";
+import {
+  deriveSourceDomain,
+  sha256Hex,
+  upsertCanonicalUnit,
+} from "../_shared/unit_dedup.ts";
 
 const RAW_CONTENT_MAX = 80_000;
 const PROMPT_CONTENT_MAX = 40_000;
@@ -138,11 +144,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       scout_id: claimed.scout_id,
       queue_id: queueId,
       promises_extracted: result.promises_extracted,
+      merged_existing_count: result.merged_existing_count,
     });
     return jsonOk({
       status: "processed",
       queue_id: queueId,
       promises_extracted: result.promises_extracted,
+      merged_existing_count: result.merged_existing_count,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -181,6 +189,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 interface ProcessResult {
   raw_capture_id: string;
   promises_extracted: number;
+  merged_existing_count: number;
 }
 
 async function processItem(
@@ -191,7 +200,7 @@ async function processItem(
   //    on downstream rows (and confirm the scout still exists).
   const { data: scout, error: scoutErr } = await svc
     .from("scouts")
-    .select("id, user_id, name, preferred_language, criteria")
+    .select("id, user_id, name, preferred_language, criteria, project_id")
     .eq("id", row.scout_id)
     .maybeSingle();
   if (scoutErr) throw new Error(scoutErr.message);
@@ -205,7 +214,7 @@ async function processItem(
   if (!markdown.trim()) throw new Error("firecrawl returned empty markdown");
 
   const contentHash = await sha256Hex(markdown);
-  const sourceDomain = safeDomain(row.source_url);
+  const sourceDomain = deriveSourceDomain(row.source_url);
 
   // 3. Insert raw_captures with a 30-day TTL so cleanup_raw_captures
   //    actually deletes this row (the cron job was effectively a no-op
@@ -219,6 +228,7 @@ async function processItem(
     .insert({
       user_id: userId,
       scout_id: row.scout_id,
+      scout_run_id: row.scout_run_id,
       source_url: row.source_url,
       source_domain: sourceDomain,
       content_md: markdown,
@@ -285,6 +295,7 @@ async function processItem(
   //    orchestrator applied the same filter (civic_orchestrator._filter_promises).
   const today = new Date().toISOString().slice(0, 10);
   let inserted = 0;
+  let mergedExisting = 0;
   let droppedPastDue = 0;
   const insertedPromises: ExtractedPromise[] = [];
   for (const p of extracted) {
@@ -296,22 +307,68 @@ async function processItem(
       droppedPastDue += 1;
       continue;
     }
-    const { error: pErr } = await svc.from("promises").insert({
-      user_id: userId,
-      scout_id: row.scout_id,
-      promise_text: p.promise_text,
-      context: p.context ?? null,
-      source_url: row.source_url,
-      source_title: scraped.title ?? null,
-      meeting_date: normalizeDate(p.meeting_date),
-      due_date: dueDate,
-      date_confidence: normalizeConfidence(p.date_confidence),
-      status: "active",
-      created_at: new Date().toISOString(),
+    let embedding: number[] | null = null;
+    try {
+      embedding = await geminiEmbed(p.promise_text, "RETRIEVAL_DOCUMENT", {
+        title: scraped.title ?? null,
+      });
+    } catch (e) {
+      logEvent({
+        level: "warn",
+        fn: "civic-extract-worker",
+        event: "embed_failed",
+        queue_id: row.id,
+        scout_id: row.scout_id,
+        msg: e instanceof Error ? e.message : String(e),
+      });
+    }
+    const result = await upsertCanonicalUnit(svc, {
+      userId,
+      statement: p.promise_text,
+      unitType: "promise",
+      entities: [],
+      embedding,
+      embeddingModel: EMBEDDING_MODEL_TAG,
+      sourceUrl: row.source_url,
+      sourceDomain,
+      sourceTitle: scraped.title ?? null,
+      contextExcerpt: p.context ?? null,
+      occurredAt: normalizeDate(p.meeting_date),
+      extractedAt: capturedAt.toISOString(),
+      sourceType: "civic_promise",
+      contentSha256: contentHash,
+      scoutId: row.scout_id,
+      scoutType: "civic",
+      scoutRunId: row.scout_run_id,
+      projectId: (scout.project_id as string | null) ?? null,
+      rawCaptureId,
+      metadata: {
+        date_confidence: normalizeConfidence(p.date_confidence),
+        due_date: dueDate,
+        doc_kind: row.doc_kind,
+        meeting_date: normalizeDate(p.meeting_date),
+      },
     });
-    if (pErr) throw new Error(pErr.message);
-    inserted += 1;
-    insertedPromises.push(p);
+
+    await upsertPromiseTracker(svc, {
+      unitId: result.unitId,
+      userId,
+      scoutId: row.scout_id,
+      promiseText: p.promise_text,
+      context: p.context ?? null,
+      sourceUrl: row.source_url,
+      sourceTitle: scraped.title ?? null,
+      meetingDate: normalizeDate(p.meeting_date),
+      dueDate,
+      dateConfidence: normalizeConfidence(p.date_confidence),
+    });
+
+    if (result.createdCanonical) {
+      inserted += 1;
+      insertedPromises.push(p);
+    } else if (result.mergedExisting && result.occurrenceCreated) {
+      mergedExisting += 1;
+    }
   }
   if (droppedPastDue > 0) {
     logEvent({
@@ -371,11 +428,14 @@ async function processItem(
   //    extraction pipeline has succeeded. Previously this was done in
   //    civic-execute at enqueue time, which meant a failing Firecrawl call
   //    still flagged the URL as seen and it was never retried.
-  const { error: appendErr } = await svc.rpc("append_processed_pdf_url_capped", {
-    p_scout_id: row.scout_id,
-    p_url: row.source_url,
-    p_cap: PROCESSED_URLS_CAP,
-  });
+  const { error: appendErr } = await svc.rpc(
+    "append_processed_pdf_url_capped",
+    {
+      p_scout_id: row.scout_id,
+      p_url: row.source_url,
+      p_cap: PROCESSED_URLS_CAP,
+    },
+  );
   if (appendErr) {
     // Non-fatal: at worst the URL could be re-extracted on a future run.
     // That's better than failing the whole queue row at this point.
@@ -389,37 +449,16 @@ async function processItem(
     });
   }
 
-  return { raw_capture_id: rawCaptureId, promises_extracted: inserted };
+  return {
+    raw_capture_id: rawCaptureId,
+    promises_extracted: inserted,
+    merged_existing_count: mergedExisting,
+  };
 }
 
 // ---------------------------------------------------------------------------
 
-async function sha256Hex(input: string): Promise<string> {
-  const buf = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function safeDomain(raw: string): string | null {
-  try {
-    return new URL(raw).hostname;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeDate(v: string | null | undefined): string | null {
-  if (!v) return null;
-  const trimmed = v.trim();
-  if (!trimmed) return null;
-  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (match) return match[1];
-  const d = new Date(trimmed);
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
-}
+// normalizeDate moved to ../_shared/date_utils.ts (imported at the top).
 
 function normalizeConfidence(
   v: string | null | undefined,
@@ -428,4 +467,66 @@ function normalizeConfidence(
   const lower = v.trim().toLowerCase();
   if (lower === "high" || lower === "medium" || lower === "low") return lower;
   return null;
+}
+
+async function upsertPromiseTracker(
+  svc: SupabaseClient,
+  input: {
+    unitId: string;
+    userId: string;
+    scoutId: string;
+    promiseText: string;
+    context: string | null;
+    sourceUrl: string;
+    sourceTitle: string | null;
+    meetingDate: string | null;
+    dueDate: string | null;
+    dateConfidence: "high" | "medium" | "low" | null;
+  },
+): Promise<void> {
+  const { data: existing, error: existingErr } = await svc
+    .from("promises")
+    .select(
+      "id, scout_id, promise_text, status, context, source_url, source_title, meeting_date, due_date, date_confidence",
+    )
+    .eq("user_id", input.userId)
+    .eq("unit_id", input.unitId)
+    .maybeSingle();
+  if (existingErr) throw new Error(existingErr.message);
+
+  if (!existing) {
+    const { error: insertErr } = await svc.from("promises").insert({
+      unit_id: input.unitId,
+      user_id: input.userId,
+      scout_id: input.scoutId,
+      promise_text: input.promiseText,
+      context: input.context,
+      source_url: input.sourceUrl,
+      source_title: input.sourceTitle,
+      meeting_date: input.meetingDate,
+      due_date: input.dueDate,
+      date_confidence: input.dateConfidence,
+      status: "new",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    if (insertErr) throw new Error(insertErr.message);
+    return;
+  }
+
+  const { error: updateErr } = await svc
+    .from("promises")
+    .update({
+      scout_id: existing.scout_id ?? input.scoutId,
+      promise_text: existing.promise_text ?? input.promiseText,
+      context: existing.context ?? input.context,
+      source_url: existing.source_url ?? input.sourceUrl,
+      source_title: existing.source_title ?? input.sourceTitle,
+      meeting_date: existing.meeting_date ?? input.meetingDate,
+      due_date: existing.due_date ?? input.dueDate,
+      date_confidence: existing.date_confidence ?? input.dateConfidence,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.id);
+  if (updateErr) throw new Error(updateErr.message);
 }

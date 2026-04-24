@@ -21,7 +21,7 @@ import {
   jsonPaginated,
 } from "../_shared/responses.ts";
 import { NotFoundError, ValidationError } from "../_shared/errors.ts";
-import { geminiEmbed } from "../_shared/gemini.ts";
+import { EMBEDDING_MODEL_TAG, geminiEmbed } from "../_shared/gemini.ts";
 import { logEvent } from "../_shared/log.ts";
 
 const UuidArray = z.array(z.string().uuid()).optional();
@@ -58,9 +58,10 @@ Deno.serve(async (req): Promise<Response> => {
   const url = new URL(req.url);
   // Trim the "/reflections" prefix Kong leaves on the path.
   const path = url.pathname.replace(/^.*\/reflections/, "") || "/";
+  const isRead = req.method === "GET" || req.method === "HEAD";
 
   try {
-    if (path === "/" && req.method === "GET") {
+    if (path === "/" && isRead) {
       return await listReflections(req, user);
     }
     if (path === "/" && req.method === "POST") {
@@ -70,7 +71,7 @@ Deno.serve(async (req): Promise<Response> => {
       return await searchReflections(req, user);
     }
     const idMatch = path.match(/^\/([0-9a-f-]{36})$/i);
-    if (idMatch && req.method === "GET") {
+    if (idMatch && isRead) {
       return await getReflection(user, idMatch[1]);
     }
     if (idMatch && req.method === "DELETE") {
@@ -148,6 +149,7 @@ async function createReflection(req: Request, user: AuthedUser): Promise<Respons
     try {
       const embedding = await geminiEmbed(parsed.data.content, "RETRIEVAL_DOCUMENT");
       row.embedding = embedding;
+      row.embedding_model = EMBEDDING_MODEL_TAG;
     } catch (e) {
       logEvent({
         level: "warn",

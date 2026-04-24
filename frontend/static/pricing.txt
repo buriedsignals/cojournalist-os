@@ -1,0 +1,24 @@
+# coJournalist pricing
+
+Hosted coJournalist uses monthly credits.
+
+## Plans
+
+- **Free**: $0/month, 100 credits
+- **Pro**: $10/month, 1,000 credits
+- **Team**: $50/month, 5,000 shared credits
+
+## Typical run costs
+
+- **Page Scout**: 1 credit
+- **Beat Scout**: 7 credits
+- **Social Scout**: 2 credits for Instagram, X, TikTok, and LinkedIn; 15 for Facebook
+- **Civic Scout**: 10 credits in the current public docs cost table
+
+Always disclose spend before triggering expensive runs, especially Civic Scouts or batches of many scouts.
+
+## Pricing links
+
+- Pricing page: https://www.cojournalist.ai/pricing
+- FAQ: https://www.cojournalist.ai/faq
+- Docs: https://www.cojournalist.ai/docs

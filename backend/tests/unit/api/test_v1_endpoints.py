@@ -226,7 +226,7 @@ class TestListScouts:
         mock_svc.list_scouts.return_value = [
             {
                 "name": "My Scout",
-                "scout_type": "pulse",
+                "scout_type": "beat",
                 "regularity": "daily",
                 "time": "08:00",
                 "location": {"displayName": "Vienna", "country": "AT"},
@@ -242,7 +242,7 @@ class TestListScouts:
         data = response.json()
         assert data["count"] == 1
         assert data["scouts"][0]["name"] == "My Scout"
-        assert data["scouts"][0]["type"] == "pulse"
+        assert data["scouts"][0]["type"] == "beat"
 
     def test_list_scouts_empty(self, api_client):
         mock_svc = AsyncMock()
@@ -258,7 +258,7 @@ class TestListScouts:
 
 
 class TestCreateScout:
-    def test_create_pulse_scout_success(self, api_client):
+    def test_create_beat_scout_success(self, api_client):
         mock_svc = AsyncMock()
         mock_svc.get_scout.return_value = None  # No duplicate
         mock_svc.create_scout.return_value = {
@@ -277,7 +277,7 @@ class TestCreateScout:
 
             response = api_client.post("/api/v1/scouts", json={
                 "name": "My Scout",
-                "type": "pulse",
+                "type": "beat",
                 "schedule": {"regularity": "daily", "time": "08:00"},
                 "location": {"displayName": "Vienna, Austria", "country": "AT", "city": "Vienna"},
             })
@@ -285,7 +285,7 @@ class TestCreateScout:
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == "My Scout"
-        assert data["type"] == "pulse"
+        assert data["type"] == "beat"
         mock_svc.create_scout.assert_called_once()
 
     def test_create_web_scout_success(self, api_client):
@@ -329,7 +329,7 @@ class TestCreateScout:
         with patch.object(v1_module, "_get_schedule_service", return_value=mock_svc):
             response = api_client.post("/api/v1/scouts", json={
                 "name": "Existing",
-                "type": "pulse",
+                "type": "beat",
                 "schedule": {"regularity": "daily", "time": "08:00"},
                 "topic": "news",
             })
@@ -348,7 +348,7 @@ class TestCreateScout:
         with patch.object(v1_module, "_get_schedule_service", return_value=mock_svc):
             response = TestClient(_test_app).post("/api/v1/scouts", json={
                 "name": "Test",
-                "type": "pulse",
+                "type": "beat",
                 "schedule": {"regularity": "daily", "time": "08:00"},
                 "topic": "news",
             })
@@ -375,7 +375,7 @@ class TestCreateScout:
 
             response = api_client.post("/api/v1/scouts", json={
                 "name": "Test",
-                "type": "pulse",
+                "type": "beat",
                 "schedule": {"regularity": "daily", "time": "08:00"},
                 "topic": "news",
             })
@@ -405,7 +405,7 @@ class TestCreateScout:
 
             response = api_client.post("/api/v1/scouts", json={
                 "name": "DEV_Already",
-                "type": "pulse",
+                "type": "beat",
                 "schedule": {"regularity": "daily", "time": "08:00"},
                 "topic": "news",
             })
@@ -423,11 +423,11 @@ class TestCreateScout:
 
         assert response.status_code == 422  # Pydantic validation
 
-    def test_create_pulse_scout_requires_location_or_topic(self, api_client):
-        """Pulse scouts must have at least location or topic."""
+    def test_create_beat_scout_requires_location_or_topic(self, api_client):
+        """Beat scouts must have at least location or topic."""
         response = api_client.post("/api/v1/scouts", json={
             "name": "Nothing",
-            "type": "pulse",
+            "type": "beat",
             "schedule": {"regularity": "daily", "time": "08:00"},
         })
 
@@ -449,7 +449,7 @@ class TestCreateScout:
              patch("app.routers.v1.validate_credits", side_effect=mock_validate_fail):
             response = api_client.post("/api/v1/scouts", json={
                 "name": "Expensive",
-                "type": "pulse",
+                "type": "beat",
                 "schedule": {"regularity": "daily", "time": "08:00"},
                 "topic": "news",
             })
@@ -462,7 +462,7 @@ class TestGetScoutDetail:
         mock_svc = AsyncMock()
         mock_svc.get_scout.return_value = {
             "name": "My Scout",
-            "scout_type": "pulse",
+            "scout_type": "beat",
             "regularity": "daily",
             "time": "08:00",
             "location": {"displayName": "Vienna", "country": "AT"},
@@ -479,7 +479,7 @@ class TestGetScoutDetail:
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "My Scout"
-        assert data["type"] == "pulse"
+        assert data["type"] == "beat"
         assert len(data["recent_runs"]) == 1
         assert data["recent_runs"][0]["scraper_status"] is True
 

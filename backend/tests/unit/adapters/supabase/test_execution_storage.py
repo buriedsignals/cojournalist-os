@@ -38,7 +38,7 @@ class TestStoreExecution:
         result = await storage.store_execution(
             user_id="user-1",
             scout_name="my-scout",
-            scout_type="pulse",
+            scout_type="beat",
             summary_text="Test summary",
             is_duplicate=False,
             started_at="2026-03-29T10:00:00Z",

@@ -7,9 +7,7 @@ SupportedLanguage (12-language enum for email localization), and
 LocationType.
 
 DEPENDS ON: (pydantic only — no app imports)
-USED BY: schemas/pulse.py, models/responses.py, services/scout_service.py,
-    services/atomic_unit_service.py, services/feed_search_service.py,
-    routers/scouts.py, routers/units.py
+USED BY: services/feed_search_service.py, routers/units.py
 """
 from typing import Optional, Literal
 from pydantic import BaseModel

@@ -20,7 +20,7 @@ High-level map of the Supabase layer. If you're new to this codebase, start here
 │   projects      ingest       units-search  civic-extract   apify-callback  │
 │   reflections   entities     main          social-kickoff  apify-reconcile │
 │   execute-scout scout-beat-execute         scout-web-execute               │
-│   scout-health-monitor    openapi-spec     mcp-server      export-claude   │
+│   scout-health-monitor    openapi-spec     mcp-server                      │
 │                                                                            │
 │   • requireUser()   → user-scoped client (RLS applies)                     │
 │   • service-role    → full access, bypasses RLS                            │

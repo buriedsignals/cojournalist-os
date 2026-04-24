@@ -1,400 +1,142 @@
-# coJournalist — Full documentation
+# coJournalist — full public AI reference
 
-> AI-powered local news monitoring for journalists and newsrooms. This file is the full, flattened documentation in plain text, intended for LLM ingestion. The rendered equivalent is at https://www.cojournalist.ai/docs.
+> AI-powered monitoring infrastructure for journalists and newsrooms. This file is the flattened public AI-facing reference for coJournalist. It combines the product overview, the public docs summary, and both public skill files in one markdown document.
 
-Last updated: 2026-04-20. Canonical source: https://www.cojournalist.ai/llms-full.txt
-
----
-
-## Table of contents
-
-1. Introduction
-2. Quickstart
-3. Scouts
-   3.1 Page Scout (`web`)
-   3.2 Location Scout (`pulse`)
-   3.3 Beat Scout (`pulse`)
-   3.4 Social Scout (`social`)
-   3.5 Civic Scout (`civic`)
-4. Core concepts
-   4.1 Information units
-   4.2 Entities
-   4.3 Deduplication
-   4.4 Verification
-   4.5 Credits
-5. Integrations
-   5.1 MCP server
-   5.2 REST API
-   5.3 CLI (`cojo`)
-6. Cookbook
-   6.1 Daily triage with an AI assistant
-   6.2 Structured extraction
-   6.3 Export to a CMS
-7. Reference
-   7.1 Base URLs
-   7.2 Authentication
-   7.3 Endpoints
-   7.4 Errors
-   7.5 Credit costs
-8. Self-hosting
-9. Getting help
+Last updated: 2026-04-23. Canonical source: https://www.cojournalist.ai/llms-full.txt
 
 ---
 
-## 1. Introduction
+## 1. Product overview
 
-coJournalist turns three tedious parts of reporting into background infrastructure:
+coJournalist helps journalists stop re-checking the same pages, feeds, and government sites by hand. It runs scheduled scouts, extracts atomic facts, deduplicates repeated coverage, and keeps the resulting information units in a searchable knowledge base.
 
-- **Noticing** that a page changed
-- **Understanding** whether a change matters
-- **Remembering** what you already knew
+The product story exposed on the public site is:
 
-You define a *scout* — a URL, a location, a social handle, a council domain — and coJournalist runs it on a schedule. It extracts structured information, deduplicates across sources, resolves entities, and drops the results into a knowledge graph that you own.
+- **Schedule from a chat**: agents can help configure ongoing monitoring.
+- **Every story, once**: repeated coverage is collapsed to the underlying facts.
+- **A newsroom database, not a chat log**: information units are structured records with sources and timestamps.
+- **Works with existing workflows**: results can feed briefs, drafts, and exports.
+- **Human verification stays in the loop**: coJournalist has an explicit editorial approval step.
 
-Every object is addressable by API. Your AI assistant can drive the workflow: pull unverified findings, group them by topic, flag dollar amounts and deadlines, draft a brief. You stay the verifier — every promotion stamps your user ID into `verified_by` with a timestamp for editorial audit.
+## 2. What it monitors
 
-**Who it's for.** Local and investigative reporters monitoring beats. Newsrooms tracking government and civic sources. Researchers following social accounts and niche publishers. Anyone who wants an AI assistant with editorial guardrails.
+| Scout | What it watches | Typical use |
+|---|---|---|
+| Page Scout | One URL for meaningful changes | press rooms, dockets, filings, policy pages |
+| Beat Scout | A beat by topic or geography | housing, procurement, climate, education, towns, districts, regions |
+| Social Scout | Social profiles, including deletions | politicians, agencies, campaign accounts |
+| Civic Scout | Councils, agendas, minutes, and PDFs | promises, decisions, deadlines, dollar figures |
 
-**What makes it different from scheduled LLM prompts.** Generic scheduled prompts re-surface the same article every time it moves. coJournalist uses Firecrawl `changeTracking` with per-scout baselines, atomic-fact extraction with pgvector dedup, PDF parsing for civic pipelines, post diffing for social, niche-source discovery in 12 languages, and explicit verification workflows. The output is a searchable knowledge graph, not a chat log.
+## 3. Core concepts
 
----
+- **Scout**: the scheduled monitoring job.
+- **Information unit**: one atomic fact linked to its source.
+- **Verification**: the human editorial checkpoint that promotes a lead into a citeable fact.
+- **Project**: the organizational container for scouts, units, and exports.
+- **Credits**: the hosted cost model.
 
-## 2. Quickstart
+Verification is a hard product boundary. Agents can help search and summarize, but unverified units must be treated as leads rather than publishable facts.
 
-Five minutes from zero to a running scout.
+## 4. Public docs and routes
 
-**Step 1 — Sign in.** Open https://www.cojournalist.ai and sign in with MuckRock OAuth. Free tier starts with 100 credits/month.
-
-**Step 2 — Create your first scout.** Click **+ New scout** in the sidebar. Pick a type (start with Page Scout or Location Scout), name it, paste a URL or location, schedule it (daily / weekly / monthly). The first run establishes a baseline.
-
-**Step 3 — Connect an AI assistant (optional).** Click **Agents** in the topbar. Pick MCP (Claude Desktop, Cursor, Windsurf, Goose) or API (ChatGPT Actions, custom agents, scripts). Paste the snippet into your client's config. MCP uses full OAuth 2.1; you never paste tokens. REST uses a Bearer JWT you generate in the same modal.
-
-**Step 4 — Verify findings.** Open a scout, skim new information units, click **Verify** on the ones that matter. Verified units are the ones your assistant can safely cite. Rejected units remain in the audit trail.
-
----
-
-## 3. Scouts
-
-Scouts are the unit of monitoring. Each has a type (determines the pipeline), a schedule (daily / weekly / monthly), and a project it belongs to. Per-run credit cost depends on type.
-
-| Type | UI name | Purpose | Scope | Cost / run |
-|------|---------|---------|-------|------------|
-| `web` | Page Scout | Watch one URL for content changes | URL + optional topic filter | 1 |
-| `pulse` | Location Scout | Local news for a geography, favouring niche sources | Location + optional criteria | 7 |
-| `pulse` | Beat Scout | Topic news across reliable outlets | Criteria only | 7 |
-| `social` | Social Scout | Monitor a social profile for new/removed posts | Platform + handle | 2 (IG/X/TikTok), 15 (Facebook) |
-| `civic` | Civic Scout | Council agendas + promise extraction from PDFs | Council domain | 20 |
-
-### 3.1 Page Scout (`web`)
-
-Point it at any URL. Uses Firecrawl `changeTracking` with a per-scout tag, so each scout has its own baseline — you can track ten variants of the same page without interference. Only real content changes fire. An optional topic filter lets AI skip changes that don't match your criteria.
-
-First-run behaviour is controlled by the "Import current page data" toggle:
-- **Off (default)** — establishes baseline only; no unit is created on the first run
-- **On** — extracts current content as the first unit in your knowledge base
-
-### 3.2 Location Scout (`pulse`)
-
-Give it a place (city, neighbourhood, district). Location Scout generates location-aware search queries in your preferred language (12 locales supported: en, de, fr, es, it, pt, nl, sv, no, da, fi, pl). It favours *niche* sources — local blogs, community publishers, regional sites — over national outlets. Output is atomic facts that passed similarity dedup against your prior runs.
-
-### 3.3 Beat Scout (`pulse`)
-
-Same underlying `pulse` pipeline as Location Scout, but sourced from *reliable* outlets (established publishers) and driven by criteria rather than location. Use it to watch a topic across geographies — housing supply decisions, state AG activity, FCC filings — where the where doesn't matter.
-
-### 3.4 Social Scout (`social`)
-
-Monitors Instagram, X, Facebook, LinkedIn, and TikTok profiles via Apify. Captures new posts and — importantly — **deletions** (valuable for monitoring politicians and PR firms). Image-aware criteria: filters can match on caption text, alt text, or image content. Facebook costs more (15 credits) because Meta makes it hard.
-
-### 3.5 Civic Scout (`civic`)
-
-Give it a council domain. Civic Scout discovers meeting pages, downloads agendas and minutes (often PDFs), and has Gemini extract **promises** — commitments, deadlines, dollar figures — with meeting-date context. Costs more (20 credits) because PDF parsing and promise extraction are expensive.
-
----
-
-## 4. Core concepts
-
-### 4.1 Information units
-
-A *unit* is an atomic fact extracted from one or more sources.
-
-> "Council approved $2.3M for SRP road paving with a Q4 2026 target."
-
-That is one unit. Six articles reporting the decision become one unit with six `source_url` entries. Units carry:
-
-- `occurred_at` — when the event happened
-- `extracted_at` — when the scout found it
-- `verified_by` — user ID of the editor who promoted it, or null
-- `verified_at` — timestamp of verification, or null
-- `tags` — free-form labels
-- `entities` — references to resolved entity records
-- `embedding` — Gemini multimodal vector, stored in pgvector for semantic search
-
-### 4.2 Entities
-
-People, organisations, locations, and documents are resolved into entities across units. "Salt River Pima Community" mentioned in four units resolves to one entity. Entities have their own knowledge page and cross-link to every unit that mentions them.
-
-### 4.3 Deduplication
-
-Dedup operates at four layers, so nothing gets surfaced twice:
-
-- **Fact-level** — semantic similarity on extracted facts. Six rewrites of the same wire story become one unit.
-- **Source-level** — each unit stores every source URL, so your assistant can cite the original and the follow-ups.
-- **Entity-level** — entity resolution means "SRP", "Salt River Project", and "Salt River Pima" don't fracture into three histories.
-- **Time-level** — queries can filter by `occurred_at` or `extracted_at`.
-
-### 4.4 Verification
-
-Units land in an unverified state. An editor reviews and calls `promote_unit` (MCP) / `POST /units/:id/verify` (REST) or the equivalent reject action. Every verification stamps the editor's user ID into `verified_by` with a timestamp.
-
-AI assistants can draft using any unit but by convention cite only verified ones. The verification state is exposed on every API response so agents can be configured to hold the line.
-
-### 4.5 Credits
-
-Credits are the unit of cost. Every scout run decrements the credit balance on the project (individual users) or organisation (team plans).
-
-- Free — 100 credits/month
-- Pro — 1,000 credits/month
-- Team — 5,000 credits/month, shared across the organisation
-
-Monthly budget math: `(cost per run) × (runs per month)`. A daily Page Scout uses 30 credits/month. A weekly Civic Scout uses 80.
-
----
+- Overview: https://www.cojournalist.ai/overview.txt
+- Docs: https://www.cojournalist.ai/docs
+- Docs text: https://www.cojournalist.ai/docs.txt
+- Pricing: https://www.cojournalist.ai/pricing
+- Pricing text: https://www.cojournalist.ai/pricing.txt
+- FAQ: https://www.cojournalist.ai/faq
+- FAQ text: https://www.cojournalist.ai/faq.txt
+- Skills index: https://www.cojournalist.ai/skills
+- Skills text index: https://www.cojournalist.ai/skills.txt
+- llms.txt: https://www.cojournalist.ai/llms.txt
 
 ## 5. Integrations
 
-Three surfaces; pick the one that matches your client. Most journalists use all three at different points.
-
-### 5.1 MCP server
-
-coJournalist ships an embedded MCP (Model Context Protocol) server with its own OAuth 2.1 authorization server. RFC 8414 metadata at `/.well-known/oauth-authorization-server`; RFC 7591 dynamic client registration at `/register`. Your MCP client handles the full flow — you never paste tokens.
-
-**Endpoint:** `https://www.cojournalist.ai/mcp`
+- **MCP**: https://www.cojournalist.ai/mcp
+- **REST base**: https://www.cojournalist.ai/functions/v1
+- **OpenAPI**: https://www.cojournalist.ai/functions/v1/openapi-spec
+- **Swagger**: https://www.cojournalist.ai/swagger
+- **CLI docs**: https://github.com/buriedsignals/cojournalist-os/blob/main/cli/README.md
+- **MCP bridge docs**: https://github.com/buriedsignals/cojournalist-os/blob/main/mcp/README.md
 
-**Example config (`claude_desktop_config.json`):**
+## 6. Hosted pricing
 
-```json
-{
-  "mcpServers": {
-    "cojournalist": {
-      "url": "https://www.cojournalist.ai/mcp",
-      "transport": "http"
-    }
-  }
-}
-```
+- Free: 100 credits per month
+- Pro: 1,000 credits per month
+- Team: 5,000 shared credits per month
 
-**Tools exposed (non-exhaustive):**
+Public docs currently describe these per-run costs:
 
-| Tool | Does |
-|------|------|
-| `list_scouts` | List scouts in the current project |
-| `get_scout` | Fetch a scout by ID with latest run status |
-| `run_scout` | Trigger an on-demand run (counts against credits) |
-| `list_units` | List information units, filterable by scout / verified / time |
-| `search_units` | Semantic search across units |
-| `promote_unit` / `reject_unit` | Verification actions; stamps your user ID |
-| `list_entities` | People, orgs, locations, documents |
-| `ingest_url` | Ingest an ad-hoc URL into the knowledge base |
-| `export_project` | Export a project as markdown or JSON |
+- Page Scout: 1 credit
+- Beat Scout: 7 credits
+- Social Scout: 2 credits for most platforms, 15 for Facebook
+- Civic Scout: 10 credits in the docs cost table
 
-### 5.2 REST API
+Agents should disclose spend before running expensive scouts or large batches.
 
-**Base URL:** `https://www.cojournalist.ai/functions/v1`
+## 7. Public skill: product use
 
-**Auth:** Bearer JWT in the `Authorization` header. Generate a token from **Agents → API** in the app.
+# coJournalist skill
 
-**Examples:**
+You have been connected to **coJournalist**, a monitoring platform for journalists and newsrooms. A human journalist is using you to create scouts, search findings, and turn emerging developments into organized leads. This document tells you how to use coJournalist correctly and how to behave around editorial verification.
 
-```bash
-curl https://www.cojournalist.ai/functions/v1/scouts \
-  -H "Authorization: Bearer $COJO_TOKEN"
+Read this once. Apply it for every coJournalist task in this session.
 
-curl "https://www.cojournalist.ai/functions/v1/units?verified=false&limit=20" \
-  -H "Authorization: Bearer $COJO_TOKEN"
-```
+## What coJournalist does
 
-**Response envelope (lists):**
+coJournalist runs scheduled scouts that watch public pages, local news and beats, social profiles, and councils. Each run extracts **information units**: atomic, source-linked facts. Units are deduplicated across repeated coverage and land in an editorial inbox.
 
-```json
-{
-  "items": [ ... ],
-  "pagination": {
-    "total": 123,
-    "offset": 0,
-    "limit": 20,
-    "has_more": true
-  }
-}
-```
+The journalist stays responsible for verification. Your job is to help monitor, search, organize, summarize, and draft safely.
 
-**OpenAPI 3.1 spec:** `https://www.cojournalist.ai/functions/v1/openapi-spec`
-**Interactive reference:** `https://www.cojournalist.ai/swagger`
+## Operational rules
 
-### 5.3 CLI (`cojo`)
+- Do not auto-run expensive operations without confirmation.
+- Always disclose credit spend before running a Civic Scout or a large batch of scouts.
+- Never present an unverified unit as confirmed fact.
+- Always include source URLs when summarizing findings.
+- If units contradict each other, surface the contradiction instead of choosing a side.
 
-`cojo` is a Deno-based binary that speaks the same REST API. Useful for shell pipelines, nightly scripts, and piping Markdown exports.
+## Useful URLs
 
-```bash
-# Install (macOS)
-curl -L https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mac \
-  -o /usr/local/bin/cojo
-chmod +x /usr/local/bin/cojo
+- App: https://www.cojournalist.ai/login
+- Docs: https://www.cojournalist.ai/docs
+- Docs text: https://www.cojournalist.ai/docs.txt
+- Pricing: https://www.cojournalist.ai/pricing
+- FAQ: https://www.cojournalist.ai/faq
+- Setup skill: https://www.cojournalist.ai/skills/cojournalist-setup.md
 
-# Configure (generate a cj_... API key at https://www.cojournalist.ai → Agents → API → Create key)
-cojo config set api_url=https://www.cojournalist.ai/api
-cojo config set auth_token=<cj_... API key>
+Canonical URL: `https://www.cojournalist.ai/skills/cojournalist.md`
 
-# Use
-cojo projects list
-cojo scouts add --name "Council agenda" --type web --url https://example.gov
-cojo scouts run <id>
-cojo units list --since 7d --verified
-cojo units verify <id> --notes "Cross-checked with minutes"
-cojo units search --query "zoning variance"
-cojo ingest url https://example.com/article --project <id>
-cojo export claude --project <id> --limit 50 | pbcopy
-```
+Legacy compatibility URL: `https://www.cojournalist.ai/skill.md`
 
-Build from source (Deno 2):
+## 8. Public skill: setup
 
-```bash
-git clone https://github.com/buriedsignals/cojournalist-os.git
-cd cojournalist
-deno install -A -n cojo cli/cojo.ts
-```
+# coJournalist setup skill
 
----
+Use this skill when the user wants to deploy, self-host, install, or provision coJournalist on their own infrastructure.
 
-## 6. Cookbook
+This is **not** the day-to-day product-use skill. For operating scouts and units inside the hosted product, use:
 
-### 6.1 Daily triage with an AI assistant
+- https://www.cojournalist.ai/skills/cojournalist.md
 
-**You (to Claude Desktop):**
+## What this skill covers
 
-> Pull all unverified units from my Phoenix Council and Oakland local scouts this week. Group by topic, flag anything mentioning dollar amounts or deadlines, and draft a 150-word brief I can read over coffee.
+This setup path walks an agent through:
 
-**Claude (via MCP):**
+- preparing the environment
+- collecting required API keys
+- provisioning Supabase
+- deploying edge functions
+- building and publishing the frontend
+- verifying that the deployment works
 
-1. `list_scouts()` → finds Phoenix Council and Oakland local.
-2. `list_units(scout_ids=[…], verified=false, since='7d')` → 9 units.
-3. `search_units(query='$M OR deadline OR by 2026')` → narrows to 4.
-4. Drafts a 150-word brief with source links.
-5. Waits for your `promote_unit` / `reject_unit` decisions.
+## Required external services
 
-The assistant never publishes on its own. `promote_unit` is the editorial checkpoint.
+- Supabase
+- Gemini
+- Firecrawl
+- Resend
+- Apify
+- static hosting for the frontend
 
-### 6.2 Structured extraction
-
-**You (to ChatGPT with REST Action):**
-
-> Pull the last 30 agenda items from my cityof-oakland civic scout. For each, return title, meeting date, and a one-line summary. Give it to me as a markdown table.
-
-Behind the scenes: `GET /units?scout_id=…&limit=30` → `/units/search` narrows to agenda-relevant ones → the assistant renders the table.
-
-### 6.3 Export to a CMS
-
-```bash
-cojo export claude --project phoenix-council --limit 50 \
-  | pandoc -f markdown -t html \
-  | curl -X POST https://cms.example.com/api/drafts \
-      -H "Authorization: Bearer $CMS_TOKEN" \
-      -H "Content-Type: text/html" --data-binary @-
-```
-
-Swap `--format claude` for `json` or `markdown` depending on downstream needs.
-
----
-
-## 7. Reference
-
-### 7.1 Base URLs
-
-| Surface | URL |
-|---------|-----|
-| App | https://www.cojournalist.ai |
-| REST API | https://www.cojournalist.ai/functions/v1 |
-| MCP server | https://www.cojournalist.ai/mcp |
-| OpenAPI spec (JSON) | /functions/v1/openapi-spec |
-| Swagger UI | /swagger |
-| llms.txt | /llms.txt |
-| llms-full.txt | /llms-full.txt |
-
-### 7.2 Authentication
-
-**REST / CLI** — Bearer JWT in the `Authorization` header. Generate from **Agents → API** in the app. Tokens are scoped to your account and rotated from the same modal.
-
-**MCP** — OAuth 2.1 with PKCE. RFC 8414 metadata at `/.well-known/oauth-authorization-server`. RFC 7591 dynamic client registration at `/register`. Your MCP client handles the flow.
-
-### 7.3 Endpoints (summary)
-
-Full spec at /swagger. Highlights:
-
-| Method | Path | What |
-|--------|------|------|
-| GET | /projects | List projects |
-| POST | /projects | Create project |
-| GET | /scouts | List scouts |
-| POST | /scouts | Create scout |
-| GET | /scouts/:id | Fetch scout |
-| POST | /execute-scout | Trigger a run |
-| GET | /units | List information units |
-| POST | /units/search | Semantic search |
-| POST | /units/:id/verify | Promote a unit |
-| POST | /units/:id/reject | Reject a unit |
-| GET | /entities | List entities |
-| POST | /ingest | Ingest URL or text |
-| POST | /export-claude | Export project as Claude-flavoured Markdown |
-
-Query-string params on list endpoints: `limit`, `offset`, `since` (relative, e.g. `7d`), `verified`, `scout_id`, `project_id`, `tag`.
-
-### 7.4 Errors
-
-Every error response:
-
-```json
-{
-  "error": "human-readable message",
-  "code": "machine_code"
-}
-```
-
-Common codes:
-
-- `unauthorized` — missing or expired token
-- `forbidden` — token valid, resource not yours
-- `not_found` — no such resource
-- `insufficient_credits` — run would exceed your plan
-- `rate_limited` — too many requests; retry with exponential backoff
-- `validation_error` — request body failed schema validation
-- `method_not_allowed` — endpoint doesn't accept that verb
-
-### 7.5 Credit costs
-
-| Action | Credits |
-|--------|---------|
-| Page Scout run (`web`) | 1 |
-| Location / Beat Scout run (`pulse`) | 7 |
-| Social Scout — Instagram / X / TikTok | 2 |
-| Social Scout — Facebook | 15 |
-| Civic Scout run | 20 |
-| Ad-hoc data extraction | varies by channel |
-
-Monthly budget = cost per run × runs per month.
-
----
-
-## 8. Self-hosting
-
-coJournalist is source-available under the Sustainable Use License. Use it freely for your newsroom; don't resell it as a hosted service. Self-hosted deployments run on your own Supabase project with your Firecrawl, Gemini, Apify, and Resend keys. Same feature set as SaaS. No telemetry.
-
-The GitHub repo (https://github.com/buriedsignals/cojournalist-os) ships an automated setup flow — drop your AI coding agent into the repo, run the `setup` skill, and it provisions everything from a fresh Supabase project to the Edge Functions and frontend.
-
----
-
-## 9. Getting help
-
-- FAQ — https://www.cojournalist.ai/faq — licensing, self-hosting, editorial workflow
-- Pricing — https://www.cojournalist.ai/pricing — plans, credits, team seats
-- Issues — https://github.com/buriedsignals/cojournalist-os/issues — bugs and feature requests
-- In-app **Feedback** — routes to Linear, read by the maintainer
-- GitHub Discussions — https://github.com/buriedsignals/cojournalist-os/discussions
+Canonical URL: `https://www.cojournalist.ai/skills/cojournalist-setup.md`

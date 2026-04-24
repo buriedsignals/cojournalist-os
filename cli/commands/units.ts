@@ -6,14 +6,17 @@ function usage(): void {
     [
       "Usage: cojo units <subcommand>",
       "",
-      "  list [--project <id>] [--since 7d|30d] [--verified] [--used]",
+      "  list [--project <id>] [--scout <id>] [--verified|--unverified]",
+      "       [--used|--unused] [--include-deleted]",
       "       [--offset N] [--limit N]",
       "  show <id>",
       "  verify <id> [--notes <text>] [--by <name>]",
       "  reject <id> [--notes <text>]",
       "  mark-used <id> [--url <published-url>]",
       "  delete <id>",
-      "  search --query \"<text>\" [--project <id>] [--limit N]",
+      "  search --query \"<text>\" [--mode semantic|keyword|hybrid]",
+      "         [--project <id>] [--scout <id>] [--verified|--unverified]",
+      "         [--used|--unused] [--include-deleted] [--limit N]",
     ].join("\n"),
   );
 }
@@ -21,15 +24,38 @@ function usage(): void {
 interface Unit {
   id: string;
   statement?: string;
-  type?: string;
-  source_url?: string;
+  unit_type?: string;
+  source?: { url?: string | null };
   entities?: unknown;
-  verified?: boolean;
-  verified_by?: string;
-  verification_notes?: string;
-  used_in_article?: boolean;
-  used_at?: string;
-  used_in_url?: string;
+  scout_name?: string | null;
+  verification?: {
+    verified?: boolean;
+    verified_by?: string | null;
+    notes?: string | null;
+  };
+  usage?: {
+    used_in_article?: boolean;
+    used_at?: string | null;
+    used_in_url?: string | null;
+  };
+  deletion?: {
+    deleted?: boolean;
+    deleted_at?: string;
+    deleted_by?: string;
+    reason?: string;
+  };
+  search_rank?: number | null;
+}
+
+function applyStateFlags(
+  params: Record<string, string | number | boolean>,
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.verified === true) params.verified = "true";
+  if (flags.unverified === true) params.verified = "false";
+  if (flags.used === true) params.used_in_article = "true";
+  if (flags.unused === true) params.used_in_article = "false";
+  if (flags["include-deleted"] === true) params.include_deleted = "true";
 }
 
 function toQuery(params: Record<string, string | number | boolean>): string {
@@ -57,19 +83,28 @@ export async function run(argv: string[]): Promise<void> {
     case "list": {
       const params: Record<string, string | number | boolean> = {};
       if (typeof flags.project === "string") params.project_id = flags.project;
-      if (typeof flags.since === "string") params.since = flags.since;
-      if (flags.verified === true) params.verified = "true";
-      if (flags.used === true) params.used = "true";
+      if (typeof flags.scout === "string") params.scout_id = flags.scout;
+      applyStateFlags(params, flags);
       if (typeof flags.offset === "string") params.offset = flags.offset;
       if (typeof flags.limit === "string") params.limit = flags.limit;
 
       const data = await apiFetch<Unit[] | { data: Unit[] }>(
         `/functions/v1/units${toQuery(params)}`,
       );
-      const rows = Array.isArray(data) ? data : (data.data ?? []);
+      const rows = Array.isArray(data)
+        ? data
+        : ((data as { items?: Unit[]; data?: Unit[] }).items ??
+          (data as { data?: Unit[] }).data ??
+          []);
       printTable(
-        rows as unknown as Record<string, unknown>[],
-        ["id", "type", "statement", "verified", "used_in_article"],
+        rows.map((row) => ({
+          id: row.id,
+          unit_type: row.unit_type,
+          statement: row.statement,
+          verified: row.verification?.verified ?? false,
+          used_in_article: row.usage?.used_in_article ?? false,
+        })) as unknown as Record<string, unknown>[],
+        ["id", "unit_type", "statement", "verified", "used_in_article"],
       );
       return;
     }
@@ -82,20 +117,26 @@ export async function run(argv: string[]): Promise<void> {
       const unit = await apiFetch<Unit>(`/functions/v1/units/${id}`);
       const lines = [
         `ID:           ${unit.id}`,
-        `Type:         ${unit.type ?? "(unset)"}`,
+        `Type:         ${unit.unit_type ?? "(unset)"}`,
         `Statement:    ${unit.statement ?? "(unset)"}`,
-        `Source URL:   ${unit.source_url ?? "(unset)"}`,
+        `Source URL:   ${unit.source?.url ?? "(unset)"}`,
         `Entities:     ${
           unit.entities ? JSON.stringify(unit.entities) : "(none)"
         }`,
-        `Verified:     ${unit.verified ?? false}${
-          unit.verified_by ? ` by ${unit.verified_by}` : ""
+        `Verified:     ${unit.verification?.verified ?? false}${
+          unit.verification?.verified_by
+            ? ` by ${unit.verification.verified_by}`
+            : ""
         }`,
-        `  Notes:      ${unit.verification_notes ?? "(none)"}`,
-        `Used:         ${unit.used_in_article ?? false}${
-          unit.used_at ? ` at ${unit.used_at}` : ""
+        `  Notes:      ${unit.verification?.notes ?? "(none)"}`,
+        `Used:         ${unit.usage?.used_in_article ?? false}${
+          unit.usage?.used_at ? ` at ${unit.usage.used_at}` : ""
         }`,
-        `  URL:        ${unit.used_in_url ?? "(none)"}`,
+        `  URL:        ${unit.usage?.used_in_url ?? "(none)"}`,
+        `Deleted:      ${unit.deletion?.deleted ?? false}${
+          unit.deletion?.deleted_at ? ` at ${unit.deletion.deleted_at}` : ""
+        }`,
+        `  Reason:     ${unit.deletion?.reason ?? "(none)"}`,
       ];
       console.log(lines.join("\n"));
       return;
@@ -160,7 +201,7 @@ export async function run(argv: string[]): Promise<void> {
         Deno.exit(1);
       }
       await apiFetch(`/functions/v1/units/${id}`, { method: "DELETE" });
-      console.log(`Deleted unit ${id}`);
+      console.log(`Soft-deleted unit ${id}`);
       return;
     }
     case "search": {
@@ -168,8 +209,17 @@ export async function run(argv: string[]): Promise<void> {
         console.error("--query is required");
         Deno.exit(1);
       }
-      const body: Record<string, unknown> = { query: flags.query };
+      const body: Record<string, unknown> = {
+        query_text: flags.query,
+        mode: typeof flags.mode === "string" ? flags.mode : "hybrid",
+      };
       if (typeof flags.project === "string") body.project_id = flags.project;
+      if (typeof flags.scout === "string") body.scout_id = flags.scout;
+      if (flags.verified === true) body.verified = true;
+      if (flags.unverified === true) body.verified = false;
+      if (flags.used === true) body.used_in_article = true;
+      if (flags.unused === true) body.used_in_article = false;
+      if (flags["include-deleted"] === true) body.include_deleted = true;
       if (typeof flags.limit === "string") {
         body.limit = Number(flags.limit);
       }
@@ -177,10 +227,20 @@ export async function run(argv: string[]): Promise<void> {
         "/functions/v1/units/search",
         { method: "POST", body: JSON.stringify(body) },
       );
-      const rows = Array.isArray(data) ? data : (data.data ?? []);
+      const rows = Array.isArray(data)
+        ? data
+        : ((data as { items?: Unit[]; data?: Unit[] }).items ??
+          (data as { data?: Unit[] }).data ??
+          []);
       printTable(
-        rows as unknown as Record<string, unknown>[],
-        ["id", "type", "statement", "source_url"],
+        rows.map((row) => ({
+          id: row.id,
+          unit_type: row.unit_type,
+          statement: row.statement,
+          scout_name: row.scout_name ?? "",
+          search_rank: row.search_rank ?? "",
+        })) as unknown as Record<string, unknown>[],
+        ["id", "unit_type", "statement", "scout_name", "search_rank"],
       );
       return;
     }

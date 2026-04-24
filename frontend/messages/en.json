@@ -39,6 +39,7 @@
 	"beatScout_broadCriteriaHint": "Tip: Specific criteria like 'housing policy changes' work better than broad terms like 'news'. Add details to get more relevant results.",
 	"beatScout_criteriaLabel": "Criteria",
 	"beatScout_criteriaOptionalHint": "optional · leave empty for digests",
+	"beatScout_optionalLocationLabel": "Do you want to restrict your search to a location?",
 	"beatScout_criteriaPlaceholder": "Describe what to look for, or leave empty for digests",
 	"beatScout_criteriaSubtitle": "What to search for",
 	"beatScout_investigationType_beat": "Beat",

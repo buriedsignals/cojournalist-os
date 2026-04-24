@@ -4,6 +4,18 @@
 
 Social media profile monitoring with post diffing and criteria matching.
 
+## Current runtime note
+
+The live runtime is the Supabase Edge Function path:
+- kickoff: `social-kickoff`
+- async processing: `apify-callback` / `apify-reconcile`
+- canonical writes: `_shared/unit_dedup.ts` → `upsert_canonical_unit`
+
+Social scouts use the same canonical dedup service as web/beat/civic, but
+with a stricter semantic boundary: exact matches may merge across scout types,
+while semantic matching does not cross between `social` and `non-social`
+canonical rows.
+
 ## Overview
 
 Social Scouts monitor social media profiles for new (and optionally removed) posts. Four platforms are supported:

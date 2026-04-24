@@ -9,7 +9,12 @@
  */
 
 import { AuthError } from "./errors.ts";
-import { getServiceClient, getUserClient, SupabaseClient } from "./supabase.ts";
+import {
+  getServiceClient,
+  getServiceRoleKey,
+  getUserClient,
+  SupabaseClient,
+} from "./supabase.ts";
 
 export interface AuthedUser {
   id: string;
@@ -86,7 +91,13 @@ export function getCallerClient(
 
 export function requireServiceKey(req: Request): void {
   const expectedInternal = Deno.env.get("INTERNAL_SERVICE_KEY");
-  const expectedServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const expectedServiceRole = (() => {
+    try {
+      return getServiceRoleKey();
+    } catch {
+      return undefined;
+    }
+  })();
 
   // Accept either X-Service-Key = INTERNAL_SERVICE_KEY (the cron/dispatcher
   // path) or Authorization: Bearer SUPABASE_SERVICE_ROLE_KEY (tooling and
@@ -105,7 +116,7 @@ export function requireServiceKey(req: Request): void {
 
   if (!expectedInternal && !expectedServiceRole) {
     throw new AuthError(
-      "server misconfigured: neither INTERNAL_SERVICE_KEY nor SUPABASE_SERVICE_ROLE_KEY set",
+      "server misconfigured: neither INTERNAL_SERVICE_KEY nor service-role env set",
     );
   }
   throw new AuthError("invalid service key");

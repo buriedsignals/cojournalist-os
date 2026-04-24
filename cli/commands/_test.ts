@@ -136,8 +136,8 @@ Deno.test("resolvePath — FastAPI URL strips /functions/v1/ prefix", () => {
     "/projects/xyz",
   );
   assertEquals(
-    resolvePath("/functions/v1/export-claude?project=1", api),
-    "/export-claude?project=1",
+    resolvePath("/functions/v1/units/search", api),
+    "/units/search",
   );
 });
 
@@ -146,7 +146,7 @@ Deno.test("resolvePath — leaves non-/functions/v1 paths alone on both backends
   const fastapi = "https://www.cojournalist.ai/api";
   assertEquals(resolvePath("/health", supa), "/health");
   assertEquals(resolvePath("/health", fastapi), "/health");
-  assertEquals(resolvePath("health", fastapi), "/health"); // bare path normalised
+  assertEquals(resolvePath("health", fastapi), "/health");
 });
 
 Deno.test("VERSION — exports a non-empty string", () => {

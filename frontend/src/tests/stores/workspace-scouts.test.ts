@@ -208,4 +208,19 @@ describe('workspace scouts store', () => {
 		store.reset();
 		expect(store.getState()).toEqual({ scouts: [], loading: false, error: null });
 	});
+
+	it('clearDemo() removes hosted onboarding demo rows as well as local demo ids', async () => {
+		const api = {
+			listScouts: vi.fn(async () => [
+				row({ id: 'onboarding-demo', name: 'Seeded demo scout', is_demo: true }),
+				row({ id: 'real-1', name: 'Real scout' })
+			]),
+			createScout: vi.fn()
+		};
+		const store = createScoutsStore(api as unknown as ScoutsApi);
+		await store.load();
+
+		store.clearDemo();
+		expect(store.getState().scouts.map((scout) => scout.id)).toEqual(['real-1']);
+	});
 });

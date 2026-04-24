@@ -5,7 +5,7 @@
  *          stores/notifications.ts, stores/pulse.ts, stores/recent-locations.ts,
  *          utils/scouts.ts, data/onboarding-placeholders.ts,
  *          ActiveJobsModal, OnboardingModal, ScoutScheduleModal, AINewsCard,
- *          BeatScoutView, ScoutsPanel, DataExtract, LocationAutocomplete,
+ *          BeatScoutView, LocationAutocomplete,
  *          +layout.svelte
  * DEPENDS ON: (none)
  *

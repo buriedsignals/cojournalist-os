@@ -25,7 +25,7 @@ Deno.test("user: GET /me returns id + email", async () => {
     });
     assertEquals(res.status, 200);
     const body = await res.json();
-    assertEquals(body.id, user.id);
+    assertEquals(body.user_id, user.id);
     assertEquals(body.email, user.email);
   } finally {
     await user.cleanup();

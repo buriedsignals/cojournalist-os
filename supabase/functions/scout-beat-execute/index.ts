@@ -1,5 +1,5 @@
 /**
- * scout-beat-execute Edge Function — Beat Scout (type='pulse') runner.
+ * scout-beat-execute Edge Function — Beat Scout (type='beat') runner.
  *
  * Scrapes up to 20 priority sources in parallel (concurrency 5), aggregates
  * markdown, persists raw_captures per source, and extracts atomic information
@@ -16,7 +16,7 @@
  *
  * Errors:
  *   - 404 if scout missing
- *   - 400 if scout has no priority_sources or missing criteria
+ *   - 400 if scout has no location, criteria, or topic
  *   - 500/502 on all firecrawl/gemini failures; failed runs mark scout_runs
  *     status='error' and call increment_scout_failures (auto-pause at 3).
  */
@@ -28,26 +28,23 @@ import { getServiceClient, SupabaseClient } from "../_shared/supabase.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { NotFoundError, ValidationError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
+import { normalizeDate } from "../_shared/date_utils.ts";
 import { firecrawlScrape, ScrapeResult } from "../_shared/firecrawl.ts";
 import { isWithinRunDuplicate } from "../_shared/dedup.ts";
-import { geminiEmbed } from "../_shared/gemini.ts";
+import { EMBEDDING_MODEL_TAG, geminiEmbed } from "../_shared/gemini.ts";
 import {
-  aiFilterResults,
-  applyDateFilter,
-  capUndatedResults,
-  clusterFilter,
-  countryTld,
-  dedupeByEmbedding,
-  generatePulseSummary,
-  generateQueries,
-  getRecencyConfig,
-  isLikelyTourismContent,
-  PulseCategory,
-  PulseHit,
-  PulseScope,
-  PulseSourceMode,
-  runSearches,
-} from "../_shared/pulse_pipeline.ts";
+  type CanonicalUnitType,
+  deriveSourceDomain,
+  sha256Hex,
+  upsertCanonicalUnit,
+} from "../_shared/unit_dedup.ts";
+import {
+  BeatHit,
+  BeatScope,
+  BeatSourceMode,
+  discoverBeatHits,
+  generateBeatSummary,
+} from "../_shared/beat_pipeline.ts";
 import {
   CREDIT_COSTS,
   decrementOrThrow,
@@ -61,6 +58,7 @@ import {
   extractAtomicUnits,
   publishedDateFromScrape,
 } from "../_shared/atomic_extract.ts";
+import { parseBeatLocation } from "../_shared/beat_location.ts";
 
 const InputSchema = z.object({
   scout_id: z.string().uuid(),
@@ -69,6 +67,11 @@ const InputSchema = z.object({
 
 const MAX_SOURCES = 20;
 const CONCURRENCY = 5;
+const DISCOVERY_SOURCE_LIMITS: Record<BeatScope, number> = {
+  location: 4,
+  topic: 6,
+  combined: 8,
+};
 
 Deno.serve(async (req: Request): Promise<Response> => {
   const cors = handleCors(req);
@@ -127,10 +130,6 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
   if (scoutErr) throw new Error(scoutErr.message);
   if (!scout) throw new NotFoundError("scout");
 
-  if (!scout.criteria || !String(scout.criteria).trim()) {
-    throw new ValidationError("beat scout requires criteria");
-  }
-
   // Explicit priority_sources shortcut: user pasted URLs directly. Scrape those
   // unchanged — skips the 8-stage discovery pipeline, keeps behavior predictable.
   const manualSourcesRaw: string[] = Array.isArray(scout.priority_sources)
@@ -144,10 +143,10 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
   try {
     await decrementOrThrow(db, {
       userId: scout.user_id,
-      cost: CREDIT_COSTS.pulse,
+      cost: CREDIT_COSTS.beat,
       scoutId: scout.id,
-      scoutType: "pulse",
-      operation: "pulse",
+      scoutType: "beat",
+      operation: "beat",
     });
   } catch (e) {
     if (e instanceof InsufficientCreditsError) {
@@ -161,61 +160,78 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
 
   try {
     // --- Stage 0: prepare pipeline inputs ---
-    const locationObj = extractLocationObj(scout.location);
+    const locationObj = parseBeatLocation(scout.location);
     const cityName = locationObj.city ?? null;
     const countryName = locationObj.country ?? null;
     const countryCode = locationObj.countryCode ?? null;
     const topic = (scout.topic as string | null)?.trim() ?? null;
-    const criteria = (scout.criteria as string).trim();
-    const sourceMode: PulseSourceMode =
+    const criteria = typeof scout.criteria === "string"
+      ? scout.criteria.trim()
+      : "";
+    const searchCriteria = criteria || topic;
+    const sourceMode: BeatSourceMode =
       (scout.source_mode as string | null) === "niche" ? "niche" : "reliable";
+    const excludedDomains = Array.isArray(scout.excluded_domains)
+      ? scout.excluded_domains.filter((d: unknown): d is string =>
+        typeof d === "string" && d.trim().length > 0
+      )
+      : [];
     const hasLocation = Boolean(cityName || countryName);
-    const hasCriteria = Boolean(criteria || topic);
-    const scope: PulseScope = hasCriteria && hasLocation
+    const hasCriteria = Boolean(searchCriteria);
+    const scope: BeatScope = hasCriteria && hasLocation
       ? "combined"
       : hasCriteria
       ? "topic"
       : "location";
-    const preferredLanguage = (scout.preferred_language as string | null) ?? "en";
+    if (scope === "location" && !hasLocation) {
+      throw new ValidationError(
+        "beat scout requires location, criteria, or topic",
+      );
+    }
+    const preferredLanguage = (scout.preferred_language as string | null) ??
+      "en";
 
     // --- Resolve final source list ---
     // Two branches, chosen by the user's setup:
     //  (A) priority_sources non-empty → direct scrape (legacy opt-in path)
-    //  (B) empty → full 8-stage pulse pipeline (query gen → search → dedup → AI filter)
+    //  (B) empty → full 8-stage beat pipeline (query gen → search → dedup → AI filter)
     let finalUrls: string[];
-    let newsPulseHits: PulseHit[] = [];
-    let govPulseHits: PulseHit[] = [];
+    let newsBeatHits: BeatHit[] = [];
+    let govBeatHits: BeatHit[] = [];
 
     if (manualSources.length > 0) {
       finalUrls = manualSources;
     } else {
+      const maxDiscoveredSources = DISCOVERY_SOURCE_LIMITS[scope];
       // Full pipeline branch — news + optional parallel government fan-out.
-      newsPulseHits = await runPulsePipeline({
+      newsBeatHits = (await discoverBeatHits({
         scope,
         sourceMode,
         category: "news",
         city: cityName,
         country: countryName,
         countryCode,
-        criteria: criteria || topic,
+        criteria: searchCriteria,
         preferredLanguage,
-      });
+        excludedDomains,
+      })).hits;
       if (hasLocation && hasCriteria) {
-        govPulseHits = await runPulsePipeline({
+        govBeatHits = (await discoverBeatHits({
           scope: "combined",
           sourceMode,
           category: "government",
           city: cityName,
           country: countryName,
           countryCode,
-          criteria: criteria || topic,
+          criteria: searchCriteria,
           preferredLanguage,
-        });
+          excludedDomains,
+        })).hits;
       }
       finalUrls = [
-        ...newsPulseHits.map((h) => h.url),
-        ...govPulseHits.map((h) => h.url),
-      ].filter((u, i, arr) => u && arr.indexOf(u) === i).slice(0, MAX_SOURCES);
+        ...newsBeatHits.map((h) => h.url),
+        ...govBeatHits.map((h) => h.url),
+      ].filter((u, i, arr) => u && arr.indexOf(u) === i).slice(0, maxDiscoveredSources);
     }
 
     if (finalUrls.length === 0) {
@@ -228,15 +244,16 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
           scraper_status: true,
           criteria_status: false,
           articles_count: 0,
+          merged_existing_count: 0,
           completed_at: new Date().toISOString(),
         })
         .eq("id", runId);
       await refundCredits(db, {
         userId: scout.user_id as string,
-        cost: CREDIT_COSTS.pulse,
+        cost: CREDIT_COSTS.beat,
         scoutId,
-        scoutType: "pulse",
-        operation: "pulse",
+        scoutType: "beat",
+        operation: "beat",
       });
       return jsonOk({
         status: "ok",
@@ -244,13 +261,16 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         sources_scraped: 0,
         sources_failed: 0,
         articles_count: 0,
-        note: "pulse pipeline produced zero sources for this query",
+        merged_existing_count: 0,
+        note: "beat pipeline produced zero sources for this query",
       });
     }
 
     // --- Stage 2 continuation: parallel full-markdown scrapes (concurrency 5) ---
-    const scraped = await mapLimit(finalUrls, CONCURRENCY, (url) =>
-      firecrawlScrape(url),
+    const scraped = await mapLimit(
+      finalUrls,
+      CONCURRENCY,
+      (url) => firecrawlScrape(url),
     );
 
     const succeeded: ScrapeResult[] = [];
@@ -285,10 +305,11 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     }
 
     // Keep a lookup so per-URL gov vs news partitioning survives the scrape step.
-    const govUrlSet = new Set(govPulseHits.map((h) => h.url));
+    const govUrlSet = new Set(govBeatHits.map((h) => h.url));
 
     // 5. Persist raw_captures for each successful scrape.
     const rawCaptureIds: string[] = [];
+    const rawCaptureHashes: string[] = [];
     for (const s of succeeded) {
       const md = s.markdown ?? "";
       const hash = await sha256Hex(md);
@@ -309,6 +330,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         .single();
       if (capErr) throw new Error(capErr.message);
       rawCaptureIds.push(cap.id as string);
+      rawCaptureHashes.push(hash);
     }
 
     // 6 + 7. Per-article extraction with forced target language.
@@ -320,6 +342,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     //   - undated_ratio: Firecrawl metadata publishedTime feeds occurred_at
     //     as a fallback when the LLM can't extract one
     let insertedCount = 0;
+    let mergedExistingCount = 0;
     const insertedStatements: string[] = [];
     const newsStatements: string[] = [];
     const govStatements: string[] = [];
@@ -329,6 +352,9 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       const src = succeeded[i];
       const captureId = rawCaptureIds[i];
       const scrapePublishedDate = publishedDateFromScrape(src);
+      const extractionConfig = scope === "location"
+        ? { maxUnits: 2, contentLimit: 2200 }
+        : { maxUnits: 3, contentLimit: 3000 };
 
       let extracted;
       try {
@@ -338,9 +364,9 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
           sourceUrl: src.source_url,
           publishedDate: scrapePublishedDate,
           language: preferredLanguage,
-          criteria: scout.criteria as string | null,
-          maxUnits: 3,
-          contentLimit: 3000,
+          criteria: searchCriteria,
+          maxUnits: extractionConfig.maxUnits,
+          contentLimit: extractionConfig.contentLimit,
         });
       } catch (e) {
         logEvent({
@@ -354,10 +380,12 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         continue;
       }
 
-      for (const u of extracted) {
+      for (const u of extracted.units) {
         let embedding: number[];
         try {
-          embedding = await geminiEmbed(u.statement, "RETRIEVAL_DOCUMENT");
+          embedding = await geminiEmbed(u.statement, "RETRIEVAL_DOCUMENT", {
+            title: src.title ?? null,
+          });
         } catch (e) {
           logEvent({
             level: "warn",
@@ -372,62 +400,61 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         // Within-run paraphrase guard first — avoids an RPC round-trip for
         // pairs that would both insert otherwise.
         if (isWithinRunDuplicate(embedding, runEmbeddings)) continue;
-
-        const { data: dupRes, error: dupErr } = await db.rpc("check_unit_dedup", {
-          p_embedding: embedding,
-          p_scout_id: scoutId,
-        });
-        if (dupErr) {
-          logEvent({
-            level: "warn",
-            fn: "scout-beat-execute",
-            event: "dedup_check_failed",
-            scout_id: scoutId,
-            msg: dupErr.message,
-          });
-        }
-        if (dupRes === true) continue;
         runEmbeddings.push(embedding);
 
         // occurred_at priority: LLM-extracted → Firecrawl metadata → null.
         const occurredAt = normalizeDate(u.occurred_at) ?? scrapePublishedDate;
+        const unitType = u.type as CanonicalUnitType;
 
-        const { error: unitErr } = await db.from("information_units").insert({
-          user_id: scout.user_id,
-          scout_id: scout.id,
-          scout_type: "pulse",
-          statement: u.statement,
-          type: u.type,
-          context_excerpt: u.context_excerpt ?? null,
-          occurred_at: occurredAt,
-          source_type: "scout",
-          source_url: src.source_url,
-          source_domain: safeDomain(src.source_url),
-          source_title: src.title ?? null,
-          extracted_at: new Date().toISOString(),
-          raw_capture_id: captureId,
-          embedding,
-          embedding_model: "gemini-embedding-2-preview",
-          used_in_article: false,
-        });
-        if (unitErr) {
+        try {
+          const result = await upsertCanonicalUnit(db, {
+            userId: scout.user_id as string,
+            statement: u.statement,
+            unitType,
+            entities: u.entities ?? [],
+            embedding,
+            embeddingModel: EMBEDDING_MODEL_TAG,
+            sourceUrl: src.source_url,
+            sourceDomain: deriveSourceDomain(src.source_url),
+            sourceTitle: src.title ?? null,
+            contextExcerpt: u.context_excerpt ?? null,
+            occurredAt,
+            extractedAt: new Date().toISOString(),
+            sourceType: "scout",
+            contentSha256: rawCaptureHashes[i] ?? null,
+            scoutId: scout.id as string,
+            scoutType: "beat",
+            scoutRunId: runId,
+            projectId: (scout.project_id as string | null) ?? null,
+            rawCaptureId: captureId,
+            metadata: {
+              category: govUrlSet.has(src.source_url) ? "government" : "news",
+            },
+          });
+
+          if (result.createdCanonical) {
+            insertedCount += 1;
+            if (insertedStatements.length < 10) {
+              insertedStatements.push(u.statement);
+            }
+            if (govUrlSet.has(src.source_url)) {
+              if (govStatements.length < 5) govStatements.push(u.statement);
+            } else {
+              if (newsStatements.length < 5) newsStatements.push(u.statement);
+            }
+          } else if (result.mergedExisting && result.occurrenceCreated) {
+            mergedExistingCount += 1;
+          }
+        } catch (e) {
           logEvent({
             level: "warn",
             fn: "scout-beat-execute",
             event: "unit_insert_failed",
             scout_id: scoutId,
-            msg: unitErr.message,
+            source_url: src.source_url,
+            msg: e instanceof Error ? e.message : String(e),
           });
           continue;
-        }
-        insertedCount += 1;
-        if (insertedStatements.length < 10) {
-          insertedStatements.push(u.statement);
-        }
-        if (govUrlSet.has(src.source_url)) {
-          if (govStatements.length < 5) govStatements.push(u.statement);
-        } else {
-          if (newsStatements.length < 5) newsStatements.push(u.statement);
         }
       }
     }
@@ -440,6 +467,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         scraper_status: true,
         criteria_status: true,
         articles_count: insertedCount,
+        merged_existing_count: mergedExistingCount,
         completed_at: new Date().toISOString(),
       })
       .eq("id", runId);
@@ -465,6 +493,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       run_id: runId,
       sources_scraped: succeeded.length,
       articles_count: insertedCount,
+      merged_existing_count: mergedExistingCount,
     });
 
     // Notify user when new, non-duplicate units landed. Build separate article
@@ -472,7 +501,9 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     // summaries per section rather than raw statement bullets.
     if (insertedCount > 0 && insertedStatements.length > 0) {
       try {
-        const newsScrapes = succeeded.filter((s) => !govUrlSet.has(s.source_url));
+        const newsScrapes = succeeded.filter((s) =>
+          !govUrlSet.has(s.source_url)
+        );
         const govScrapes = succeeded.filter((s) => govUrlSet.has(s.source_url));
         const newsArticles: Article[] = newsScrapes.slice(0, 5).map((s) => ({
           title: s.title ?? s.source_url,
@@ -490,15 +521,15 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         // Prefer LLM-composed summaries when pipeline produced hits; fall back
         // to bulleted statement list for the manual-priority-sources path.
         const emailLang = (preferredLanguage ?? "en").toLowerCase();
-        const summary = newsPulseHits.length > 0
-          ? await generatePulseSummary(newsPulseHits, {
+        const summary = newsBeatHits.length > 0
+          ? await generateBeatSummary(newsBeatHits, {
             city: cityName,
             language: emailLang,
             category: "news",
           })
           : newsStatements.slice(0, 5).map((s) => `- ${s}`).join("\n");
-        const govSummary = govPulseHits.length > 0
-          ? await generatePulseSummary(govPulseHits, {
+        const govSummary = govBeatHits.length > 0
+          ? await generateBeatSummary(govBeatHits, {
             city: cityName,
             language: emailLang,
             category: "government",
@@ -513,7 +544,8 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
           scoutName: (scout.name as string | null) ?? "Beat Scout",
           location: locationLabel,
           topic,
-          summary: summary || insertedStatements.slice(0, 5).map((s) => `- ${s}`).join("\n"),
+          summary: summary ||
+            insertedStatements.slice(0, 5).map((s) => `- ${s}`).join("\n"),
           articles: newsArticles.length > 0 ? newsArticles : newsScrapes
             .concat(govScrapes)
             .slice(0, 5)
@@ -544,6 +576,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       sources_scraped: succeeded.length,
       sources_failed: failures.length,
       articles_count: insertedCount,
+      merged_existing_count: mergedExistingCount,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -560,16 +593,16 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       scoutId,
       userId: scout.user_id as string,
       scoutName: (scout.name as string | null) ?? "Beat Scout",
-      scoutType: "pulse",
+      scoutType: "beat",
       language: scout.preferred_language as string | null,
     });
     // Refund the 7-credit pre-charge — the run produced no billable output.
     await refundCredits(db, {
       userId: scout.user_id as string,
-      cost: CREDIT_COSTS.pulse,
+      cost: CREDIT_COSTS.beat,
       scoutId,
-      scoutType: "pulse",
-      operation: "pulse",
+      scoutType: "beat",
+      operation: "beat",
     });
     throw e;
   }
@@ -644,14 +677,6 @@ async function mapLimit<T, R>(
   return results;
 }
 
-async function sha256Hex(input: string): Promise<string> {
-  const buf = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 function safeDomain(raw: string | null | undefined): string | null {
   if (!raw) return null;
   try {
@@ -674,129 +699,4 @@ function extractLocationLabel(v: unknown): string | null {
   return null;
 }
 
-function normalizeDate(v: string | null | undefined): string | null {
-  if (!v) return null;
-  const trimmed = v.trim();
-  if (!trimmed) return null;
-  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (match) return match[1];
-  const d = new Date(trimmed);
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
-}
-
-/**
- * Parse scout.location into city/country/countryCode. Handles both the string
- * form (legacy "City, Country") and the structured jsonb form written by the
- * MapTiler geocoder in the Location Scout modal.
- */
-interface LocationShape {
-  city: string | null;
-  country: string | null;
-  countryCode: string | null;
-}
-function extractLocationObj(v: unknown): LocationShape {
-  if (!v) return { city: null, country: null, countryCode: null };
-  if (typeof v === "string") {
-    const parts = v.split(",").map((s) => s.trim());
-    return { city: parts[0] || null, country: parts[1] || null, countryCode: null };
-  }
-  if (typeof v === "object") {
-    const rec = v as Record<string, unknown>;
-    const city = pickString(rec.city, rec.displayName, rec.display_name, rec.label);
-    const country = pickString(rec.country, rec.country_name);
-    const countryCode = pickString(rec.country_code, rec.countryCode);
-    return { city, country, countryCode: countryCode?.toUpperCase() ?? null };
-  }
-  return { city: null, country: null, countryCode: null };
-}
-function pickString(...candidates: unknown[]): string | null {
-  for (const c of candidates) {
-    if (typeof c === "string" && c.trim()) return c.trim();
-  }
-  return null;
-}
-
-/**
- * Thread the 8-stage pulse pipeline for a single category (news OR government).
- * Mirrors legacy pulse_orchestrator.search_news stages 1-8. Returns final
- * AI-filtered hits ready for atomic extraction.
- */
-interface RunPipelineOpts {
-  scope: PulseScope;
-  sourceMode: PulseSourceMode;
-  category: PulseCategory;
-  city: string | null;
-  country: string | null;
-  countryCode: string | null;
-  criteria: string | null;
-  preferredLanguage: string;
-}
-async function runPulsePipeline(opts: RunPipelineOpts): Promise<PulseHit[]> {
-  const plan = await generateQueries({
-    city: opts.city,
-    country: opts.country,
-    countryCode: opts.countryCode,
-    criteria: opts.criteria,
-    category: opts.category,
-  });
-  if (plan.queries.length === 0 && plan.discovery_queries.length === 0) {
-    return [];
-  }
-  const rawHits = await runSearches({
-    plan,
-    lang: opts.preferredLanguage,
-    country: opts.countryCode ?? undefined,
-  });
-  if (rawHits.length === 0) return [];
-
-  // Stages 3+4: date filter + undated cap.
-  const recency = getRecencyConfig(opts.scope, opts.category, opts.sourceMode);
-  const { dated, undated } = applyDateFilter(rawHits, recency);
-  const capped = capUndatedResults(undated, recency);
-  let hits = [...dated, ...capped];
-  if (hits.length === 0) return [];
-
-  // Stage 5: tourism pre-filter (niche + location + news only).
-  if (
-    opts.category === "news" &&
-    opts.sourceMode === "niche" &&
-    (opts.city || opts.country)
-  ) {
-    hits = hits.filter((h) => !isLikelyTourismContent(h));
-  }
-  if (hits.length === 0) return [];
-
-  // Stage 6: embedding dedup + rarity + local-language bonus.
-  // Scope-aware threshold: narrower searches need higher thresholds.
-  const threshold = opts.scope === "combined"
-    ? 0.85
-    : opts.scope === "location"
-    ? 0.82
-    : 0.80;
-  const tld = countryTld(opts.countryCode ?? null);
-  hits = await dedupeByEmbedding(hits, {
-    threshold,
-    primaryLanguage: plan.primary_language,
-    localTlds: tld ? [tld] : undefined,
-  });
-
-  // Stage 7: cluster filter (niche mode only).
-  if (opts.category === "news" && opts.sourceMode === "niche") {
-    hits = clusterFilter(hits);
-  }
-  if (hits.length === 0) return [];
-
-  // Stage 8: AI relevance filter.
-  const maxResults = opts.sourceMode === "reliable" ? 8 : 6;
-  hits = await aiFilterResults(hits, {
-    cityName: opts.city,
-    countryName: opts.country,
-    localLanguage: plan.primary_language,
-    category: opts.category,
-    sourceMode: opts.sourceMode,
-    criteria: opts.criteria,
-    maxResults,
-  });
-  return hits;
-}
+// normalizeDate moved to ../_shared/date_utils.ts (imported at the top).

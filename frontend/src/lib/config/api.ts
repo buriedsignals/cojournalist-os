@@ -2,25 +2,45 @@
  * API Configuration -- resolves the backend API base URL.
  *
  * USED BY: api-client.ts, services/webhook-client.ts, stores/auth.ts
- * DEPENDS ON: VITE_API_URL env var (optional)
+ * DEPENDS ON: VITE_API_URL env var (optional), PUBLIC_DEPLOYMENT_TARGET,
+ *             PUBLIC_SUPABASE_URL
  *
- * Resolves VITE_API_URL into a normalized base URL. Falls back to '/api'
- * when no env var is set (same-origin proxy in dev/production).
- * Exports: API_BASE_URL (string), buildApiUrl(path) => full URL.
+ * Supabase-native deployments default to the Edge Functions gateway when
+ * VITE_API_URL is unset (or still left at the old '/api' placeholder).
+ * Everything else keeps the same-origin '/api' default.
  */
 const DEFAULT_API_PREFIX = '/api';
+const SUPABASE_FUNCTIONS_PREFIX = '/functions/v1';
+const deploymentTarget = (import.meta.env.PUBLIC_DEPLOYMENT_TARGET || '').trim().toLowerCase();
+const supabaseUrl = (import.meta.env.PUBLIC_SUPABASE_URL || '').trim().replace(/\/$/, '');
+
+function resolveSupabaseFunctionsBase(): string | null {
+	if (!supabaseUrl) return null;
+	return `${supabaseUrl}${SUPABASE_FUNCTIONS_PREFIX}`;
+}
 
 function resolveApiBaseUrl() {
 	const rawBase = (import.meta.env.VITE_API_URL || '').trim();
+	const supabaseFunctionsBase =
+		deploymentTarget === 'supabase' ? resolveSupabaseFunctionsBase() : null;
+
 	if (!rawBase) {
-		return DEFAULT_API_PREFIX;
+		return supabaseFunctionsBase ?? DEFAULT_API_PREFIX;
 	}
 
 	const trimmedBase = rawBase.replace(/\/$/, '');
 
+	if (supabaseFunctionsBase && trimmedBase === DEFAULT_API_PREFIX) {
+		return supabaseFunctionsBase;
+	}
+
 	if (/^https?:\/\//i.test(trimmedBase)) {
 		try {
 			const url = new URL(trimmedBase);
+
+			if (supabaseFunctionsBase && url.pathname === DEFAULT_API_PREFIX) {
+				return supabaseFunctionsBase;
+			}
 
 			if (!url.pathname || url.pathname === '/') {
 				url.pathname = DEFAULT_API_PREFIX;

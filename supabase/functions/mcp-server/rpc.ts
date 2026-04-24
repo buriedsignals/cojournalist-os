@@ -103,7 +103,7 @@ const TOOLS: ToolDef[] = [
       properties: {
         limit: { type: "integer", minimum: 1, maximum: 200 },
         offset: { type: "integer", minimum: 0 },
-        type: { type: "string", enum: ["web", "pulse", "social", "civic"] },
+        type: { type: "string", enum: ["web", "beat", "social", "civic"] },
       },
     },
     handler: (_u, token, args) =>
@@ -112,13 +112,13 @@ const TOOLS: ToolDef[] = [
   {
     name: "create_scout",
     description:
-      "Create a new scout. Required: name, type (web|pulse|social|civic). For web, pass url. For pulse, pass location and/or criteria+topic. Scheduling: pass `schedule_cron` OR `regularity` + `time` (+ `day_number` for weekly/monthly).",
+      "Create a new scout. Required: name, type (web|beat|social|civic). For web, pass url. For beat, pass location and/or criteria+topic. Scheduling: pass `schedule_cron` OR `regularity` + `time` (+ `day_number` for weekly/monthly).",
     inputSchema: {
       type: "object",
       required: ["name", "type"],
       properties: {
         name: { type: "string", minLength: 1, maxLength: 200 },
-        type: { type: "string", enum: ["web", "pulse", "social", "civic"] },
+        type: { type: "string", enum: ["web", "beat", "social", "civic"] },
         criteria: { type: "string", maxLength: 4000 },
         topic: { type: "string", maxLength: 200 },
         url: { type: "string", format: "uri" },
@@ -222,31 +222,47 @@ const TOOLS: ToolDef[] = [
   {
     name: "list_units",
     description:
-      "List information units owned by the caller. Pass `verified=false` for the editorial inbox (needs-review queue). Pass `used_in_article=false` to exclude already-used units.",
+      "List information units owned by the caller. Supports project, scout, verification, usage, and deleted-state filters.",
     inputSchema: {
       type: "object",
       properties: {
         project_id: { type: "string", format: "uuid" },
+        scout_id: { type: "string", format: "uuid" },
         limit: { type: "integer", minimum: 1, maximum: 200 },
         offset: { type: "integer", minimum: 0 },
         verified: { type: "boolean" },
         used_in_article: { type: "boolean" },
+        include_deleted: { type: "boolean" },
       },
     },
     handler: (_u, token, args) =>
       forward(token, "GET", "units", "", {
-        query: q(args, ["project_id", "limit", "offset", "verified", "used_in_article"]),
+        query: q(args, [
+          "project_id",
+          "scout_id",
+          "limit",
+          "offset",
+          "verified",
+          "used_in_article",
+          "include_deleted",
+        ]),
       }),
   },
   {
     name: "search_units",
-    description: "Semantic search over the caller's information units.",
+    description:
+      "Search the caller's information units. Modes: semantic, keyword, or hybrid. Supports project, scout, verification, usage, and deleted-state filters.",
     inputSchema: {
       type: "object",
       required: ["query_text"],
       properties: {
         query_text: { type: "string", minLength: 1, maxLength: 4000 },
+        mode: { type: "string", enum: ["semantic", "keyword", "hybrid"] },
         project_id: { type: "string", format: "uuid" },
+        scout_id: { type: "string", format: "uuid" },
+        verified: { type: "boolean" },
+        used_in_article: { type: "boolean" },
+        include_deleted: { type: "boolean" },
         limit: { type: "integer", minimum: 1, maximum: 100 },
       },
     },
@@ -324,7 +340,7 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "delete_unit",
-    description: "Delete an information unit by id.",
+    description: "Soft-delete an information unit by id.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -421,25 +437,6 @@ const TOOLS: ToolDef[] = [
       },
     },
     handler: (_u, token, args) => forward(token, "POST", "ingest", "", { body: args }),
-  },
-
-  // ---------- Export ----------
-  {
-    name: "export_project_to_claude",
-    description:
-      "Export a project's verified, unused information units as a markdown brief suitable for piping to an LLM.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        project_id: { type: "string", format: "uuid" },
-        limit: { type: "integer", minimum: 1, maximum: 500 },
-      },
-    },
-    handler: (_u, token, args) =>
-      forward(token, "GET", "export-claude", "", {
-        query: q(args, ["project_id", "limit"]),
-        accept: "text/markdown",
-      }),
   },
 
   // ---------- Reflections ----------

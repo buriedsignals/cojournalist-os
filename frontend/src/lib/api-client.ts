@@ -1,15 +1,13 @@
 /**
  * API Client -- typed wrapper for all FastAPI backend calls.
  *
- * USED BY: FeedView, ExportSlideOver, UnitCard, UnitGrid, ActiveJobsModal,
- *          ScoutScheduleModal, BeatScoutView, ScoutsPanel, DataExtract,
- *          stores/feed.ts, stores/notifications.ts, stores/pulse.ts,
- *          utils/feed.ts,
+ * USED BY: ActiveJobsModal, ScoutScheduleModal, BeatScoutView,
+ *          stores/notifications.ts, stores/pulse.ts,
  *          tests/api-client.test.ts
  * DEPENDS ON: $lib/config/api (buildApiUrl), $lib/types
  *
  * Uses httpOnly session cookies for authentication (credentials: 'include').
- * Also exports shared types: InformationUnit, ExportDraft.
+ * Also exports the legacy InformationUnit type used by compatibility helpers.
  */
 import type {
 	MonitoringSetupRequest,
@@ -19,7 +17,23 @@ import type {
 	ScoutSetupResponse,
 	User
 } from '$lib/types';
+
+function normalizePulseSearchError(response: Response, result: Record<string, unknown> | null): string {
+	if (
+		response.status === 401 ||
+		(typeof result?.code === 'string' && result.code.startsWith('UNAUTHORIZED_'))
+	) {
+		return 'Your session is no longer valid for Beat Scout preview. Please sign out and sign in again.';
+	}
+
+	return (
+		(typeof result?.detail === 'string' && result.detail) ||
+		(typeof result?.response_markdown === 'string' && result.response_markdown) ||
+		'Failed to search pulse'
+	);
+}
 import { buildApiUrl } from '$lib/config/api';
+import { normalizeScoutType } from '$lib/utils/scouts';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -67,8 +81,14 @@ export async function apiRequest<T>(
 	});
 
 	if (!response.ok) {
-		const error = await response.json();
-		throw new Error(normalizeErrorDetail(error.detail, `API error: ${response.status}`));
+		const error = await response.json().catch(() => ({}));
+		throw new Error(
+			normalizeErrorDetail(
+				(error as { detail?: unknown; error?: unknown }).detail ??
+					(error as { error?: unknown }).error,
+				`API error: ${response.status}`
+			)
+		);
 	}
 
 	return response.json();
@@ -176,7 +196,7 @@ export const apiClient = {
 	 *
 	 * Adapter: calls Edge Function GET /scouts (paginated `{items, pagination}`)
 	 * and reshapes to the legacy `{scrapers: [{scraper_name, ...}], count}`
-	 * envelope expected by ScoutsPanel.svelte etc. Refreshes the
+	 * envelope expected by legacy scout-management callers. Refreshes the
 	 * name→id resolve cache on every list fetch.
 	 */
 	async getActiveJobs(): Promise<import('$lib/types').ActiveJobsResponse> {
@@ -271,10 +291,14 @@ export const apiClient = {
 	 * for `type` (see normalizeScoutBody). Forward as-is.
 	 */
 	async scheduleLocalScout(payload: ScoutSetupRequest): Promise<ScoutSetupResponse> {
+		const body =
+			payload.scout_type === 'pulse'
+				? { ...payload, scout_type: 'beat' as const }
+				: payload;
 		const res = await apiRequestSafeError<Record<string, unknown>>(
 			'POST',
 			'/scouts',
-			payload as unknown,
+			body as unknown,
 			'Failed to schedule local scout'
 		);
 		return res as unknown as ScoutSetupResponse;
@@ -375,7 +399,7 @@ export const apiClient = {
 			body: JSON.stringify(body)
 		});
 
-		let result;
+		let result: Record<string, unknown> | null;
 		try {
 			result = await response.json();
 		} catch {
@@ -384,12 +408,12 @@ export const apiClient = {
 			throw new Error(`Server error: ${textError || 'Unknown error'}`);
 		}
 
-		if (!response.ok || result.status === 'failed') {
+		if (!response.ok || result?.status === 'failed') {
 			console.error('[API] searchPulse error:', result);
-			throw new Error(result.detail || result.response_markdown || 'Failed to search pulse');
+			throw new Error(normalizePulseSearchError(response, result));
 		}
 
-		return result;
+		return result as unknown as import('$lib/types').PulseSearchResponse;
 	},
 
 	/**
@@ -420,97 +444,6 @@ export const apiClient = {
 		});
 	},
 
-	/**
-	 * Start an async data extraction job.
-	 *
-	 * Adapter: maps to Edge Function POST /ingest. Legacy `target`/`channel`
-	 * fields are folded into `notes` for traceability since the v2 ingests
-	 * table doesn't have separate columns. Returns `job_id` for poll
-	 * compatibility (mirrors the ingest_id from the EF response).
-	 */
-	async startExtraction(payload: {
-		url: string;
-		target: string;
-		channel: string;
-		criteria?: string;
-	}): Promise<{ job_id: string; status: string }> {
-		const body = {
-			kind: 'url' as const,
-			url: payload.url,
-			...(payload.criteria ? { criteria: payload.criteria } : {}),
-			notes: `target=${payload.target} channel=${payload.channel}`
-		};
-		const res = await apiRequest<{ ingest_id?: string; job_id?: string }>(
-			'POST',
-			'/ingest',
-			body
-		);
-		return {
-			job_id: res.ingest_id ?? res.job_id ?? '',
-			status: 'running'
-		};
-	},
-
-	/**
-	 * Get the status of an extraction job.
-	 *
-	 * Adapter: queries the `ingests` table directly via supabase-js (no
-	 * EF round trip). RLS scopes the read to the calling user.
-	 */
-	async getExtractionStatus(jobId: string): Promise<{
-		job_id: string;
-		status: 'running' | 'completed' | 'failed';
-		result?: any;
-		error?: string;
-	}> {
-		const { getSupabase } = await import('$lib/stores/auth-supabase');
-		const sb = getSupabase();
-		const { data, error } = await sb
-			.from('ingests')
-			.select('id, status, error_message')
-			.eq('id', jobId)
-			.maybeSingle();
-		if (error || !data) {
-			return { job_id: jobId, status: 'failed', error: error?.message ?? 'not found' };
-		}
-		const status: 'running' | 'completed' | 'failed' =
-			data.status === 'completed' ? 'completed' :
-			data.status === 'error' || data.status === 'failed' ? 'failed' :
-			'running';
-		return {
-			job_id: jobId,
-			status,
-			...(data.error_message ? { error: data.error_message } : {})
-		};
-	},
-
-	/**
-	 * Validate credits before extraction.
-	 *
-	 * Adapter: server-side credit gating happens inside POST /ingest
-	 * (enforced by RPC + RLS), so the up-front validate call returns
-	 * a permissive result. If the user genuinely lacks credits, the
-	 * subsequent /ingest POST will reject and the UI surfaces it.
-	 */
-	async validateExtractionCredits(payload: {
-		url: string;
-		target: string;
-		channel: string;
-	}): Promise<{
-		valid: boolean;
-		cost: number;
-		current_credits: number;
-		remaining_after: number;
-	}> {
-		void payload;
-		return {
-			valid: true,
-			cost: 0,
-			current_credits: 9999,
-			remaining_after: 9999
-		};
-	},
-
 	// ==================== Information Units API ====================
 
 	/**
@@ -523,19 +456,7 @@ export const apiClient = {
 	 * see the most-recent locations only (acceptable for filter UX).
 	 */
 	async getUserUnitLocations(): Promise<{ locations: string[] }> {
-		const { authStore } = await import('$lib/stores/auth');
-		const token = await authStore.getToken();
-		const r = await fetch(buildApiUrl('/units?limit=200'), {
-			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-		});
-		if (!r.ok) return { locations: [] };
-		const body = (await r.json()) as { items?: Array<{ city?: string; state?: string; country?: string }> };
-		const set = new Set<string>();
-		for (const u of body.items ?? []) {
-			const parts = [u.city, u.state, u.country].filter(Boolean);
-			if (parts.length) set.add(parts.join(', '));
-		}
-		return { locations: Array.from(set).sort() };
+		return apiRequest('GET', '/units/locations');
 	},
 
 	/**
@@ -583,32 +504,6 @@ export const apiClient = {
 	},
 
 	/**
-	 * Generate an export from selected information units.
-	 */
-	async generateExportDraft(params: {
-		units: {
-			statement: string;
-			source_title: string;
-			source_url: string;
-			unit_type?: string;
-			entities?: string[];
-			source_domain?: string | null;
-			topic?: string | null;
-		}[];
-		location_name: string;
-		language?: string;
-		custom_system_prompt?: string;
-	}): Promise<ExportDraft> {
-		const body: Record<string, unknown> = {
-			units: params.units,
-			location_name: params.location_name
-		};
-		if (params.language) body.language = params.language;
-		if (params.custom_system_prompt) body.custom_system_prompt = params.custom_system_prompt;
-		return apiRequest('POST', '/export/generate', body);
-	},
-
-	/**
 	 * Update user preferences (language, timezone, and/or excluded domains).
 	 */
 	async updateUserPreferences(params: {
@@ -623,7 +518,22 @@ export const apiClient = {
 		excluded_domains?: string[];
 		health_notifications_enabled?: boolean;
 	}> {
-		return apiRequest('PATCH', '/user/preferences', params);
+		const response = await apiRequest<Record<string, unknown>>('PATCH', '/user/preferences', params);
+		return {
+			success: true,
+			preferred_language:
+				typeof response.preferred_language === 'string'
+					? response.preferred_language
+					: params.preferred_language,
+			timezone: typeof response.timezone === 'string' ? response.timezone : params.timezone,
+			excluded_domains: Array.isArray(response.excluded_domains)
+				? (response.excluded_domains as string[])
+				: params.excluded_domains,
+			health_notifications_enabled:
+				typeof response.health_notifications_enabled === 'boolean'
+					? response.health_notifications_enabled
+					: params.health_notifications_enabled
+		};
 	},
 
 	/**
@@ -633,18 +543,7 @@ export const apiClient = {
 	 * same approach as getUserUnitLocations. 200-unit cap.
 	 */
 	async getUserUnitTopics(): Promise<{ topics: string[] }> {
-		const { authStore } = await import('$lib/stores/auth');
-		const token = await authStore.getToken();
-		const r = await fetch(buildApiUrl('/units?limit=200'), {
-			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-		});
-		if (!r.ok) return { topics: [] };
-		const body = (await r.json()) as { items?: Array<{ topic?: string }> };
-		const set = new Set<string>();
-		for (const u of body.items ?? []) {
-			if (u.topic) set.add(u.topic);
-		}
-		return { topics: Array.from(set).sort() };
+		return apiRequest('GET', '/units/topics');
 	},
 
 	/**
@@ -663,17 +562,11 @@ export const apiClient = {
 		units: InformationUnit[];
 		count: number;
 	}> {
-		const { authStore } = await import('$lib/stores/auth');
-		const token = await authStore.getToken();
-		const fetchLimit = Math.min(200, Math.max(50, params.limit ?? 50) * 4);
-		const r = await fetch(buildApiUrl(`/units?limit=${fetchLimit}`), {
-			headers: { ...JSON_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+		const qs = buildQueryString({
+			topic: params.topic,
+			limit: params.limit
 		});
-		if (!r.ok) return { units: [], count: 0 };
-		const body = (await r.json()) as { items?: InformationUnit[] };
-		const filtered = (body.items ?? []).filter((u) => u.topic === params.topic);
-		const limit = params.limit ?? 50;
-		return { units: filtered.slice(0, limit), count: filtered.length };
+		return apiRequest('GET', `/units/by-topic?${qs}`);
 	},
 
 	/**
@@ -791,18 +684,6 @@ export interface InformationUnit {
 	date?: string | null;
 }
 
-/**
- * Generated export from information units.
- */
-export interface ExportDraft {
-	title: string;
-	headline: string;
-	sections: { heading: string; content: string }[];
-	gaps: string[];
-	bullet_points: string[];
-	sources: { title: string; url: string; domain?: string }[];
-}
-
 // ===========================================================================
 // Workspace API — v2 dual-backend helpers
 // ===========================================================================
@@ -835,6 +716,13 @@ export type WorkspaceReflection = _WorkspaceReflection;
 export type WorkspaceEntity = _WorkspaceEntity;
 export type WorkspaceCreateScoutInput = _WorkspaceCreateScoutInput;
 export type WorkspacePaginatedUnits = _WorkspacePaginatedUnits;
+
+function normalizeWorkspaceScout(scout: WorkspaceScout): WorkspaceScout {
+	return {
+		...scout,
+		type: normalizeScoutType(scout.type)
+	};
+}
 
 /**
  * Unified error class for every `workspaceApi.*` helper. Preserves the
@@ -940,8 +828,7 @@ async function workspaceAuthHeaders(): Promise<Record<string, string>> {
 /**
  * Core workspace request. Resolves the JSON body (or `null` on 204) and
  * throws `ApiError` on non-2xx. Accepts:
- *   - `rawText: true` — resolve as `string` instead of JSON (for
- *     export-claude markdown).
+ *   - `rawText: true` — resolve as `string` instead of JSON.
  *   - `query` — serialized with omit-undefined rules from `buildQueryString`.
  */
 async function workspaceRequest<T>(
@@ -1016,7 +903,7 @@ function unwrapEnvelope(body: unknown): unknown {
  *
  * Endpoint routing assumes VITE_API_URL points at whichever backend should
  * serve the request. Helpers that don't have a FastAPI counterpart
- * (projects, reflections, entities, ingest, export-claude, mergeEntities)
+ * (projects, reflections, entities, ingest, mergeEntities)
  * are Edge-only today — see the shape-mismatch table in the PR description.
  */
 export const workspaceApi = {
@@ -1054,10 +941,10 @@ export const workspaceApi = {
 	async listScouts(projectId?: string): Promise<WorkspaceScout[]> {
 		const query = projectId ? { project_id: projectId } : undefined;
 		const res = await workspaceRequest<unknown>('GET', '/scouts', { query });
-		if (Array.isArray(res)) return res as WorkspaceScout[];
+		if (Array.isArray(res)) return (res as WorkspaceScout[]).map(normalizeWorkspaceScout);
 		// Tolerate FastAPI `{scouts: [...], count}` shape.
 		if (res && typeof res === 'object' && Array.isArray((res as { scouts?: unknown }).scouts)) {
-			return (res as { scouts: WorkspaceScout[] }).scouts;
+			return (res as { scouts: WorkspaceScout[] }).scouts.map(normalizeWorkspaceScout);
 		}
 		return [];
 	},
@@ -1071,7 +958,9 @@ export const workspaceApi = {
 	 * with the same id field — both tolerated via the bare-object unwrap.
 	 */
 	async createScout(data: WorkspaceCreateScoutInput): Promise<WorkspaceScout> {
-		return workspaceRequest<WorkspaceScout>('POST', '/scouts', { body: data });
+		return normalizeWorkspaceScout(
+			await workspaceRequest<WorkspaceScout>('POST', '/scouts', { body: data })
+		);
 	},
 
 	/**
@@ -1170,17 +1059,19 @@ export const workspaceApi = {
 	 * with a `query` querystring. This helper targets the Edge Function
 	 * contract (POST); the shared unwrap handles both `{items}` and
 	 * `{data: [...]}`.
-	 *
-	 * Note: the Edge Function scopes by `project_id`, not `scout_id`. When
-	 * `scoutId` is provided we still pass it through as `scout_id` — the
-	 * Edge Function will ignore it; the FastAPI endpoint uses it as a
-	 * post-filter.
 	 */
 	async searchUnits(query: string, scoutId?: string): Promise<WorkspaceUnit[]> {
 		const body: Record<string, unknown> = { query_text: query };
 		if (scoutId) body.scout_id = scoutId;
 		const res = await workspaceRequest<unknown>('POST', '/units/search', { body });
 		return (Array.isArray(res) ? res : []) as WorkspaceUnit[];
+	},
+
+	/**
+	 * Permanently delete a unit from the inbox.
+	 */
+	async deleteUnit(id: string): Promise<void> {
+		await workspaceRequest<void>('DELETE', `/units/${encodeURIComponent(id)}`);
 	},
 
 	/**
@@ -1227,7 +1118,12 @@ export const workspaceApi = {
 		title?: string;
 		criteria?: string;
 		notes?: string;
-	}): Promise<{ job_id: string; ingest_id: string; raw_capture_id?: string }> {
+	}): Promise<{
+		job_id: string;
+		ingest_id: string;
+		raw_capture_id?: string;
+		units: Array<{ id: string; statement: string }>;
+	}> {
 		const body: Record<string, unknown> = params.url
 			? { kind: 'url', url: params.url }
 			: { kind: 'text', text: params.content ?? '' };
@@ -1242,25 +1138,11 @@ export const workspaceApi = {
 			ingest_id: ingestId,
 			job_id: ingestId,
 			raw_capture_id:
-				typeof res?.raw_capture_id === 'string' ? (res.raw_capture_id as string) : undefined
+				typeof res?.raw_capture_id === 'string' ? (res.raw_capture_id as string) : undefined,
+			units: Array.isArray(res?.units)
+				? (res.units as Array<{ id: string; statement: string }>)
+				: []
 		};
-	},
-
-	/**
-	 * Export a project's verified unused units as markdown.
-	 *
-	 * Edge Function `export-claude` returns `Content-Type: text/markdown`
-	 * (NOT `{artifact_url}` as the plan drafted). The plan assumed a link-
-	 * based export; we adapt to the real contract and expose the markdown
-	 * body inline so the UI can show a download / copy button without a
-	 * second fetch. See the shape-mismatch note in the PR description.
-	 */
-	async exportToClaude(projectId: string): Promise<{ artifact_url: string | null; markdown: string }> {
-		const markdown = await workspaceRequest<string>('GET', '/export-claude', {
-			query: { project_id: projectId },
-			rawText: true
-		});
-		return { artifact_url: null, markdown };
 	},
 
 	/**

@@ -6,7 +6,7 @@
  * Beat Scout emails render in their source language until phase 2 lands.
  *
  * "Smart Scout" → "Beat Scout" rename: applied in every locale. DB `scout.type`
- * enum stays `pulse` — only the user-facing label changes.
+ * enum stays `beat` — only the user-facing label changes.
  */
 
 type StringMap = Record<string, string>;
@@ -49,12 +49,22 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Removed:",
     profile_label: "Profile",
     government_municipal: "Government & Municipal",
+    civic_digest: "Civic Digest",
+    promise_due_today_singular: "{count} promise due today",
+    promise_due_today_plural: "{count} promises due today",
+    due_label: "due",
+    scout_paused: "Scout Paused",
+    scout_health: "Scout Health",
+    scout_type: "Scout Type",
+    consecutive_failures: "Consecutive Failures",
+    scout_paused_summary:
+      "**{name}** was paused after {count} consecutive failures. Re-enable it in the dashboard once the issue is resolved.",
     see_what_matched: "See what matched",
     email_disclaimer:
       "This email contains AI-processed content. coJournalist is a research assistant, not a news source. Always verify with original sources before publication.",
     page_scout_cue:
       "AI detected changes matching your criteria \u2014 review the page directly.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Facts were automatically extracted \u2014 click through to original articles.",
     civic_scout_cue:
       "Extracted by AI \u2014 verify against original council documents.",
@@ -81,12 +91,22 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Fjernet:",
     profile_label: "Profil",
     government_municipal: "Kommunalt og offentlig",
+    civic_digest: "Civic Digest",
+    promise_due_today_singular: "{count} l\u00f8fte forfaller i dag",
+    promise_due_today_plural: "{count} l\u00f8fter forfaller i dag",
+    due_label: "forfaller",
+    scout_paused: "Scout satt p\u00e5 pause",
+    scout_health: "Scout-helse",
+    scout_type: "Scout-type",
+    consecutive_failures: "Sammenhengende feil",
+    scout_paused_summary:
+      "**{name}** ble satt p\u00e5 pause etter {count} sammenhengende feil. Aktiver den igjen i dashbordet n\u00e5r problemet er l\u00f8st.",
     see_what_matched: "Se hva som matchet",
     email_disclaimer:
       "Denne e-posten inneholder AI-behandlet innhold. coJournalist er en forskningsassistent, ikke en nyhetskilde. Verifiser alltid med originalkildene.",
     page_scout_cue:
       "AI oppdaget endringer som samsvarer med kriteriene dine \u2014 gjennomg\u00e5 siden direkte.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Fakta ble automatisk hentet ut \u2014 klikk videre til originalartiklene.",
     civic_scout_cue:
       "Hentet ut av AI \u2014 verifiser mot originale kommunedokumenter.",
@@ -113,12 +133,22 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Entfernt:",
     profile_label: "Profil",
     government_municipal: "Kommunalpolitik & Beh\u00f6rden",
+    civic_digest: "Civic Digest",
+    promise_due_today_singular: "{count} Zusage ist heute f\u00e4llig",
+    promise_due_today_plural: "{count} Zusagen sind heute f\u00e4llig",
+    due_label: "f\u00e4llig",
+    scout_paused: "Scout pausiert",
+    scout_health: "Scout-Zustand",
+    scout_type: "Scout-Typ",
+    consecutive_failures: "Aufeinanderfolgende Fehler",
+    scout_paused_summary:
+      "**{name}** wurde nach {count} aufeinanderfolgenden Fehlern pausiert. Aktivieren Sie den Scout im Dashboard erneut, sobald das Problem behoben ist.",
     see_what_matched: "Treffer ansehen",
     email_disclaimer:
       "Diese E-Mail enth\u00e4lt KI-verarbeitete Inhalte. coJournalist ist ein Recherche-Assistent, keine Nachrichtenquelle. \u00dcberpr\u00fcfen Sie Informationen immer anhand der Originalquellen.",
     page_scout_cue:
       "KI hat \u00c4nderungen erkannt, die Ihren Kriterien entsprechen \u2014 \u00fcberpr\u00fcfen Sie die Seite direkt.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Fakten wurden automatisch extrahiert \u2014 klicken Sie auf die Originalartikel.",
     civic_scout_cue:
       "Von KI extrahiert \u2014 \u00fcberpr\u00fcfen Sie anhand der Original-Ratsdokumente.",
@@ -145,12 +175,24 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Supprim\u00e9 :",
     profile_label: "Profil",
     government_municipal: "Gouvernement & Municipalit\u00e9",
+    civic_digest: "Digest Civic",
+    promise_due_today_singular:
+      "{count} promesse arrive \u00e0 \u00e9ch\u00e9ance aujourd'hui",
+    promise_due_today_plural:
+      "{count} promesses arrivent \u00e0 \u00e9ch\u00e9ance aujourd'hui",
+    due_label: "\u00e9ch\u00e9ance",
+    scout_paused: "Scout en pause",
+    scout_health: "Sant\u00e9 du Scout",
+    scout_type: "Type de Scout",
+    consecutive_failures: "\u00c9checs cons\u00e9cutifs",
+    scout_paused_summary:
+      "**{name}** a \u00e9t\u00e9 mis en pause apr\u00e8s {count} \u00e9checs cons\u00e9cutifs. R\u00e9activez-le dans le tableau de bord une fois le probl\u00e8me r\u00e9solu.",
     see_what_matched: "Voir le r\u00e9sultat",
     email_disclaimer:
       "Cet e-mail contient du contenu trait\u00e9 par IA. coJournalist est un assistant de recherche, pas une source d'information. V\u00e9rifiez toujours aupr\u00e8s des sources originales.",
     page_scout_cue:
       "L'IA a d\u00e9tect\u00e9 des changements correspondant \u00e0 vos crit\u00e8res \u2014 consultez la page directement.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Les faits ont \u00e9t\u00e9 extraits automatiquement \u2014 cliquez pour acc\u00e9der aux articles originaux.",
     civic_scout_cue:
       "Extrait par IA \u2014 v\u00e9rifiez avec les documents originaux du conseil.",
@@ -177,12 +219,22 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Eliminado:",
     profile_label: "Perfil",
     government_municipal: "Gobierno y Municipio",
+    civic_digest: "Resumen Civic",
+    promise_due_today_singular: "{count} promesa vence hoy",
+    promise_due_today_plural: "{count} promesas vencen hoy",
+    due_label: "vence",
+    scout_paused: "Scout en pausa",
+    scout_health: "Estado del Scout",
+    scout_type: "Tipo de Scout",
+    consecutive_failures: "Fallos consecutivos",
+    scout_paused_summary:
+      "**{name}** se paus\u00f3 despu\u00e9s de {count} fallos consecutivos. Vuelva a activarlo en el panel cuando el problema est\u00e9 resuelto.",
     see_what_matched: "Ver el resultado",
     email_disclaimer:
       "Este correo contiene contenido procesado por IA. coJournalist es un asistente de investigaci\u00f3n, no una fuente de noticias. Verifique siempre con las fuentes originales.",
     page_scout_cue:
       "La IA detect\u00f3 cambios que coinciden con sus criterios \u2014 revise la p\u00e1gina directamente.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Los hechos fueron extra\u00eddos autom\u00e1ticamente \u2014 haga clic en los art\u00edculos originales.",
     civic_scout_cue:
       "Extra\u00eddo por IA \u2014 verifique con los documentos originales del consejo.",
@@ -209,12 +261,22 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Rimosso:",
     profile_label: "Profilo",
     government_municipal: "Governo e Municipio",
+    civic_digest: "Digest Civic",
+    promise_due_today_singular: "{count} promessa in scadenza oggi",
+    promise_due_today_plural: "{count} promesse in scadenza oggi",
+    due_label: "scadenza",
+    scout_paused: "Scout in pausa",
+    scout_health: "Stato Scout",
+    scout_type: "Tipo di Scout",
+    consecutive_failures: "Errori consecutivi",
+    scout_paused_summary:
+      "**{name}** \u00e8 stato messo in pausa dopo {count} errori consecutivi. Riattivalo nella dashboard quando il problema sar\u00e0 risolto.",
     see_what_matched: "Vedi il risultato",
     email_disclaimer:
       "Questa email contiene contenuti elaborati dall'IA. coJournalist \u00e8 un assistente di ricerca, non una fonte di notizie. Verificare sempre con le fonti originali.",
     page_scout_cue:
       "L'IA ha rilevato modifiche corrispondenti ai tuoi criteri \u2014 controlla la pagina direttamente.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "I fatti sono stati estratti automaticamente \u2014 clicca per leggere gli articoli originali.",
     civic_scout_cue:
       "Estratto dall'IA \u2014 verificare con i documenti originali del consiglio.",
@@ -241,12 +303,22 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Removido:",
     profile_label: "Perfil",
     government_municipal: "Governo e Munic\u00edpio",
+    civic_digest: "Digest Civic",
+    promise_due_today_singular: "{count} promessa vence hoje",
+    promise_due_today_plural: "{count} promessas vencem hoje",
+    due_label: "vence",
+    scout_paused: "Scout em pausa",
+    scout_health: "Sa\u00fade do Scout",
+    scout_type: "Tipo de Scout",
+    consecutive_failures: "Falhas consecutivas",
+    scout_paused_summary:
+      "**{name}** foi colocado em pausa ap\u00f3s {count} falhas consecutivas. Reative-o no painel quando o problema estiver resolvido.",
     see_what_matched: "Ver o resultado",
     email_disclaimer:
       "Este email cont\u00e9m conte\u00fado processado por IA. coJournalist \u00e9 um assistente de pesquisa, n\u00e3o uma fonte de not\u00edcias. Verifique sempre com as fontes originais.",
     page_scout_cue:
       "A IA detectou altera\u00e7\u00f5es que correspondem aos seus crit\u00e9rios \u2014 revise a p\u00e1gina diretamente.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Os factos foram extra\u00eddos automaticamente \u2014 clique nos artigos originais.",
     civic_scout_cue:
       "Extra\u00eddo por IA \u2014 verifique com os documentos originais do conselho.",
@@ -273,12 +345,23 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Verwijderd:",
     profile_label: "Profiel",
     government_municipal: "Overheid & Gemeente",
+    civic_digest: "Civic Digest",
+    promise_due_today_singular: "{count} belofte moet vandaag worden nagekomen",
+    promise_due_today_plural:
+      "{count} beloftes moeten vandaag worden nagekomen",
+    due_label: "vervalt",
+    scout_paused: "Scout gepauzeerd",
+    scout_health: "Scout-status",
+    scout_type: "Scout-type",
+    consecutive_failures: "Opeenvolgende fouten",
+    scout_paused_summary:
+      "**{name}** is gepauzeerd na {count} opeenvolgende fouten. Activeer de scout opnieuw in het dashboard zodra het probleem is opgelost.",
     see_what_matched: "Bekijk het resultaat",
     email_disclaimer:
       "Deze e-mail bevat door AI verwerkte inhoud. coJournalist is een onderzoeksassistent, geen nieuwsbron. Controleer altijd bij de originele bronnen.",
     page_scout_cue:
       "AI heeft wijzigingen gedetecteerd die overeenkomen met uw criteria \u2014 bekijk de pagina direct.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Feiten zijn automatisch ge\u00ebxtraheerd \u2014 klik door naar de originele artikelen.",
     civic_scout_cue:
       "Ge\u00ebxtraheerd door AI \u2014 verifieer met de originele raadsdocumenten.",
@@ -305,12 +388,22 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Borttaget:",
     profile_label: "Profil",
     government_municipal: "Kommunalt & Offentligt",
+    civic_digest: "Civic Digest",
+    promise_due_today_singular: "{count} l\u00f6fte f\u00f6rfaller idag",
+    promise_due_today_plural: "{count} l\u00f6ften f\u00f6rfaller idag",
+    due_label: "f\u00f6rfaller",
+    scout_paused: "Scout pausad",
+    scout_health: "Scout-h\u00e4lsa",
+    scout_type: "Scout-typ",
+    consecutive_failures: "Fel i rad",
+    scout_paused_summary:
+      "**{name}** pausades efter {count} fel i rad. Aktivera den igen i instrumentpanelen n\u00e4r problemet \u00e4r l\u00f6st.",
     see_what_matched: "Se tr\u00e4ffen",
     email_disclaimer:
       "Detta e-postmeddelande inneh\u00e5ller AI-bearbetat inneh\u00e5ll. coJournalist \u00e4r en forskningsassistent, inte en nyhetsk\u00e4lla. Verifiera alltid med originalk\u00e4llorna.",
     page_scout_cue:
       "AI uppt\u00e4ckte \u00e4ndringar som matchar dina kriterier \u2014 granska sidan direkt.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Fakta extraherades automatiskt \u2014 klicka vidare till originalartiklarna.",
     civic_scout_cue:
       "Extraherat av AI \u2014 verifiera mot originalhandlingar fr\u00e5n kommunen.",
@@ -337,12 +430,22 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Fjernet:",
     profile_label: "Profil",
     government_municipal: "Kommunalt & Offentligt",
+    civic_digest: "Civic Digest",
+    promise_due_today_singular: "{count} l\u00f8fte forfalder i dag",
+    promise_due_today_plural: "{count} l\u00f8fter forfalder i dag",
+    due_label: "forfalder",
+    scout_paused: "Scout sat p\u00e5 pause",
+    scout_health: "Scout-status",
+    scout_type: "Scout-type",
+    consecutive_failures: "Fejl i tr\u00e6k",
+    scout_paused_summary:
+      "**{name}** blev sat p\u00e5 pause efter {count} fejl i tr\u00e6k. Aktiv\u00e9r den igen i dashboardet, n\u00e5r problemet er l\u00f8st.",
     see_what_matched: "Se resultatet",
     email_disclaimer:
       "Denne e-mail indeholder AI-behandlet indhold. coJournalist er en forskningsassistent, ikke en nyhedskilde. Verificer altid med de originale kilder.",
     page_scout_cue:
       "AI fandt \u00e6ndringer der matcher dine kriterier \u2014 gennemg\u00e5 siden direkte.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Fakta blev automatisk udtrukket \u2014 klik videre til de originale artikler.",
     civic_scout_cue:
       "Udtrukket af AI \u2014 verificer med de originale kommunale dokumenter.",
@@ -369,12 +472,24 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Poistettu:",
     profile_label: "Profiili",
     government_municipal: "Hallinto ja kunta",
+    civic_digest: "Civic Digest",
+    promise_due_today_singular:
+      "{count} lupaus er\u00e4\u00e4ntyy t\u00e4n\u00e4\u00e4n",
+    promise_due_today_plural:
+      "{count} lupausta er\u00e4\u00e4ntyy t\u00e4n\u00e4\u00e4n",
+    due_label: "er\u00e4\u00e4ntyy",
+    scout_paused: "Scout keskeytetty",
+    scout_health: "Scoutin tila",
+    scout_type: "Scout-tyyppi",
+    consecutive_failures: "Per\u00e4kk\u00e4iset virheet",
+    scout_paused_summary:
+      "**{name}** keskeytettiin {count} per\u00e4kk\u00e4isen virheen j\u00e4lkeen. Ota se uudelleen k\u00e4ytt\u00f6\u00f6n hallintapaneelissa, kun ongelma on ratkaistu.",
     see_what_matched: "N\u00e4yt\u00e4 osuma",
     email_disclaimer:
       "T\u00e4m\u00e4 s\u00e4hk\u00f6posti sis\u00e4lt\u00e4\u00e4 teko\u00e4lyn k\u00e4sittelem\u00e4\u00e4 sis\u00e4lt\u00f6\u00e4. coJournalist on tutkimusavustaja, ei uutisl\u00e4hde. Tarkista aina alkuper\u00e4isist\u00e4 l\u00e4hteist\u00e4.",
     page_scout_cue:
       "Teko\u00e4ly havaitsi kriteerej\u00e4si vastaavia muutoksia \u2014 tarkista sivu suoraan.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Tiedot poimittiin automaattisesti \u2014 siirry alkuper\u00e4isiin artikkeleihin.",
     civic_scout_cue:
       "Teko\u00e4lyn poimima \u2014 tarkista alkuper\u00e4isist\u00e4 valtuuston asiakirjoista.",
@@ -401,12 +516,22 @@ export const EMAIL_STRINGS: Record<string, StringMap> = {
     removed_label: "Usuni\u0119to:",
     profile_label: "Profil",
     government_municipal: "Rz\u0105d i samorz\u0105d",
+    civic_digest: "Civic Digest",
+    promise_due_today_singular: "{count} obietnica jest dzi\u015b wymagalna",
+    promise_due_today_plural: "{count} obietnice s\u0105 dzi\u015b wymagalne",
+    due_label: "termin",
+    scout_paused: "Scout wstrzymany",
+    scout_health: "Stan Scouta",
+    scout_type: "Typ Scouta",
+    consecutive_failures: "Kolejne niepowodzenia",
+    scout_paused_summary:
+      "**{name}** zosta\u0142 wstrzymany po {count} kolejnych niepowodzeniach. W\u0142\u0105cz go ponownie w panelu, gdy problem zostanie rozwi\u0105zany.",
     see_what_matched: "Zobacz wynik",
     email_disclaimer:
       "Ta wiadomo\u015b\u0107 zawiera tre\u015bci przetworzone przez AI. coJournalist to asystent badawczy, nie \u017ar\u00f3d\u0142o wiadomo\u015bci. Zawsze weryfikuj z oryginalnymi \u017ar\u00f3d\u0142ami.",
     page_scout_cue:
       "AI wykry\u0142a zmiany pasuj\u0105ce do Twoich kryteri\u00f3w \u2014 sprawd\u017a stron\u0119 bezpo\u015brednio.",
-    pulse_scout_cue:
+    beat_scout_cue:
       "Fakty zosta\u0142y automatycznie wyodr\u0119bnione \u2014 kliknij, aby przej\u015b\u0107 do oryginalnych artyku\u0142\u00f3w.",
     civic_scout_cue:
       "Wyodr\u0119bnione przez AI \u2014 zweryfikuj z oryginalnymi dokumentami rady.",
@@ -433,7 +558,6 @@ export function getString(
   if (!params) return template;
   return template.replace(
     /\{(\w+)\}/g,
-    (match, name: string) =>
-      name in params ? String(params[name]) : match,
+    (match, name: string) => name in params ? String(params[name]) : match,
   );
 }

@@ -4,11 +4,11 @@ from app.schemas.scouts import (
     GeocodedLocation,
     Coordinates,
 )
-from app.schemas.pulse import (
-    PulseSearchRequest,
-    PulseSearchResponse,
-    PulseExecuteRequest,
-    PulseExecuteResponse,
+from app.schemas.beat import (
+    BeatSearchRequest,
+    BeatSearchResponse,
+    BeatExecuteRequest,
+    BeatExecuteResponse,
 )
 from app.schemas.units import (
     AtomicInformationUnit,
@@ -24,11 +24,11 @@ __all__ = [
     "AINewsArticle",
     "GeocodedLocation",
     "Coordinates",
-    # Pulse schemas
-    "PulseSearchRequest",
-    "PulseSearchResponse",
-    "PulseExecuteRequest",
-    "PulseExecuteResponse",
+    # Beat schemas
+    "BeatSearchRequest",
+    "BeatSearchResponse",
+    "BeatExecuteRequest",
+    "BeatExecuteResponse",
     # Unit schemas
     "AtomicInformationUnit",
     "UnitsResponse",

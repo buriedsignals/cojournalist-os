@@ -52,15 +52,16 @@ Deno.serve(async (req): Promise<Response> => {
   // "/projects/<id>" -> "/<id>".
   const path = url.pathname.replace(/^.*\/projects/, "") || "/";
   const idMatch = path.match(/^\/([0-9a-f-]{36})$/i);
+  const isRead = req.method === "GET" || req.method === "HEAD";
 
   try {
-    if (path === "/" && req.method === "GET") {
+    if (path === "/" && isRead) {
       return await listProjects(req, user);
     }
     if (path === "/" && req.method === "POST") {
       return await createProject(req, user);
     }
-    if (idMatch && req.method === "GET") {
+    if (idMatch && isRead) {
       return await getProject(user, idMatch[1]);
     }
     if (idMatch && req.method === "PATCH") {

@@ -1,20 +1,29 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { ExternalLink, Check, X } from 'lucide-svelte';
+	import { ExternalLink, Check, Trash2, X } from 'lucide-svelte';
+	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import type { Unit } from '$lib/types/workspace';
-	import { isDemoId } from '$lib/demo/seed';
+	import { isDemoUnit } from '$lib/demo/seed';
 	import DemoBadge from '$lib/components/ui/DemoBadge.svelte';
 	import { cleanUnitStatement, getUnitTypeStyle } from '$lib/utils/units';
+	import { searchMatchClass, searchMatchLabel } from '$lib/utils/unit-search';
 
 	export let unit: Unit;
 	export let selected = false;
+	export let confirmingDelete = false;
+	export let deleting = false;
+	export let verifying = false;
+	export let showSearchMatch = false;
 
-	$: isDemo = isDemoId(unit.id);
+	$: isDemo = isDemoUnit(unit);
 
 	const dispatch = createEventDispatcher<{
 		open: { unit: Unit };
 		verify: { id: string };
 		reject: { id: string };
+		requestDelete: { id: string };
+		cancelDelete: { id: string };
+		confirmDelete: { id: string };
 	}>();
 
 	// --- Derived state ---
@@ -52,6 +61,9 @@
 	$: sourceUrl = unit.source?.url ?? '';
 
 	$: topEntities = (unit.entities ?? []).slice(0, 5);
+	$: searchMatch = showSearchMatch ? unit.search_match ?? null : null;
+	$: searchPillLabel = searchMatch ? searchMatchLabel(searchMatch) : null;
+	$: searchPillClass = searchMatch ? searchMatchClass(searchMatch.category) : null;
 
 	function handleRowClick() {
 		dispatch('open', { unit });
@@ -65,13 +77,31 @@
 	}
 
 	function handleVerify(event: MouseEvent) {
+		if (verifying || deleting) return;
 		event.stopPropagation();
 		dispatch('verify', { id: unit.id });
 	}
 
 	function handleReject(event: MouseEvent) {
+		if (verifying || deleting) return;
 		event.stopPropagation();
 		dispatch('reject', { id: unit.id });
+	}
+
+	function handleRequestDelete(event: MouseEvent) {
+		if (verifying || deleting) return;
+		event.stopPropagation();
+		dispatch('requestDelete', { id: unit.id });
+	}
+
+	function handleCancelDelete(event: MouseEvent) {
+		event.stopPropagation();
+		dispatch('cancelDelete', { id: unit.id });
+	}
+
+	function handleConfirmDelete(event: MouseEvent) {
+		event.stopPropagation();
+		dispatch('confirmDelete', { id: unit.id });
 	}
 </script>
 
@@ -79,6 +109,7 @@
 	class="unit-row"
 	class:selected
 	class:verified
+	class:confirmingDelete
 	on:click={handleRowClick}
 	on:keydown={handleKey}
 	role="button"
@@ -109,6 +140,11 @@
 		{:else}
 			<span class="review-pill">⚠ Needs review</span>
 		{/if}
+		{#if searchMatch && searchPillLabel && searchPillClass}
+			<span class="search-pill {searchPillClass}" title={searchMatch.reason}>
+				{searchPillLabel}
+			</span>
+		{/if}
 		{#if isDemo}
 			<DemoBadge />
 		{/if}
@@ -116,6 +152,10 @@
 
 	{#if unit.statement}
 		<p class="unit-statement">{cleanUnitStatement(unit.statement)}</p>
+	{/if}
+
+	{#if searchMatch}
+		<p class="search-reason">{searchMatch.reason}</p>
 	{/if}
 
 	{#if topEntities.length > 0}
@@ -127,36 +167,70 @@
 	{/if}
 
 	<div class="unit-actions" on:click|stopPropagation on:keydown|stopPropagation role="toolbar" tabindex="-1">
-		{#if sourceUrl}
-			<a
-				class="unit-action-btn"
-				href={sourceUrl}
-				target="_blank"
-				rel="noopener noreferrer"
-				aria-label="Open source"
-				title="Open source"
+		{#if confirmingDelete}
+			<div class="unit-delete-confirm" role="toolbar" tabindex="-1">
+				{#if deleting}
+					<Spinner size="sm" />
+				{:else}
+					<button
+						class="unit-confirm-btn cancel"
+						on:click={handleCancelDelete}
+						aria-label="Cancel"
+						type="button"
+					>
+						<X size={12} />
+					</button>
+					<span class="unit-delete-label">Delete?</span>
+					<button
+						class="unit-confirm-btn confirm"
+						on:click={handleConfirmDelete}
+						aria-label="Confirm delete"
+						type="button"
+					>
+						<Check size={12} />
+					</button>
+				{/if}
+			</div>
+		{:else}
+			{#if sourceUrl}
+				<a
+					class="unit-action-btn"
+					href={sourceUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					aria-label="Open source"
+					title="Open source"
+				>
+					<ExternalLink size={14} />
+				</a>
+			{/if}
+			{#if !verified}
+				<button
+					class="unit-action-btn verify"
+					on:click={handleVerify}
+					aria-label="Mark verified"
+					title="Mark verified"
+					type="button"
+					disabled={verifying || deleting}
+				>
+					{#if verifying}
+						<Spinner size="sm" />
+					{:else}
+						<Check size={14} strokeWidth={2.5} />
+					{/if}
+				</button>
+			{/if}
+			<button
+				class="unit-action-btn delete"
+				on:click={handleRequestDelete}
+				aria-label="Delete unit"
+				title="Delete unit"
+				type="button"
+				disabled={verifying || deleting}
 			>
-				<ExternalLink size={14} />
-			</a>
+				<Trash2 size={14} strokeWidth={2.25} />
+			</button>
 		{/if}
-		<button
-			class="unit-action-btn verify"
-			on:click={handleVerify}
-			aria-label="Mark verified"
-			title="Mark verified"
-			type="button"
-		>
-			<Check size={14} strokeWidth={2.5} />
-		</button>
-		<button
-			class="unit-action-btn reject"
-			on:click={handleReject}
-			aria-label="Mark as false"
-			title="Mark as false"
-			type="button"
-		>
-			<X size={14} strokeWidth={2.5} />
-		</button>
 	</div>
 </div>
 
@@ -282,6 +356,46 @@
 		border-color: var(--color-success);
 	}
 
+	.search-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-family: var(--font-mono);
+		font-size: 0.625rem;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		padding: 0.1875rem 0.5rem;
+		border-radius: var(--radius-pill);
+		border: 1px solid transparent;
+	}
+
+	.search-pill.direct {
+		background: rgba(30, 92, 179, 0.1);
+		color: var(--color-primary-deep);
+		border-color: rgba(30, 92, 179, 0.25);
+	}
+
+	.search-pill.related {
+		background: rgba(192, 124, 25, 0.12);
+		color: #8a5a11;
+		border-color: rgba(192, 124, 25, 0.28);
+	}
+
+	.search-pill.loose {
+		background: rgba(179, 62, 46, 0.08);
+		color: var(--color-error);
+		border-color: rgba(179, 62, 46, 0.3);
+	}
+
+	.search-reason {
+		margin: -0.1rem 0 0;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		letter-spacing: 0.04em;
+		color: var(--color-ink-subtle);
+	}
+
 	.unit-actions {
 		position: absolute;
 		top: 0.75rem;
@@ -294,7 +408,8 @@
 		gap: 0.125rem;
 	}
 
-	.unit-row:hover .unit-actions {
+	.unit-row:hover .unit-actions,
+	.unit-row.confirmingDelete .unit-actions {
 		display: flex;
 	}
 
@@ -312,6 +427,11 @@
 		text-decoration: none;
 	}
 
+	.unit-action-btn:disabled {
+		cursor: default;
+		opacity: 0.7;
+	}
+
 	.unit-action-btn:hover {
 		background: var(--color-surface);
 		color: var(--color-ink);
@@ -323,9 +443,48 @@
 		border-color: var(--color-success);
 	}
 
-	.unit-action-btn.reject:hover {
-		background: rgba(179, 62, 46, 0.1);
+	.unit-action-btn.delete:hover {
+		background: rgba(179, 62, 46, 0.08);
 		color: var(--color-error);
-		border-color: var(--color-error);
+		border-color: rgba(179, 62, 46, 0.3);
+	}
+
+	.unit-delete-confirm {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.unit-delete-label {
+		font-family: var(--font-mono);
+		font-size: 0.625rem;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--color-ink-muted);
+		padding: 0 0.25rem;
+	}
+
+	.unit-confirm-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface-alt);
+		color: var(--color-ink-muted);
+		cursor: pointer;
+	}
+
+	.unit-confirm-btn.cancel:hover {
+		border-color: var(--color-border-strong);
+		color: var(--color-ink);
+	}
+
+	.unit-confirm-btn.confirm:hover {
+		background: rgba(179, 62, 46, 0.08);
+		color: var(--color-error);
+		border-color: rgba(179, 62, 46, 0.3);
 	}
 </style>

@@ -1,20 +1,9 @@
 """
-User and credit operations via UserStoragePort adapter.
+Legacy user/profile service for the optional FastAPI surface.
 
-PURPOSE: Manages USER# records in the scraping-jobs table (single-table design).
-Handles user creation/update from MuckRack OAuth userinfo, preference storage,
-and atomic credit operations. Business logic (tier resolution, credit capping,
-admin overrides) lives here; all storage ops delegate to UserStoragePort.
-
-DEPENDS ON: config (admin_emails), dependencies.providers (get_user_storage)
-USED BY: routers/auth.py (login callback, /me, webhook), dependencies.auth
-    (get_current_user, build_user_response), dependencies.billing (credits)
-
-Records in scraping-jobs table:
-- USER#{uuid} / PROFILE  — muckrock_id, timezone, preferences, tier, onboarding state
-                           (email and name are NOT stored — fetched on-demand from MuckRock
-                            to protect journalist PII)
-- USER#{uuid} / CREDITS  — balance, monthly_cap, last_reset_date, entitlement_source, update_on
+The primary OSS runtime now uses Supabase Auth plus Postgres-backed adapters.
+This service remains because some Python routes still delegate user/profile
+and credit logic through the historical storage port abstraction.
 """
 import logging
 from datetime import datetime, timezone
@@ -95,7 +84,7 @@ class UserService:
 
     async def get_or_create_user(self, userinfo: dict) -> dict:
         """
-        Create or update user from MuckRock userinfo (OAuth callback / webhook).
+        Create or update a legacy MuckRock-backed user record.
 
         - Creates USER#/PROFILE and USER#/CREDITS if new user
         - Preserves existing preferences (timezone, language, location) on returning user

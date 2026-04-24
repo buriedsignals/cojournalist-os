@@ -1,14 +1,9 @@
 """
-FastAPI auth dependencies — session cookie, service key, and API key verification.
+FastAPI auth dependencies.
 
-PURPOSE: Provides injectable auth dependencies for all routers: get_current_user
-(session cookie validation), get_optional_user (optional auth), verify_service_key
-(Lambda auth via X-Service-Key), verify_api_key (Bearer token), get_user_email,
-and build_user_response.
-
-DEPENDS ON: config (session secret, service key), SessionService, UserService,
-    ApiKeyService
-USED BY: All routers (auth injection), dependencies/__init__.py
+In the current architecture the primary public auth path is Supabase Auth.
+This module remains as the legacy/optional FastAPI auth layer used by the
+Python add-on routes and any remaining session-cookie surfaces.
 """
 import logging
 import secrets
@@ -122,8 +117,8 @@ async def get_current_user(request: Request) -> dict:
     Dependency to get the current authenticated user.
 
     Delegates to the deployment-target-aware auth adapter:
-      - AWS/MuckRock: validates session cookie, fetches from DynamoDB
       - Supabase: validates Bearer JWT, fetches from Postgres
+      - Legacy AWS/MuckRock path: validates session cookie
 
     Returns:
         User dict with user_id, timezone, etc.
@@ -255,48 +250,6 @@ def _verify_key_against(
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid service key"
-    )
-
-
-def verify_scraper_key(
-    x_service_key: Optional[str] = Header(None, alias="X-Service-Key")
-) -> None:
-    """Verify scraper Lambda service key. Falls back to INTERNAL_SERVICE_KEY."""
-    settings = get_settings()
-
-    if not settings.internal_service_key and not settings.scraper_service_key:
-        logger.error("No service key configured - rejecting request")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Service configuration error"
-        )
-
-    _verify_key_against(
-        x_service_key,
-        settings.scraper_service_key,
-        settings.internal_service_key,
-        key_name="SCRAPER_SERVICE_KEY",
-    )
-
-
-def verify_promise_key(
-    x_service_key: Optional[str] = Header(None, alias="X-Service-Key")
-) -> None:
-    """Verify promise-checker Lambda service key. Falls back to INTERNAL_SERVICE_KEY."""
-    settings = get_settings()
-
-    if not settings.internal_service_key and not settings.promise_service_key:
-        logger.error("No service key configured - rejecting request")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Service configuration error"
-        )
-
-    _verify_key_against(
-        x_service_key,
-        settings.promise_service_key,
-        settings.internal_service_key,
-        key_name="PROMISE_SERVICE_KEY",
     )
 
 

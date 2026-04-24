@@ -330,7 +330,7 @@ CREATE TABLE scouts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('web', 'pulse', 'social', 'civic')),
+    type TEXT NOT NULL CHECK (type IN ('web', 'beat', 'social', 'civic')),
 
     -- Common fields (all scout types)
     criteria TEXT,
@@ -344,7 +344,7 @@ CREATE TABLE scouts (
     url TEXT,
     provider TEXT CHECK (provider IN ('firecrawl', 'firecrawl_plain')),
 
-    -- Pulse scout fields
+    -- Beat scout fields
     source_mode TEXT CHECK (source_mode IN ('reliable', 'niche')),
     excluded_domains TEXT[],
 
@@ -429,7 +429,7 @@ CREATE TABLE post_snapshots (
 );
 
 -- ============================================================
--- SEEN RECORDS (replaces SEEN# records -- pulse dedup)
+-- SEEN RECORDS (replaces SEEN# records -- beat dedup)
 -- ============================================================
 CREATE TABLE seen_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1020,7 +1020,7 @@ This makes the paid experience: "paste this into Claude Code and answer a few qu
 
 - FastAPI backend -- all orchestrators, services, AI logic
 - SvelteKit frontend (except auth flow)
-- Scout types: web, pulse, social, civic
+- Scout types: web, beat, social, civic
 - External APIs: OpenRouter, Firecrawl, Apify, Resend, MapTiler
 - Email notification templates
 - Pydantic schemas

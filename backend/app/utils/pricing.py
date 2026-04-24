@@ -13,8 +13,8 @@ CREDIT_COSTS = {
     # Web Scout (type web) — $0.002 cost, 80% margin
     "website_extraction": 1,
 
-    # Smart Scout (type pulse) — standardized cost across all modes
-    "pulse": 7,
+    # Beat Scout (type beat) — standardized cost across all modes
+    "beat": 7,
 
     # Social Scout monitoring — platform-tiered
     "social_monitoring_instagram": 2,   # $0.012 cost, 55% margin
@@ -59,12 +59,12 @@ EXTRACTION_KEYS = {
 }
 
 
-def get_pulse_cost(source_mode: Optional[str], has_location: bool) -> int:
-    """Get credit cost for a pulse scout run.
+def get_beat_cost(source_mode: Optional[str], has_location: bool) -> int:
+    """Get credit cost for a beat scout run.
 
     All modes now run similar workload — single standardized cost.
     """
-    return CREDIT_COSTS["pulse"]
+    return CREDIT_COSTS["beat"]
 
 
 def get_social_monitoring_cost(platform: str) -> int:

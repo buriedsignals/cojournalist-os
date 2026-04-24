@@ -105,9 +105,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^.*\/admin-report/, "") || "/";
   const svc = getServiceClient();
+  const isRead = req.method === "GET" || req.method === "HEAD";
 
   try {
-    if (path === "/metrics" && req.method === "GET") {
+    if (path === "/metrics" && isRead) {
       return jsonOk(await buildMetrics(svc), 200, req);
     }
     if (path === "/report/monthly" && req.method === "POST") {
@@ -127,7 +128,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const report = await buildMonthlyReport(svc, year, month);
       return jsonOk(await sendReportEmail(report), 200, req);
     }
-    if (path === "/usage" && req.method === "GET") {
+    if (path === "/usage" && isRead) {
       const start = url.searchParams.get("start_date");
       const end = url.searchParams.get("end_date");
       if (!isDate(start) || !isDate(end)) {

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
+	import Spinner from '$lib/components/ui/Spinner.svelte';
 
 	let status: 'loading' | 'error' = 'loading';
 	let errorMessage = '';
@@ -46,8 +47,8 @@
 
 <div class="callback-container">
 	{#if status === 'loading'}
-		<div class="callback-card">
-			<p class="callback-title">Signing you in…</p>
+		<div class="callback-card callback-card--loading" aria-label="Signing in">
+			<Spinner size="lg" />
 		</div>
 	{:else}
 		<div class="callback-card callback-card--error">
@@ -78,10 +79,10 @@
 		padding: 1.5rem;
 	}
 
-	.callback-title {
-		font-size: 1.125rem;
-		color: var(--color-ink);
-		margin: 0;
+	.callback-card--loading {
+		align-items: center;
+		justify-content: center;
+		min-height: 8rem;
 	}
 
 	.callback-heading {

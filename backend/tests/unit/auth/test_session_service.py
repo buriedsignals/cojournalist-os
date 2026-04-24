@@ -19,7 +19,7 @@ from app.services.session_service import SessionService
 @pytest.fixture
 def service():
     """SessionService with a test secret and default max_age."""
-    return SessionService(secret="test-secret-key-for-unit-tests")
+    return SessionService(secret="test-secret-key-for-unit-tests-32b")
 
 
 class TestCreateValidateRoundtrip:
@@ -79,7 +79,7 @@ class TestExpiredToken:
     def test_expired_token(self):
         """Token with max_age=0 should expire immediately."""
         # Create a service with 0 second max_age
-        service = SessionService(secret="test-secret", max_age=0)
+        service = SessionService(secret="test-secret-minimum-32-bytes-long", max_age=0)
         token = service.create_session("user-123")
         # The token is created with exp = now + 0 seconds, so it's already expired
         # (PyJWT has a default leeway of 0, so exp == iat means expired)
@@ -89,7 +89,7 @@ class TestExpiredToken:
 
     def test_manually_expired_token(self):
         """Manually crafted expired JWT should be rejected."""
-        service = SessionService(secret="test-secret")
+        service = SessionService(secret="test-secret-minimum-32-bytes-long")
         # Create a token that expired 1 hour ago
         expired_payload = {
             "sub": "user-123",
@@ -97,7 +97,7 @@ class TestExpiredToken:
             "iat": time.time() - 7200,
             "exp": time.time() - 3600,
         }
-        token = jwt.encode(expired_payload, "test-secret", algorithm="HS256")
+        token = jwt.encode(expired_payload, "test-secret-minimum-32-bytes-long", algorithm="HS256")
         assert service.validate_session(token) is None
 
 
@@ -106,8 +106,8 @@ class TestWrongSecret:
 
     def test_wrong_secret(self):
         """Token signed with different secret should be rejected."""
-        creator = SessionService(secret="secret-A")
-        validator = SessionService(secret="secret-B")
+        creator = SessionService(secret="secret-A-minimum-32-bytes-long!!")
+        validator = SessionService(secret="secret-B-minimum-32-bytes-long!!")
         token = creator.create_session("user-123")
         assert validator.validate_session(token) is None
 
@@ -136,7 +136,7 @@ class TestCustomMaxAge:
 
     def test_custom_max_age(self):
         """Custom max_age should be reflected in token expiration."""
-        service = SessionService(secret="test-secret", max_age=3600)  # 1 hour
+        service = SessionService(secret="test-secret-minimum-32-bytes-long", max_age=3600)  # 1 hour
         token = service.create_session("user-123")
         claims = service.validate_session(token)
         # exp - iat should be approximately 3600

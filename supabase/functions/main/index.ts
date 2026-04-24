@@ -12,7 +12,10 @@ const SERVICE_KEY = Deno.env.get("INTERNAL_SERVICE_KEY") ?? "";
 
 const EXECUTE_ENDPOINTS: Record<string, string> = {
   web: "/api/scouts/execute",
-  pulse: "/api/pulse/execute",
+  // `beat` is the canonical scout type; the `/api/pulse/execute` path is a
+  // historical name retained by the downstream Supabase executor for route
+  // compatibility.
+  beat: "/api/pulse/execute",
   social: "/api/social/execute",
   civic: "/api/civic/execute",
 };

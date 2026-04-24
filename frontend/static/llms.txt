@@ -1,72 +1,52 @@
 # coJournalist
 
-> AI-powered local news monitoring for journalists and newsrooms. You define scouts that watch URLs, local news, social profiles, and council agendas; coJournalist runs them on a schedule, extracts atomic facts, de-duplicates across sources, and hands the results to you — or to your AI assistant — as a searchable knowledge base.
+> AI-powered monitoring infrastructure for journalists. coJournalist runs scheduled scouts across pages, local news, social profiles, and civic sources, extracts atomic facts, deduplicates repeated coverage, and hands the results to journalists and AI assistants as a searchable knowledge base with a human verification boundary.
 
-coJournalist runs five scout types, each with its own pipeline and credit cost: Page Scout (web, 1 credit), Location Scout and Beat Scout (pulse, 7 credits), Social Scout (2–15 credits), Civic Scout (20 credits). Credits are decremented per run.
+coJournalist is built for local reporting, investigative workflows, and newsroom monitoring. The public product contract is:
 
-Pricing (USD, monthly): Free $0 / 100 credits, Pro $10 / 1,000 credits, Team $50 / 5,000 shared credits with unlimited seats. Self-hosting is allowed under the Sustainable Use License — same feature set, you supply your own Supabase, Firecrawl, Gemini, Apify, and Resend keys. Sign in and billing go through MuckRock OAuth.
+- scouts monitor sources on schedules
+- runs create information units
+- units can be verified or rejected by humans
+- agents can connect through MCP, REST, or CLI
+- the hosted product lives at `cojournalist.ai`, with self-hosting also supported
 
-Three integration surfaces: an MCP server at `/mcp` with OAuth 2.1, a REST API at `/functions/v1` with Bearer JWT auth, and a Deno-based CLI called `cojo`. All three expose the same underlying objects: projects, scouts, runs, information units, entities, reflections, and exports. AI assistants are expected to draft freely but cite only verified units — verification is an explicit editorial step that stamps the user's ID into the audit trail.
+## Start here
 
-## Getting started
+- [Skills index](https://www.cojournalist.ai/skills): Primary AI entrypoint for the public skill files
+- [Full flattened docs](https://www.cojournalist.ai/llms-full.txt): Primary one-shot ingestion file for docs and skills together
+- [Overview](https://www.cojournalist.ai/overview.txt): Short product overview and key benefits
+- [Docs home](https://www.cojournalist.ai/docs): Public documentation for humans
+- [Docs in text form](https://www.cojournalist.ai/docs.txt): Short machine-readable public docs
 
-- [App / sign in](https://www.cojournalist.ai): Home page and login (MuckRock OAuth)
-- [Quickstart](https://www.cojournalist.ai/docs#quickstart): Five-minute walkthrough — sign in, create a scout, connect an AI assistant, verify findings
-- [Docs home](https://www.cojournalist.ai/docs): Full documentation — introduction, quickstart, scouts, concepts, integrations, cookbook, reference
-- [Full docs (flattened)](https://www.cojournalist.ai/llms-full.txt): All documentation in one plain-text file, optimized for LLM ingestion
-- [FAQ](https://www.cojournalist.ai/faq): Licensing, self-hosting, editorial workflow
+## Public product pages
 
-## Pricing
+- [Login and app entry](https://www.cojournalist.ai/login): Sign-in and public product framing
+- [Pricing](https://www.cojournalist.ai/pricing): Hosted plans and credits
+- [Pricing in text form](https://www.cojournalist.ai/pricing.txt): Short hosted pricing summary
+- [FAQ](https://www.cojournalist.ai/faq): Licensing, self-hosting, and product basics
+- [FAQ in text form](https://www.cojournalist.ai/faq.txt): Short machine-readable FAQ
 
-Plans (USD/month): Free $0 = 100 credits · Pro $10 = 1,000 credits · Team $50 = 5,000 shared credits.
+## Product model
 
-Credits per scout run: Page Scout 1 · Location/Beat Scout 7 · Social Scout 2 (Instagram/X/TikTok/LinkedIn) or 15 (Facebook) · Civic Scout 20.
-
-- [Pricing page](https://www.cojournalist.ai/pricing): Full plan comparison and checkout
-
-## API
-
-- [Interactive API reference](https://www.cojournalist.ai/swagger): Swagger UI over the OpenAPI 3.1 spec
-- [OpenAPI spec (JSON)](https://www.cojournalist.ai/functions/v1/openapi-spec): Machine-readable schema for every REST endpoint
-- [REST base URL](https://www.cojournalist.ai/functions/v1): Root of all REST endpoints; Bearer JWT auth
-- [MCP server](https://www.cojournalist.ai/mcp): JSON-RPC 2.0 MCP endpoint with embedded OAuth 2.1 authorization server (RFC 8414 metadata, RFC 7591 dynamic registration)
-
-## Scouts
-
-- [Page Scout (docs)](https://www.cojournalist.ai/docs#scout-page): Watches one URL for content changes using Firecrawl changeTracking with per-scout baselines
-- [Location Scout (docs)](https://www.cojournalist.ai/docs#scout-location): Local news for a geography, favouring niche sources, 12-language query generation
-- [Beat Scout (docs)](https://www.cojournalist.ai/docs#scout-beat): Topic news across reliable outlets, criteria-driven, no location required
-- [Social Scout (docs)](https://www.cojournalist.ai/docs#scout-social): Monitors Instagram, X, Facebook, LinkedIn, TikTok for new or removed posts
-- [Civic Scout (docs)](https://www.cojournalist.ai/docs#scout-civic): Council agendas and minutes (PDFs included), promise extraction with meeting-date context
-
-## Concepts
-
-- [Information units](https://www.cojournalist.ai/docs#units): Atomic facts extracted from sources; vector-embedded and de-duplicated
-- [Entities](https://www.cojournalist.ai/docs#entities): People, organisations, locations, documents resolved across units
-- [Deduplication](https://www.cojournalist.ai/docs#dedup): Four layers — fact, source, entity, time
-- [Verification](https://www.cojournalist.ai/docs#verification): Editorial checkpoint; stamps user ID into `verified_by`
-- [Credits](https://www.cojournalist.ai/docs#credits): Cost model and monthly budget math
+- [Page Scout](https://www.cojournalist.ai/docs#scout-page): Monitor a single URL for meaningful changes
+- [Beat Scout](https://www.cojournalist.ai/docs#scout-beat): Monitor a beat by topic or geography
+- [Social Scout](https://www.cojournalist.ai/docs#scout-social): Monitor social profiles and post deletions
+- [Civic Scout](https://www.cojournalist.ai/docs#scout-civic): Monitor council materials and PDF-heavy civic sources
+- [Information units](https://www.cojournalist.ai/docs#units): Atomic facts, search, verification, and audit trail
+- [Verification](https://www.cojournalist.ai/docs#verification): Human editorial approval before publishable use
+- [Credits](https://www.cojournalist.ai/docs#credits): Hosted cost model and planning
 
 ## Integrations
 
-- [MCP server setup](https://www.cojournalist.ai/docs#mcp): Connect Claude Desktop, Cursor, Windsurf, Goose, or any MCP client
-- [REST API](https://www.cojournalist.ai/docs#rest): `curl` examples, pagination, error format
-- [CLI (`cojo`)](https://www.cojournalist.ai/docs#cli): Deno-based binary; install, configure, common commands
+- [MCP server](https://www.cojournalist.ai/mcp): Remote MCP endpoint for agent clients
+- [REST docs](https://www.cojournalist.ai/docs#rest): Public REST integration guidance
+- [OpenAPI spec](https://www.cojournalist.ai/functions/v1/openapi-spec): Machine-readable REST schema
+- [Swagger UI](https://www.cojournalist.ai/swagger): Interactive API reference
+- [CLI README](https://github.com/buriedsignals/cojournalist-os/blob/main/cli/README.md): `cojo` install and usage
+- [MCP bridge README](https://github.com/buriedsignals/cojournalist-os/blob/main/mcp/README.md): Stdio bridge for MCP clients
 
-## Cookbook
+## Source and support
 
-- [Daily triage](https://www.cojournalist.ai/docs#recipe-triage): Worked example — an AI assistant prepares a morning brief
-- [Structured extraction](https://www.cojournalist.ai/docs#recipe-extract): Pull agenda items as a markdown table
-- [Export to CMS](https://www.cojournalist.ai/docs#recipe-export): Pipe `cojo export` into a CMS draft endpoint
-
-## Self-hosting and source
-
-- [Self-hosting guide](https://www.cojournalist.ai/docs#selfhost): Sustainable Use License; your own Supabase, Firecrawl, Gemini, Apify, Resend keys
-- [Sustainable Use License FAQ](https://www.cojournalist.ai/faq): What's allowed (newsroom use, modification) and what isn't (reselling, hosting as a service)
-- [GitHub repo](https://github.com/buriedsignals/cojournalist-os): Source; issues; releases
-- [Changelog](https://github.com/buriedsignals/cojournalist-os/releases): Release notes
-
-## Support
-
-- [Open an issue](https://github.com/buriedsignals/cojournalist-os/issues): Bugs and feature requests (routed via Linear)
-- GitHub Discussions: https://github.com/buriedsignals/cojournalist-os/discussions
+- [GitHub repo](https://github.com/buriedsignals/cojournalist-os): Public source
+- [GitHub releases](https://github.com/buriedsignals/cojournalist-os/releases): Release notes and binaries
+- [GitHub issues](https://github.com/buriedsignals/cojournalist-os/issues): Bugs and feature requests

@@ -6,7 +6,7 @@ Currently contains AINewsArticle, the canonical article representation
 used throughout the search and notification pipeline.
 
 DEPENDS ON: (pydantic only — no app imports)
-USED BY: schemas/pulse.py, services/news_utils.py, routers/pulse.py
+USED BY: (post-cutover: no live importers — scout/beat pipeline moved to Supabase Edge Functions)
 """
 from typing import Optional
 

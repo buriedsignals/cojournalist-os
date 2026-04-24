@@ -5,7 +5,7 @@ PURPOSE: Centralized embedding generation via Gemini Embedding API,
 similarity comparison, and DynamoDB-compatible compression/decompression.
 
 DEPENDS ON: config (GEMINI_API_KEY), http_client (connection pooling)
-USED BY: execution_deduplication, atomic_unit_service, feed_search_service, news_utils, social_orchestrator
+USED BY: services/feed_search_service.py, adapters/supabase/execution_storage.py
 """
 import base64
 import logging
@@ -22,6 +22,28 @@ logger = logging.getLogger(__name__)
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 GEMINI_MODEL = "gemini-embedding-2-preview"
 EMBEDDING_DIMENSIONS = 1536
+EMBEDDING_MODEL_TAG = "gemini-embedding-2-preview-task-prefix-v1"
+
+
+def _apply_task_prefix(
+    text: str,
+    task_type: str,
+    title: Optional[str] = None,
+) -> str:
+    """Apply Gemini Embedding 2 task-prefix formatting to text."""
+    cleaned_text = text or ""
+    if task_type == "RETRIEVAL_DOCUMENT":
+        cleaned_title = (title or "").strip() or "none"
+        return f"title: {cleaned_title} | text: {cleaned_text}"
+
+    prefixes = {
+        "SEMANTIC_SIMILARITY": "task: sentence similarity | query: ",
+        "RETRIEVAL_QUERY": "task: search result | query: ",
+        "CLASSIFICATION": "task: classification | query: ",
+        "CLUSTERING": "task: clustering | query: ",
+    }
+    prefix = prefixes.get(task_type, "task: sentence similarity | query: ")
+    return f"{prefix}{cleaned_text}"
 
 
 def normalize_embedding(values: list[float]) -> list[float]:
@@ -33,15 +55,18 @@ def normalize_embedding(values: list[float]) -> list[float]:
     return (arr / norm).tolist()
 
 
-async def generate_embedding(text: str, task_type: str = "SEMANTIC_SIMILARITY") -> List[float]:
+async def generate_embedding(
+    text: str,
+    task_type: str = "SEMANTIC_SIMILARITY",
+    title: Optional[str] = None,
+) -> List[float]:
     """Generate embedding for a single text via Gemini Embedding API."""
     client = await get_http_client()
     response = await client.post(
         f"{GEMINI_BASE_URL}/models/{GEMINI_MODEL}:embedContent?key={settings.gemini_api_key}",
         json={
             "model": f"models/{GEMINI_MODEL}",
-            "content": {"parts": [{"text": text}]},
-            "taskType": task_type,
+            "content": {"parts": [{"text": _apply_task_prefix(text, task_type, title)}]},
             "outputDimensionality": EMBEDDING_DIMENSIONS,
         },
     )
@@ -57,11 +82,12 @@ async def generate_embedding_multimodal(
     image_bytes: Optional[bytes] = None,
     mime_type: str = "image/jpeg",
     task_type: str = "SEMANTIC_SIMILARITY",
+    title: Optional[str] = None,
 ) -> List[float]:
     """Generate embedding for mixed text + image content via Gemini."""
     parts = []
     if text:
-        parts.append({"text": text})
+        parts.append({"text": _apply_task_prefix(text, task_type, title)})
     if image_bytes:
         b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
         parts.append({"inline_data": {"mime_type": mime_type, "data": b64}})
@@ -74,7 +100,6 @@ async def generate_embedding_multimodal(
         json={
             "model": f"models/{GEMINI_MODEL}",
             "content": {"parts": parts},
-            "taskType": task_type,
             "outputDimensionality": EMBEDDING_DIMENSIONS,
         },
     )
@@ -86,20 +111,25 @@ async def generate_embedding_multimodal(
 
 
 async def generate_embeddings_batch(
-    texts: List[str], task_type: str = "SEMANTIC_SIMILARITY"
+    texts: List[str],
+    task_type: str = "SEMANTIC_SIMILARITY",
+    titles: Optional[List[Optional[str]]] = None,
 ) -> List[List[float]]:
     """Generate embeddings for multiple texts in a single Gemini batch call."""
     if not texts:
         return []
+    if titles is not None and len(titles) != len(texts):
+        raise ValueError("titles must be the same length as texts")
 
     embed_requests = [
         {
             "model": f"models/{GEMINI_MODEL}",
-            "content": {"parts": [{"text": t}]},
-            "taskType": task_type,
+            "content": {"parts": [{"text": _apply_task_prefix(
+                t, task_type, titles[i] if titles is not None else None
+            )}]},
             "outputDimensionality": EMBEDDING_DIMENSIONS,
         }
-        for t in texts
+        for i, t in enumerate(texts)
     ]
 
     client = await get_http_client()

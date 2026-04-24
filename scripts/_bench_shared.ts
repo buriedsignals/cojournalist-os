@@ -5,38 +5,58 @@
  * the live Supabase Edge Functions end-to-end against a linked project.
  *
  * Required env (usually loaded via `set -a; source .env; set +a`):
- *   SUPABASE_URL                  e.g. https://<ref>.supabase.co
- *   SUPABASE_SERVICE_ROLE_KEY     service-role secret
+ *   Hosted/legacy:
+ *     SUPABASE_URL
+ *     SUPABASE_SERVICE_ROLE_KEY
+ *   Local CLI (`supabase status -o env`):
+ *     API_URL
+ *     SERVICE_ROLE_KEY
  *
  * Optional:
  *   BENCH_OWNER_EMAIL             email of the test user to own the scouts
  *                                 (default: tom@buriedsignals.com)
  */
 
-function mustEnv(name: string): string {
-  const v = Deno.env.get(name);
-  if (!v) {
-    console.error(`missing env ${name}. Source .env first:`);
+function envAny(...names: string[]): string | null {
+  for (const name of names) {
+    const value = Deno.env.get(name);
+    if (value) return value;
+  }
+  return null;
+}
+
+function mustEnv(...names: string[]): string {
+  const value = envAny(...names);
+  if (!value) {
+    console.error(`missing env ${names.join(" or ")}. Source .env first:`);
     console.error("  set -a; source .env; set +a");
     Deno.exit(2);
   }
-  return v;
+  return value;
 }
 
 export interface BenchCtx {
   supabaseUrl: string;
   serviceKey: string;
+  apiKey: string;
   ownerEmail: string;
   userId: string;
 }
 
 export async function getCtx(): Promise<BenchCtx> {
-  const supabaseUrl = mustEnv("SUPABASE_URL").replace(/\/$/, "");
-  const serviceKey = mustEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const supabaseUrl = mustEnv("SUPABASE_URL", "API_URL").replace(/\/$/, "");
+  const serviceKey = mustEnv("SUPABASE_SERVICE_ROLE_KEY", "SERVICE_ROLE_KEY");
+  const apiKey = envAny(
+    "SUPABASE_API_KEY",
+    "SUPABASE_ANON_KEY",
+    "PUBLISHABLE_KEY",
+    "ANON_KEY",
+  ) ??
+    serviceKey;
   const ownerEmail = Deno.env.get("BENCH_OWNER_EMAIL") ??
     "tom@buriedsignals.com";
   const userId = await resolveUserId(supabaseUrl, serviceKey, ownerEmail);
-  return { supabaseUrl, serviceKey, ownerEmail, userId };
+  return { supabaseUrl, serviceKey, apiKey, ownerEmail, userId };
 }
 
 async function resolveUserId(
@@ -58,7 +78,13 @@ async function resolveUserId(
     const url = `${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=${perPage}`;
     const res = await fetch(url, {
       headers: {
-        apikey: serviceKey,
+        apikey: envAny(
+          "SUPABASE_API_KEY",
+          "SUPABASE_ANON_KEY",
+          "PUBLISHABLE_KEY",
+          "ANON_KEY",
+        ) ??
+          serviceKey,
         Authorization: `Bearer ${serviceKey}`,
       },
     });
@@ -86,6 +112,7 @@ export async function svcFetch(
   // on X-Service-Key: <INTERNAL_SERVICE_KEY>. We pass both headers so the
   // same helper works against either auth shape.
   const headers: Record<string, string> = {
+    apikey: ctx.apiKey,
     Authorization: `Bearer ${ctx.serviceKey}`,
     "Content-Type": "application/json",
   };
@@ -119,7 +146,7 @@ export async function pgSelectOne<T>(
   qs.set("limit", "1");
   const res = await fetch(`${ctx.supabaseUrl}/rest/v1/${table}?${qs}`, {
     headers: {
-      apikey: ctx.serviceKey,
+      apikey: ctx.apiKey,
       Authorization: `Bearer ${ctx.serviceKey}`,
       Accept: "application/vnd.pgrst.object+json",
     },
@@ -140,7 +167,7 @@ export async function pgInsert<T>(
   const res = await fetch(`${ctx.supabaseUrl}/rest/v1/${table}`, {
     method: "POST",
     headers: {
-      apikey: ctx.serviceKey,
+      apikey: ctx.apiKey,
       Authorization: `Bearer ${ctx.serviceKey}`,
       "Content-Type": "application/json",
       Prefer: "return=representation",
@@ -165,7 +192,7 @@ export async function pgDelete(
   const res = await fetch(`${ctx.supabaseUrl}/rest/v1/${table}?${qs}`, {
     method: "DELETE",
     headers: {
-      apikey: ctx.serviceKey,
+      apikey: ctx.apiKey,
       Authorization: `Bearer ${ctx.serviceKey}`,
     },
   });

@@ -49,12 +49,13 @@ Deno.serve(async (req): Promise<Response> => {
   // Trim the "/scout-templates" prefix Kong leaves on the path.
   const path = url.pathname.replace(/^.*\/scout-templates/, "") || "/";
   const slugMatch = path.match(/^\/([a-z0-9][a-z0-9-]*)$/i);
+  const isRead = req.method === "GET" || req.method === "HEAD";
 
   try {
-    if (path === "/" && req.method === "GET") {
+    if (path === "/" && isRead) {
       return jsonOk({ templates: TEMPLATES });
     }
-    if (slugMatch && req.method === "GET") {
+    if (slugMatch && isRead) {
       const slug = slugMatch[1];
       const tpl = TEMPLATES.find((t) => t.slug === slug);
       if (!tpl) throw new NotFoundError("template");

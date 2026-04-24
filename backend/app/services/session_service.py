@@ -5,7 +5,8 @@ PURPOSE: Creates and validates session tokens stored as httpOnly cookies.
 Sessions are HS256-signed JWTs containing user identity and session metadata.
 
 DEPENDS ON: PyJWT (jwt)
-USED BY: routers/auth.py (login callback sets cookie, middleware validates)
+USED BY: dependencies/auth.py (session cookie encode/decode for
+    local_auth + muckrock_proxy routers)
 """
 import logging
 import uuid

@@ -443,7 +443,7 @@ async function seedCodeRow(): Promise<{
   });
 
   // Create a user to own the code (FK CASCADE target).
-  const email = `mcp-test-${crypto.randomUUID()}@example.test`;
+  const email = `mcp-test-${crypto.randomUUID()}@example.com`;
   const { data: created, error: userErr } = await db.auth.admin.createUser({
     email,
     password: "mcp-test-pw-" + crypto.randomUUID(),

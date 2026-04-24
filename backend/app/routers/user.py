@@ -53,7 +53,7 @@ class UpdatePreferencesRequest(BaseModel):
     """Request to update user preferences (language, timezone, excluded domains, CMS config)."""
     preferred_language: Optional[str] = Field(None, min_length=2, max_length=5, description="ISO 639-1 language code")
     timezone: Optional[str] = Field(None, description="IANA timezone identifier")
-    excluded_domains: Optional[List[str]] = Field(None, description="Domains to exclude from Pulse results (max 50)")
+    excluded_domains: Optional[List[str]] = Field(None, description="Domains to exclude from Beat results (max 50)")
     cms_api_url: Optional[str] = Field(None, max_length=2000, description="CMS API endpoint URL")
     cms_api_token: Optional[str] = Field(None, max_length=500, description="Bearer token for CMS API")
 

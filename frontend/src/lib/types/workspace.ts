@@ -9,8 +9,8 @@
  *
  * This lets the frontend treat Edge Function responses like
  * `{items, pagination}` and FastAPI responses like `{data: [...]}` (or bare
- * arrays) uniformly. Where a bespoke shape is needed (e.g. the export-claude
- * markdown payload), the helper documents it in JSDoc.
+ * arrays) uniformly. Where a bespoke shape is needed, the helper documents it
+ * in JSDoc.
  *
  * See `docs/migration-plans/04-workspace-ui.md` PR 1 for authoritative
  * contracts and the full shape-mismatch audit.
@@ -31,14 +31,14 @@
  *    Edge Function shape verbatim.
  */
 export interface Project {
-	id: string;
-	user_id?: string;
-	name: string;
-	description?: string | null;
-	visibility?: 'private' | 'team';
-	tags?: string[];
-	created_at: string;
-	updated_at?: string | null;
+  id: string;
+  user_id?: string;
+  name: string;
+  description?: string | null;
+  visibility?: "private" | "team";
+  tags?: string[];
+  created_at: string;
+  updated_at?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,12 +49,12 @@ export interface Project {
  * Scout category — labels used by the ScoutList UI (location, beat) map to
  * the `pulse` backend type; the rest map 1:1.
  */
-export type ScoutUiTemplate = 'location' | 'beat' | 'page' | 'social' | 'civic';
+export type ScoutUiTemplate = "location" | "beat" | "page" | "social" | "civic";
 
 /**
  * Backend scout type (persisted to the database).
  */
-export type ScoutType = 'web' | 'pulse' | 'social' | 'civic';
+export type ScoutType = "web" | "pulse" | "social" | "civic";
 
 /**
  * Scout — periodic job that produces units.
@@ -67,25 +67,27 @@ export type ScoutType = 'web' | 'pulse' | 'social' | 'civic';
  *    row; the api-client tolerates both.
  */
 export interface Scout {
-	id: string;
-	name: string;
-	type: ScoutType;
-	criteria?: string | null;
-	topic?: string | null;
-	url?: string | null;
-	platform?: string | null;
-	location?: Record<string, unknown> | null;
-	project_id?: string | null;
-	regularity?: string | null;
-	schedule_cron?: string | null;
-	is_active: boolean;
-	consecutive_failures?: number;
-	last_run?: {
-		started_at: string | null;
-		status: string | null;
-		articles_count: number | null;
-	} | null;
-	created_at?: string | null;
+  id: string;
+  name: string;
+  type: string;
+  is_demo?: boolean;
+  criteria?: string | null;
+  topic?: string | null;
+  url?: string | null;
+  platform?: string | null;
+  location?: Record<string, unknown> | null;
+  project_id?: string | null;
+  regularity?: string | null;
+  schedule_cron?: string | null;
+  is_active: boolean;
+  consecutive_failures?: number;
+  last_run?: {
+    started_at: string | null;
+    status: string | null;
+    articles_count: number | null;
+    merged_existing_count?: number | null;
+  } | null;
+  created_at?: string | null;
 }
 
 /**
@@ -94,15 +96,15 @@ export interface Scout {
  * picked template (`location`/`beat` → `pulse`, `page` → `web`).
  */
 export interface CreateScoutInput {
-	name: string;
-	type: ScoutType;
-	criteria?: string;
-	url?: string;
-	location?: Record<string, unknown>;
-	regularity?: 'daily' | 'weekly' | 'monthly';
-	schedule_cron?: string;
-	project_id?: string;
-	priority_sources?: string[];
+  name: string;
+  type: ScoutType;
+  criteria?: string;
+  url?: string;
+  location?: Record<string, unknown>;
+  regularity?: "daily" | "weekly" | "monthly";
+  schedule_cron?: string;
+  project_id?: string;
+  priority_sources?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -115,10 +117,10 @@ export interface CreateScoutInput {
  * Shape derived from `UnitEntityRef` in `supabase/functions/_shared/db.ts`.
  */
 export interface UnitEntityRef {
-	entity_id: string | null;
-	canonical_name: string | null;
-	type: string | null;
-	mention_text: string;
+  entity_id: string | null;
+  canonical_name: string | null;
+  type: string | null;
+  mention_text: string;
 }
 
 /**
@@ -131,34 +133,69 @@ export interface UnitEntityRef {
  * nested fields are absent.
  */
 export interface Unit {
-	id: string;
-	statement: string | null;
-	context_excerpt?: string | null;
-	unit_type: string | null;
-	entities: UnitEntityRef[];
-	location?: Record<string, unknown> | null;
-	occurred_at?: string | null;
-	extracted_at: string | null;
-	source: {
-		url: string | null;
-		title: string | null;
-		domain: string | null;
-	};
-	verification?: {
-		verified: boolean;
-		verified_at: string | null;
-		verified_by: string | null;
-		notes: string | null;
-	};
-	usage?: {
-		used_in_article: boolean;
-		used_at: string | null;
-		used_in_url: string | null;
-	};
-	tags?: string[];
-	scout_id?: string;
-	scout_name?: string;
-	similarity?: number | null;
+  id: string;
+  is_demo?: boolean;
+  statement: string | null;
+  context_excerpt?: string | null;
+  unit_type: string | null;
+  entities: UnitEntityRef[];
+  location?: Record<string, unknown> | null;
+  occurred_at?: string | null;
+  extracted_at: string | null;
+  occurrence_count?: number;
+  source: {
+    url: string | null;
+    title: string | null;
+    domain: string | null;
+  };
+  sources?: Array<{
+    url: string | null;
+    title: string | null;
+    domain: string | null;
+    extracted_at: string | null;
+  }>;
+  linked_scouts?: Array<{
+    id: string | null;
+    name: string | null;
+    type: string | null;
+  }>;
+  verification?: {
+    verified: boolean;
+    verified_at: string | null;
+    verified_by: string | null;
+    notes: string | null;
+  };
+  usage?: {
+    used_in_article: boolean;
+    used_at: string | null;
+    used_in_url: string | null;
+  };
+  deletion?: {
+    deleted: boolean;
+    deleted_at: string | null;
+    deleted_by: string | null;
+    reason: string | null;
+  };
+  tags?: string[];
+  scout_id?: string;
+  scout_name?: string;
+  similarity?: number | null;
+  search_rank?: number | null;
+  search_match?: {
+    category: "direct" | "related" | "loose";
+    reason: string;
+    keyword_fields: Array<
+      | "statement"
+      | "context_excerpt"
+      | "source"
+      | "entities"
+      | "scout_name"
+      | "linked_scouts"
+      | "tags"
+    >;
+    semantic_similarity: number | null;
+    below_interest_threshold: boolean;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -174,18 +211,18 @@ export interface Unit {
  *  - No FastAPI equivalent today — helper is Edge-only.
  */
 export interface Reflection {
-	id: string;
-	user_id?: string;
-	scope_description: string;
-	content: string;
-	generated_by: string;
-	project_id?: string | null;
-	time_range_start?: string | null;
-	time_range_end?: string | null;
-	source_unit_ids?: string[];
-	source_entity_ids?: string[];
-	metadata?: Record<string, unknown>;
-	created_at: string;
+  id: string;
+  user_id?: string;
+  scope_description: string;
+  content: string;
+  generated_by: string;
+  project_id?: string | null;
+  time_range_start?: string | null;
+  time_range_end?: string | null;
+  source_unit_ids?: string[];
+  source_entity_ids?: string[];
+  metadata?: Record<string, unknown>;
+  created_at: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -201,20 +238,28 @@ export interface Reflection {
  *  - No FastAPI equivalent today — helper is Edge-only.
  */
 export interface Entity {
-	id: string;
-	user_id?: string;
-	canonical_name: string;
-	type: 'person' | 'org' | 'place' | 'policy' | 'event' | 'document' | 'other' | string;
-	aliases?: string[];
-	metadata?: Record<string, unknown>;
-	mention_count?: number;
-	created_at?: string;
-	mentions?: Array<{
-		unit_id: string;
-		mention_text: string;
-		confidence: number | null;
-		resolved_at: string | null;
-	}>;
+  id: string;
+  user_id?: string;
+  canonical_name: string;
+  type:
+    | "person"
+    | "org"
+    | "place"
+    | "policy"
+    | "event"
+    | "document"
+    | "other"
+    | string;
+  aliases?: string[];
+  metadata?: Record<string, unknown>;
+  mention_count?: number;
+  created_at?: string;
+  mentions?: Array<{
+    unit_id: string;
+    mention_text: string;
+    confidence: number | null;
+    resolved_at: string | null;
+  }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,8 +273,8 @@ export interface Entity {
  * shaped for a future cursor-native backend).
  */
 export interface PaginatedUnits {
-	units: Unit[];
-	next_cursor: string | null;
+  units: Unit[];
+  next_cursor: string | null;
 }
 
 /**
@@ -237,8 +282,8 @@ export interface PaginatedUnits {
  * assert on the raw shape before helper unwrap.
  */
 export interface EdgePagination {
-	total: number;
-	offset: number;
-	limit: number;
-	has_more: boolean;
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
 }

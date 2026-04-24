@@ -7,9 +7,17 @@
 	const SWAGGER_PRESET = `https://unpkg.com/swagger-ui-dist@${SWAGGER_VERSION}/swagger-ui-standalone-preset.js`;
 
 	const supabaseUrl = (import.meta.env.PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
-	const specUrl = supabaseUrl
-		? `${supabaseUrl}/functions/v1/openapi-spec`
-		: '/api/openapi.json';
+	const origin = typeof window !== 'undefined' ? window.location.origin : '';
+	const hostedBroker =
+		typeof window !== 'undefined' &&
+		['cojournalist.ai', 'www.cojournalist.ai', 'cojournalist.onrender.com'].includes(
+			window.location.hostname
+		);
+	const specUrl = hostedBroker
+		? `${origin}/functions/v1/openapi-spec`
+		: supabaseUrl
+			? `${supabaseUrl}/functions/v1/openapi-spec`
+			: '/api/openapi.json';
 
 	let container: HTMLDivElement;
 	let errorMessage: string | null = null;

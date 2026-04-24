@@ -225,6 +225,43 @@ describe('searchPulse', () => {
 		const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
 		expect(body.custom_filter_prompt).toBe('Focus on startups');
 	});
+
+	it('sends combined criteria + location search', async () => {
+		const loc = {
+			displayName: 'London, United Kingdom',
+			country: 'GB',
+			city: 'London',
+			locationType: 'city' as const
+		};
+		fetchSpy = mockFetchResponse({ status: 'completed', articles: [] });
+		vi.stubGlobal('fetch', fetchSpy);
+
+		await apiClient.searchPulse({
+			location: loc,
+			criteria: 'housing policy',
+			source_mode: 'reliable'
+		});
+
+		const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+		expect(body.location.displayName).toBe('London, United Kingdom');
+		expect(body.criteria).toBe('housing policy');
+		expect(body.source_mode).toBe('reliable');
+	});
+
+	it('maps unauthorized beat preview errors to a clear re-login message', async () => {
+		fetchSpy = mockFetchResponse(
+			{
+				code: 'UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM',
+				message: 'Unsupported JWT algorithm ES256'
+			},
+			401
+		);
+		vi.stubGlobal('fetch', fetchSpy);
+
+		await expect(apiClient.searchPulse({ criteria: 'AI' })).rejects.toThrow(
+			'Your session is no longer valid for Beat Scout preview. Please sign out and sign in again.'
+		);
+	});
 });
 
 // ===========================================================================
@@ -261,44 +298,69 @@ describe('scheduleMonitoring', () => {
 	});
 });
 
+describe('scheduleLocalScout', () => {
+	it('maps legacy pulse scout_type to beat and preserves beat fields', async () => {
+		fetchSpy = mockFetchResponse({ success: true });
+		vi.stubGlobal('fetch', fetchSpy);
+
+		await apiClient.scheduleLocalScout({
+			name: 'beat scout',
+			scout_type: 'pulse',
+			regularity: 'weekly',
+			day_number: 2,
+			time: '09:00',
+			monitoring: 'EMAIL',
+			criteria: 'housing policy',
+			location: {
+				displayName: 'London, United Kingdom',
+				country: 'GB',
+				city: 'London',
+				locationType: 'city'
+			},
+			source_mode: 'reliable',
+			excluded_domains: ['example.com'],
+			priority_sources: ['https://news.example.com']
+		});
+
+		const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+		expect(body.scout_type).toBe('beat');
+		expect(body.criteria).toBe('housing policy');
+		expect(body.source_mode).toBe('reliable');
+		expect(body.excluded_domains).toEqual(['example.com']);
+		expect(body.priority_sources).toEqual(['https://news.example.com']);
+	});
+});
+
 // ===========================================================================
 // Information Units API
 // ===========================================================================
 
 describe('Information Units', () => {
-	it('getUserUnitLocations aggregates client-side from /units?limit=200', async () => {
-		// Post-cutover: units EF has no /locations route, so we fetch a page
-		// and dedupe distinct city/state/country combos.
+	it('getUserUnitLocations uses the units compatibility route', async () => {
 		fetchSpy = mockFetchResponse({
-			items: [
-				{ city: 'Zurich', state: 'Zurich', country: 'CH' },
-				{ city: 'Zurich', state: 'Zurich', country: 'CH' },
-				{ city: 'Bern', state: 'Bern', country: 'CH' }
-			]
+			locations: ['CH#Bern#Bern', 'CH#Zurich#Zurich']
 		});
 		vi.stubGlobal('fetch', fetchSpy);
 
 		const result = await apiClient.getUserUnitLocations();
 
-		expect(fetchSpy.mock.calls[0][0]).toBe('/api/units?limit=200');
-		expect(result.locations).toEqual(['Bern, Bern, CH', 'Zurich, Zurich, CH']);
+		expect(fetchSpy.mock.calls[0][0]).toBe('/api/units/locations');
+		expect(result.locations).toEqual(['CH#Bern#Bern', 'CH#Zurich#Zurich']);
 	});
 
-	it('getUnitsByTopic filters client-side from /units?limit=N', async () => {
-		// Post-cutover: units EF doesn't accept topic filter; we fetch a
-		// larger page and filter locally.
+	it('getUnitsByTopic uses the compatibility route', async () => {
 		fetchSpy = mockFetchResponse({
-			items: [
+			units: [
 				{ unit_id: 'u1', topic: 'Climate' },
-				{ unit_id: 'u2', topic: 'Politics' }
-			]
+			],
+			count: 1
 		});
 		vi.stubGlobal('fetch', fetchSpy);
 
 		const result = await apiClient.getUnitsByTopic({ topic: 'Climate' });
 
 		const url: string = fetchSpy.mock.calls[0][0];
-		expect(url).toMatch(/^\/api\/units\?limit=\d+$/);
+		expect(url).toBe('/api/units/by-topic?topic=Climate');
 		expect(result.units).toHaveLength(1);
 		expect(result.count).toBe(1);
 	});
@@ -338,14 +400,21 @@ describe('Information Units', () => {
 // ===========================================================================
 
 describe('updateUserPreferences', () => {
-	it('sends only changed fields', async () => {
-		fetchSpy = mockFetchResponse({ success: true, preferred_language: 'fr' });
+	it('sends only changed fields and normalizes the response', async () => {
+		fetchSpy = mockFetchResponse({ preferred_language: 'fr' });
 		vi.stubGlobal('fetch', fetchSpy);
 
-		await apiClient.updateUserPreferences({ preferred_language: 'fr' });
+		const result = await apiClient.updateUserPreferences({ preferred_language: 'fr' });
 
 		const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
 		expect(body).toEqual({ preferred_language: 'fr' });
+		expect(result).toEqual({
+			success: true,
+			preferred_language: 'fr',
+			timezone: undefined,
+			excluded_domains: undefined,
+			health_notifications_enabled: undefined
+		});
 	});
 });
 

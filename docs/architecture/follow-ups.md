@@ -1,0 +1,94 @@
+# Follow-ups: deferred cleanup and hardening
+
+Backlog of work intentionally left out of recent PRs (#99 hardening / #101 combined sweep + audit) because each item either needs an external action, needs its own verification pass, or is a wider refactor that "working code, don't touch" applies to. Each entry is one surgical ticket — take them one at a time, keep PRs small.
+
+**Legend**: Impact (H/M/L) · Risk (H/M/L) · Cost (H/M/L — rough dev hours) · Where
+
+---
+
+## 1. Cloudflare Cache / Transform / Rate-limit Rules — zone-level
+
+- **What**: Set up per-path cache and rate rules at the Cloudflare zone `cojournalist.ai` so edge behavior is explicit, not dependent on defaults that bit us during the 2026-04-24 blank-page incident.
+- **Impact H · Risk L · Cost L** — CF dashboard only, zero code change.
+- **Where**: Cloudflare dashboard → Caching → Cache Rules (and Security → WAF → Rate Limiting Rules).
+- **Concrete rules to add**:
+  1. **Cache Rule A**: path starts with `/_app/immutable/` → Eligible for cache, Edge TTL 1 year, **respect origin `Cache-Control: immutable`** (origin is already stamping this after PR #101).
+  2. **Cache Rule B**: path `eq /` OR ends with `.html` OR Content-Type `text/html` → **Bypass cache** (edge TTL 0, browser TTL 0). Prevents #99-class regressions even if origin misconfigures `Cache-Control` on HTML.
+  3. **Cache Rule C**: path starts with `/api/` → **Bypass cache**. API responses must never land at edge.
+  4. **Cache Rule D**: path starts with `/static/` → cache everything, edge 30d. Email images (`logo-cojournalist.png` etc.) are stable.
+  5. **Rate Limiting Rule**: `POST /api/feedback` and `/api/auth/callback` → 10 req/min/IP → Managed Challenge above. Low-volume today; cheap to set up before abuse.
+  6. **Transform Rule**: set `Permissions-Policy: camera=(), microphone=(), geolocation=()` at the edge so origin can't forget it.
+- **Verification after apply**: `curl -I https://cojournalist.ai/_app/immutable/entry/<real-hash>.js | grep -i cache-control` → should match origin's `immutable`, not be overridden to `max-age=14400`. `curl -I https://cojournalist.ai/` → no `max-age=14400` (Rule B bypasses).
+- **Deferred because**: needs Cloudflare dashboard access; out of band from the code PRs.
+
+---
+
+## 2. `normalize_api_prefix` middleware — sunset
+
+- **What**: `backend/app/main.py` has a middleware that rewrites `/api/api/*` → `/api/*` to forgive stale frontend bundles. After #101 it logs at `DEBUG` (was `WARNING`). If zero hits for 30 days of production traffic, delete the middleware entirely.
+- **Impact L · Risk L · Cost L** — 15 minutes.
+- **Where**: `backend/app/main.py::normalize_api_prefix` (around line 358-376 on post-#101 main).
+- **Verification that it's safe to remove**: scan Render logs for `Normalized duplicated API prefix` — if **no** hits across 30 days of production logs, delete. If any hits, find the stale client and push a frontend bundle update first.
+- **Fix**: delete the `@app.middleware("http") async def normalize_api_prefix(...)` block; it's self-contained and has no other references.
+- **Deferred because**: need 30 days of post-deploy observation before deciding; risks breaking old browser tabs still holding stale bundles otherwise.
+
+---
+
+## 3. Adapter ports — re-audit when GDPR data-export moves to Edge Function
+
+- **What**: `backend/app/adapters/supabase/` has 8 adapters (`scout_storage`, `execution_storage`, `run_storage`, `unit_storage`, `user_storage`, `scheduler`, `auth`, `billing`). During the audit we found all 8 are live. `execution_storage` and `run_storage` are only used by `routers/user.py::data_export` (GDPR Art. 15). When GDPR data-export is ported to an Edge Function, those two adapters become orphans and can be deleted.
+- **Impact M · Risk M · Cost M** — once GDPR moves, maybe 1-2h.
+- **Where**:
+  - `backend/app/adapters/supabase/execution_storage.py`, `run_storage.py`
+  - `backend/app/ports/storage.py` → `ExecutionStoragePort`, `RunStoragePort`
+  - `backend/app/dependencies/providers.py` → `get_execution_storage`, `get_run_storage`
+  - `backend/app/dependencies/__init__.py` → re-exports
+  - Related tests: `backend/tests/unit/adapters/supabase/test_{execution,run}_storage.py`
+- **Verification that it's safe to remove**:
+  ```bash
+  grep -rn "get_execution_storage\|get_run_storage\|ExecutionStoragePort\|RunStoragePort" backend/app/routers/ backend/app/services/
+  # expect: 0 hits before deleting
+  ```
+- **Deferred because**: GDPR data-export is a compliance-required endpoint; deleting the adapters before the EF replacement ships would break it. Smart-alfred's audit was speculative; verify before acting.
+
+---
+
+## 4. `get_llm_client()` in `http_client.py` — delete if still unused next sweep
+
+- **What**: `backend/app/services/http_client.py` still exposes `get_llm_client()` (keepalive-off pool for LLM calls) even though its only consumer (`openrouter.py`) was deleted in #101. Kept on purpose as a placeholder for future LLM work, but if it's still untouched in 30 days, delete it.
+- **Impact L · Risk L · Cost L** — 5 minutes.
+- **Where**: `backend/app/services/http_client.py` — `get_llm_client` function + any internal LLM-specific pool state.
+- **Verification**: `grep -rn "get_llm_client" backend/app/` — if zero non-self hits, delete the function + the module-level LLM-pool state.
+- **Deferred because**: cheap to keep as documented template; low urgency.
+
+---
+
+## 5. Large frontend components — don't refactor preemptively
+
+- **What**: Three `.svelte` files over 600 lines — `frontend/src/lib/components/modals/ScoutScheduleModal.svelte` (995), `frontend/src/lib/components/news/BeatScoutView.svelte` (985), `frontend/src/lib/components/panels/UnitDrawer.svelte` (663).
+- **Impact L · Risk H · Cost H** — a split is a 1-2 day refactor each and risks regression in a busy area of the UI.
+- **Where**: above paths.
+- **Deferred because**: user's stated philosophy — production is working, simplify only when a feature forces a split.
+
+---
+
+## 6. i18n dead-key audit — Paraglide may be carrying unused keys
+
+- **What**: `frontend/messages/en.json` has ~777 keys. Paraglide's strict mode only fails on *missing* keys, not unused ones. A sweep to remove dead keys would shave translation maintenance for all 12 locales.
+- **Impact L · Risk L · Cost M** — ~1h for the grep + removal + retranslation tooling pass.
+- **Where**: `frontend/messages/*.json` + any `m.*()` references across `frontend/src/`.
+- **Verification**: for each key in `en.json`, `grep -r "m\.<key>\|messages\.<key>\|t('\\b<key>\\b'" frontend/src` — remove if zero hits. Mirror removals across all 12 language files.
+- **Deferred because**: cosmetic; wait until a natural moment (e.g. before rebranding or a big copy pass).
+
+---
+
+## 7. `bump_credits.py` docstring pointer
+
+- **What**: `backend/scripts/bump_credits.py` (post-#audit) has a small docstring pointer to "see follow-ups.md for related cleanup items" — that is *this* file. Keep in sync if any of items 1-6 change.
+- **Impact L · Risk L · Cost L** — nothing to do now; note for future maintainers.
+
+---
+
+## Principle
+
+If the entry says "impact L · risk L · cost L", ship it opportunistically. If it says risk M or H, ship it in its own PR with explicit verification. Never bundle an H-risk cleanup with a feature.

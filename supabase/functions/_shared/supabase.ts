@@ -12,20 +12,50 @@ import {
   SupabaseClient,
 } from "https://esm.sh/@supabase/supabase-js@2";
 
-function env(name: string): string {
-  const v = Deno.env.get(name);
-  if (!v) throw new Error(`Missing env var: ${name}`);
-  return v;
+function envAny(...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = Deno.env.get(name);
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function envRequired(...names: string[]): string {
+  const value = envAny(...names);
+  if (!value) {
+    throw new Error(`Missing env var. Tried: ${names.join(", ")}`);
+  }
+  return value;
+}
+
+export function getSupabaseUrl(): string {
+  return envRequired("SERVICE_SUPABASE_URL", "SUPABASE_URL", "API_URL");
+}
+
+export function getServiceRoleKey(): string {
+  return envRequired(
+    "SERVICE_SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SERVICE_ROLE_KEY",
+  );
+}
+
+export function getAnonKey(): string {
+  return envRequired("SUPABASE_ANON_KEY", "PUBLISHABLE_KEY", "ANON_KEY");
 }
 
 export function getServiceClient(): SupabaseClient {
-  return createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  return createClient(
+    getSupabaseUrl(),
+    getServiceRoleKey(),
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  );
 }
 
 export function getUserClient(bearerToken: string): SupabaseClient {
-  return createClient(env("SUPABASE_URL"), env("SUPABASE_ANON_KEY"), {
+  return createClient(getSupabaseUrl(), getAnonKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {
       headers: { Authorization: `Bearer ${bearerToken}` },

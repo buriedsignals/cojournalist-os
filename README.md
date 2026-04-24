@@ -38,7 +38,10 @@ Scouts run on schedules and send email notifications when criteria are met.
 
 ```bash
 # Frontend
-cd frontend && nvm use && npm install && npm run dev
+cd frontend && nvm use && npm install
+npm run dev                     # private repo default: local FastAPI auth broker + hosted account data on localhost
+npm run dev:hosted-broker       # diagnostic: same frontend, but use the deployed broker path
+npm run dev:supabase-local-demo # disposable local Supabase auth + local-only onboarding demo
 
 # Backend
 cd backend && python3 -m venv .venv && source .venv/bin/activate
@@ -70,6 +73,7 @@ before merge.
 - [API surface audit (post-cutover)](docs/architecture/api-surface-audit.md)
 - [FastAPI endpoints (legacy + auth + v1)](docs/architecture/fastapi-endpoints.md)
 - [Supabase Edge Functions](docs/supabase/edge-functions.md)
+- [Developer guide](docs/architecture/developer-guide.md)
 - [`cojo` CLI](cli/README.md)
 
 ## Project Structure

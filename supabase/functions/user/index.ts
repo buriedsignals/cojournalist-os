@@ -43,6 +43,7 @@ const LocationSchema = z.object({
 const PreferencesSchema = z.object({
   timezone: z.string().min(1).max(64).optional(),
   language: z.string().min(2).max(8).optional(),
+  preferred_language: z.string().min(2).max(8).optional(),
   onboarding_completed: z.boolean().optional(),
   onboarding_tour_completed: z.boolean().optional(),
   email_notifications: z.boolean().optional(),
@@ -53,7 +54,7 @@ const PreferencesSchema = z.object({
   health_notifications_enabled: z.boolean().optional(),
   // Default location pre-fills the Location-Scout modal. Accepts `null` to clear.
   default_location: LocationSchema.nullable().optional(),
-  // Domains excluded from pulse/beat searches (case-insensitive).
+  // Domains excluded from beat/beat searches (case-insensitive).
   excluded_domains: z.array(z.string().min(1).max(253)).max(100).optional(),
   // CMS export target (Markdown / REST). Token is stored verbatim for now —
   // a crypto wrapper will be added before we ship the CMS exporter to users.
@@ -76,12 +77,13 @@ Deno.serve(async (req): Promise<Response> => {
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/^.*\/user/, "") || "/";
+  const isRead = req.method === "GET" || req.method === "HEAD";
 
   try {
-    if (path === "/me" && req.method === "GET") {
+    if (path === "/me" && isRead) {
       return await getMe(user);
     }
-    if (path === "/preferences" && req.method === "GET") {
+    if (path === "/preferences" && isRead) {
       return await getPreferences(user);
     }
     if (path === "/preferences" && req.method === "PATCH") {
@@ -281,6 +283,9 @@ async function upsertPreferences(
   };
   if (input.timezone !== undefined) row.timezone = input.timezone;
   if (input.language !== undefined) row.preferred_language = input.language;
+  if (input.preferred_language !== undefined) {
+    row.preferred_language = input.preferred_language;
+  }
   if (input.onboarding_completed !== undefined) {
     row.onboarding_completed = input.onboarding_completed;
   }

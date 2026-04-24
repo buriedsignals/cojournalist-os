@@ -1,8 +1,26 @@
-// vitest mock for lucide-svelte — tests don't render Svelte, so any
-// placeholder identity works. Pure utility tests in src/tests/utils/
-// import icon config transitively via $lib/utils/scouts.ts.
+// vitest mock for lucide-svelte — utility/store tests don't render Svelte, so
+// placeholder identities are sufficient.
 const Icon = (() => ({})) as unknown;
+
 export const Globe = Icon;
 export const Radar = Icon;
 export const Users = Icon;
 export const Landmark = Icon;
+export const Search = Icon;
+export const X = Icon;
+export const ExternalLink = Icon;
+export const Check = Icon;
+export const Trash2 = Icon;
+export const MapPin = Icon;
+export const Tag = Icon;
+export const Radio = Icon;
+export const Home = Icon;
+export const FileText = Icon;
+export const Bot = Icon;
+export const ChevronDown = Icon;
+export const Play = Icon;
+export const Calendar = Icon;
+export const Code = Icon;
+export const Download = Icon;
+export const Settings = Icon;
+export const LogOut = Icon;

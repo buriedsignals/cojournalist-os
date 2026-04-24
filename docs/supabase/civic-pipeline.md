@@ -6,13 +6,14 @@ Civic Scouts monitor council meeting portals for new agenda/minutes documents, e
 
 ### `promises` (00002, extended in 00031)
 
-Persistent tracker for extracted promises.
+Persistent tracker for extracted promises. As of 00038, every promise also links to a canonical `information_units` row (`promises.unit_id`) so civic promises dedup against page/beat/social/manual facts instead of living in a separate universe.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID PK | |
-| `scout_id` | UUID → `scouts(id)` ON DELETE CASCADE | |
+| `scout_id` | UUID → `scouts(id)` ON DELETE SET NULL | |
 | `user_id` | UUID → `auth.users(id)` | |
+| `unit_id` | UUID → `information_units(id)` ON DELETE SET NULL | Canonical promise unit |
 | `promise_text` | TEXT | The promise itself |
 | `source_url` | TEXT | PDF/HTML URL where the promise was made |
 | `meeting_date` | DATE | Date of the council meeting (mapped from `source_date` in the backend Pydantic `Promise`) |
@@ -105,7 +106,7 @@ Workers use service-role and bypass RLS.
 ## Edge Functions
 
 ### `civic-execute`
-Kicks off a scout run. For each `tracked_urls` entry, does a change-tracked Firecrawl scrape. If the page changed, parses markdown for PDF + meeting-document links (regex filters on link text containing "minutes"/"agenda"/"meeting"/"decision"). Enqueues each URL that is **not already in `scouts.processed_pdf_urls`** AND **not already in `civic_extraction_queue` for this scout with status in (pending, processing, done)**. `civic-execute` does **not** append to `scouts.processed_pdf_urls` — that's the worker's job, after a successful extraction. Refreshes `scouts.baseline_established_at`.
+Kicks off a scout run. For each `tracked_urls` entry, does a change-tracked Firecrawl scrape. If the tracked listing page changed, parses `rawHtml`, extracts same-domain links, runs the shared civic keyword/LLM classifier, and enqueues the resolved meeting-document URLs. Discovery intentionally prefers listing pages such as `/urversammlung/protokoll` and rejects dead `/pdf/...` index candidates. `civic-execute` enqueues each URL that is **not already in `scouts.processed_pdf_urls`** AND **not already in `civic_extraction_queue` for this scout with status in (pending, processing, done)**. `civic-execute` does **not** append to `scouts.processed_pdf_urls` — that's the worker's job, after a successful extraction. Refreshes `scouts.baseline_established_at`.
 
 ### `civic-extract-worker`
 Worker loop. Called every 2 minutes by pg_cron (and on-demand by the manage-schedule Edge Function). Firecrawl is called with `parsers: [{ type: "pdf", mode: "fast" }]` (avoids OCR hallucinations on embedded-text PDFs) and up to a 125 s client fuse.
@@ -122,7 +123,8 @@ LOOP
                                              # fields: promise_text, context,
                                              # meeting_date, due_date, date_confidence
     FOR EACH promise:
-      promises INSERT status=active (with due_date + date_confidence)
+      upsert_canonical_unit(type='promise', source_type='civic_promise')
+      promises UPSERT by unit_id status='new' (with due_date + date_confidence)
     civic_extraction_queue UPDATE status=done, raw_capture_id, completed_at
     append_processed_pdf_url_capped(scout_id, source_url, 100)  # 00031
   CATCH:
@@ -134,20 +136,21 @@ END LOOP
 `raw_captures.expires_at` is set to `now() + 30 days` on every insert. Without this, the `cleanup_raw_captures` cron (scheduled in `00014`) is a no-op — `expires_at` was previously never populated, so nothing was ever deleted. The 30-day TTL honours the "scrape → extract → discard" posture: long enough to re-extract promises on a bug-fix deploy, short enough that civic PDFs' extracted markdown isn't permanently stored.
 
 ### `civic-test`
-Dev tooling. Kicks off a single civic extraction without scheduling — used to iterate on the extraction schema + prompts.
+Dev tooling. Resolves downstream meeting documents from the selected listing page, then previews promise extraction without scheduling.
 
 ## Data flow
 
 ```
 civic-execute (scheduled per-scout)
   → firecrawlChangeTrackingScrape(tracked_urls[i], tag=scout_id)
-  → parse markdown for PDF/meeting links
+  → parse rawHtml for same-domain links
+  → classify meeting-document links (keyword stage, LLM fallback)
   → INSERT civic_extraction_queue (status=pending)    ◄──┐
                                                         │
 civic-extract-worker (every 2m)                         │
   → claim_civic_queue_item()  (SKIP LOCKED)             │
   → firecrawl / pdf parse                               │
-  → raw_captures + promises INSERT                      │
+  → raw_captures + information_units/unit_occurrences UPSERT + promises UPSERT │
   → civic_extraction_queue UPDATE status=done           │
                                                         │
 civic_queue_failsafe (every 10m)                        │
@@ -164,7 +167,7 @@ cleanup_civic_queue (03:25 UTC)
 2. **Stuck rows self-heal within 40 minutes.** Failsafe runs every 10m, grace is 30m.
 3. **Max 3 attempts per URL.** Beyond that it's `failed` and needs manual intervention.
 4. **`scouts.processed_pdf_urls` is a ring buffer, cap 100, appended only after successful extraction.** Prevents re-enqueueing pages already successfully processed, without an unbounded array. Failing scrapes stay out of the set so the queue retry path can actually retry them (3 attempts capped by `civic_queue_failsafe`). `append_processed_pdf_url_capped(scout_id, url, cap)` (migration 00031) is the idempotent helper.
-5. **Civic scouts are billed once per scheduled run** (`civic` = 10 credits; weekly/monthly only) — for the scout-level change check, capped at `MAX_DOCS_PER_RUN=2` enqueues. The 10 credits are refunded when no docs were queued (all pages unchanged / all discovered URLs already seen) or when the run errors. Queue items don't decrement further. The one-off `civic_discover` charge (10 credits) still fires at scout-create time.
+5. **Only newly created canonical promise units trigger the immediate civic alert.** Rediscoveries from Civic/Page/Beat attach provenance and update the tracker but do not create a second inbox card or a second alert.
 
 ## Operations
 

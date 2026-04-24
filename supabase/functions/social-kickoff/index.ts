@@ -14,7 +14,13 @@
 
 import { z } from "https://esm.sh/zod@3";
 import { handleCors } from "../_shared/cors.ts";
-import { getServiceClient, SupabaseClient } from "../_shared/supabase.ts";
+import {
+  getServiceClient,
+  getServiceRoleKey,
+  getSupabaseUrl,
+  SupabaseClient,
+} from "../_shared/supabase.ts";
+import { requireServiceKey } from "../_shared/auth.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import {
   AuthError,
@@ -30,6 +36,10 @@ import {
   refundCredits,
   SOCIAL_MONITORING_KEYS,
 } from "../_shared/credits.ts";
+import {
+  buildSocialProfileUrl,
+  normalizeSocialHandle,
+} from "../_shared/social_profiles.ts";
 
 const KickoffSchema = z.object({
   scout_id: z.string().uuid(),
@@ -57,11 +67,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return jsonError("method not allowed", 405);
   }
 
-  // Service-role Bearer only.
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const authHeader = req.headers.get("authorization") ??
-    req.headers.get("Authorization") ?? "";
-  if (!serviceKey || authHeader !== `Bearer ${serviceKey}`) {
+  let serviceKey = "";
+  try {
+    requireServiceKey(req);
+    serviceKey = getServiceRoleKey();
+  } catch (e) {
+    if (e instanceof AuthError) return jsonFromError(e);
     return jsonFromError(new AuthError("service-role required"));
   }
 
@@ -122,7 +133,8 @@ async function startApifyRun(
   // 2. Decrement credits before spending any money on Apify.
   try {
     const cost = getSocialMonitoringCost(platform);
-    const operation = SOCIAL_MONITORING_KEYS[platform] ?? "social_monitoring_instagram";
+    const operation = SOCIAL_MONITORING_KEYS[platform] ??
+      "social_monitoring_instagram";
     await decrementOrThrow(svc, {
       userId: scout.user_id,
       cost,
@@ -203,7 +215,7 @@ async function startApifyRun(
   //    supplied as a base64-encoded JSON query parameter — a top-level
   //    `webhooks` field in the JSON body is silently dropped (verified live
   //    2026-04-21: webhook-dispatches=0 for every body-passed registration).
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const supabaseUrl = getSupabaseUrl();
   const webhookUrl = `${supabaseUrl}/functions/v1/apify-callback`;
   const input = buildActorInput(platform, handle);
   const webhookSpec = [
@@ -227,7 +239,8 @@ async function startApifyRun(
   // before appending — without this, the query string parses as garbled
   // characters and Apify silently drops the webhook (verified live 2026-04-21).
   const webhooksB64 = encodeURIComponent(btoa(JSON.stringify(webhookSpec)));
-  const runsUrl = `https://api.apify.com/v2/acts/${actorId}/runs?webhooks=${webhooksB64}`;
+  const runsUrl =
+    `https://api.apify.com/v2/acts/${actorId}/runs?webhooks=${webhooksB64}`;
 
   let apifyRes: Response;
   try {
@@ -239,7 +252,7 @@ async function startApifyRun(
           "Authorization": `Bearer ${apifyToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ input }),
+        body: JSON.stringify(input),
       },
     );
   } catch (e) {
@@ -276,7 +289,11 @@ async function startApifyRun(
       queue_id: queueId,
       status: apifyRes.status,
     });
-    return jsonError(`apify returned ${apifyRes.status}: ${text}`, 502, "apify_failed");
+    return jsonError(
+      `apify returned ${apifyRes.status}: ${text}`,
+      502,
+      "apify_failed",
+    );
   }
 
   const body = await apifyRes.json().catch(() => ({}));
@@ -325,17 +342,20 @@ function buildActorInput(
   platform: string,
   handle: string,
 ): Record<string, unknown> {
-  const h = handle.replace(/^@/, "");
+  const h = normalizeSocialHandle(
+    platform as "instagram" | "x" | "facebook" | "tiktok",
+    handle,
+  );
   switch (platform) {
     case "instagram": {
-      const url = `https://www.instagram.com/${h}/`;
+      const url = buildSocialProfileUrl("instagram", h);
       return {
         startUrls: [url],
         maxItems: 20,
       };
     }
     case "x": {
-      const url = `https://x.com/${h}`;
+      const url = buildSocialProfileUrl("x", h);
       return {
         startUrls: [url],
         twitterHandles: [h],
@@ -345,13 +365,13 @@ function buildActorInput(
     case "facebook":
       return {
         endpoint: "profile_posts_by_url",
-        urls_text: `https://www.facebook.com/${h}`,
+        urls_text: buildSocialProfileUrl("facebook", h),
         max_posts: 20,
       };
     case "tiktok":
       // novi/tiktok-user-api expects `urls` (array of profile URLs) + `limit`.
       return {
-        urls: [`https://www.tiktok.com/@${h}`],
+        urls: [buildSocialProfileUrl("tiktok", h)],
         limit: 20,
       };
     default:
@@ -392,7 +412,8 @@ async function markQueueFailed(
   // shouldn't eat the social_monitoring_* credits.
   if (refund) {
     const cost = getSocialMonitoringCost(refund.platform);
-    const operation = SOCIAL_MONITORING_KEYS[refund.platform] ?? "social_monitoring_instagram";
+    const operation = SOCIAL_MONITORING_KEYS[refund.platform] ??
+      "social_monitoring_instagram";
     await refundCredits(svc, {
       userId: refund.userId,
       cost,

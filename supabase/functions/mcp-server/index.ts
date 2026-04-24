@@ -43,10 +43,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const url = new URL(req.url);
   const path = stripPrefix(url.pathname);
+  const isRead = req.method === "GET" || req.method === "HEAD";
 
   try {
     // RFC 8414 metadata
-    if (path === "/.well-known/oauth-authorization-server" && req.method === "GET") {
+    if (path === "/.well-known/oauth-authorization-server" && isRead) {
       return metadataHandler(req);
     }
     // RFC 7591 dynamic client registration
@@ -54,10 +55,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return await registerHandler(req);
     }
     // OAuth authorization endpoint
-    if (path === "/authorize" && req.method === "GET") {
+    if (path === "/authorize" && isRead) {
       return await authorize(req);
     }
-    if (path === "/authorize-callback" && req.method === "GET") {
+    if (path === "/authorize-callback" && isRead) {
       return await renderCallbackPage(req);
     }
     if (path === "/authorize-callback-commit" && req.method === "POST") {

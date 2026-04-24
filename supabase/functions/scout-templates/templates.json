@@ -142,8 +142,8 @@
   {
     "slug": "city-housing-beat",
     "name": "City housing beat",
-    "type": "pulse",
-    "description": "Pulse search focused on housing news in a given city, prioritising trusted local sources.",
+    "type": "beat",
+    "description": "Beat search focused on housing news in a given city, prioritising trusted local sources.",
     "defaults": {
       "regularity": "daily",
       "schedule_cron": "0 8 * * *",
@@ -163,8 +163,8 @@
   {
     "slug": "education-policy-beat",
     "name": "Education policy beat",
-    "type": "pulse",
-    "description": "Pulse search focused on K-12 and higher-ed policy changes in a given region.",
+    "type": "beat",
+    "description": "Beat search focused on K-12 and higher-ed policy changes in a given region.",
     "defaults": {
       "regularity": "daily",
       "schedule_cron": "15 9 * * *",

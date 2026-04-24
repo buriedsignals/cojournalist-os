@@ -15,9 +15,16 @@ import { createTestUser, functionUrl, SUPABASE_URL } from "../_shared/_testing.t
 const SERVICE_KEY = Deno.env.get("INTERNAL_SERVICE_KEY") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const FIRECRAWL_KEY = Deno.env.get("FIRECRAWL_API_KEY") ?? "";
-const liveKeys = Boolean(SERVICE_KEY && FIRECRAWL_KEY);
+const hasServiceAuth = Boolean(SERVICE_ROLE_KEY || SERVICE_KEY);
+const liveKeys = Boolean(hasServiceAuth && FIRECRAWL_KEY);
 
 function svcHeaders(): HeadersInit {
+  if (SERVICE_ROLE_KEY) {
+    return {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+    };
+  }
   return {
     "Content-Type": "application/json",
     "X-Service-Key": SERVICE_KEY,
@@ -43,8 +50,8 @@ Deno.test("civic-execute: unauthenticated returns 401", async () => {
 });
 
 Deno.test("civic-execute: 400 when tracked_urls is empty", async () => {
-  if (!SERVICE_KEY) {
-    console.warn("skipping: INTERNAL_SERVICE_KEY not set");
+  if (!hasServiceAuth) {
+    console.warn("skipping: service auth not set");
     return;
   }
   const user = await createTestUser();
@@ -57,6 +64,8 @@ Deno.test("civic-execute: 400 when tracked_urls is empty", async () => {
         name: "Civic Test (empty)",
         type: "civic",
         root_domain: "example.gov",
+        regularity: "weekly",
+        schedule_cron: "0 6 * * 1",
         tracked_urls: [],
       })
       .select("id")
@@ -78,8 +87,8 @@ Deno.test("civic-execute: 400 when tracked_urls is empty", async () => {
 });
 
 Deno.test("civic-execute: 404 when scout missing", async () => {
-  if (!SERVICE_KEY) {
-    console.warn("skipping: INTERNAL_SERVICE_KEY not set");
+  if (!hasServiceAuth) {
+    console.warn("skipping: service auth not set");
     return;
   }
   const res = await fetch(functionUrl("civic-execute"), {
@@ -107,6 +116,8 @@ Deno.test({
           name: "Civic Test (live)",
           type: "civic",
           root_domain: "example.com",
+          regularity: "weekly",
+          schedule_cron: "0 6 * * 1",
           tracked_urls: ["https://example.com"],
           processed_pdf_urls: [],
         })

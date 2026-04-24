@@ -1,9 +1,9 @@
 /**
  * Tests for civic-extract-worker.
  *
- * Runs against local supabase (127.0.0.1:54321). The happy-path test is
- * gated on live keys (FIRECRAWL + GEMINI); without them only the auth and
- * idle-queue paths are exercised.
+ * Runs against the configured Supabase project in SUPABASE_URL.
+ * The happy-path test is gated on live keys (FIRECRAWL + GEMINI); without
+ * them only the auth and idle-queue paths are exercised.
  */
 
 import {
@@ -66,9 +66,8 @@ Deno.test("civic-extract-worker: unauthenticated request returns 401", async () 
 Deno.test(
   "civic-extract-worker: empty queue returns idle",
   async () => {
-    // Ensure the queue is empty before calling. In a fresh local DB it will
-    // be; if it's not we still expect either "idle" or "processed" — the
-    // test asserts only that the worker responded 200 with one of the two.
+    // The queue may already contain work in the target project; assert only
+    // that the worker responds 200 with an expected terminal state.
     const res = await fetch(functionUrl("civic-extract-worker"), {
       method: "POST",
       headers: serviceHeaders(),

@@ -5,12 +5,10 @@
 	import type { GeocodedLocation, RegularityType, ScoutType, ScrapeChannel, ActiveJobsResponse } from '$lib/types';
 	import { apiClient } from '$lib/api-client';
 	import { authStore } from '$lib/stores/auth';
-	import { triggerScoutsRefresh } from '$lib/stores/scouts-refresh';
-	import { triggerFeedRefresh } from '$lib/stores/feed-refresh';
 	import TimePicker from '$lib/components/ui/TimePicker.svelte';
 	import LocationAutocomplete from '$lib/components/ui/LocationAutocomplete.svelte';
 	import TopicChips from '$lib/components/ui/TopicChips.svelte';
-	import { getScoutCost, validateScheduleCredits } from '$lib/utils/scouts';
+	import { getScoutCost } from '$lib/utils/scouts';
 	import * as m from '$lib/paraglide/messages';
 
 	export let open = false;
@@ -45,7 +43,6 @@
 	// prod UI used to override to 10 for pulse+niche+location, but that was
 	// cosmetic — actual decrement was always 7. We keep one source of truth.
 	$: perRunCost = getScoutCost(scoutType, scoutType === 'social' ? platform : undefined);
-	let upgradeRequiredCredits = 0;
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -68,7 +65,7 @@
 
 	// Web scout: location/topic added at schedule time
 	let selectedLocation: GeocodedLocation | null = null;
-	let topicInput = '';
+	let topicInput = topic;
 	let existingTopics: string[] = [];
 
 	// Timezone label
@@ -177,23 +174,21 @@
 			return;
 		}
 
+		// Validation for civic: need council domain + selected listing pages
+		if (scoutType === 'civic') {
+			if (!root_domain.trim()) {
+				errorMessage = 'Council website is required';
+				return;
+			}
+			if (!tracked_urls.length) {
+				errorMessage = 'Select at least one page to monitor before scheduling';
+				return;
+			}
+		}
+
 		isSubmitting = true;
 		errorMessage = '';
 
-		// Validate credits client-side. The authoritative charge happens inside
-		// each executor Edge Function via decrement_credits; this is UX only.
-		const creditCheck = validateScheduleCredits({
-			scoutType,
-			regularity: regularity as 'daily' | 'weekly' | 'monthly',
-			platform: scoutType === 'social' ? platform : undefined,
-			currentCredits: 999999
-		});
-		if (!creditCheck.valid) {
-			isSubmitting = false;
-			upgradeRequiredCredits = creditCheck.monthlyCost;
-			showUpgradeModal = true;
-			return;
-		}
 
 		// Compute time
 		let computedHour = hour;
@@ -271,8 +266,6 @@
 			isSubmitting = false;
 			dispatch('success', { name: scoutName, scoutType });
 			authStore.refreshUser();
-			triggerScoutsRefresh();
-			triggerFeedRefresh();
 		}).catch((error) => {
 			isSubmitting = false;
 			errorMessage = error instanceof Error ? error.message : 'Failed to schedule scout';
@@ -306,7 +299,7 @@
 {#if open}
 	<!-- Modal Backdrop -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs"
 		on:click={handleBackdropClick}
 		on:keydown={(event) => event.key === 'Escape' && handleClose()}
 		role="button"
@@ -431,28 +424,36 @@
 							<Mail size={14} />
 							<span>{webCriteria ? m.schedule_emailDisclaimer_webCriteria() : m.schedule_emailDisclaimer_webAny()}</span>
 						</div>
+						<div class="baseline-note">
+							<ScanSearch size={14} />
+							<span>Scheduling saves the current page as a baseline. Inbox units appear only after later changes.</span>
+						</div>
 					{/if}
 
 					<!-- Scope (web + civic) -->
 					{#if scoutType === 'web' || scoutType === 'civic'}
 						<div class="form-group">
-							<label class="field-label">{m.filter_locationLabel()}</label>
-							<LocationAutocomplete
-								selectedLocation={selectedLocation}
-								on:select={handleLocationSelect}
-								on:clear={handleLocationClear}
-							/>
+							<div class="field-label">{m.filter_locationLabel()}</div>
+							<div class="schedule-field-shell">
+								<LocationAutocomplete
+									selectedLocation={selectedLocation}
+									on:select={handleLocationSelect}
+									on:clear={handleLocationClear}
+								/>
+							</div>
 						</div>
 					{/if}
 
 					<!-- Category (all scout types) -->
 					<div class="form-group">
-						<label class="field-label">{m.schedule_categoryLabel()}</label>
-						<TopicChips
-							bind:topic={topicInput}
-							{existingTopics}
-							placeholder={m.schedule_categoryPlaceholder()}
-						/>
+						<div class="field-label">{m.schedule_categoryLabel()}</div>
+						<div class="schedule-field-shell">
+							<TopicChips
+								bind:topic={topicInput}
+								{existingTopics}
+								placeholder={m.schedule_categoryPlaceholder()}
+							/>
+						</div>
 					</div>
 
 					<!-- Scout Name (hidden for web scouts — already set in PageScoutView) -->
@@ -609,6 +610,19 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+	}
+
+	.baseline-note {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		margin: 0 0 1rem;
+		padding: 0.75rem 0.875rem;
+		background: rgba(30, 92, 179, 0.06);
+		border: 1px solid rgba(30, 92, 179, 0.18);
+		color: var(--color-primary-deep);
+		font-size: 0.8125rem;
+		line-height: 1.5;
 	}
 	.modal-icon {
 		display: flex;
@@ -793,6 +807,99 @@
 	.form-input:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	.schedule-field-shell {
+		width: 100%;
+	}
+
+	.schedule-field-shell :global(.selected-location),
+	.schedule-field-shell :global(.selected-global),
+	.schedule-field-shell :global(.search-input),
+	.schedule-field-shell :global(.topic-chips-wrapper) {
+		border-radius: 0.375rem;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+		color: var(--color-ink);
+		font-family: var(--font-body);
+	}
+
+	.schedule-field-shell :global(.selected-location),
+	.schedule-field-shell :global(.selected-global),
+	.schedule-field-shell :global(.topic-chips-wrapper) {
+		min-height: 2.625rem;
+	}
+
+	.schedule-field-shell :global(.selected-location) {
+		background: var(--color-surface-alt);
+		color: var(--color-ink);
+	}
+
+	.schedule-field-shell :global(.selected-location:hover) {
+		background: var(--color-surface);
+		border-color: var(--color-border-strong);
+	}
+
+	.schedule-field-shell :global(.selected-global) {
+		background: var(--color-canvas, #fff);
+		color: var(--color-ink-muted);
+	}
+
+	.schedule-field-shell :global(.selected-global:hover) {
+		background: var(--color-surface-alt);
+		border-color: var(--color-border-strong);
+	}
+
+	.schedule-field-shell :global(.search-input) {
+		background: var(--color-surface-alt);
+	}
+
+	.schedule-field-shell :global(.search-input:focus) {
+		background: var(--color-canvas, #fff);
+		border-color: var(--color-primary-deep);
+		box-shadow: 0 0 0 2px rgba(78, 44, 120, 0.1);
+	}
+
+	.schedule-field-shell :global(.topic-chips-wrapper) {
+		gap: 0.375rem;
+		padding: 0.5rem 0.75rem;
+	}
+
+	.schedule-field-shell :global(.topic-chip) {
+		background: var(--color-canvas, #fff);
+		border: 1px solid var(--color-border);
+		color: var(--color-ink-muted);
+		font-family: var(--font-body);
+	}
+
+	.schedule-field-shell :global(.chip-remove) {
+		color: var(--color-ink-subtle);
+	}
+
+	.schedule-field-shell :global(.chip-remove:hover) {
+		background: var(--color-surface);
+		color: var(--color-ink);
+	}
+
+	.schedule-field-shell :global(.topic-chip-input) {
+		font-family: var(--font-body);
+		color: var(--color-ink);
+	}
+
+	.schedule-field-shell :global(.topic-chip-input::placeholder) {
+		color: var(--color-ink-subtle);
+	}
+
+	.schedule-field-shell :global(.topic-suggestions),
+	.schedule-field-shell :global(.suggestions-dropdown) {
+		border-radius: 0.375rem;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
+	}
+
+	.schedule-field-shell :global(.input-wrapper .input-icon),
+	.schedule-field-shell :global(.topic-field-icon) {
+		color: var(--color-ink-subtle);
 	}
 
 	/* Error block */

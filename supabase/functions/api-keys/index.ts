@@ -55,9 +55,10 @@ Deno.serve(async (req): Promise<Response> => {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^.*\/api-keys/, "") || "/";
   const idMatch = path.match(/^\/([0-9a-f-]{36})$/i);
+  const isRead = req.method === "GET" || req.method === "HEAD";
 
   try {
-    if (path === "/" && req.method === "GET") return await listKeys(user);
+    if (path === "/" && isRead) return await listKeys(user);
     if (path === "/" && req.method === "POST") return await createKey(req, user);
     if (idMatch && req.method === "DELETE") return await revokeKey(user, idMatch[1]);
     return jsonError("method not allowed", 405);

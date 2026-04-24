@@ -1,21 +1,15 @@
 """
-Schedule Service — manages scout schedules, DynamoDB records, and EventBridge.
+Schedule service for the remaining Python API routes.
 
-PURPOSE: Authoritative backend implementation of scout CRUD that was previously
-spread across three Lambda functions (create-eventbridge-schedule,
-return-scraper-results, delete-schedule). Provides create, list, get, and
-delete operations for scouts. Run logic lives in ScoutRunner.
-
-Delegates all storage to ScoutStoragePort and scheduling to SchedulerPort,
-selected at runtime based on DEPLOYMENT_TARGET.
-
-DEPENDS ON: config (service key), services/cron (CronSchedule)
-USED BY: routers/v1.py, routers/scraper.py
+The core storage/scheduling implementation is now adapter-driven. Supabase is
+the default runtime; the legacy EventBridge wording only applies when the old
+AWS-backed deployment target is still in use.
 """
 from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.config import get_settings
@@ -34,13 +28,17 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 class ScheduleService:
-    """Manages scout schedules, DynamoDB records, and EventBridge."""
+    """Manages scout schedules through the active storage/scheduler adapters."""
 
     def __init__(self, scout_storage=None, scheduler=None):
         settings = get_settings()
         self.internal_service_key = settings.internal_service_key
-        self.scraper_lambda_arn = settings.scraper_lambda_arn
-        self.eventbridge_role_arn = settings.eventbridge_role_arn
+        # AWS EventBridge/Lambda ARNs are only read by the legacy non-Supabase
+        # scheduler adapter (unreachable while `deployment_target == "supabase"`
+        # is hardcoded). Kept as empty strings so the target_config dict at the
+        # EventBridge call site still has the expected keys.
+        self.scraper_lambda_arn = ""
+        self.eventbridge_role_arn = ""
 
         if scout_storage is None:
             from app.dependencies.providers import get_scout_storage
@@ -63,7 +61,7 @@ class ScheduleService:
         body: dict,
         cron_schedule,
     ) -> dict:
-        """Create a scout: write SCRAPER# record + EventBridge schedule.
+        """Create a scout using the active storage and scheduler adapters.
 
         Args:
             user_id: Owner's user ID (PK).
@@ -86,14 +84,13 @@ class ScheduleService:
                 raise ValueError(f"Invalid or blocked URL: {url}")
 
         # 1. Write SCRAPER# record via storage adapter
-        from datetime import datetime
         item = {
             "scraper_name": scraper_name,
             "scout_type": scout_type,
             "regularity": body.get("regularity", "daily"),
             "time": body.get("time"),
             "monitoring": body.get("monitoring", "EMAIL"),
-            "created_at": datetime.utcnow().isoformat() + "Z",
+            "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "preferred_language": body.get("preferred_language", "en"),
             "cron_expression": cron_schedule.expression,
             "timezone": cron_schedule.timezone,
@@ -108,7 +105,7 @@ class ScheduleService:
                 item["location"] = body.get("location")
             if body.get("topic"):
                 item["topic"] = body.get("topic")
-        elif scout_type == "pulse":
+        elif scout_type == "beat":
             item["location"] = body.get("location")
             if body.get("topic"):
                 item["topic"] = body.get("topic")
@@ -146,7 +143,7 @@ class ScheduleService:
         else:
             await self.scout_storage.create_scout(user_id, convert_floats_to_decimal(item))
 
-        # 2. Create EventBridge schedule via scheduler adapter
+        # 2. Create the schedule via the active scheduler adapter
         rule_name = build_schedule_name(user_id, scraper_name)
         input_template = json.dumps({
             "user_id": user_id,

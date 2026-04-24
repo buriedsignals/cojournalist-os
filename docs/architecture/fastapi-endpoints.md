@@ -30,18 +30,26 @@ def verify_service_key(x_service_key: str) -> None:
 
 ## Auth Endpoints
 
-### SaaS (MuckRock OAuth)
+### Hosted Production (MuckRock OAuth proxy)
 
-**Location:** `backend/app/routers/auth.py` (conditionally mounted when `DEPLOYMENT_TARGET != "supabase"`)
+**Location:** `backend/app/routers/muckrock_proxy.py`
 
 | Method | Path | Auth | Rate Limit | Description |
 |--------|------|------|------------|-------------|
-| GET | `/api/auth/login` | None | — | Redirect to MuckRock OAuth authorize URL |
-| GET | `/api/auth/callback` | None | — | Exchange OAuth code for session; sets httpOnly cookie |
-| GET | `/api/auth/me` | Session cookie | — | Get current authenticated user data |
-| GET | `/api/auth/status` | Session cookie (optional) | — | Get auth status (safe for unauthenticated pages) |
-| POST | `/api/auth/logout` | Session cookie | — | Clear session cookie |
-| POST | `/api/auth/webhook` | HMAC-SHA256 | — | MuckRock webhook (user/org updates); verifies signature + 5-min timestamp |
+| GET | `/api/auth/callback` | None | — | 302 proxy to hosted `auth-muckrock` Edge Function |
+| POST | `/api/auth/webhook` | HMAC-SHA256 | — | Forward MuckRock webhook to hosted `billing-webhook` Edge Function |
+
+The browser-facing login flow in production now starts at the hosted
+`auth-muckrock` Edge Function, not FastAPI.
+
+### Local Dev (MuckRock OAuth broker)
+
+**Location:** `backend/app/routers/local_auth.py` (mounted only when `LOCAL_MUCKROCK_AUTH_BROKER=true`)
+
+| Method | Path | Auth | Rate Limit | Description |
+|--------|------|------|------------|-------------|
+| GET | `/api/auth/login` | None | — | Redirect to MuckRock OAuth authorize URL for localhost dev |
+| GET | `/api/auth/callback` | None | — | Exchange OAuth code, mint hosted Supabase session, hand browser back to localhost |
 
 ### OSS (Supabase Auth)
 
@@ -55,7 +63,9 @@ Login, logout, and signup are handled client-side by the Supabase JS client — 
 
 ### GET /api/auth/login
 
-Redirect the user to MuckRock's OAuth authorize URL. The frontend navigates here to start the login flow.
+Local-dev only. Redirect the user to MuckRock's OAuth authorize URL. The local
+frontend navigates here so localhost code can authenticate against hosted data
+before deployment.
 
 **Response:** `302 Redirect` to MuckRock authorize endpoint.
 
@@ -63,7 +73,9 @@ Redirect the user to MuckRock's OAuth authorize URL. The frontend navigates here
 
 ### GET /api/auth/callback
 
-Exchange the OAuth authorization code for a session. Sets an `httpOnly` session cookie on success.
+Local-dev only. Exchange the OAuth authorization code for a hosted Supabase
+magiclink, resolve it server-side, then redirect the browser to
+`/auth/callback` on localhost with `#access_token=...` and `#refresh_token=...`.
 
 **Query Parameters:**
 
@@ -72,15 +84,14 @@ Exchange the OAuth authorization code for a session. Sets an `httpOnly` session 
 | `code` | Yes | Authorization code from MuckRock |
 | `state` | Yes | CSRF state parameter |
 
-**Response:** `302 Redirect` to frontend dashboard.
+**Response:** `302 Redirect` to localhost `/auth/callback`.
 
 ---
 
 ### GET /api/auth/me
 
-Get the current authenticated user's data.
-
-**Auth:** Session cookie
+Hosted production no longer serves `/api/auth/me`; the frontend now reads user
+state from Supabase and enriches via the `user` Edge Function (`GET /user/me`).
 
 **Response:**
 ```json
@@ -213,6 +224,10 @@ Initialize user preferences and seed demo data for first-time users.
   "demo_scout_created": true
 }
 ```
+
+**Notes:**
+- The seeded onboarding content is placeholder data only. It is read-only, not scheduled, and does not consume credits.
+- The web UI marks placeholder scouts and units with a visible `DEMO` pill so users can distinguish them from live reporting data.
 
 ---
 
@@ -1015,73 +1030,9 @@ All credit costs are defined in `backend/app/utils/credits.py`.
 | Social data extraction | 6 credits |
 | Local Pulse scout (scheduled) | 2 credits/run |
 | Local Data scout (scheduled) | 1 credit/run |
-| Feed export generation | 1 credit/export |
 | Local news search (on-demand) | Free |
 
 Scheduled monitoring multiplies per-run cost by frequency: daily (30x), weekly (4x), monthly (1x).
-
----
-
-## Export Endpoints
-
-**Location:** `backend/app/routers/export.py`
-
-Generate exports from selected information units using AI.
-
-**Auth:** Session cookie
-
-**Credit Cost:** 1 credit per export (validated before generation, deducted after success)
-
-### POST /api/export/generate
-
-Generate a structured export from selected information units. Rate limited: 10 requests/minute.
-
-**Request:**
-```json
-{
-  "units": [
-    {
-      "statement": "City officials announced a $50M climate investment",
-      "source_title": "SF Chronicle",
-      "source_url": "https://sfchronicle.com/article/123"
-    }
-  ],
-  "location_name": "San Francisco, CA, US"
-}
-```
-
-**Response:**
-```json
-{
-  "title": "San Francisco Commits $50M to Climate Action",
-  "headline": "City officials unveiled a major climate investment package targeting emissions reduction.",
-  "sections": [
-    {
-      "heading": "Investment Details",
-      "content": "The $50M package will fund renewable energy projects and building retrofits [sfchronicle.com]."
-    }
-  ],
-  "gaps": [
-    "Timeline for fund disbursement not specified",
-    "No comment from opposition council members"
-  ],
-  "bullet_points": [],
-  "sources": [
-    {
-      "title": "SF Chronicle",
-      "url": "https://sfchronicle.com/article/123"
-    }
-  ]
-}
-```
-
-**Constraints:**
-- Minimum 1, maximum 20 units per request
-- Output uses only provided units (no hallucination)
-- `sections` contain grouped paragraphs with inline `[source.com]` citations
-- `gaps` list what a journalist would still need to verify or report
-- `bullet_points` always returns `[]` (deprecated, kept for API compatibility)
-- Section content uses `**bold**` markdown for key numbers, names, and data points
 
 ---
 
@@ -1130,114 +1081,6 @@ Update user preferences. At least one field must be provided.
 {
   "success": true,
   "preferred_language": "fr"
-}
-```
-
----
-
-## Data Extraction Endpoints
-
-**Location:** `backend/app/routers/data_extractor.py`
-
-Web and social data extraction — validate credits, run sync/async extraction jobs.
-
-| Method | Path | Auth | Rate Limit | Description |
-|--------|------|------|------------|-------------|
-| POST | `/api/extract/validate` | Session cookie | — | Validate credits before extraction (platform-tiered cost) |
-| POST | `/api/data/extract` | Session cookie | — | Sync extraction (Firecrawl/Apify); returns CSV |
-| POST | `/api/extract/start` | Session cookie | — | Start async extraction job |
-| GET | `/api/extract/status/{job_id}` | Session cookie | — | Poll extraction job status |
-
-### POST /api/extract/validate
-
-Validate the user has sufficient credits before starting an extraction. Cost varies by platform.
-
-**Auth:** Session cookie
-
-**Request:**
-```json
-{
-  "platform": "website",
-  "page_count": 5
-}
-```
-
-**Response:**
-```json
-{
-  "valid": true,
-  "cost": 5,
-  "current_credits": 100,
-  "remaining_after": 95
-}
-```
-
----
-
-### POST /api/data/extract
-
-Run a synchronous data extraction. Returns structured data as CSV.
-
-**Auth:** Session cookie
-
-**Request:**
-```json
-{
-  "url": "https://example.com/data",
-  "format": "csv",
-  "platform": "website"
-}
-```
-
-**Response:** CSV content or JSON with extracted data.
-
----
-
-### POST /api/extract/start
-
-Start an asynchronous extraction job. Poll `/api/extract/status/{job_id}` for progress.
-
-**Auth:** Session cookie
-
-**Request:**
-```json
-{
-  "url": "https://example.com/data",
-  "platform": "website"
-}
-```
-
-**Response:**
-```json
-{
-  "job_id": "ext_abc123",
-  "status": "started"
-}
-```
-
----
-
-### GET /api/extract/status/{job_id}
-
-Poll the status of an async extraction job.
-
-**Auth:** Session cookie
-
-**Response (in progress):**
-```json
-{
-  "job_id": "ext_abc123",
-  "status": "processing",
-  "progress": 60
-}
-```
-
-**Response (complete):**
-```json
-{
-  "job_id": "ext_abc123",
-  "status": "complete",
-  "result_url": "/api/extract/download/ext_abc123"
 }
 ```
 
@@ -1647,8 +1490,6 @@ All endpoints return valid JSON responses, never raw HTTP exceptions.
 | `backend/app/routers/civic.py` | Civic Scout endpoints (discover + execute) |
 | `backend/app/routers/scraper.py` | Scheduling endpoints |
 | `backend/app/routers/units.py` | Information units (feed data) |
-| `backend/app/routers/export.py` | Feed export generation + CMS export proxy |
-| `backend/app/routers/data_extractor.py` | Data extraction (sync/async) |
 | `backend/app/routers/user.py` | User preferences (language, timezone, CMS config) |
 | `backend/app/routers/v1.py` | V1 external API (keys, scouts, units) |
 | `backend/app/schemas/scouts.py` | Web scout request/response schemas |

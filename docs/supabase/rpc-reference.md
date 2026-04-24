@@ -35,8 +35,8 @@ On scout error: increments `scouts.consecutive_failures`; flips `is_active=FALSE
 ### `reset_scout_failures(p_scout_id UUID) RETURNS VOID`
 On scout success: resets counter to 0.
 
-### `check_unit_dedup(p_embedding vector(1536), p_scout_id UUID, p_threshold REAL DEFAULT 0.85, p_days INT DEFAULT 90) RETURNS BOOLEAN`
-Returns TRUE if any `execution_records` row under the same scout within `p_days` has cosine ≥ `p_threshold`. Used pre-insert in scout-execute functions.
+### `upsert_canonical_unit(...) RETURNS TABLE(unit_id UUID, created_canonical BOOLEAN, merged_existing BOOLEAN, match_scope TEXT, occurrence_created BOOLEAN)`
+Single authoritative write path for units. Performs same-scout exact checks, then cross-scout exact checks, then semantic matching against canonical `information_units`, and finally inserts either a new canonical row or a new `unit_occurrences` provenance row.
 
 ## API keys (00036)
 
@@ -45,8 +45,8 @@ SECURITY DEFINER. Hashes `p_key` with `sha256`, looks up the matching `api_keys`
 
 ## Search (00016, 00018)
 
-### `semantic_search_units(p_embedding vector(1536), p_user_id UUID, p_project_id UUID DEFAULT NULL, p_limit INT DEFAULT 20) RETURNS TABLE(id UUID, statement TEXT, type TEXT, source_url TEXT, source_title TEXT, occurred_at TIMESTAMPTZ, extracted_at TIMESTAMPTZ, similarity_score REAL)`
-Cosine similarity over `information_units`. **Requires caller to pass `auth.uid()` as `p_user_id`** — otherwise it bypasses ownership.
+### `semantic_search_units(p_embedding vector(1536), p_user_id UUID, p_project_id UUID DEFAULT NULL, p_limit INT DEFAULT 20, p_query_text TEXT DEFAULT NULL, p_rrf_k INT DEFAULT 50) RETURNS TABLE(...)`
+Hybrid keyword + vector search over canonical `information_units`. Project scoping is occurrence-based (`unit_occurrences.project_id`), not origin-row based.
 
 ### `semantic_search_reflections(p_embedding, p_user_id, p_project_id DEFAULT NULL, p_limit DEFAULT 20)`
 Same over `reflections`.
@@ -101,7 +101,7 @@ Wraps `cron.unschedule()`.
 | `topup_team_credits` | service_role only |
 | `reset_expired_credits` | service_role only |
 | `schedule_scout`, `unschedule_scout`, `trigger_scout_run` | service_role only (reads vault) |
-| `increment_scout_failures`, `reset_scout_failures`, `check_unit_dedup` | service_role (called from Edge Functions) |
+| `increment_scout_failures`, `reset_scout_failures`, `upsert_canonical_unit` | service_role (called from Edge Functions) |
 | `semantic_search_units`, `semantic_search_reflections` | authenticated (filter by `p_user_id`) |
 | `merge_entities` | authenticated (internal ownership check) |
 | `claim_civic_queue_item`, `civic_queue_failsafe`, `apify_mark_timeouts` | service_role only |

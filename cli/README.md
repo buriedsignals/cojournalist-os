@@ -101,15 +101,17 @@ an `api_key` (preferred — generated in the app at /api → Agents → API → 
 key) or a legacy `auth_token` JWT.
 
 ```bash
-# Post-cutover (Supabase Edge Functions) — recommended
-cojo config set api_url=https://gfmdziplticfoakhrfpt.supabase.co
+# Hosted coJournalist — recommended
+cojo config set api_url=https://www.cojournalist.ai/functions/v1
+cojo config set api_key=cj_xxxxxxxxxxxxxxxxxx
+
+# Self-hosted Supabase Edge Functions
+cojo config set api_url=https://<project-ref>.supabase.co
 cojo config set api_key=cj_xxxxxxxxxxxxxxxxxx
 cojo config set supabase_anon_key=<SUPABASE_ANON_KEY>
 
-# Or — pre-cutover FastAPI backend (legacy; the CLI strips /functions/v1/ paths)
-cojo config set api_url=https://www.cojournalist.ai/api
-cojo config set auth_token=<JWT>          # paste from browser devtools
-
+# Legacy JWT path
+cojo config set auth_token=<JWT>          # paste from browser devtools if needed
 cojo config show
 ```
 
@@ -118,6 +120,7 @@ cojo config show
 `apiFetch` picks the first credential found, in this order:
 
 1. `api_key` — sent as `Authorization: Bearer cj_…`. When `api_url`
+   points at the hosted broker, that is sufficient. When `api_url`
    contains `supabase.co`, `supabase_anon_key` is also sent as the
    `apikey:` header (Supabase Edge Functions reject bearer tokens
    without it).
@@ -142,7 +145,7 @@ cojo scouts add --name "Council agenda" --type web --url https://example.gov
 cojo scouts run <id>
 
 # Information units
-cojo units list --since 7d --verified
+cojo units list --verified
 cojo units show <id>
 cojo units verify <id> --notes "Cross-checked with minutes" --by "Tom"
 cojo units search --query "zoning variance"
@@ -151,8 +154,10 @@ cojo units search --query "zoning variance"
 cojo ingest url https://example.com/article --project <id>
 echo "raw notes" | cojo ingest text --title "Field notes"
 
-# Export a project as markdown for Claude / LLM context
-cojo export claude --project <id> --limit 50 | pbcopy
+# Search and manage units directly
+cojo units search --query "zoning variance" --mode hybrid --project <id>
+cojo units mark-used <id> --url https://example.com/story
+cojo units delete <id>
 ```
 
 Run `cojo <command> --help` for subcommand-specific usage.

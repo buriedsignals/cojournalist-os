@@ -14,10 +14,7 @@ docs/
 │   └── records-and-deduplication.md       # DynamoDB record types, dedup layers
 ├── features/                              # What each feature does
 │   ├── civic.md                           # Civic Scout: council monitoring, promises (incl. design ref)
-│   ├── export.md                          # CMS export + Markdown download
-│   ├── feed.md                            # Feed panel, export generation from units
-│   ├── pulse.md                           # Location Scout / Beat Scout (type `pulse`)
-│   ├── scrape.md                          # Firecrawl extraction
+│   ├── beat.md                           # Beat Scout (type `beat`)
 │   ├── social.md                          # Social media monitoring (Apify)
 │   └── web-scouts.md                      # Website change detection
 ├── supabase/                              # Authoritative Supabase system docs (read these)
@@ -63,13 +60,13 @@ docs/
 
 ### Scout System
 - **Page Scout** (type `web`): `features/web-scouts.md` - Firecrawl changeTracking, per-scout baselines
-- **Location Scout / Beat Scout** (type `pulse`): `features/pulse.md` - Multi-language search, AI filtering
+- **Beat Scout** (type `beat`): `features/beat.md` - Multi-language search, AI filtering
 - **Social Scout** (type `social`): `features/social.md` - Social media monitoring, Apify scraping
 - **Civic Scout** (type `civic`): `features/civic.md` - Council monitoring, promise extraction, design reference
 
-### Feed & Export
-- **Feed & Export**: `features/feed.md` - Feed panel and export generation from units
-- **Export (CMS)**: `features/export.md` - CMS API export + Markdown download
+### Units & Ingest
+- **Units / Entities**: `supabase/units-entities.md` - Canonical information units, search, verification, and lifecycle
+- **Ingest / Projects**: `supabase/projects-ingest.md` - Manual ingest, raw captures, ingests, and project scope
 
 ### Architecture
 - **API Endpoints**: `architecture/fastapi-endpoints.md` - All REST endpoints
@@ -104,3 +101,16 @@ When making code changes:
 5. **Edge Function change**: Update `oss/edge-functions.md`
 6. **Billing change**: Update `muckrock/plans-and-entitlements.md`
 7. **New integration**: Document within relevant feature doc in `features/`
+8. **Auth flow / local dev auth change**: Update all of:
+   - `docs/architecture/developer-guide.md`
+   - `docs/architecture/fastapi-endpoints.md`
+   - root `AGENTS.md`
+   - root `CLAUDE.md`
+   - `backend/CLAUDE.md`
+   - `frontend/CLAUDE.md`
+
+For the private repo specifically, keep these auth distinctions explicit:
+
+- production hosted auth = MuckRock callback/webhook proxied to Supabase Edge Functions
+- local daily SaaS testing = localhost frontend + local FastAPI broker + hosted Supabase data
+- local demo testing = local Supabase Auth + dummy/demo data only

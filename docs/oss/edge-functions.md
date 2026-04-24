@@ -51,7 +51,7 @@ correct FastAPI execute endpoint based on scout type.
 
 ```
 scout.type = 'web'    → POST /api/scouts/execute
-scout.type = 'pulse'  → POST /api/pulse/execute
+scout.type = 'beat'   → POST /api/pulse/execute   # historical FastAPI route name
 scout.type = 'social' → POST /api/social/execute
 scout.type = 'civic'  → POST /api/civic/execute
 ```

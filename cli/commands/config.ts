@@ -23,7 +23,7 @@ function usage(): void {
       "  show                 Show the full config (secrets redacted)",
       "",
       "Keys:",
-      "  api_url              Base URL for the cojo API (FastAPI or Supabase EF)",
+      "  api_url              Base URL for the cojo API (hosted broker or direct Supabase EF)",
       "  auth_token           Bearer JWT (legacy SaaS / cookieless session)",
       "  api_key              cj_… API key — preferred over auth_token when set",
       "  supabase_anon_key    Supabase anon key — required as `apikey:` header when",

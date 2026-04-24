@@ -16,7 +16,8 @@ import {
 	type WorkspaceScout,
 	type WorkspaceCreateScoutInput
 } from '$lib/api-client';
-import { DEMO_SCOUTS, demoDismissed, isDemoId } from '$lib/demo/seed';
+import { DEMO_SCOUTS, demoDismissed, isDemoScout } from '$lib/demo/seed';
+import { IS_LOCAL_DEMO_MODE } from '$lib/demo/state';
 
 export interface ScoutsState {
 	scouts: WorkspaceScout[];
@@ -59,6 +60,15 @@ export function createScoutsStore(api: ScoutsApi = defaultApi as unknown as Scou
 		 * undefined). Clears error; sets loading true during the fetch.
 		 */
 		async load(projectId?: string | null): Promise<void> {
+			if (IS_LOCAL_DEMO_MODE) {
+				update((s) => ({
+					...s,
+					loading: false,
+					error: null,
+					scouts: demoDismissed() ? [] : [...DEMO_SCOUTS]
+				}));
+				return;
+			}
 			update((s) => ({ ...s, loading: true, error: null }));
 			try {
 				const scouts = await api.listScouts(projectId ?? undefined);
@@ -191,7 +201,7 @@ export function createScoutsStore(api: ScoutsApi = defaultApi as unknown as Scou
 		clearDemo(): void {
 			update((s) => ({
 				...s,
-				scouts: s.scouts.filter((row) => !isDemoId(row.id))
+				scouts: s.scouts.filter((row) => !isDemoScout(row))
 			}));
 		},
 

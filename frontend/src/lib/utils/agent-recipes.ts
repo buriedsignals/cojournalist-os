@@ -65,7 +65,7 @@ export interface Recipe {
 export const MCP_URL = 'https://www.cojournalist.ai/mcp';
 export const CLI_RELEASES_URL = 'https://github.com/buriedsignals/cojournalist-os/releases/latest/download';
 export const CLI_README_URL = 'https://github.com/buriedsignals/cojournalist-os/blob/main/cli/README.md';
-export const SKILL_URL = 'https://www.cojournalist.ai/skill.md';
+export const SKILL_URL = 'https://www.cojournalist.ai/skills/cojournalist.md';
 
 function fill(tpl: string): string {
 	return tpl.replace(/\{\{MCP_URL\}\}/g, MCP_URL);
@@ -78,8 +78,8 @@ function fill(tpl: string): string {
 const CLI_INSTALL_DEFAULT = `curl -fsSL ${CLI_RELEASES_URL}/cojo-darwin-arm64 | sudo tee /usr/local/bin/cojo > /dev/null && sudo chmod +x /usr/local/bin/cojo`;
 
 const CLI_CONFIG_COMMANDS = [
-	'cojo config set api_url=https://www.cojournalist.ai/api',
-	'cojo config set auth_token=<paste cj_... key from the API panel>',
+	'cojo config set api_url=https://www.cojournalist.ai/functions/v1',
+	'cojo config set api_key=<paste cj_... key from the API panel>',
 	'cojo --version && cojo scouts list'
 ];
 
@@ -345,7 +345,7 @@ const CLI_INSTALL_LINE = `curl -fsSL ${CLI_RELEASES_URL}/cojo-darwin-arm64 | sud
  *
  *   1. Fetches skill.md so it understands the product
  *   2. Installs the cojo CLI (or configures MCP)
- *   3. Prompts the user for the JWT and calls the right config command
+ *   3. Prompts the user for the API key and calls the right config command
  *   4. Verifies the connection
  *   5. Reports back what it can do and where it saved skill.md
  *
@@ -373,8 +373,8 @@ export function getSetupPrompt(slug: AgentSlug, path: InstallPath = 'cli'): stri
 		`2. Install the cojo CLI by running: ${CLI_INSTALL_LINE}`,
 		`   (On Intel Mac / Linux, swap the asset suffix to -darwin-x86_64, -linux-x86_64, or -linux-arm64.)`,
 		`3. Tell me to generate an API key at https://www.cojournalist.ai → Agents → API → Create key (it's shown once). Do NOT ask me to paste the key into this chat — credentials in a transcript leak into logs and screenshots. Instead, have me run these two commands in my own terminal so the key never enters the conversation:`,
-		`     cojo config set api_url=https://www.cojournalist.ai/api`,
-		`     cojo config set auth_token=cj_...   # I replace cj_... with the real key locally`,
+		`     cojo config set api_url=https://www.cojournalist.ai/functions/v1`,
+		`     cojo config set api_key=cj_...   # I replace cj_... with the real key locally`,
 		`4. After I confirm I've done that, verify by running: cojo --version && cojo scouts list — if it returns my scouts, we're connected. The CLI reads the key from ~/.cojournalist/config.json, so you never see it.`,
 		`5. From now on, use the cojo CLI to create scouts, list findings, and verify units on my behalf. Don't ask me to open the web UI when you can do it via the CLI.`,
 		`6. Summarise what coJournalist lets you do for me and suggest one concrete thing you'd use it for based on my current work.`

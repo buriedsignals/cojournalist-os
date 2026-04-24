@@ -42,33 +42,64 @@ CRUD + scheduling management for scouts.
 ### `execute-scout` — `/execute-scout`
 Thin dispatcher. Called by pg_cron and `trigger_scout_run`. Loads scout, routes to `scout-web-execute` / `scout-beat-execute` / `social-kickoff` / `civic-execute` based on `scout.type`. Service-role Bearer auth.
 
-### `scout-web-execute` — Page Scout runner
+### `scout-web-execute` — Page Scout runner (+ Phase B subpage-follow)
 Service-role auth. Decrements credits (1, `website_extraction`), Firecrawl
 scrape branched on `scout.provider` (firecrawl changeTracking vs
 firecrawl_plain + SHA-256 hash dedup, baseline verified by double-probe),
 optional per-article Gemini extraction via `_shared/atomic_extract.ts` when
 `criteria` is set — 5W1H prompt, forced `preferred_language`, max 8 units.
 Within-run paraphrase dedup via `_shared/dedup.ts` (cosine threshold 0.75)
-before the cross-run `check_unit_dedup` RPC. Inserts `information_units`.
+before the shared `upsertCanonicalUnit(...)` helper. The helper calls the
+atomic `upsert_canonical_unit` RPC, which handles same-scout exact checks,
+cross-scout exact checks, then semantic canonical matching.
 Sends `sendPageScoutAlert` on new non-duplicate units. On error:
 `incrementAndMaybeNotify` + `refund_credits` RPC.
 
+**Phase B — subpage-follow (listing pages only).** When extraction returns
+`isListingPage: true`, the pipeline enters Phase B: extracts links from the
+index's `rawHtml` via `extractLinksFromHtml`, filters via
+`filterSubpageUrls()` (`_shared/subpage-filter.ts` — path-prefix + traversal
+block + domain validator), deduplicates against `information_units.source_url`
+for this scout, caps at 10 fresh URLs, scrapes each with a stagger delay, and
+runs `extractAtomicUnits()` on each article body. Single-hop invariant:
+subpages that themselves return `isListingPage: true` are skipped, not
+recursed. No new DB column; seen-URL set derived from existing units.
+
+**Step 6b algorithm:**
+```
+1. links      ← extractLinksFromHtml(rawHtml, scout.url)    # host-lock
+2. candidates ← filterSubpageUrls(links, scout.url)          # path-prefix + traversal + domain
+3. seen       ← SELECT DISTINCT source_url FROM information_units WHERE scout_id = $1
+4. fresh      ← (candidates − seen)[0 : 10]                  # CAP = 10
+5. for url in fresh (sequential, staggered):
+     md ← firecrawlScrape(url)
+     result ← extractAtomicUnits(md, { sourceUrl: url })
+     if result.isListingPage: skip          # single-hop, no recursion
+     else: insert units
+```
+
+**Cost:** worst case 1 + 10 = 11 Firecrawl scrapes per run (~15–25s). Steady
+state after initial seed: 0–2 new subpages per run. Files:
+`supabase/functions/scout-web-execute/index.ts` (wiring),
+`supabase/functions/_shared/subpage-filter.ts` (tested pure helper),
+`scripts/benchmark-subpage-follow.ts` (end-to-end benchmark).
+
 ### `scout-beat-execute` — Beat Scout runner
-`X-Service-Key` or service-role auth. Decrements credits (7, `pulse`).
+`X-Service-Key` or service-role auth. Decrements credits (7, `beat`).
 Branches on `priority_sources`:
 - **Manual path** (non-empty): parallel scrape of up to 20 URLs
   (concurrency 5), per-source Gemini extraction (1–3 units per article,
-  forced target language), within-run paraphrase dedup + cross-run
-  `check_unit_dedup`, `sendBeatAlert` with plain bulleted summary.
+  forced target language), within-run paraphrase dedup +
+  `upsertCanonicalUnit(...)`, `sendBeatAlert` with plain bulleted summary.
 - **Discovery path** (empty): full 8-stage pipeline via
-  `_shared/pulse_pipeline.ts` — LLM query gen (multilingual, category-
+  `_shared/beat_pipeline.ts` — LLM query gen (multilingual, category-
   aware) → Firecrawl search fan-out → date filter + undated cap →
   tourism pre-filter (niche+location+news only) → embedding dedup with
   rarity scoring + `+8` local-language bonus → cluster filter (niche only)
   → AI relevance filter → per-article extraction. Optional parallel
   `government` category fan-out when criteria+location are both set;
   two-section email via `sendBeatAlert({articles, govArticles, govSummary})`
-  with LLM-composed `generatePulseSummary` per section.
+  with LLM-composed `generateBeatSummary` per section.
 
 On empty pipeline yield OR error: refunds the 7 credits via `refund_credits`
 (matches legacy no-charge-on-no-op semantics).
@@ -101,14 +132,18 @@ Service-role auth. Cron-driven every 2 minutes. Claims one row via
 with a language-forced system prompt (matches the scout's
 `preferred_language`) and a 5W1H civic system instruction. Criteria is
 passed as filter data to the user prompt (not instructions). Inserts
-`promises` + `raw_captures`, then fires `sendCivicAlert` when new promises
-land.
+`raw_captures`, canonical `information_units`, `unit_occurrences`, and
+`promises`, then fires `sendCivicAlert` only when a new canonical promise
+unit is created.
 
 ### `civic-test` — Dev tooling
 Runs a single civic extraction without scheduling for iterating on prompts/schemas.
 
 ### `apify-callback` — Apify webhook receiver
 `x-internal-key` header auth. Receives `ACTOR.RUN.SUCCEEDED`/`FAILED`/`TIMED_OUT`; fetches posts from dataset; diffs against `post_snapshots`; inserts units for new posts.
+New social units route through the same canonical `upsertCanonicalUnit(...)`
+helper as web/beat/civic/manual-ingest. Exact matches can merge across scout
+types; semantic matching does not cross the `social` / `non-social` boundary.
 
 ### `apify-reconcile` — Lost-webhook catcher
 Service-role auth. Cron-driven every 10 minutes. Polls Apify for `running` rows > 10 minutes old; processes terminal ones like `apify-callback` would.
@@ -153,7 +188,8 @@ Service-role auth. Exposes `schedule_cron_job` / `unschedule_cron_job` RPCs via 
 ## Units, entities, projects
 
 ### `units` — `/units/*`
-CRUD over `information_units`. User JWT + RLS.
+CRUD over canonical `information_units`. User JWT + RLS. Project and scout
+filters resolve through `unit_occurrences`.
 
 ### `units-search` — `/units-search`
 Text query → Gemini embedding → `semantic_search_units` RPC.
@@ -165,15 +201,15 @@ CRUD over `entities` + `POST /entities/:id/merge` (wraps `merge_entities` RPC).
 CRUD + `/reflections/search` (wraps `semantic_search_reflections`).
 
 ### `ingest` — `/ingest`
-User JWT. Accepts `{kind, source_url?, content?, project_id}`. Queues an `ingests` row, fetches content (firecrawl for URL, direct for text, pdf parse for PDF), inserts `raw_captures`, extracts via Gemini, inserts `information_units` with `source_type='manual_ingest'`.
+User JWT. Accepts `{kind, source_url?, content?, project_id}`. Queues an
+`ingests` row, fetches content (firecrawl for URL, direct for text, pdf parse
+for PDF), inserts `raw_captures`, extracts via Gemini, and routes every unit
+through `upsertCanonicalUnit(...)` with `source_type='manual_ingest'`.
 
 ### `projects` — `/projects/*`
 CRUD over `projects` + `project_members`. Default "Inbox" project is protected from deletion.
 
-## Export & search
-
-### `export-claude` — `/export-claude`
-API-key auth (not JWT — headless use). Returns markdown of verified units in a project, for pulling into Claude Code as context.
+## Search
 
 ## MCP / API
 
@@ -207,6 +243,7 @@ Legacy placeholder; the default `/` routing target. Returns a health-check respo
 | `credits.ts` | `CREDIT_COSTS`, `decrementOrThrow`, `InsufficientCreditsError`, `insufficientCreditsResponse`, `SOCIAL_MONITORING_KEYS`, `EXTRACTION_KEYS`, `getSocialMonitoringCost`, `getExtractionCost`, `calculateMonitoringCost` |
 | `muckrock.ts` | `MuckrockClient` with `fetchUserData`, `fetchOrgData` |
 | `entitlements.ts` | `resolveTier`, `applyAdminOverride`, `applyUserEvent`, `applyIndividualOrgChange`, `applyTeamOrgTopup`, `cancelTeamOrg`, `upsertUserCredits`, `upsertUserPreferences`, `seedTeamOrg` |
+| `subpage-filter.ts` | `filterSubpageUrls(links, indexUrl)` — pure Phase B filter: path-prefix under index, traversal block, domain validator. Tested in `_shared/subpage_filter_test.ts`. |
 
 ## Auth models
 
@@ -217,7 +254,7 @@ Legacy placeholder; the default `/` routing target. Returns a health-check respo
 | X-Service-Key | `X-Service-Key: <INTERNAL_SERVICE_KEY>` | Exact-match compare | Function-to-function (legacy but still in use) |
 | MuckRock HMAC | signed body | SHA-256(timestamp+type+uuids, MUCKROCK_CLIENT_SECRET) | `billing-webhook` only |
 | Apify internal key | `x-internal-key: <INTERNAL_SERVICE_KEY>` | Exact-match compare | `apify-callback` only |
-| API key | `Authorization: Bearer cojo_<key>` | DB lookup | `export-claude`, MCP tool endpoints |
+| API key | `Authorization: Bearer cojo_<key>` | DB lookup | MCP tool endpoints |
 | None (public) | — | — | `openapi-spec`, `/.well-known/*`, `main` |
 
 ## Deployment
@@ -231,7 +268,7 @@ supabase functions deploy --no-verify-jwt \
   social-kickoff apify-callback apify-reconcile scout-health-monitor \
   notifications-benchmark civic-execute civic-extract-worker civic-test \
   units units-search entities reflections \
-  ingest projects export-claude \
+  ingest projects \
   mcp-server openapi-spec manage-schedule scout-templates main
 ```
 

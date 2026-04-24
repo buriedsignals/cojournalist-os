@@ -16,7 +16,6 @@ import logging
 import os
 import sys
 import time
-from typing import Optional
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -352,7 +351,7 @@ async def run_benchmark():
                             "elapsed": r["elapsed"], "lang": lang, "queries": n_queries,
                             "discovery": n_disc, "sample": sample,
                         }
-                    except (json.JSONDecodeError, Exception) as e:
+                    except (json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
                         print(f"    {test['label']:30s} {r['elapsed']:5.1f}s  JSON PARSE ERROR: {e}")
                         print(f"      Raw: {(r.get('content') or '')[:120]}")
                         results[model_name][f"querygen_{test['label']}"] = {"elapsed": r["elapsed"], "json_error": str(e)}
@@ -376,7 +375,7 @@ async def run_benchmark():
                     indices = parsed.get("indices", [])
                     print(f"  {model_name:30s} {r['elapsed']:5.1f}s  selected={indices}")
                     results[model_name]["filter"] = {"elapsed": r["elapsed"], "indices": indices}
-                except (json.JSONDecodeError, Exception) as e:
+                except (json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
                     print(f"  {model_name:30s} {r['elapsed']:5.1f}s  JSON PARSE ERROR")
                     print(f"    Raw: {(r.get('content') or '')[:150]}")
                     results[model_name]["filter"] = {"elapsed": r["elapsed"], "json_error": str(e)}

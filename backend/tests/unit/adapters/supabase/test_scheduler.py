@@ -37,7 +37,7 @@ class TestCreateSchedule:
         target_config = {
             "scout_id": "abc-123",
             "user_id": "user-1",
-            "scout_type": "pulse",
+            "scout_type": "beat",
         }
 
         await scheduler.create_schedule(

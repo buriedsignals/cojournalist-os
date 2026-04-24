@@ -403,6 +403,12 @@ verify_jwt = false
 [functions.scouts]
 verify_jwt = false
 
+[functions.api-keys]
+verify_jwt = false
+
+[functions.admin-report]
+verify_jwt = false
+
 [functions.entities]
 verify_jwt = false
 
@@ -418,7 +424,10 @@ verify_jwt = false
 [functions.ingest]
 verify_jwt = false
 
-[functions.export-claude]
+[functions.beat-search]
+verify_jwt = false
+
+[functions.civic]
 verify_jwt = false
 
 [functions.openapi-spec]
@@ -452,6 +461,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.civic-test]
+verify_jwt = false
+
+[functions.social-test]
 verify_jwt = false
 
 # mcp-server does its own auth inside the handler — OAuth endpoints are

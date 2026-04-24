@@ -1,0 +1,81 @@
+# Render Blueprint for coJournalist (Supabase-first OSS edition)
+# Deploy: Click "New Blueprint Instance" in Render, point to the OSS repo.
+# This blueprint is optional convenience hosting. Supabase Edge Functions are
+# the default backend surface; the FastAPI service below is only for
+# newsrooms that want the legacy Python API add-on.
+
+services:
+  # --- Optional backend (FastAPI add-on) ---
+  - type: web
+    name: cojournalist-api-optional
+    runtime: python
+    repo: https://github.com/buriedsignals/cojournalist-os
+    branch: master
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Deployment target — must be "supabase" for OSS
+      - key: DEPLOYMENT_TARGET
+        value: supabase
+
+      # Supabase connection
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+
+      # LLM — Gemini models use direct API, others route to OpenRouter
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-2.5-flash-lite
+      - key: OPENROUTER_API_KEY
+        sync: false  # optional — only needed for non-Gemini models
+
+      # Web scraping
+      - key: FIRECRAWL_API_KEY
+        sync: false
+
+      # Email notifications
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: scouts@newsroom.org
+
+      # Social media scraping
+      - key: APIFY_API_TOKEN
+        sync: false
+
+      # Internal service key for optional FastAPI integration
+      - key: INTERNAL_SERVICE_KEY
+        generateValue: true
+
+  # --- Frontend (SvelteKit static SPA) ---
+  - type: web
+    name: cojournalist-frontend
+    runtime: static
+    repo: https://github.com/buriedsignals/cojournalist-os
+    branch: master
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: build
+    autoDeploy: true
+    envVars:
+      # Build-time: Supabase auth + direct Edge Function calls
+      - key: PUBLIC_DEPLOYMENT_TARGET
+        value: supabase
+      - key: PUBLIC_SUPABASE_URL
+        sync: false
+      - key: PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      # Geocoding
+      - key: PUBLIC_MAPTILER_API_KEY
+        sync: false

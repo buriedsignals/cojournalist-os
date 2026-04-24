@@ -13,7 +13,7 @@
  *
  * Dispatch table:
  *   web    -> POST /functions/v1/scout-web-execute
- *   pulse  -> POST /functions/v1/scout-beat-execute
+ *   beat  -> POST /functions/v1/scout-beat-execute
  *   civic  -> POST /functions/v1/civic-execute
  *   social -> POST /functions/v1/social-kickoff
  */
@@ -39,7 +39,7 @@ const DispatchSchema = z.object({
 
 const WORKERS: Record<string, string> = {
   web: "scout-web-execute",
-  pulse: "scout-beat-execute",
+  beat: "scout-beat-execute",
   civic: "civic-execute",
   social: "social-kickoff",
 };
@@ -108,7 +108,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     if (!supabaseUrl) throw new Error("SUPABASE_URL not configured");
-    if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
+    if (!serviceKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
+    }
 
     const workerUrl = `${supabaseUrl}/functions/v1/${worker}`;
     const forwardBody = JSON.stringify({
@@ -151,6 +153,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       if (workerRes && !workerRes.ok) {
         const detail = await safeText(workerRes);
+        const isInsufficientCredits = workerRes.status === 402;
         logEvent({
           level: "error",
           fn: "execute-scout",
@@ -159,9 +162,30 @@ Deno.serve(async (req: Request): Promise<Response> => {
           status: workerRes.status,
           msg: detail.slice(0, 500),
         });
-        await svc.rpc("increment_scout_failures", { p_scout_id: scout_id });
+        await markRunTerminal(
+          svc,
+          run_id,
+          isInsufficientCredits ? "skipped" : "error",
+          `worker ${worker} responded ${workerRes.status}: ${
+            detail.slice(0, 2000)
+          }`,
+        );
+        if (!isInsufficientCredits) {
+          await svc.rpc("increment_scout_failures", { p_scout_id: scout_id });
+        }
+        if (isInsufficientCredits) {
+          return new Response(detail, {
+            status: 402,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Content-Type": "application/json",
+            },
+          });
+        }
         return jsonError(
-          `worker ${worker} responded ${workerRes.status}: ${detail.slice(0, 500)}`,
+          `worker ${worker} responded ${workerRes.status}: ${
+            detail.slice(0, 500)
+          }`,
           502,
           "worker_failed",
         );
@@ -182,8 +206,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
           scout_id,
           msg,
         });
+        await markRunTerminal(
+          svc,
+          run_id,
+          "error",
+          `dispatch to ${worker} failed: ${msg.slice(0, 2000)}`,
+        );
         await svc.rpc("increment_scout_failures", { p_scout_id: scout_id });
-        return jsonError(`dispatch to ${worker} failed: ${msg}`, 502, "dispatch_error");
+        return jsonError(
+          `dispatch to ${worker} failed: ${msg}`,
+          502,
+          "dispatch_error",
+        );
       }
       logEvent({
         level: "info",
@@ -196,6 +230,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     return jsonOk({ dispatched: scout.type, scout_id, run_id }, 202);
   } catch (e) {
+    await markRunTerminal(
+      svc,
+      run_id,
+      "error",
+      (e instanceof Error ? e.message : String(e)).slice(0, 2000),
+    );
     logEvent({
       level: "error",
       fn: "execute-scout",
@@ -212,5 +252,31 @@ async function safeText(res: Response): Promise<string> {
     return await res.text();
   } catch {
     return "";
+  }
+}
+
+async function markRunTerminal(
+  svc: ReturnType<typeof getServiceClient>,
+  runId: string | undefined,
+  status: "error" | "skipped",
+  errorMessage: string,
+): Promise<void> {
+  if (!runId) return;
+  const { error } = await svc
+    .from("scout_runs")
+    .update({
+      status,
+      error_message: errorMessage.slice(0, 2000),
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", runId);
+  if (error) {
+    logEvent({
+      level: "error",
+      fn: "execute-scout",
+      event: "mark_run_terminal_failed",
+      run_id: runId,
+      msg: error.message,
+    });
   }
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { MapPin, Tag, Radio, Home, FileText } from 'lucide-svelte';
 	import FilterBar from '$lib/components/ui/FilterBar.svelte';
 	import FilterSelect from '$lib/components/ui/FilterSelect.svelte';
@@ -23,17 +23,24 @@
 	import type { Scout, Unit } from '$lib/types/workspace';
 	import PreferencesModal from '$lib/components/modals/PreferencesModal.svelte';
 	import AgentsModal from '$lib/components/modals/AgentsModal.svelte';
-	import UpgradeModal from '$lib/components/modals/UpgradeModal.svelte';
 	import { Bot } from 'lucide-svelte';
 	import { getScoutCost } from '$lib/utils/scouts';
-	import { isDemoId, demoDismissed, markDemoDismissed } from '$lib/demo/seed';
+	import {
+		isDemoId,
+		isDemoUnit,
+		isDemoScout,
+		demoDismissed,
+		markDemoDismissed,
+		isDemoWorkspace,
+		shouldSeedDemoWorkspace,
+		shouldRetireDemoWorkspace
+	} from '$lib/demo/seed';
+	import { IS_LOCAL_DEMO_MODE } from '$lib/demo/state';
 
 	let newScoutOpen = false;
 	let userMenuOpen = false;
 	let preferencesOpen = false;
 	let agentsOpen = false;
-	let showUpgradeModal = false;
-	let upgradeRequired = 0;
 
 	type ActivePanel = 'workspace' | 'pulse' | 'web' | 'social' | 'civic';
 	let activePanel: ActivePanel = 'workspace';
@@ -44,6 +51,67 @@
 	// scout appears or a watchdog expires.
 	let pendingNewScoutType: ActivePanel | null = null;
 	let pendingWatchdog: ReturnType<typeof setTimeout> | null = null;
+	let retiringDemoWorkspace = false;
+
+	async function simulateDemoMutation() {
+		await tick();
+		await new Promise((resolve) => setTimeout(resolve, 180));
+	}
+
+	function patchActiveUnit(id: string, patch: Partial<Unit>) {
+		if (activeUnit?.id === id) {
+			activeUnit = { ...activeUnit, ...patch };
+		}
+	}
+
+	function closeActiveUnitIfMatch(id: string) {
+		if (activeUnit?.id === id || selection.unitId === id) {
+			drawerStore.closeAndClear();
+			activeUnit = null;
+		}
+	}
+
+	function verifyDemoUnit(id: string) {
+		const verification = {
+			verified: true,
+			verified_at: new Date().toISOString(),
+			verified_by: 'demo',
+			notes: null
+		};
+		unitsStore.patchUnit(id, { verification });
+		patchActiveUnit(id, { verification });
+		drawerStore.closeAndClear();
+		activeUnit = null;
+	}
+
+	function rejectDemoUnit(id: string) {
+		unitsStore.removeUnit(id);
+		closeActiveUnitIfMatch(id);
+	}
+
+	function retireDemoWorkspace() {
+		if (retiringDemoWorkspace || IS_LOCAL_DEMO_MODE) return;
+		if (!shouldRetireDemoWorkspace(scoutsState.scouts)) return;
+
+		retiringDemoWorkspace = true;
+		markDemoDismissed();
+		scoutsStore.clearDemo();
+		unitsStore.clearDemo();
+
+		const viewingDemoScope = selection.scoutId === null || isDemoId(selection.scoutId);
+		if (selection.scoutId && isDemoId(selection.scoutId)) {
+			selectionStore.selectScout(null);
+			selectedScoutName = null;
+		}
+		if (activeUnit && isDemoUnit(activeUnit)) {
+			drawerStore.closeAndClear();
+			activeUnit = null;
+		}
+		if (viewingDemoScope) {
+			void unitsStore.load(null);
+		}
+		retiringDemoWorkspace = false;
+	}
 
 	async function handleScheduled(
 		event: CustomEvent<{ scoutType: 'pulse' | 'web' | 'social' | 'civic' }>,
@@ -114,6 +182,10 @@
 	// Drawer + active unit
 	let activeUnit: Unit | null = null;
 	let drawerActionLoading: 'verify' | 'reject' | null = null;
+	let unitActionLoadingId: string | null = null;
+	let unitDeleteCandidateId: string | null = null;
+	let deletingUnitId: string | null = null;
+	let unitActionError: string | null = null;
 
 	$: scoutsState = $scoutsStore;
 	$: unitsState = $unitsStore;
@@ -174,27 +246,23 @@
 	$: visibleUnits = feedFilter === 'needs_review'
 		? unitsState.units.filter((u) => !u.verification?.verified)
 		: unitsState.units;
+	$: verifyingUnitId = drawerActionLoading === 'verify' ? unitActionLoadingId : null;
 
 	// -------- mount --------
 	let bootstrapped = false;
-	$: demoActive =
-		!demoDismissed() &&
-		scoutsState.scouts.length > 0 &&
-		scoutsState.scouts.every((s) => isDemoId(s.id));
+	$: demoActive = IS_LOCAL_DEMO_MODE || isDemoWorkspace(scoutsState.scouts);
 	onMount(async () => {
 		await Promise.all([scoutsStore.load(), unitsStore.load(null)]);
-		if ($scoutsStore.scouts.length === 0 && !demoDismissed()) {
+		if (!IS_LOCAL_DEMO_MODE && shouldSeedDemoWorkspace($scoutsStore.scouts)) {
 			scoutsStore.seedDemo();
 			unitsStore.seedDemo();
-		} else if ($scoutsStore.scouts.length > 0 && !demoDismissed()) {
-			// Real scouts exist → user has moved past the empty state. Lock the
-			// demo so it can never re-seed, and ensure no stale demo rows linger.
-			markDemoDismissed();
-			scoutsStore.clearDemo();
-			unitsStore.clearDemo();
 		}
 		bootstrapped = true;
 	});
+
+	$: if (bootstrapped) {
+		retireDemoWorkspace();
+	}
 
 	onDestroy(() => {
 		selectionStore.clear();
@@ -204,12 +272,16 @@
 	// -------- handlers --------
 	function handleScoutOpen(e: CustomEvent<{ scout: Scout }>) {
 		const scout = e.detail.scout;
+		unitDeleteCandidateId = null;
+		unitActionError = null;
 		selectionStore.selectScout(scout.id);
 		selectedScoutName = scout.name;
 		void unitsStore.load(scout.id);
 	}
 
 	function handleBackToAll() {
+		unitDeleteCandidateId = null;
+		unitActionError = null;
 		selectionStore.selectScout(null);
 		selectedScoutName = null;
 		// In demo mode, the all-scouts inbox is the 12 seed units — the API
@@ -222,20 +294,10 @@
 	}
 
 	async function handleRunScout(id: string) {
-		if (isDemoId(id)) return;
+		if (IS_LOCAL_DEMO_MODE || isDemoId(id)) return;
 		const scout = scoutsState.scouts.find((s) => s.id === id);
 		if (!scout) return;
 
-		// Pre-check credits client-side. The executor also decrements
-		// authoritatively (scout-web-execute:119, scout-beat-execute:149,
-		// civic-execute:117, social-kickoff:116) — this is UX only.
-		const perRunCost = getScoutCost(scout.type, scout.platform ?? undefined);
-		const currentCredits = $authStore.user?.credits ?? 0;
-		if (currentCredits < perRunCost) {
-			upgradeRequired = perRunCost;
-			showUpgradeModal = true;
-			return;
-		}
 
 		runningScoutId = id;
 		try {
@@ -262,7 +324,7 @@
 	}
 
 	function handleRequestDelete(id: string) {
-		if (isDemoId(id)) return;
+		if (IS_LOCAL_DEMO_MODE || isDemoId(id)) return;
 		deleteCandidateId = id;
 	}
 
@@ -271,7 +333,7 @@
 	}
 
 	async function handleConfirmDelete(id: string) {
-		if (isDemoId(id)) return;
+		if (IS_LOCAL_DEMO_MODE || isDemoId(id)) return;
 		deletingId = id;
 		try {
 			await scoutsStore.remove(id);
@@ -284,14 +346,17 @@
 
 	// -------- filters: changes --------
 	async function handleLocationChange(v: string) {
+		unitDeleteCandidateId = null;
 		selectedLocation = v || null;
 		selectedScoutName = null;
 	}
 	async function handleTopicChange(v: string) {
+		unitDeleteCandidateId = null;
 		selectedTopic = v || null;
 		selectedScoutName = null;
 	}
 	function handleScoutFilterChange(v: string) {
+		unitDeleteCandidateId = null;
 		selectedScoutName = v || null;
 		if (v) {
 			const match = scoutsState.scouts.find((s) => s.name === v);
@@ -303,42 +368,97 @@
 
 	// -------- unit row interactions --------
 	async function handleOpenUnit(e: CustomEvent<{ unit: Unit }>) {
+		unitDeleteCandidateId = null;
+		unitActionError = null;
 		activeUnit = e.detail.unit;
 		selectionStore.selectUnit(e.detail.unit.id);
 		drawerStore.open();
 	}
 
 	async function handleVerify(e: CustomEvent<{ id: string }>) {
+		unitActionError = null;
+		unitActionLoadingId = e.detail.id;
 		drawerActionLoading = 'verify';
 		try {
+			const unit = unitsState.units.find((candidate) => candidate.id === e.detail.id);
+			if (unit && isDemoUnit(unit)) {
+				await simulateDemoMutation();
+				verifyDemoUnit(e.detail.id);
+				return;
+			}
 			const updated = await workspaceApi.promoteUnit(e.detail.id);
 			unitsStore.patchUnit(e.detail.id, updated);
 			drawerStore.closeAndClear();
 			activeUnit = null;
 		} catch (err) {
-			console.error('Verify failed:', err);
+			unitActionError = err instanceof Error ? err.message : 'Failed to verify unit';
 		} finally {
 			drawerActionLoading = null;
+			unitActionLoadingId = null;
 		}
 	}
 
 	async function handleReject(e: CustomEvent<{ id: string }>) {
+		unitActionError = null;
+		unitActionLoadingId = e.detail.id;
 		drawerActionLoading = 'reject';
 		try {
+			const unit = unitsState.units.find((candidate) => candidate.id === e.detail.id);
+			if (unit && isDemoUnit(unit)) {
+				await simulateDemoMutation();
+				rejectDemoUnit(e.detail.id);
+				return;
+			}
 			const updated = await workspaceApi.rejectUnit(e.detail.id);
 			unitsStore.patchUnit(e.detail.id, updated);
 			drawerStore.closeAndClear();
 			activeUnit = null;
 		} catch (err) {
-			console.error('Reject failed:', err);
+			unitActionError = err instanceof Error ? err.message : 'Failed to update unit';
 		} finally {
 			drawerActionLoading = null;
+			unitActionLoadingId = null;
 		}
 	}
 
 	function handleDrawerClose() {
 		drawerStore.closeAndClear();
 		activeUnit = null;
+	}
+
+	function handleRequestUnitDelete(e: CustomEvent<{ id: string }>) {
+		unitDeleteCandidateId = e.detail.id;
+		unitActionError = null;
+	}
+
+	function handleCancelUnitDelete(e?: CustomEvent<{ id: string }>) {
+		if (!e || unitDeleteCandidateId === e.detail.id) {
+			unitDeleteCandidateId = null;
+		}
+	}
+
+	async function handleConfirmUnitDelete(e: CustomEvent<{ id: string }>) {
+		const id = e.detail.id;
+		deletingUnitId = id;
+		unitActionError = null;
+		try {
+			const unit = unitsState.units.find((candidate) => candidate.id === id);
+			if (unit && isDemoUnit(unit)) {
+				await simulateDemoMutation();
+				unitsStore.removeUnit(id);
+				closeActiveUnitIfMatch(id);
+				unitDeleteCandidateId = null;
+				return;
+			}
+			await workspaceApi.deleteUnit(id);
+			unitsStore.removeUnit(id);
+			closeActiveUnitIfMatch(id);
+			unitDeleteCandidateId = null;
+		} catch (err) {
+			unitActionError = err instanceof Error ? err.message : 'Failed to delete unit';
+		} finally {
+			deletingUnitId = null;
+		}
 	}
 
 	// Load more at scroll bottom
@@ -348,6 +468,8 @@
 
 	// Search (debounced via FilterBar)
 	async function handleSearch(query: string) {
+		unitDeleteCandidateId = null;
+		unitActionError = null;
 		await unitsStore.search(query, selection.scoutId);
 	}
 </script>
@@ -362,6 +484,10 @@
 				<span class="logo-dot"></span>
 				<span class="logo-text">coJournalist</span>
 			</div>
+			{#if IS_LOCAL_DEMO_MODE}
+				<div class="demo-mode-pill" role="note">Local demo mode</div>
+			{/if}
+			{#if !IS_LOCAL_DEMO_MODE}
 			<div class="new-scout-wrap">
 				<button
 					class="new-scout-btn"
@@ -388,6 +514,8 @@
 					on:civicScout={handleNewScout}
 				/>
 			</div>
+			{/if}
+			{#if !IS_LOCAL_DEMO_MODE}
 			<button
 				class="agents-btn"
 				on:click|stopPropagation={() => (agentsOpen = true)}
@@ -396,6 +524,7 @@
 				<Bot size={14} />
 				<span>Agents</span>
 			</button>
+			{/if}
 			{#if activePanel !== 'workspace'}
 				<button class="back-to-workspace" on:click={closePanel} type="button">
 					<Home size={14} />
@@ -404,12 +533,6 @@
 			{/if}
 		</div>
 		<div class="topnav-right">
-			{#if $authStore.authenticated || $authStore.user}
-				<span class="credits-pill" title="Credits remaining this month">
-					<span class="credits-value">{$authStore.user?.credits ?? 0}</span>
-					<span class="credits-label">credits</span>
-				</span>
-			{/if}
 			<div class="user-menu-wrap">
 				<button
 					class="user-avatar"
@@ -425,11 +548,12 @@
 						{#if $authStore.user?.email}
 							<p class="user-menu-email">{$authStore.user.email}</p>
 						{/if}
+						{#if !IS_LOCAL_DEMO_MODE}
 						<button class="user-menu-item" role="menuitem" on:click={() => { userMenuOpen = false; preferencesOpen = true; }}>
 							Preferences
 						</button>
+						{/if}
 						<a href="/docs" class="user-menu-item" role="menuitem" on:click={() => (userMenuOpen = false)}>Docs</a>
-						<a href="/" class="user-menu-item" role="menuitem" on:click={() => (userMenuOpen = false)}>Pricing</a>
 						<a href="/terms" class="user-menu-item" role="menuitem" on:click={() => (userMenuOpen = false)}>Terms</a>
 						<button class="user-menu-item user-menu-danger" role="menuitem" on:click={handleSignOut}>
 							Sign out
@@ -442,11 +566,7 @@
 
 	<!-- Filter bar -->
 	{#if activePanel === 'workspace' && bootstrapped && scoutsState.scouts.length > 0}
-	<FilterBar
-		searchEnabled
-		searchPlaceholder={focusedScout ? `Search in ${focusedScout.name}` : 'Search units'}
-		onSearch={handleSearch}
-	>
+	<FilterBar>
 		<FilterSelect
 			icon={MapPin}
 			options={locationOptions}
@@ -476,7 +596,7 @@
 			<!-- Scout creation panel (inline, reactive) -->
 			<div class="panel-content">
 				{#if activePanel === 'pulse'}
-					<BeatScoutView on:scheduled={handleScheduled} />
+					<BeatScoutView initialMode="beat" on:scheduled={handleScheduled} />
 				{:else if activePanel === 'web'}
 					<PageScoutView on:scheduled={handleScheduled} />
 				{:else if activePanel === 'social'}
@@ -494,7 +614,7 @@
 			<!-- FOCUS MODE -->
 			<ScoutFocus
 				scout={focusedScout}
-				demo={isDemoId(focusedScout.id)}
+				demo={demoActive || isDemoScout(focusedScout)}
 				running={runningScoutId === focusedScout.id}
 				confirmingDelete={deleteCandidateId === focusedScout.id}
 				deleting={deletingId === focusedScout.id}
@@ -540,8 +660,12 @@
 					<div class="demo-banner" role="note">
 						<span class="demo-banner-label">Example data</span>
 						<span class="demo-banner-text">
+							{#if IS_LOCAL_DEMO_MODE}
+								Local Supabase demo mode keeps example scouts and inbox actions local. No hosted auth, scheduling, or billing.
+							{:else}
 							These 4 scouts are a preview — not running, not billed. Click them to explore.
 							They'll vanish the moment you create your first real scout.
+							{/if}
 						</span>
 					</div>
 				{/if}
@@ -561,7 +685,7 @@
 						{#each dimensionFiltered as scout (scout.id)}
 							<ScoutCard
 								{scout}
-								demo={isDemoId(scout.id)}
+								demo={demoActive || isDemoScout(scout)}
 								running={runningScoutId === scout.id}
 								confirmingDelete={deleteCandidateId === scout.id}
 								deleting={deletingId === scout.id}
@@ -579,6 +703,11 @@
 
 		{#if scoutsState.scouts.length > 0}
 			<!-- FEED / INBOX -->
+			{#if unitActionError}
+				<div class="unit-action-error" role="alert">
+					{unitActionError}
+				</div>
+			{/if}
 			<Inbox
 				units={visibleUnits}
 				loading={unitsState.loading}
@@ -587,11 +716,21 @@
 				scopedToScout={focusedScout}
 				totalCount={unitsState.units.length}
 				{needsReviewCount}
+				searchQuery={unitsState.searchQuery}
+				searchPlaceholder={focusedScout ? 'Search this inbox' : 'Search all inbox units'}
+				isSearching={unitsState.loading && unitsState.searchQuery.length > 0}
 				on:filterChange={(e) => (feedFilter = e.detail.filter)}
+				on:search={(e) => handleSearch(e.detail.query)}
 				on:openUnit={handleOpenUnit}
 				on:verify={handleVerify}
 				on:reject={handleReject}
+				on:requestDelete={handleRequestUnitDelete}
+				on:cancelDelete={handleCancelUnitDelete}
+				on:confirmDelete={handleConfirmUnitDelete}
 				on:loadMore={handleLoadMore}
+				unitDeleteCandidateId={unitDeleteCandidateId}
+				deletingUnitId={deletingUnitId}
+				{verifyingUnitId}
 			/>
 		{/if}
 	{/if}
@@ -603,9 +742,14 @@
 		open={drawerOpen}
 		loading={false}
 		actionLoading={drawerActionLoading}
+		confirmingDelete={unitDeleteCandidateId === activeUnit?.id}
+		deleting={deletingUnitId === activeUnit?.id}
 		on:close={handleDrawerClose}
 		on:verify={handleVerify}
 		on:reject={handleReject}
+		on:requestDelete={handleRequestUnitDelete}
+		on:cancelDelete={handleCancelUnitDelete}
+		on:confirmDelete={handleConfirmUnitDelete}
 	/>
 
 	<PreferencesModal
@@ -618,13 +762,6 @@
 		on:close={() => (agentsOpen = false)}
 	/>
 
-	<UpgradeModal
-		open={showUpgradeModal}
-		currentCredits={$authStore.user?.credits ?? 0}
-		requiredCredits={upgradeRequired}
-		operationType="monitoring"
-		on:close={() => (showUpgradeModal = false)}
-	/>
 </div>
 
 <style>
@@ -674,6 +811,21 @@
 		letter-spacing: -0.01em;
 	}
 
+	.demo-mode-pill {
+		display: inline-flex;
+		align-items: center;
+		height: 28px;
+		padding: 0 0.75rem;
+		font-family: var(--font-mono);
+		font-size: 0.625rem;
+		font-weight: 600;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-primary-deep);
+		background: var(--color-primary-soft);
+		border: 1px solid var(--color-primary);
+	}
+
 	.new-scout-wrap {
 		position: relative;
 	}
@@ -708,34 +860,13 @@
 		gap: 0.75rem;
 	}
 
-	.credits-pill {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0.375rem;
-		height: 32px;
-		padding: 0 0.75rem;
-		background: var(--color-secondary-soft);
-		border: 1px solid var(--color-secondary);
-		white-space: nowrap;
-	}
-
-	.credits-value {
-		font-family: var(--font-display);
-		font-size: 0.9375rem;
-		font-weight: 600;
-		line-height: 1;
-		color: var(--color-ink);
-	}
-
-	.credits-label {
-		font-family: var(--font-mono);
-		font-size: 0.625rem;
-		font-weight: 500;
-		line-height: 1;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--color-secondary);
-		transform: translateY(-1px);
+	.unit-action-error {
+		margin: 1rem 2rem 0;
+		padding: 0.625rem 0.75rem;
+		border: 1px solid rgba(179, 62, 46, 0.2);
+		background: rgba(179, 62, 46, 0.08);
+		color: var(--color-error);
+		font-size: 0.8125rem;
 	}
 
 	.agents-btn {
@@ -915,11 +1046,12 @@
 
 	.section-heading {
 		display: flex;
-		align-items: baseline;
-		justify-content: flex-start;
+		align-items: center;
+		justify-content: space-between;
 		gap: 0.75rem;
 		margin-left: 15px;
 		margin-bottom: 0.875rem;
+		width: calc(100% - 15px);
 	}
 
 	.section-heading h2 {
@@ -937,6 +1069,8 @@
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--color-ink-subtle);
+		margin-left: auto;
+		text-align: right;
 	}
 
 	.demo-banner {

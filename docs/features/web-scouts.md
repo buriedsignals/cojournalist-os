@@ -106,6 +106,12 @@ Some websites fail Firecrawl's `changeTracking` format (ERR_TIMED_OUT) but work 
 - Compares against last 20 executions for this scout
 - Prevents duplicate notifications for semantically similar findings
 
+### Runtime Guardrails
+
+- Page Scout Firecrawl calls are client-side bounded; change-tracking and plain scrapes abort if Firecrawl stalls.
+- Gemini extraction and embedding calls are also bounded so a provider stall cannot leave the run row in `running` indefinitely.
+- Listing-page Phase B subpage-follow runs under a total wall-clock budget and per-subpage scrape cap instead of unbounded sequential fetches.
+
 ## Preview vs Scheduled Mode
 
 | Mode | Baseline | Notifications | Credits |

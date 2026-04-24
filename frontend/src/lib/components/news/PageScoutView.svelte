@@ -8,7 +8,6 @@
 	import TogglePicker from '$lib/components/ui/TogglePicker.svelte';
 	import ScoutScheduleModal from '$lib/components/modals/ScoutScheduleModal.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { sidebarNav } from '$lib/stores/sidebar-nav';
 	import { createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher<{ scheduled: { scoutType: 'web' } }>();
@@ -238,7 +237,6 @@
 		detectedProvider = undefined;
 		contentHash = undefined;
 		showScheduleModal = false;
-		sidebarNav.setView('scouts');
 		dispatch('scheduled', { scoutType: 'web' });
 	}}
 />

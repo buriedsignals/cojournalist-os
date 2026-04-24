@@ -4,6 +4,7 @@
 	import { Monitor } from 'lucide-svelte';
 	import * as m from '$lib/paraglide/messages';
 
+	const exemptPaths = ['/login', '/faq', '/skills', '/terms'] as const;
 	let showBlocker = false;
 
 	onMount(() => {
@@ -19,7 +20,7 @@
 	}
 
 	// Skip blocker on public pages
-	$: isExemptPage = $page.url.pathname === '/login' || $page.url.pathname === '/faq' || $page.url.pathname === '/terms';
+	$: isExemptPage = exemptPaths.includes($page.url.pathname as (typeof exemptPaths)[number]);
 </script>
 
 {#if showBlocker && !isExemptPage}

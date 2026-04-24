@@ -51,7 +51,7 @@ except ImportError:
     class CronBuilderError(Exception): pass
 from app.services.feed_search_service import FeedSearchService
 from app.services.schedule_service import ScheduleService
-from app.utils.pricing import CREDIT_COSTS, get_pulse_cost, get_social_monitoring_cost
+from app.utils.pricing import CREDIT_COSTS, get_beat_cost, get_social_monitoring_cost
 
 logger = logging.getLogger(__name__)
 
@@ -323,8 +323,8 @@ async def create_scout(
 
     # 4. Validate credits (informational, no deduction)
     org_id = user.get("org_id")
-    if body.type == "pulse":
-        cost = get_pulse_cost(body.source_mode, body.location is not None)
+    if body.type == "beat":
+        cost = get_beat_cost(body.source_mode, body.location is not None)
     elif body.type == "social":
         cost = get_social_monitoring_cost(getattr(body, "platform", "instagram"))
     else:
@@ -356,7 +356,7 @@ async def create_scout(
         scout_body["criteria"] = body.criteria
         # Default provider for API — no double-probe
         scout_body["provider"] = "firecrawl_plain"
-    elif body.type == "pulse":
+    elif body.type == "beat":
         if body.location:
             scout_body["location"] = body.location.model_dump(exclude_none=True)
         if body.topic:
@@ -398,7 +398,7 @@ async def create_scout(
         topic=body.topic,
         url=body.url,
         criteria=body.criteria,
-        source_mode=body.source_mode if body.type == "pulse" else None,
+        source_mode=body.source_mode if body.type == "beat" else None,
         last_run=None,
         card_summary=None,
         created_at=None,

@@ -33,7 +33,6 @@ Auth: Bearer JWT (Supabase auth) **or** Bearer `cj_…` API key plus
 | `civic-test` | Discover meeting URLs from a council domain | Live |
 | `entities` | Entity CRUD | Live |
 | `execute-scout` | Generic scout run dispatcher | Live |
-| `export-claude` | Export units bundle for Claude/agent consumption | Live |
 | `ingest` | Manual unit ingest from URL/text | Live |
 | `main` | Health/heartbeat | Live |
 | `manage-schedule` | Cron management for scouts | Live |
@@ -65,7 +64,6 @@ Frontend is served by the same service in dev; static SPA in production.
 | `onboarding.py` | `/api/onboarding/*` | Onboarding initialize/status/tour-complete | Live |
 | `user.py` | `/api/user/*` | User preferences (mirrors EF; legacy callers) | Live |
 | `units.py` | `/api/units/*` | Units helpers (legacy callers) | Live |
-| `export.py` | `/api/export/*` | Article draft export from units | Live |
 | `license.py` | `/api/license/*` | License key gating (OSS sustainable-use model) | Live |
 | `v1.py` | `/api/v1/*` | Public REST API (CLI uses this OR the Supabase EF URL) | Live |
 | `feedback.py` | `/api/feedback` | Linear support widget — POST creates issues | Live (SaaS-only — stripped from OSS) |
@@ -81,7 +79,7 @@ The following routers are gone — all functionality now lives in Supabase Edge 
 - `backend/app/routers/social.py` → `supabase/functions/social-test/` + `social-kickoff/` + `apify-callback/`
 - `backend/app/routers/civic.py` → `supabase/functions/civic/` + `civic-execute/` + `civic-extract-worker/` + `civic-test/`
 - `backend/app/routers/scraper.py` → `supabase/functions/manage-schedule/` (cron) + `supabase/functions/scouts/` (run-now)
-- `backend/app/routers/data_extractor.py` → no direct EF replacement; the AI Select / data extraction flow was retired in PR #71
+- `backend/app/routers/data_extractor.py` → retired; manual ingest now lives on `supabase/functions/ingest/`
 
 The frontend already migrated off these routes in PR #71 (api-client routes
 to Supabase EFs when `PUBLIC_DEPLOYMENT_TARGET=supabase`).

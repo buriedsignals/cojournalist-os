@@ -34,7 +34,7 @@ Owned by the app. One row per user.
 | `preferred_language` | TEXT | `'en'` | ISO 639-1 |
 | `notification_email` | TEXT | — | Where scheduled scout notifications go (may differ from `auth.users.email`) |
 | `default_location` | JSONB | — | `GeocodedLocation` shape |
-| `excluded_domains` | TEXT[] | — | Global Pulse exclusion list |
+| `excluded_domains` | TEXT[] | — | Global Beat exclusion list |
 | `preferences` | JSONB | `'{}'` | Overflow for ui_density, theme, digest_frequency, email_notifications |
 | `onboarding_completed` | BOOLEAN | `FALSE` | |
 | `onboarding_tour_completed` | BOOLEAN | `FALSE` | |

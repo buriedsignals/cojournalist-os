@@ -20,7 +20,7 @@
     { "name": "projects", "description": "Investigation projects (a workspace for grouping scouts + units)" },
     { "name": "entities", "description": "Canonical entity store + merge" },
     { "name": "reflections", "description": "Durable editorial notes tied to units/scouts/entities" },
-    { "name": "knowledge", "description": "Ingest content + export a project to markdown" },
+    { "name": "knowledge", "description": "Ingest content into information units" },
     { "name": "user", "description": "Authed user profile + preferences" },
     { "name": "agents", "description": "`cj_…` API keys (create, list, revoke) + MCP server" },
     { "name": "meta", "description": "Spec + health" }
@@ -138,14 +138,17 @@
     "/units": {
       "get": {
         "tags": ["units"],
-        "summary": "List information units. Pass `verified=false` for the editorial inbox.",
+        "summary": "List information units with scope and lifecycle-state filters.",
         "parameters": [
           { "$ref": "#/components/parameters/Limit" },
           { "$ref": "#/components/parameters/Offset" },
           { "name": "project_id", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "scout_id", "in": "query", "schema": { "type": "string", "format": "uuid" } },
           { "name": "verified", "in": "query", "schema": { "type": "boolean" }, "description": "Filter by verified state. `false` = needs-review inbox." },
           { "name": "used_in_article", "in": "query", "schema": { "type": "boolean" }, "description": "Filter by published state. `false` = not yet used." },
-          { "name": "since", "in": "query", "schema": { "type": "string", "pattern": "^\\d+[dhm]$" }, "description": "Relative window, e.g. `48h`, `7d`." }
+          { "name": "include_deleted", "in": "query", "schema": { "type": "boolean" }, "description": "Include soft-deleted units. Deleted units are excluded by default." },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "Lower bound for `last_seen_at` / surfaced `extracted_at`." },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "Upper bound for `last_seen_at` / surfaced `extracted_at`." }
         ],
         "responses": { "200": { "description": "ok", "content": { "application/json": { "schema": {
           "allOf": [
@@ -158,13 +161,18 @@
     "/units/search": {
       "post": {
         "tags": ["units"],
-        "summary": "Semantic search over the caller's units (Gemini embeddings + pgvector).",
+        "summary": "Search over the caller's units using semantic, keyword, or hybrid mode.",
         "requestBody": { "required": true, "content": { "application/json": { "schema": {
           "type": "object",
           "required": ["query_text"],
           "properties": {
             "query_text": { "type": "string", "minLength": 1, "maxLength": 4000 },
+            "mode": { "type": "string", "enum": ["semantic", "keyword", "hybrid"], "default": "hybrid" },
             "project_id": { "type": "string", "format": "uuid" },
+            "scout_id": { "type": "string", "format": "uuid" },
+            "verified": { "type": "boolean" },
+            "used_in_article": { "type": "boolean" },
+            "include_deleted": { "type": "boolean" },
             "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
           }
         } } } },
@@ -190,7 +198,7 @@
       },
       "delete": {
         "tags": ["units"],
-        "summary": "Delete a unit",
+        "summary": "Soft-delete a unit",
         "responses": { "204": { "description": "deleted" } }
       }
     },
@@ -343,18 +351,6 @@
         }
       }
     },
-    "/export-claude": {
-      "get": {
-        "tags": ["knowledge"],
-        "summary": "Markdown export of a project's verified, unused units",
-        "parameters": [
-          { "name": "project_id", "in": "query", "schema": { "type": "string", "format": "uuid" } },
-          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 500 } }
-        ],
-        "responses": { "200": { "description": "markdown brief", "content": { "text/markdown": { "schema": { "type": "string" } } } } }
-      }
-    },
-
     "/user/me": {
       "get": { "tags": ["user"], "summary": "Authed user profile (tier, credit balance, timezone)", "responses": { "200": { "description": "ok" } } }
     },
@@ -440,7 +436,7 @@
       "OutOfCredits": { "description": "Not enough credits", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
     },
     "schemas": {
-      "ScoutType": { "type": "string", "enum": ["web", "pulse", "social", "civic"] },
+      "ScoutType": { "type": "string", "enum": ["web", "beat", "social", "civic"] },
       "Regularity": { "type": "string", "enum": ["daily", "weekly", "monthly"] },
       "Scout": {
         "type": "object",
@@ -456,7 +452,16 @@
           "schedule_cron": { "type": "string", "nullable": true },
           "is_active": { "type": "boolean" },
           "consecutive_failures": { "type": "integer" },
-          "last_run": { "type": "string", "format": "date-time", "nullable": true },
+          "last_run": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "started_at": { "type": "string", "format": "date-time", "nullable": true },
+              "status": { "type": "string", "nullable": true },
+              "articles_count": { "type": "integer", "nullable": true },
+              "merged_existing_count": { "type": "integer", "nullable": true }
+            }
+          },
           "project_id": { "type": "string", "format": "uuid", "nullable": true },
           "created_at": { "type": "string", "format": "date-time" }
         },
@@ -500,24 +505,118 @@
         "type": "object",
         "properties": {
           "id": { "type": "string", "format": "uuid" },
-          "statement": { "type": "string" },
-          "unit_type": { "type": "string" },
-          "source_url": { "type": "string", "format": "uri", "nullable": true },
-          "source_domain": { "type": "string", "nullable": true },
-          "source_title": { "type": "string", "nullable": true },
-          "occurred_at": { "type": "string", "format": "date-time", "nullable": true },
+          "statement": { "type": "string", "nullable": true },
+          "unit_type": { "type": "string", "nullable": true },
           "context_excerpt": { "type": "string", "nullable": true },
-          "verified": { "type": "boolean" },
-          "verified_by": { "type": "string", "nullable": true },
-          "verification_notes": { "type": "string", "nullable": true },
-          "used_in_article": { "type": "boolean" },
-          "used_in_url": { "type": "string", "format": "uri", "nullable": true },
-          "used_at": { "type": "string", "format": "date-time", "nullable": true },
+          "entities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "entity_id": { "type": "string", "format": "uuid", "nullable": true },
+                "canonical_name": { "type": "string", "nullable": true },
+                "type": { "type": "string", "nullable": true },
+                "mention_text": { "type": "string" }
+              },
+              "required": ["entity_id", "canonical_name", "type", "mention_text"]
+            }
+          },
+          "location": { "type": "object", "nullable": true, "additionalProperties": true },
+          "country": { "type": "string", "nullable": true },
+          "state": { "type": "string", "nullable": true },
+          "city": { "type": "string", "nullable": true },
+          "topic": { "type": "string", "nullable": true },
+          "scout_type": { "type": "string", "nullable": true },
+          "occurred_at": { "type": "string", "format": "date", "nullable": true },
+          "extracted_at": { "type": "string", "format": "date-time", "nullable": true },
+          "occurrence_count": { "type": "integer" },
+          "source": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "format": "uri", "nullable": true },
+              "title": { "type": "string", "nullable": true },
+              "domain": { "type": "string", "nullable": true }
+            },
+            "required": ["url", "title", "domain"]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": { "type": "string", "format": "uri", "nullable": true },
+                "title": { "type": "string", "nullable": true },
+                "domain": { "type": "string", "nullable": true },
+                "extracted_at": { "type": "string", "format": "date-time", "nullable": true }
+              },
+              "required": ["url", "title", "domain", "extracted_at"]
+            }
+          },
+          "linked_scouts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "format": "uuid", "nullable": true },
+                "name": { "type": "string", "nullable": true },
+                "type": { "type": "string", "nullable": true }
+              },
+              "required": ["id", "name", "type"]
+            }
+          },
           "scout_id": { "type": "string", "format": "uuid", "nullable": true },
-          "project_id": { "type": "string", "format": "uuid", "nullable": true },
-          "created_at": { "type": "string", "format": "date-time" }
+          "scout_name": { "type": "string", "nullable": true },
+          "verification": {
+            "type": "object",
+            "properties": {
+              "verified": { "type": "boolean" },
+              "verified_at": { "type": "string", "format": "date-time", "nullable": true },
+              "verified_by": { "type": "string", "nullable": true },
+              "notes": { "type": "string", "nullable": true }
+            },
+            "required": ["verified", "verified_at", "verified_by", "notes"]
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "used_in_article": { "type": "boolean" },
+              "used_at": { "type": "string", "format": "date-time", "nullable": true },
+              "used_in_url": { "type": "string", "format": "uri", "nullable": true }
+            },
+            "required": ["used_in_article", "used_at", "used_in_url"]
+          },
+          "deletion": {
+            "type": "object",
+            "properties": {
+              "deleted": { "type": "boolean" },
+              "deleted_at": { "type": "string", "format": "date-time", "nullable": true },
+              "deleted_by": { "type": "string", "nullable": true },
+              "reason": { "type": "string", "nullable": true }
+            },
+            "required": ["deleted", "deleted_at", "deleted_by", "reason"]
+          },
+          "tags": { "type": "array", "items": { "type": "string" } }
         },
-        "required": ["id", "statement", "verified", "used_in_article"]
+        "required": [
+          "id",
+          "statement",
+          "context_excerpt",
+          "unit_type",
+          "entities",
+          "location",
+          "occurred_at",
+          "extracted_at",
+          "occurrence_count",
+          "source",
+          "sources",
+          "linked_scouts",
+          "scout_id",
+          "scout_name",
+          "verification",
+          "usage",
+          "deletion",
+          "tags"
+        ]
       },
       "UnitUpdate": {
         "type": "object",
@@ -527,7 +626,8 @@
           "verified_by": { "type": "string", "maxLength": 200, "nullable": true },
           "used_in_article": { "type": "boolean" },
           "used_at": { "type": "string", "format": "date-time", "nullable": true },
-          "used_in_url": { "type": "string", "format": "uri", "nullable": true }
+          "used_in_url": { "type": "string", "format": "uri", "nullable": true },
+          "deletion_reason": { "type": "string", "maxLength": 4000, "nullable": true }
         }
       },
       "Project": {

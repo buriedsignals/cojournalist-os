@@ -9,6 +9,9 @@
  *   5. Else: store raw_capture, optionally extract units via Gemini (when
  *      scout.criteria is set), dedup each unit via check_unit_dedup RPC,
  *      insert non-dupes into information_units, mark run success.
+ *   5b. Phase B: if index extraction flags isListingPage, extract same-host
+ *       subpage links, scrape each sequentially, extract units per subpage.
+ *       Single-hop only — nested listings are skipped. CAP = 10.
  *   6. On any throw: mark run error, increment_scout_failures, surface error.
  *
  * Auth: service-role Bearer only (internal call).
@@ -25,14 +28,23 @@ import {
   ValidationError,
 } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
+import { normalizeDate } from "../_shared/date_utils.ts";
 import {
   type ChangeTrackingResult,
   firecrawlChangeTrackingScrape,
   firecrawlScrape,
 } from "../_shared/firecrawl.ts";
-import { geminiEmbed } from "../_shared/gemini.ts";
+import { EMBEDDING_MODEL_TAG, geminiEmbed } from "../_shared/gemini.ts";
 import { extractAtomicUnits } from "../_shared/atomic_extract.ts";
 import { isWithinRunDuplicate } from "../_shared/dedup.ts";
+import { filterSubpageUrls } from "../_shared/subpage-filter.ts";
+import {
+  type CanonicalUnitType,
+  deriveSourceDomain,
+  normalizeSourceUrl,
+  sha256Hex,
+  upsertCanonicalUnit,
+} from "../_shared/unit_dedup.ts";
 import {
   CREDIT_COSTS,
   decrementOrThrow,
@@ -42,6 +54,17 @@ import {
 } from "../_shared/credits.ts";
 import { sendPageScoutAlert } from "../_shared/notifications.ts";
 import { incrementAndMaybeNotify } from "../_shared/scout_failures.ts";
+import { maybeInitializeMissingWebBaselineRun } from "../_shared/web_scout_baseline.ts";
+
+const SUBPAGE_FETCH_CAP = 10;
+const FIRECRAWL_STAGGER_MS = 2000;
+const PRIMARY_SCRAPE_TIMEOUT_MS = 25_000;
+const PRIMARY_SCRAPE_ABORT_AFTER_MS = 30_000;
+const PRIMARY_EXTRACTION_TIMEOUT_MS = 20_000;
+const PHASE_B_TOTAL_BUDGET_MS = 35_000;
+const SUBPAGE_SCRAPE_TIMEOUT_MS = 12_000;
+const SUBPAGE_SCRAPE_ABORT_AFTER_MS = 15_000;
+const SUBPAGE_EXTRACTION_TIMEOUT_MS = 12_000;
 
 const InputSchema = z.object({
   scout_id: z.string().uuid(),
@@ -88,7 +111,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const { data: scout, error: scoutErr } = await svc
     .from("scouts")
     .select(
-      "id, user_id, type, name, url, criteria, project_id, is_active, provider, preferred_language",
+      "id, user_id, type, name, url, criteria, project_id, is_active, provider, preferred_language, baseline_established_at",
     )
     .eq("id", scout_id)
     .maybeSingle();
@@ -98,23 +121,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return jsonFromError(new ValidationError("scout has no url"));
   }
 
-  // 2. Decrement credits before any billable work.
-  try {
-    await decrementOrThrow(svc, {
-      userId: scout.user_id,
-      cost: CREDIT_COSTS.website_extraction,
-      scoutId: scout.id,
-      scoutType: "web",
-      operation: "website_extraction",
-    });
-  } catch (e) {
-    if (e instanceof InsufficientCreditsError) {
-      return insufficientCreditsResponse(e.required, e.current);
-    }
-    return jsonFromError(e);
-  }
-
-  // 3. Ensure scout_runs row exists.
+  // 2. Ensure scout_runs row exists.
   if (!run_id) {
     const { data: runRow, error: runErr } = await svc
       .from("scout_runs")
@@ -130,7 +137,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
     run_id = runRow.id as string;
   }
 
+  let chargedCredits = false;
+
   try {
+    const baselineInit = await maybeInitializeMissingWebBaselineRun(
+      svc,
+      scout,
+      run_id,
+    );
+    if (baselineInit) {
+      return jsonOk({
+        status: "ok",
+        change: baselineInit.change_status,
+        articles_count: baselineInit.articles_count,
+        merged_existing_count: baselineInit.merged_existing_count,
+      });
+    }
+
+    // 3. Decrement credits before any billable work.
+    try {
+      await decrementOrThrow(svc, {
+        userId: scout.user_id,
+        cost: CREDIT_COSTS.website_extraction,
+        scoutId: scout.id,
+        scoutType: "web",
+        operation: "website_extraction",
+      });
+      chargedCredits = true;
+    } catch (e) {
+      if (e instanceof InsufficientCreditsError) {
+        return insufficientCreditsResponse(e.required, e.current);
+      }
+      return jsonFromError(e);
+    }
+
     const result = await runPipeline(svc, scout, run_id);
 
     await svc
@@ -138,6 +178,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .update({
         status: "success",
         articles_count: result.articles_count,
+        merged_existing_count: result.merged_existing_count,
         completed_at: new Date().toISOString(),
         scraper_status: true,
         criteria_status: result.criteria_ran,
@@ -161,6 +202,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       run_id,
       change: result.change_status,
       articles_count: result.articles_count,
+      merged_existing_count: result.merged_existing_count,
     });
 
     // Notify user when criteria ran and produced new, non-duplicate units.
@@ -194,6 +236,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       status: "ok",
       change: result.change_status,
       articles_count: result.articles_count,
+      merged_existing_count: result.merged_existing_count,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -213,15 +256,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
         scoutType: "web",
         language: scout.preferred_language as string | null,
       });
-      // Refund the pre-run charge on failure — users shouldn't pay for
-      // scheduled scrapes that never produced billable output.
-      await refundCredits(svc, {
-        userId: scout.user_id as string,
-        cost: CREDIT_COSTS.website_extraction,
-        scoutId: scout.id as string,
-        scoutType: "web",
-        operation: "website_extraction",
-      });
+      if (chargedCredits) {
+        // Refund the pre-run charge on failure — users shouldn't pay for
+        // scheduled scrapes that never produced billable output.
+        await refundCredits(svc, {
+          userId: scout.user_id as string,
+          cost: CREDIT_COSTS.website_extraction,
+          scoutId: scout.id as string,
+          scoutType: "web",
+          operation: "website_extraction",
+        });
+      }
     } catch (cleanupErr) {
       logEvent({
         level: "error",
@@ -229,7 +274,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         event: "cleanup_failed",
         scout_id: scout.id,
         run_id,
-        msg: cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+        msg: cleanupErr instanceof Error
+          ? cleanupErr.message
+          : String(cleanupErr),
       });
     }
     logEvent({
@@ -257,15 +304,18 @@ interface ScoutRow {
   is_active: boolean;
   provider: "firecrawl" | "firecrawl_plain" | null;
   preferred_language: string | null;
+  baseline_established_at?: string | null;
 }
 
 interface PipelineResult {
   change_status: "new" | "same" | "changed" | "removed";
   articles_count: number;
+  merged_existing_count: number;
   criteria_ran: boolean;
   summary?: string;
   matchedUrl?: string | null;
   matchedTitle?: string | null;
+  rawHtml?: string | null;
 }
 
 async function runPipeline(
@@ -273,8 +323,7 @@ async function runPipeline(
   scout: ScoutRow,
   runId: string,
 ): Promise<PipelineResult> {
-  // 3. Scrape via the provider recorded for this scout (mirrors prod
-  //    scout_service.execute branching):
+  // 3. Scrape via the provider recorded for this scout:
   //      - "firecrawl_plain": plain scrape + SHA-256 hash compare to prior
   //        raw_captures row. Used when double-probe flagged the URL as
   //        ghost-baseline.
@@ -287,15 +336,25 @@ async function runPipeline(
   let changeStatus: ChangeTrackingResult["change_status"];
   let scrapeTitle: string | null = null;
 
+  let rawHtml: string | null = null;
+
   if (scout.provider === "firecrawl_plain") {
-    const plain = await firecrawlScrape(scout.url);
+    const plain = await firecrawlScrape(scout.url, {
+      timeoutMs: PRIMARY_SCRAPE_TIMEOUT_MS,
+      abortAfterMs: PRIMARY_SCRAPE_ABORT_AFTER_MS,
+    });
     markdown = plain.markdown ?? "";
+    rawHtml = plain.rawHtml ?? null;
     scrapeTitle = plain.title ?? null;
     changeStatus = await hashChangeStatus(svc, scout.id, markdown);
   } else {
     try {
-      const ct = await firecrawlChangeTrackingScrape(scout.url, tag);
+      const ct = await firecrawlChangeTrackingScrape(scout.url, tag, {
+        timeoutMs: PRIMARY_SCRAPE_TIMEOUT_MS,
+        abortAfterMs: PRIMARY_SCRAPE_ABORT_AFTER_MS,
+      });
       markdown = ct.markdown ?? "";
+      rawHtml = ct.rawHtml ?? null;
       scrapeTitle = ct.title ?? null;
       changeStatus = ct.change_status;
     } catch (e) {
@@ -306,15 +365,24 @@ async function runPipeline(
         scout_id: scout.id,
         msg: e instanceof Error ? e.message : String(e),
       });
-      const plain = await firecrawlScrape(scout.url);
+      const plain = await firecrawlScrape(scout.url, {
+        timeoutMs: PRIMARY_SCRAPE_TIMEOUT_MS,
+        abortAfterMs: PRIMARY_SCRAPE_ABORT_AFTER_MS,
+      });
       markdown = plain.markdown ?? "";
+      rawHtml = plain.rawHtml ?? null;
       scrapeTitle = plain.title ?? null;
       changeStatus = await hashChangeStatus(svc, scout.id, markdown);
     }
   }
 
   if (changeStatus === "same") {
-    return { change_status: "same", articles_count: 0, criteria_ran: false };
+    return {
+      change_status: "same",
+      articles_count: 0,
+      merged_existing_count: 0,
+      criteria_ran: false,
+    };
   }
 
   if (!markdown.trim()) {
@@ -325,11 +393,12 @@ async function runPipeline(
     markdown,
     change_status: changeStatus,
     title: scrapeTitle,
+    rawHtml,
   };
 
   // 4. Insert raw_capture for the scraped content.
   const contentHash = await sha256Hex(markdown);
-  const sourceDomain = safeDomain(scout.url);
+  const sourceDomain = deriveSourceDomain(scout.url);
 
   const { data: capture, error: capErr } = await svc
     .from("raw_captures")
@@ -349,70 +418,93 @@ async function runPipeline(
   if (capErr) throw new Error(capErr.message);
   const rawCaptureId = capture.id as string;
 
-  // 5. If criteria set, extract units and insert non-dupes.
-  if (!scout.criteria || !scout.criteria.trim()) {
-    return { change_status: scrape.change_status, articles_count: 0, criteria_ran: false };
-  }
-
-  // Shared per-article extraction — prod shape. Forces preferred_language,
-  // passes the criteria separately so Gemini treats it as filter data, and
-  // applies 5W1H completeness rules. Max 8 units for web scouts (matches
-  // atomic_unit_service.MAX_UNITS_WEB_SCOUT).
+  // 5. Extract units and insert non-dupes.
+  // Always run extraction; criteria narrows focus when set.
+  const hasCriteria = !!scout.criteria?.trim();
   const extracted = await extractAtomicUnits({
     title: scrape.title ?? null,
     content: markdown,
     sourceUrl: scout.url,
     publishedDate: null,
-    language: (scout as { preferred_language?: string | null }).preferred_language ?? "en",
-    criteria: scout.criteria,
+    language:
+      (scout as { preferred_language?: string | null }).preferred_language ??
+        "en",
+    criteria: hasCriteria ? scout.criteria : null,
     maxUnits: 8,
     contentLimit: PROMPT_CONTENT_MAX,
+    timeoutMs: PRIMARY_EXTRACTION_TIMEOUT_MS,
   });
+  const indexIsListingPage = extracted.isListingPage;
 
   let inserted = 0;
+  let mergedExisting = 0;
   const insertedStatements: string[] = [];
-  const runEmbeddings: number[][] = [];
-  for (const u of extracted) {
-    if (!u || typeof u.statement !== "string" || !u.statement.trim()) continue;
-    if (!["fact", "event", "entity_update"].includes(u.type)) continue;
 
-    const embedding = await geminiEmbed(u.statement, "RETRIEVAL_DOCUMENT");
+  // Hard gate: listing pages yield no Phase A units — full articles come via Phase B.
+  const phaseA = await insertExtractedUnits(
+    svc,
+    indexIsListingPage ? [] : extracted.units,
+    scout,
+    runId,
+    rawCaptureId,
+    scout.url,
+    scrape.title ?? null,
+    sourceDomain,
+    contentHash,
+    {
+      change_status: scrape.change_status,
+      phase: "primary",
+    },
+  );
+  inserted += phaseA.insertedCount;
+  mergedExisting += phaseA.mergedExistingCount;
+  insertedStatements.push(...phaseA.insertedStatements.slice(0, 3));
 
-    // Within-run paraphrase guard: drop units that are near-duplicates of an
-    // already-kept unit in *this* extraction batch. check_unit_dedup only
-    // covers cross-run history so paraphrase pairs would otherwise co-land.
-    if (isWithinRunDuplicate(embedding, runEmbeddings)) continue;
-
-    const { data: isDupe, error: dupErr } = await svc.rpc("check_unit_dedup", {
-      p_embedding: embedding,
-      p_scout_id: scout.id,
-    });
-    if (dupErr) throw new Error(dupErr.message);
-    if (isDupe) continue;
-    runEmbeddings.push(embedding);
-
-    const { error: insErr } = await svc.from("information_units").insert({
-      user_id: scout.user_id,
-      scout_id: scout.id,
-      scout_type: "web",
-      statement: u.statement,
-      type: u.type,
-      context_excerpt: u.context_excerpt ?? null,
-      occurred_at: normalizeDate(u.occurred_at),
-      source_url: scout.url,
-      source_title: scrape.title ?? null,
-      source_domain: sourceDomain,
-      extracted_at: new Date().toISOString(),
-      source_type: "scout",
-      raw_capture_id: rawCaptureId,
-      embedding,
-      embedding_model: "gemini-embedding-2-preview",
-      project_id: scout.project_id ?? null,
-      used_in_article: false,
-    });
-    if (insErr) throw new Error(insErr.message);
-    inserted += 1;
-    if (insertedStatements.length < 3) insertedStatements.push(u.statement);
+  // =========================================================================
+  // Phase B — follow listing subpages
+  // =========================================================================
+  if (indexIsListingPage && scrape.rawHtml) {
+    try {
+      const subpageResult = await runPhaseB(
+        svc,
+        scout,
+        runId,
+        scrape.rawHtml,
+        sourceDomain,
+        rawCaptureId,
+        Date.now() + PHASE_B_TOTAL_BUDGET_MS,
+      );
+      inserted += subpageResult.totalInserted;
+      mergedExisting += subpageResult.totalMergedExisting;
+      for (const statement of subpageResult.insertedStatements) {
+        if (insertedStatements.length >= 3) break;
+        insertedStatements.push(statement);
+      }
+      logEvent({
+        level: "info",
+        fn: "scout-web-execute",
+        event: "phase_b",
+        scout_id: scout.id,
+        run_id: runId,
+        links_found: subpageResult.linksFound,
+        candidates: subpageResult.candidates,
+        fresh: subpageResult.fresh,
+        processed: subpageResult.processed,
+        nested_listings_skipped: subpageResult.nestedListings,
+        failed: subpageResult.failed,
+        units_inserted: subpageResult.totalInserted,
+        units_merged_existing: subpageResult.totalMergedExisting,
+      });
+    } catch (error) {
+      logEvent({
+        level: "warn",
+        fn: "scout-web-execute",
+        event: "phase_b_failed",
+        scout_id: scout.id,
+        run_id: runId,
+        msg: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   // Build a short summary for the notification email from the first few
@@ -424,21 +516,335 @@ async function runPipeline(
   return {
     change_status: scrape.change_status,
     articles_count: inserted,
-    criteria_ran: true,
+    merged_existing_count: mergedExisting,
+    criteria_ran: hasCriteria,
     summary: summary || undefined,
     matchedUrl: inserted > 0 ? scout.url : null,
     matchedTitle: inserted > 0 ? (scrape.title ?? null) : null,
   };
 }
 
-// ---------------------------------------------------------------------------
+// =========================================================================
+// Phase B helpers
+// =========================================================================
 
-async function sha256Hex(input: string): Promise<string> {
-  const buf = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+const DENYLIST_EXTENSIONS = [
+  ".css",
+  ".js",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".svg",
+  ".webp",
+  ".ico",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".eot",
+  ".mp4",
+  ".mp3",
+  ".pdf",
+  ".zip",
+  ".tar",
+  ".gz",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+];
+
+/** Extract href links from raw HTML, filtering same-host only. */
+function extractLinksFromHtml(
+  html: string,
+  pageUrl: string,
+): [string, string][] {
+  const parsed = new URL(pageUrl);
+  const pageDomain = parsed.hostname.toLowerCase();
+  const seenUrls = new Set<string>();
+  const links: [string, string][] = [];
+
+  const regex = /<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/gs;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(html)) !== null) {
+    let href = match[1].trim();
+    const anchorText = match[2].replace(/<[^>]+>/g, "").trim();
+
+    // Skip non-HTTP schemes
+    if (
+      href.startsWith("mailto:") || href.startsWith("javascript:") ||
+      href.startsWith("#")
+    ) continue;
+
+    // Skip static assets
+    const hrefLower = href.toLowerCase();
+    if (DENYLIST_EXTENSIONS.some((ext) => hrefLower.endsWith(ext))) continue;
+
+    // Resolve relative URLs
+    if (href.startsWith("/")) {
+      href = `${parsed.protocol}//${parsed.host}${href}`;
+    } else if (!href.startsWith("http://") && !href.startsWith("https://")) {
+      continue;
+    }
+
+    // Same-host filter
+    try {
+      const linkDomain = new URL(href).hostname.toLowerCase();
+      if (linkDomain !== pageDomain) continue;
+    } catch {
+      continue;
+    }
+
+    // Skip self-referential links
+    const hrefNoFragment = href.split("#")[0].replace(/\/+$/, "");
+    const pageNoFragment = pageUrl.split("#")[0].replace(/\/+$/, "");
+    if (hrefNoFragment === pageNoFragment) continue;
+
+    // Deduplicate
+    if (!seenUrls.has(hrefNoFragment)) {
+      seenUrls.add(hrefNoFragment);
+      links.push([hrefNoFragment, anchorText]);
+    }
+  }
+
+  return links;
+}
+
+async function runPhaseB(
+  svc: SupabaseClient,
+  scout: ScoutRow,
+  runId: string,
+  rawHtml: string,
+  sourceDomain: string | null,
+  rawCaptureId: string,
+  deadlineMs: number,
+): Promise<{
+  linksFound: number;
+  candidates: number;
+  fresh: number;
+  processed: number;
+  nestedListings: number;
+  failed: number;
+  totalInserted: number;
+  totalMergedExisting: number;
+  insertedStatements: string[];
+}> {
+  // 1. Extract links
+  const links = extractLinksFromHtml(rawHtml, scout.url);
+
+  // 2. Filter: path-prefix, traversal block, domain validation (pure fn)
+  const candidateUrls = links.map(([url]) => url);
+  const filtered = filterSubpageUrls(candidateUrls, scout.url);
+
+  // 3. Dedup against already-seen subpage URLs from stored units
+  const { data: seenRows } = await svc
+    .from("unit_occurrences")
+    .select("normalized_source_url")
+    .eq("scout_id", scout.id)
+    .not("normalized_source_url", "is", null);
+  const seen = new Set<string>(
+    (seenRows ?? []).map((r) => r.normalized_source_url as string),
+  );
+
+  const fresh = filtered.filter((url) => {
+    const normalized = normalizeSourceUrl(url);
+    return normalized ? !seen.has(normalized) : true;
+  }).slice(0, SUBPAGE_FETCH_CAP);
+
+  let totalInserted = 0;
+  let totalMergedExisting = 0;
+  let processed = 0;
+  let nestedListings = 0;
+  let failed = 0;
+  const insertedStatements: string[] = [];
+
+  for (let i = 0; i < fresh.length; i++) {
+    if (Date.now() >= deadlineMs) {
+      logEvent({
+        level: "info",
+        fn: "scout-web-execute",
+        event: "phase_b_budget_exhausted",
+        scout_id: scout.id,
+        processed,
+        remaining: fresh.length - i,
+      });
+      break;
+    }
+    const subUrl = fresh[i];
+    if (i > 0) await new Promise((r) => setTimeout(r, FIRECRAWL_STAGGER_MS));
+
+    try {
+      const subScrape = await firecrawlScrape(subUrl, {
+        timeoutMs: SUBPAGE_SCRAPE_TIMEOUT_MS,
+        abortAfterMs: SUBPAGE_SCRAPE_ABORT_AFTER_MS,
+      });
+
+      if (!subScrape.markdown?.trim()) {
+        failed++;
+        continue;
+      }
+
+      const subExtracted = await extractAtomicUnits({
+        title: subScrape.title ?? null,
+        content: subScrape.markdown,
+        sourceUrl: subUrl,
+        publishedDate: null,
+        language: scout.preferred_language ?? "en",
+        criteria: scout.criteria ?? null,
+        maxUnits: 8,
+        contentLimit: PROMPT_CONTENT_MAX,
+        timeoutMs: SUBPAGE_EXTRACTION_TIMEOUT_MS,
+      });
+
+      if (subExtracted.isListingPage) {
+        nestedListings++;
+        logEvent({
+          level: "info",
+          fn: "scout-web-execute",
+          event: "phase_b_nested_listing_skipped",
+          scout_id: scout.id,
+          url: subUrl,
+        });
+        continue;
+      }
+
+      const subContentHash = await sha256Hex(subScrape.markdown);
+      const result = await insertExtractedUnits(
+        svc,
+        subExtracted.units,
+        scout,
+        runId,
+        rawCaptureId,
+        subUrl,
+        subScrape.title ?? null,
+        sourceDomain,
+        subContentHash,
+        {
+          phase: "subpage",
+          parent_source_url: scout.url,
+        },
+      );
+      totalInserted += result.insertedCount;
+      totalMergedExisting += result.mergedExistingCount;
+      for (const statement of result.insertedStatements) {
+        if (insertedStatements.length >= 3) break;
+        insertedStatements.push(statement);
+      }
+      processed++;
+    } catch (error) {
+      failed++;
+      logEvent({
+        level: "warn",
+        fn: "scout-web-execute",
+        event: "phase_b_subpage_failed",
+        scout_id: scout.id,
+        url: subUrl,
+        msg: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return {
+    linksFound: links.length,
+    candidates: candidateUrls.length,
+    fresh: fresh.length,
+    processed,
+    nestedListings,
+    failed,
+    totalInserted,
+    totalMergedExisting,
+    insertedStatements,
+  };
+}
+
+/**
+ * Extract units into information_units with dedup. Returns count inserted.
+ */
+async function insertExtractedUnits(
+  svc: SupabaseClient,
+  units: Array<
+    {
+      statement: string;
+      type: string;
+      context_excerpt?: string;
+      occurred_at?: string | null;
+      entities?: string[];
+    }
+  >,
+  scout: ScoutRow,
+  runId: string,
+  rawCaptureId: string,
+  sourceUrl: string,
+  sourceTitle: string | null,
+  sourceDomain: string | null,
+  contentSha256: string | null,
+  metadata: Record<string, unknown> | null = null,
+): Promise<{
+  insertedCount: number;
+  mergedExistingCount: number;
+  insertedStatements: string[];
+}> {
+  if (units.length === 0) {
+    return { insertedCount: 0, mergedExistingCount: 0, insertedStatements: [] };
+  }
+
+  const runEmbeddings: number[][] = [];
+  let inserted = 0;
+  let mergedExisting = 0;
+  const insertedStatements: string[] = [];
+
+  for (const u of units) {
+    if (!u || typeof u.statement !== "string" || !u.statement.trim()) continue;
+    if (!["fact", "event", "entity_update"].includes(u.type)) continue;
+
+    const embedding = await geminiEmbed(u.statement, "RETRIEVAL_DOCUMENT", {
+      title: sourceTitle,
+    });
+    const unitType = u.type as CanonicalUnitType;
+
+    // Within-run paraphrase guard: drop units that are near-duplicates of an
+    // already-kept unit in *this* extraction batch.
+    if (isWithinRunDuplicate(embedding, runEmbeddings)) continue;
+    runEmbeddings.push(embedding);
+
+    const result = await upsertCanonicalUnit(svc, {
+      userId: scout.user_id,
+      statement: u.statement,
+      unitType,
+      entities: u.entities ?? [],
+      embedding,
+      embeddingModel: EMBEDDING_MODEL_TAG,
+      sourceUrl,
+      sourceDomain,
+      sourceTitle,
+      contextExcerpt: u.context_excerpt ?? null,
+      occurredAt: normalizeDate(u.occurred_at),
+      extractedAt: new Date().toISOString(),
+      sourceType: "scout",
+      contentSha256,
+      scoutId: scout.id,
+      scoutType: "web",
+      scoutRunId: runId,
+      projectId: scout.project_id ?? null,
+      rawCaptureId,
+      metadata,
+    });
+
+    if (result.createdCanonical) {
+      inserted += 1;
+      if (insertedStatements.length < 3) insertedStatements.push(u.statement);
+    } else if (result.mergedExisting && result.occurrenceCreated) {
+      mergedExisting += 1;
+    }
+  }
+  return {
+    insertedCount: inserted,
+    mergedExistingCount: mergedExisting,
+    insertedStatements,
+  };
 }
 
 /**
@@ -466,21 +872,4 @@ async function hashChangeStatus(
   return "changed";
 }
 
-function safeDomain(raw: string): string | null {
-  try {
-    return new URL(raw).hostname;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeDate(v: string | null | undefined): string | null {
-  if (!v) return null;
-  const trimmed = v.trim();
-  if (!trimmed) return null;
-  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (match) return match[1];
-  const d = new Date(trimmed);
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
-}
+// normalizeDate moved to ../_shared/date_utils.ts (imported at the top).

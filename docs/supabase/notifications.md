@@ -1,34 +1,39 @@
 # Scout notifications
 
 Per-run email alerts sent via Resend when a scout produces new, non-duplicate
-content. Ported from the legacy FastAPI `notification_service.py`; templates,
-colors, and copy are preserved for visual parity.
+content. The shared renderer now follows the editorial design system in
+`DESIGN.md`: warm cream paper background, sharp edges, hairline borders,
+mono uppercase labels, serif headlines, and per-scout identity carried only
+through accent treatment.
 
 ## Where the code lives
 
 | File | Purpose |
 |---|---|
-| `supabase/functions/_shared/notifications.ts` | Shared helper — 4 public entry points, HTML templates, Resend transport, retry logic |
+| `supabase/functions/_shared/notifications.ts` | Shared helper — 6 public entry points, editorial HTML renderer, Resend transport, retry logic |
 | `supabase/functions/_shared/email_translations.ts` | 12-language copy table (`en`, `no`, `de`, `fr`, `es`, `it`, `pt`, `nl`, `sv`, `da`, `fi`, `pl`) |
-| `supabase/functions/_shared/notifications.test.ts` | 39 Deno unit tests covering templates, i18n fallback, markdown escape, article grouping |
+| `supabase/functions/_shared/notifications.test.ts` | Deno unit tests covering the editorial shell, i18n fallback, markdown escape, article grouping, digest/health coverage |
 | `supabase/functions/notifications-benchmark/index.ts` | Edge-Function-based preview runner |
 | `scripts/notifications-benchmark.ts` | Local preview runner (bypasses Supabase, uses Resend directly) |
 
 ## Public entry points
 
-Every worker calls one of these at the end of a successful run. All four
+Every worker calls one of these at the end of a successful run. All
 **never throw** — Resend failures are logged as `notifications:send_failed`
 and the worker carries on.
 
-| Function | Hook location | Theme | Key elements |
+| Function | Hook location | Variant | Key elements |
 |---|---|---|---|
-| `sendPageScoutAlert` | `scout-web-execute/index.ts` | Dark header `#1a1a2e`, blue accent `#2563eb` | Monitoring URL box, Criteria box, matched-content card, page-scout cue |
-| `sendBeatAlert` | `scout-beat-execute/index.ts` | Purple gradient `#7c3aed → #6d28d9` | Location/topic context, Top Stories grouped by source, pulse cue |
-| `sendCivicAlert` | `civic-extract-worker/index.ts` | Amber gradient `#d97706 → #b45309` | Markdown promises list with `[title](source)` links, civic cue |
-| `sendSocialAlert` | `apify-callback/index.ts` | Rose gradient `#e11d48 → #be123c` | `@handle on PLATFORM` context, new-posts cards, optional Removed Posts section |
+| `sendPageScoutAlert` | `scout-web-execute/index.ts` | `page` | Monitoring URL panel, criteria panel, matched-content card, page-scout cue |
+| `sendBeatAlert` | `scout-beat-execute/index.ts` | `beat` | Location/topic eyebrow, findings block, Top Stories cards, optional government section |
+| `sendCivicAlert` | `civic-extract-worker/index.ts` | `civic` | Promise markdown rendered into editorial findings block, civic cue |
+| `sendSocialAlert` | `apify-callback/index.ts` | `social` | `@handle on PLATFORM` eyebrow, profile panel, new-post cards, optional caution block |
+| `sendCivicPromiseDigest` | `promise-digest/index.ts` | `digest` | Civic digest shell for due-today promises across scouts |
+| `sendScoutDeactivated` | `scout-health-monitor/index.ts` | `health` | Scout health metadata panels, paused summary, health-specific copy |
 
-Legacy "Smart Scout" is now "Beat Scout" everywhere — DB `scout.type` enum
-stays `pulse`, only user-facing labels changed.
+Legacy "Smart Scout" is now "Beat Scout" everywhere. The old `pulse`
+storage value was migrated; `beat` is the canonical scout type in the
+live contract.
 
 ## Control flow
 
@@ -45,7 +50,9 @@ sendXAlert(svc, { userId, scoutId, runId, ... })
       ├─ build HTML via buildBaseHtml(...)
       │     — inline CSS only (Gmail/Outlook strip <style>)
       │     — localized disclaimer + scout-specific cue
-      │     — per-type gradient, accent, article cards
+      │     — structured editorial sections:
+      │       eyebrow/context row, metadata panels, findings block,
+      │       cards, optional secondary/caution sections
       │
       ├─ sendWithRetry(RESEND_API_KEY, to, subject, html)
       │     — POST https://api.resend.com/emails
@@ -88,16 +95,30 @@ column (default `TRUE`, migration `00028`). Users can flip it from the
 Preferences modal under the "Notifications" section. Missing rows fall back
 to the DB default, so new users are opted in until they say otherwise.
 
+## Renderer contract
+
+`buildBaseHtml(...)` is the shared shell. It expects a `variant` plus
+structured content inputs rather than prebuilt HTML strings.
+
+- `variant`: `page | beat | civic | social | digest | health`
+- `metadataPanels`: bordered key/value panels for URLs, criteria, profile links, health details
+- `cueText`: scout-specific italic verification cue
+- `secondarySection`: optional follow-on section for grouped supporting material
+- `cautionSection`: optional bordered block for removed posts / warnings
+
+The HTML must stay fully inline-styled. Email clients strip `<style>` tags and
+do not reliably support external assets or CSS custom properties.
+
 ## Testing
 
 ```bash
-# 39 pure-function tests — no network.
+# Pure-function tests — no network.
 deno test --allow-env supabase/functions/_shared/notifications.test.ts
 ```
 
-Covers: template snapshots per type, all 12 locales × 4 types smoke-rendered,
+Covers: editorial-shell invariants, all 12 locales × 6 email types,
 markdown-to-HTML escape safety, article-grouping edge cases, inline-CSS
-invariants, Unicode round-trip.
+requirements, and Unicode round-trip.
 
 ## Visual QA — send the 4 templates to your inbox
 

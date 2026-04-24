@@ -16,13 +16,20 @@
 
 import { z } from "https://esm.sh/zod@3";
 import { handleCors } from "../_shared/cors.ts";
-import { requireUser, AuthedUser } from "../_shared/auth.ts";
+import { AuthedUser, requireUser } from "../_shared/auth.ts";
 import { getUserClient, SupabaseClient } from "../_shared/supabase.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { ValidationError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
+import { normalizeDate } from "../_shared/date_utils.ts";
 import { firecrawlScrape } from "../_shared/firecrawl.ts";
-import { geminiEmbed, geminiExtract } from "../_shared/gemini.ts";
+import { EMBEDDING_MODEL_TAG, geminiEmbed, geminiExtract } from "../_shared/gemini.ts";
+import {
+  type CanonicalUnitType,
+  deriveSourceDomain,
+  sha256Hex,
+  upsertCanonicalUnit,
+} from "../_shared/unit_dedup.ts";
 
 const IngestSchema = z
   .object({
@@ -67,6 +74,7 @@ const EXTRACTION_SCHEMA: Record<string, unknown> = {
           type: { type: "string", enum: ["fact", "event", "entity_update"] },
           context_excerpt: { type: "string" },
           occurred_at: { type: "string", nullable: true },
+          entities: { type: "array", items: { type: "string" } },
         },
         required: ["statement", "type"],
       },
@@ -80,6 +88,7 @@ interface ExtractedUnit {
   type: "fact" | "event" | "entity_update";
   context_excerpt?: string;
   occurred_at?: string | null;
+  entities?: string[];
 }
 
 const RAW_CONTENT_MAX = 100_000;
@@ -237,7 +246,7 @@ async function runPipeline(
 
   // 3. Hash + raw_capture insert.
   const contentHash = await sha256Hex(truncated);
-  const sourceDomain = sourceUrl ? safeDomain(sourceUrl) : null;
+  const sourceDomain = sourceUrl ? deriveSourceDomain(sourceUrl) : null;
 
   const { data: capture, error: capErr } = await db
     .from("raw_captures")
@@ -262,7 +271,8 @@ async function runPipeline(
     "Extract up to 15 discrete factual statements from the following text. " +
     "For each, give a one-sentence `statement`, a `type` (fact|event|entity_update), " +
     "a `context_excerpt` (a short quoted snippet surrounding the statement), and " +
-    "`occurred_at` as a date in ISO 8601 if one is stated (null otherwise). " +
+    "`occurred_at` as a date in ISO 8601 if one is stated (null otherwise), and " +
+    "`entities` as a list of the named people, organizations, places, or policies mentioned. " +
     "Return JSON matching the provided schema.\n\nTEXT:\n" +
     promptText;
 
@@ -278,35 +288,39 @@ async function runPipeline(
     if (!u || typeof u.statement !== "string" || !u.statement.trim()) continue;
     if (!["fact", "event", "entity_update"].includes(u.type)) continue;
 
-    const embedding = await geminiEmbed(u.statement, "RETRIEVAL_DOCUMENT");
-
-    const { data: unitRow, error: unitErr } = await db
-      .from("information_units")
-      .insert({
-        user_id: user.id,
-        statement: u.statement,
-        type: u.type,
-        context_excerpt: u.context_excerpt ?? null,
-        occurred_at: normalizeDate(u.occurred_at),
-        source_url: sourceUrl,
-        source_title: sourceTitle,
-        source_domain: sourceDomain,
-        extracted_at: new Date().toISOString(),
-        source_type: "manual_ingest",
-        raw_capture_id: rawCaptureId,
-        project_id: input.project_id ?? null,
-        embedding,
-        embedding_model: "gemini-embedding-2-preview",
-        used_in_article: false,
-      })
-      .select("id, statement")
-      .single();
-
-    if (unitErr) throw new Error(unitErr.message);
-    inserted.push({
-      id: unitRow.id as string,
-      statement: unitRow.statement as string,
+    const embedding = await geminiEmbed(u.statement, "RETRIEVAL_DOCUMENT", {
+      title: sourceTitle,
     });
+    const unitType = u.type as CanonicalUnitType;
+    const result = await upsertCanonicalUnit(db, {
+      userId: user.id,
+      statement: u.statement,
+      unitType,
+      entities: u.entities ?? [],
+      embedding,
+      embeddingModel: EMBEDDING_MODEL_TAG,
+      sourceUrl,
+      sourceDomain,
+      sourceTitle,
+      contextExcerpt: u.context_excerpt ?? null,
+      occurredAt: normalizeDate(u.occurred_at),
+      extractedAt: new Date().toISOString(),
+      sourceType: "manual_ingest",
+      contentSha256: contentHash,
+      projectId: input.project_id ?? null,
+      rawCaptureId,
+      metadata: {
+        ingest_id: ingestId,
+        kind: input.kind,
+      },
+    });
+
+    if (result.createdCanonical) {
+      inserted.push({
+        id: result.unitId,
+        statement: u.statement,
+      });
+    }
   }
 
   return { raw_capture_id: rawCaptureId, units: inserted };
@@ -314,30 +328,4 @@ async function runPipeline(
 
 // ---------------------------------------------------------------------------
 
-async function sha256Hex(input: string): Promise<string> {
-  const buf = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function safeDomain(raw: string): string | null {
-  try {
-    return new URL(raw).hostname;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeDate(v: string | null | undefined): string | null {
-  if (!v) return null;
-  const trimmed = v.trim();
-  if (!trimmed) return null;
-  // Accept full ISO 8601; store as YYYY-MM-DD for DATE column.
-  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (match) return match[1];
-  const d = new Date(trimmed);
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
-}
+// normalizeDate moved to ../_shared/date_utils.ts (imported at the top).

@@ -1,0 +1,24 @@
+# coJournalist skills
+
+coJournalist publishes two public skill files for AI agents.
+
+## 1. Product skill
+
+URL: https://www.cojournalist.ai/skills/cojournalist.md
+
+Use this when the agent should operate the product: connect through MCP or CLI, create scouts, search units, export findings, and respect editorial verification.
+
+## 2. Setup skill
+
+URL: https://www.cojournalist.ai/skills/cojournalist-setup.md
+
+Use this when the agent should deploy or self-host coJournalist on the user's own infrastructure.
+
+## Index and supporting docs
+
+- Skills index page: https://www.cojournalist.ai/skills
+- Product overview: https://www.cojournalist.ai/overview.txt
+- Docs: https://www.cojournalist.ai/docs
+- Docs text: https://www.cojournalist.ai/docs.txt
+- llms.txt: https://www.cojournalist.ai/llms.txt
+- llms-full.txt: https://www.cojournalist.ai/llms-full.txt

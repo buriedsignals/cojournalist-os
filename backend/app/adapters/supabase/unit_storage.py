@@ -282,7 +282,7 @@ class SupabaseUnitStorage(UnitStoragePort):
         )
 
     async def get_all_unused_units(self, user_id: str, limit: int = 50) -> list[dict]:
-        """Get all unused information units for a user (for feed/export)."""
+        """Get all unused information units for a user."""
         await self._ensure_pool()
         rows = await self.pool.fetch(
             """

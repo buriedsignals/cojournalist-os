@@ -56,11 +56,18 @@ SUPABASE_AUTH_CALLBACK_URL = os.getenv(
 # Startup-time allowlist so a misconfigured env can't turn the proxy into an
 # open relay. Widen or relax for OSS self-hosters as needed.
 _ALLOWED_HOSTS = ("supabase.co", "supabase.in")
+_LOCALHOST_HOSTS = {"localhost", "127.0.0.1"}
 
 
 def _validate_upstream(url: str, label: str) -> None:
     p = urlparse(url)
-    if p.scheme != "https" or not p.hostname:
+    if not p.hostname:
+        raise RuntimeError(f"{label} must include a hostname; got {url!r}")
+    if p.hostname in _LOCALHOST_HOSTS:
+        if p.scheme not in {"http", "https"}:
+            raise RuntimeError(f"{label} localhost targets must be http(s); got {url!r}")
+        return
+    if p.scheme != "https":
         raise RuntimeError(f"{label} must be https with a hostname; got {url!r}")
     if not any(p.hostname == h or p.hostname.endswith("." + h) for h in _ALLOWED_HOSTS):
         raise RuntimeError(

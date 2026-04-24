@@ -3,7 +3,7 @@
 	import { Globe, MapPin, Tag, Calendar, Play, Trash2, X, Check } from 'lucide-svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import DemoBadge from '$lib/components/ui/DemoBadge.svelte';
-	import { truncateUrl, SCOUT_TYPE_CONFIG } from '$lib/utils/scouts';
+	import { truncateUrl, getScoutTypeDisplay, normalizeScoutType } from '$lib/utils/scouts';
 	import { tooltip } from '$lib/utils/tooltip';
 	import type { Scout } from '$lib/types/workspace';
 
@@ -22,7 +22,8 @@
 		cancelDelete: { id: string };
 	}>();
 
-	$: cfg = SCOUT_TYPE_CONFIG[scout.type];
+	$: cfg = getScoutTypeDisplay(scout.type);
+	$: normalizedType = normalizeScoutType(scout.type);
 
 	function locationDisplay(loc: unknown): string | null {
 		if (!loc || typeof loc !== 'object') return null;
@@ -96,14 +97,18 @@
 	role="button"
 	tabindex="0"
 >
-	{#if demo}
-		<DemoBadge variant="ribbon" />
-	{/if}
 	<div class="scout-shell-eyebrow-row">
-		<span class="scout-shell-eyebrow {cfg.className}">
-			<svelte:component this={cfg.icon} size={12} />
-			<span>{cfg.label}</span>
-		</span>
+		<div class="scout-card-eyebrow-group">
+			<span class="scout-shell-eyebrow {cfg.className}">
+				<span class="scout-shell-eyebrow-icon">
+					<svelte:component this={cfg.icon} size={12} />
+				</span>
+				<span class="scout-shell-eyebrow-label">{cfg.label}</span>
+			</span>
+			{#if demo}
+				<DemoBadge variant="pill" />
+			{/if}
+		</div>
 		{#if !demo}
 		<div class="scout-shell-actions">
 			{#if running}
@@ -176,7 +181,7 @@
 				<span>{scout.criteria}</span>
 			</div>
 		{/if}
-		{#if scout.type === 'web' && scout.url}
+		{#if normalizedType === 'web' && scout.url}
 			<div class="scout-meta-item scout-url">
 				<Globe size={14} />
 				<span class="scout-url-text" title={scout.url}>{truncateUrl(scout.url)}</span>
@@ -223,6 +228,13 @@
 		flex-direction: column;
 		gap: 0.375rem;
 		margin-bottom: 0.75rem;
+	}
+
+	.scout-card-eyebrow-group {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
 	}
 
 	.scout-meta-item {

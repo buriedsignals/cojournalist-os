@@ -8,6 +8,7 @@
  * demo and sets a localStorage flag so it never re-seeds.
  */
 import type { Scout, Unit } from '$lib/types/workspace';
+import { IS_LOCAL_DEMO_MODE } from '$lib/demo/state';
 
 export const DEMO_DISMISSED_KEY = 'cojournalist_demo_dismissed';
 
@@ -18,6 +19,7 @@ export function isDemoId(id: string | null | undefined): boolean {
 }
 
 export function demoDismissed(): boolean {
+	if (IS_LOCAL_DEMO_MODE) return false;
 	if (typeof localStorage === 'undefined') return false;
 	try {
 		return localStorage.getItem(DEMO_DISMISSED_KEY) === '1';
@@ -27,6 +29,7 @@ export function demoDismissed(): boolean {
 }
 
 export function markDemoDismissed(): void {
+	if (IS_LOCAL_DEMO_MODE) return;
 	if (typeof localStorage === 'undefined') return;
 	try {
 		localStorage.setItem(DEMO_DISMISSED_KEY, '1');
@@ -34,6 +37,19 @@ export function markDemoDismissed(): void {
 		// Private mode / quota — cleanup just runs again next session, harmless.
 	}
 }
+
+type DemoScoutLike =
+	| (Pick<Scout, 'id' | 'name'> & { is_demo?: boolean | null })
+	| { id?: string | null; name?: string | null; is_demo?: boolean | null };
+
+type DemoUnitLike =
+	| (Pick<Unit, 'id'> & {
+			scout_id?: string | null;
+			scout_name?: string | null;
+			is_demo?: boolean | null;
+	  })
+	| null
+	| undefined;
 
 // Stable "now" per bundle load so relative times in the UI don't flicker.
 const NOW = Date.now();
@@ -48,6 +64,8 @@ export const DEMO_SCOUT_IDS = {
 	civic: 'demo-civic'
 } as const;
 
+const BACKEND_DEMO_SCOUT_ID = 'onboarding-demo';
+
 // Demo data spans exactly two topics so a brand-new user sees the workspace
 // concept (multiple scouts, multiple sources, one editorial focus) without
 // being overwhelmed: Climate & mobility, and Housing affordability.
@@ -59,7 +77,9 @@ export const DEMO_SCOUTS: Scout[] = [
 		id: DEMO_SCOUT_IDS.web,
 		name: 'Oakland City Hall · climate & transit',
 		type: 'web',
+		is_demo: true,
 		url: 'https://www.oaklandca.gov/news',
+		topic: 'Climate & mobility',
 		criteria: 'climate action',
 		location: null,
 		is_active: true,
@@ -75,6 +95,8 @@ export const DEMO_SCOUTS: Scout[] = [
 		id: DEMO_SCOUT_IDS.pulse,
 		name: 'Housing affordability · São Paulo',
 		type: 'pulse',
+		is_demo: true,
+		topic: 'Housing affordability',
 		criteria: null,
 		url: null,
 		location: {
@@ -94,8 +116,10 @@ export const DEMO_SCOUTS: Scout[] = [
 		id: DEMO_SCOUT_IDS.social,
 		name: '@SadiqKhan · ULEZ & transport',
 		type: 'social',
+		is_demo: true,
 		platform: 'twitter',
 		url: 'https://x.com/SadiqKhan',
+		topic: 'Climate & mobility',
 		criteria: 'low-emission zones',
 		location: null,
 		is_active: true,
@@ -111,6 +135,8 @@ export const DEMO_SCOUTS: Scout[] = [
 		id: DEMO_SCOUT_IDS.civic,
 		name: 'Nairobi County Assembly',
 		type: 'civic',
+		is_demo: true,
+		topic: 'Housing affordability',
 		criteria: null,
 		url: 'https://nairobiassembly.go.ke/',
 		location: {
@@ -134,6 +160,52 @@ const DEMO_SCOUT_NAME: Record<string, string> = {
 	[DEMO_SCOUT_IDS.social]: DEMO_SCOUTS[2].name,
 	[DEMO_SCOUT_IDS.civic]: DEMO_SCOUTS[3].name
 };
+
+const DEMO_SCOUT_NAMES = new Set(Object.values(DEMO_SCOUT_NAME));
+
+export function isDemoScout(
+	scout: DemoScoutLike | null | undefined
+): boolean {
+	if (!scout) return false;
+	if (scout.is_demo === true) return true;
+	if (scout.id === BACKEND_DEMO_SCOUT_ID) return true;
+	if (isDemoId(scout.id)) return true;
+	return typeof scout.name === 'string' && DEMO_SCOUT_NAMES.has(scout.name);
+}
+
+export function isDemoUnit(
+	unit: DemoUnitLike
+): boolean {
+	if (!unit) return false;
+	if (unit.is_demo === true) return true;
+	if (isDemoId(unit.id)) return true;
+	if (unit.scout_id === BACKEND_DEMO_SCOUT_ID) return true;
+	return typeof unit.scout_name === 'string' && DEMO_SCOUT_NAMES.has(unit.scout_name);
+}
+
+export function isDemoWorkspace(scouts: DemoScoutLike[]): boolean {
+	return !demoDismissed() && scouts.length > 0 && scouts.every((scout) => isDemoScout(scout));
+}
+
+export function shouldSeedDemoWorkspace(scouts: DemoScoutLike[]): boolean {
+	return !demoDismissed() && scouts.length === 0;
+}
+
+export function shouldRetireDemoWorkspace(scouts: DemoScoutLike[]): boolean {
+	return !demoDismissed() && scouts.some((scout) => !isDemoScout(scout));
+}
+
+export function shouldUseLocalDemoUnits(params: {
+	scopeScoutId: string | null;
+	units: DemoUnitLike[];
+}): boolean {
+	const { scopeScoutId, units } = params;
+	return (
+		!demoDismissed() &&
+		((scopeScoutId !== null && isDemoId(scopeScoutId)) ||
+			(units.length > 0 && units.every((unit) => isDemoUnit(unit))))
+	);
+}
 
 interface DemoUnitSeed {
 	id: string;
@@ -341,6 +413,7 @@ const SEEDS: DemoUnitSeed[] = [
 
 export const DEMO_UNITS: Unit[] = SEEDS.map((s) => ({
 	id: s.id,
+	is_demo: true,
 	statement: s.statement,
 	unit_type: 'event',
 	entities: (s.entities ?? []).map((e) => ({

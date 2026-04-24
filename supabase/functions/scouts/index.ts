@@ -33,8 +33,14 @@ import {
 } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
 import { shapeScoutResponse } from "../_shared/db.ts";
-import { doubleProbe, firecrawlScrape } from "../_shared/firecrawl.ts";
+import { normalizeSocialHandle } from "../_shared/social_profiles.ts";
+import {
+  doubleProbe,
+  firecrawlChangeTrackingScrape,
+  firecrawlScrape,
+} from "../_shared/firecrawl.ts";
 import { geminiExtract } from "../_shared/gemini.ts";
+import { ensureWebBaseline } from "../_shared/web_scout_baseline.ts";
 import templates from "../scout-templates/templates.json" with { type: "json" };
 
 interface ScoutTemplate {
@@ -65,9 +71,21 @@ const FromTemplateSchema = z.object({
   project_id: z.string().uuid().nullable().optional(),
 });
 
-const ScoutType = z.enum(["web", "pulse", "social", "civic"]);
+const ScoutType = z.enum(["web", "beat", "social", "civic"]);
 const Regularity = z.enum(["daily", "weekly", "monthly"]);
 const TimeStr = z.string().regex(/^\d{1,2}:\d{2}$/);
+const SocialPlatform = z.enum(["instagram", "x", "facebook", "tiktok"]);
+const SocialMonitorMode = z.enum(["summarize", "criteria"]);
+const BaselinePostSchema = z.record(z.unknown());
+const InitialPromiseSchema = z.object({
+  promise_text: z.string().min(1).max(4000),
+  context: z.string().max(8000).default(""),
+  source_url: z.string().url().max(2000),
+  source_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  date_confidence: z.enum(["high", "medium", "low"]),
+  criteria_match: z.boolean(),
+});
 
 const CreateSchema = z
   .object({
@@ -77,6 +95,8 @@ const CreateSchema = z
     topic: z.string().max(200).optional(),
     url: z.string().url().max(2000).optional(),
     location: z.record(z.unknown()).optional(),
+    source_mode: z.enum(["reliable", "niche"]).optional(),
+    excluded_domains: z.array(z.string().max(253)).max(100).optional(),
     regularity: Regularity.optional(),
     schedule_cron: z.string().min(1).max(200).optional(),
     // Legacy schedule fields — server synthesises schedule_cron from these
@@ -86,6 +106,55 @@ const CreateSchema = z
     provider: z.string().max(100).optional(),
     project_id: z.string().uuid().optional(),
     priority_sources: z.array(z.string().max(500)).max(100).optional(),
+    platform: SocialPlatform.optional(),
+    profile_handle: z.string().min(1).max(200).optional(),
+    monitor_mode: SocialMonitorMode.optional(),
+    track_removals: z.boolean().optional(),
+    baseline_posts: z.array(BaselinePostSchema).max(100).optional(),
+    root_domain: z.string().min(1).max(300).optional(),
+    tracked_urls: z.array(z.string().url().max(2000)).min(1).max(20).optional(),
+    initial_promises: z.array(InitialPromiseSchema).max(100).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.type === "social") {
+      if (!v.platform) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["platform"],
+          message: "required for social scouts",
+        });
+      }
+      if (!v.profile_handle?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["profile_handle"],
+          message: "required for social scouts",
+        });
+      }
+      if (v.monitor_mode === "criteria" && !v.criteria?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["criteria"],
+          message: "required when monitor_mode is criteria",
+        });
+      }
+    }
+    if (v.type === "civic") {
+      if (!v.root_domain?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["root_domain"],
+          message: "required for civic scouts",
+        });
+      }
+      if (!v.tracked_urls?.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["tracked_urls"],
+          message: "required for civic scouts",
+        });
+      }
+    }
   })
   .refine(
     (v) => v.type !== "civic" || v.regularity === undefined || v.regularity !== "daily",
@@ -100,6 +169,8 @@ const UpdateSchema = z
     topic: z.string().max(200).nullable().optional(),
     url: z.string().url().max(2000).nullable().optional(),
     location: z.record(z.unknown()).nullable().optional(),
+    source_mode: z.enum(["reliable", "niche"]).nullable().optional(),
+    excluded_domains: z.array(z.string().max(253)).max(100).nullable().optional(),
     regularity: Regularity.nullable().optional(),
     schedule_cron: z.string().min(1).max(200).nullable().optional(),
     day_number: z.number().int().min(0).max(31).optional(),
@@ -108,6 +179,12 @@ const UpdateSchema = z
     project_id: z.string().uuid().nullable().optional(),
     priority_sources: z.array(z.string().max(500)).max(100).nullable().optional(),
     is_active: z.boolean().optional(),
+    platform: SocialPlatform.nullable().optional(),
+    profile_handle: z.string().max(200).nullable().optional(),
+    monitor_mode: SocialMonitorMode.nullable().optional(),
+    track_removals: z.boolean().optional(),
+    root_domain: z.string().max(300).nullable().optional(),
+    tracked_urls: z.array(z.string().url().max(2000)).max(20).nullable().optional(),
   })
   .refine(
     (v) => v.type !== "civic" || v.regularity == null || v.regularity !== "daily",
@@ -159,9 +236,10 @@ Deno.serve(async (req): Promise<Response> => {
   const path = url.pathname.replace(/^.*\/scouts/, "") || "/";
   const idMatch = path.match(/^\/([0-9a-f-]{36})$/i);
   const idActionMatch = path.match(/^\/([0-9a-f-]{36})\/(run|pause|resume)$/i);
+  const isRead = req.method === "GET" || req.method === "HEAD";
 
   try {
-    if (path === "/" && req.method === "GET") {
+    if (path === "/" && isRead) {
       return await listScouts(req, user);
     }
     if (path === "/" && req.method === "POST") {
@@ -173,7 +251,7 @@ Deno.serve(async (req): Promise<Response> => {
     if (path === "/test" && req.method === "POST") {
       return await testScout(req, user);
     }
-    if (idMatch && req.method === "GET") {
+    if (idMatch && isRead) {
       return await getScout(user, idMatch[1]);
     }
     if (idMatch && req.method === "PATCH") {
@@ -237,11 +315,137 @@ function normalizeScoutBody(raw: unknown): unknown {
     out.type = out.scout_type;
   }
   delete out.scout_type;
+  if (out.type === "pulse") {
+    out.type = "beat";
+  }
   if (typeof out.day_number === "string") {
     const n = parseInt(out.day_number, 10);
     if (!Number.isNaN(n)) out.day_number = n;
   }
+  if (typeof out.profile_handle === "string" && typeof out.platform === "string") {
+    const platform = out.platform;
+    if (
+      platform === "instagram" || platform === "x" || platform === "facebook" ||
+      platform === "tiktok"
+    ) {
+      out.profile_handle = normalizeSocialHandle(platform, out.profile_handle);
+    }
+  }
+  if (typeof out.root_domain === "string") {
+    out.root_domain = out.root_domain
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/+$/, "");
+  }
   return out;
+}
+
+function needsScheduledBaseline(scout: BaselineableScout): boolean {
+  return scout.type === "web" || scout.type === "civic";
+}
+
+function normalizeTrackedUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+    .slice(0, CIVIC_BASELINE_MAX_TRACKED);
+}
+
+async function shortHash(input: string): Promise<string> {
+  const bytes = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 12);
+}
+
+async function stampBaseline(
+  svc: ReturnType<typeof getServiceClient>,
+  scoutId: string,
+  patch: Record<string, unknown> = {},
+): Promise<void> {
+  const { error } = await svc
+    .from("scouts")
+    .update({
+      baseline_established_at: new Date().toISOString(),
+      ...patch,
+    })
+    .eq("id", scoutId);
+  if (error) throw new Error(error.message);
+}
+
+async function establishCivicBaseline(
+  scout: BaselineableScout,
+): Promise<void> {
+  const tracked = normalizeTrackedUrls(scout.tracked_urls);
+  if (tracked.length === 0) {
+    throw new ValidationError("civic scouts require tracked_urls before scheduling");
+  }
+
+  for (const url of tracked) {
+    await firecrawlChangeTrackingScrape(
+      url,
+      `civic-${scout.id}-${await shortHash(url)}`.slice(0, 128),
+    );
+  }
+}
+
+async function ensureScheduledBaseline(
+  svc: ReturnType<typeof getServiceClient>,
+  scout: BaselineableScout,
+): Promise<void> {
+  if (!needsScheduledBaseline(scout) || scout.baseline_established_at) return;
+  if (scout.type === "web") {
+    await ensureWebBaseline(svc, scout);
+    return;
+  }
+  await establishCivicBaseline(scout);
+  await stampBaseline(svc, scout.id);
+}
+
+async function seedSocialBaseline(
+  svc: ReturnType<typeof getServiceClient>,
+  scoutId: string,
+  userId: string,
+  platform: z.infer<typeof SocialPlatform>,
+  handle: string,
+  posts: Array<Record<string, unknown>>,
+): Promise<void> {
+  if (posts.length === 0) return;
+  const { error } = await svc.from("post_snapshots").upsert({
+    scout_id: scoutId,
+    user_id: userId,
+    platform,
+    handle,
+    post_count: posts.length,
+    posts,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "scout_id" });
+  if (error) throw new Error(error.message);
+}
+
+async function seedInitialPromises(
+  svc: ReturnType<typeof getServiceClient>,
+  scoutId: string,
+  userId: string,
+  promises: Array<z.infer<typeof InitialPromiseSchema>>,
+): Promise<void> {
+  if (promises.length === 0) return;
+  const rows = promises.map((promise) => ({
+    scout_id: scoutId,
+    user_id: userId,
+    promise_text: promise.promise_text,
+    context: promise.context,
+    source_url: promise.source_url,
+    meeting_date: promise.source_date,
+    due_date: promise.due_date ?? null,
+    date_confidence: promise.date_confidence,
+  }));
+  const { error } = await svc.from("promises").insert(rows);
+  if (error) throw new Error(error.message);
 }
 
 async function createScout(req: Request, user: AuthedUser): Promise<Response> {
@@ -260,7 +464,14 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
 
   // Strip legacy schedule fields; synthesise schedule_cron from them when
   // the client didn't provide one explicitly.
-  const { schedule_cron: explicitCron, time, day_number, ...rest } = parsed.data;
+  const {
+    schedule_cron: explicitCron,
+    time,
+    day_number,
+    baseline_posts,
+    initial_promises,
+    ...rest
+  } = parsed.data;
   const schedule_cron = explicitCron ??
     cronFromParts(rest.regularity, day_number, time);
 
@@ -285,6 +496,42 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
 
   if (schedule_cron) {
     const svc = getServiceClient();
+    const baselineScout: BaselineableScout = {
+      ...(data as BaselineableScout),
+      tracked_urls: rest.type === "civic" ? rest.tracked_urls ?? data.tracked_urls : data.tracked_urls,
+    };
+    try {
+      if (
+        data.type === "social" &&
+        data.platform &&
+        data.profile_handle &&
+        Array.isArray(baseline_posts) &&
+        baseline_posts.length > 0
+      ) {
+        await seedSocialBaseline(
+          svc,
+          data.id,
+          user.id,
+          data.platform as z.infer<typeof SocialPlatform>,
+          data.profile_handle,
+          baseline_posts,
+        );
+      }
+      if (data.type === "civic" && Array.isArray(initial_promises) && initial_promises.length > 0) {
+        await seedInitialPromises(svc, data.id, user.id, initial_promises);
+      }
+    } catch (e) {
+      await svc.from("scouts").delete().eq("id", data.id);
+      throw e;
+    }
+    if (needsScheduledBaseline(baselineScout)) {
+      try {
+        await ensureScheduledBaseline(svc, baselineScout);
+      } catch (e) {
+        await svc.from("scouts").delete().eq("id", data.id);
+        throw e;
+      }
+    }
     const { error: rpcErr } = await svc.rpc("schedule_scout", {
       p_scout_id: data.id,
       p_cron_expr: schedule_cron,
@@ -298,6 +545,32 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
         scout_id: data.id,
         msg: rpcErr.message,
       });
+    }
+  } else {
+    const svc = getServiceClient();
+    try {
+      if (
+        data.type === "social" &&
+        data.platform &&
+        data.profile_handle &&
+        Array.isArray(baseline_posts) &&
+        baseline_posts.length > 0
+      ) {
+        await seedSocialBaseline(
+          svc,
+          data.id,
+          user.id,
+          data.platform as z.infer<typeof SocialPlatform>,
+          data.profile_handle,
+          baseline_posts,
+        );
+      }
+      if (data.type === "civic" && Array.isArray(initial_promises) && initial_promises.length > 0) {
+        await seedInitialPromises(svc, data.id, user.id, initial_promises);
+      }
+    } catch (e) {
+      await svc.from("scouts").delete().eq("id", data.id);
+      throw e;
     }
   }
 
@@ -363,6 +636,17 @@ async function updateScout(
     .maybeSingle();
   if (readErr) throw new Error(readErr.message);
   if (!current) throw new NotFoundError("scout");
+
+  const nextScout = { ...current, ...parsed.data } as BaselineableScout & {
+    schedule_cron?: string | null;
+    is_active?: boolean | null;
+  };
+  const willBeActive = nextScout.is_active === true;
+  const willHaveSchedule = typeof nextScout.schedule_cron === "string" &&
+    nextScout.schedule_cron.length > 0;
+  if (willBeActive && willHaveSchedule) {
+    await ensureScheduledBaseline(getServiceClient(), nextScout);
+  }
 
   const { data, error } = await db
     .from("scouts")
@@ -543,6 +827,9 @@ async function resumeScout(user: AuthedUser, id: string): Promise<Response> {
     );
   }
 
+  const svc = getServiceClient();
+  await ensureScheduledBaseline(svc, current as BaselineableScout);
+
   const { data, error } = await db
     .from("scouts")
     .update({ is_active: true })
@@ -552,7 +839,6 @@ async function resumeScout(user: AuthedUser, id: string): Promise<Response> {
   if (error) throw new Error(error.message);
   if (!data) throw new NotFoundError("scout");
 
-  const svc = getServiceClient();
   const { error: rpcErr } = await svc.rpc("schedule_scout", {
     p_scout_id: id,
     p_cron_expr: current.schedule_cron,
@@ -668,6 +954,17 @@ const TestSchema = z.object({
 });
 
 const TEST_MARKDOWN_MAX = 15_000;
+const CIVIC_BASELINE_MAX_TRACKED = 20;
+
+interface BaselineableScout {
+  id: string;
+  user_id: string;
+  type: "web" | "beat" | "social" | "civic";
+  url?: string | null;
+  provider?: string | null;
+  tracked_urls?: unknown;
+  baseline_established_at?: string | null;
+}
 
 const TEST_EXTRACTION_SCHEMA: Record<string, unknown> = {
   type: "object",

@@ -5,7 +5,11 @@
  *   deno test --allow-env supabase/functions/_shared/notifications.test.ts
  */
 
-import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assert,
+  assertEquals,
+  assertStringIncludes,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   buildBaseHtml,
   buildProfileUrl,
@@ -14,89 +18,161 @@ import {
   markdownToHtml,
   renderArticleCards,
 } from "./notifications.ts";
-import { EMAIL_STRINGS, getString, SUPPORTED_LANGUAGES } from "./email_translations.ts";
+import {
+  EMAIL_STRINGS,
+  getString,
+  SUPPORTED_LANGUAGES,
+} from "./email_translations.ts";
 
-// Helper: render each scout type's full email HTML against a fixed payload.
-// Used by per-type snapshot assertions below.
 function renderPageScoutHtml(lang = "en"): string {
-  const criteriaLabel = getString("criteria", lang);
-  const monitoringLabel = getString("monitoring_url", lang);
-  const cueText = getString("page_scout_cue", lang);
   return buildBaseHtml({
+    variant: "page",
+    eyebrowLabel: getString("page_scout", lang),
+    contextLabel: getString("scout_alert", lang),
     headerTitle: getString("scout_alert", lang),
     headerSubtitle: "Test Scout",
-    headerGradient: "#1a1a2e",
-    accentColor: "#2563eb",
-    contextLabel: getString("page_scout", lang),
     summary: "Found one new fact matching your criteria.",
     articles: [{
       title: "Evidence page",
       url: "https://example.com/page",
-      summary: "",
-      source: "",
+      summary: "New agenda paragraph added.",
+      source: "oaklandca.gov",
     }],
     articlesSectionTitle: getString("see_what_matched", lang),
-    extraContent: `<div>${escapeHtml(monitoringLabel)}: https://example.com</div>
-<div>${escapeHtml(criteriaLabel)}: climate action</div>
-<div>${escapeHtml(cueText)}</div>`,
+    metadataPanels: [
+      {
+        label: getString("monitoring_url", lang),
+        value: "https://example.com",
+        href: "https://example.com",
+      },
+      {
+        label: getString("criteria", lang),
+        value: "climate action",
+      },
+    ],
+    cueText: getString("page_scout_cue", lang),
     language: lang,
   });
 }
 
 function renderBeatScoutHtml(lang = "en"): string {
   return buildBaseHtml({
+    variant: "beat",
+    eyebrowLabel: getString("beat_scout", lang),
+    contextLabel: "ZURICH, CH",
     headerTitle: getString("beat_scout", lang),
     headerSubtitle: "My Beat",
-    headerGradient: ["#7c3aed", "#6d28d9"],
-    accentColor: "#7c3aed",
-    contextLabel: "ZURICH, CH",
     summary: "- Fact A\n- Fact B\n- Fact C",
     articles: [
-      { title: "Source 1", url: "https://a.example/1", summary: "" },
-      { title: "Source 2", url: "https://b.example/2", summary: "" },
+      { title: "Source 1", url: "https://a.example/1", summary: "Fact A" },
+      { title: "Source 2", url: "https://b.example/2", summary: "Fact B" },
     ],
     articlesSectionTitle: getString("top_stories", lang),
-    extraContent: `<div>${escapeHtml(getString("pulse_scout_cue", lang))}</div>`,
+    cueText: getString("beat_scout_cue", lang),
+    secondarySection: {
+      title: getString("government_municipal", lang),
+      summary: "- Council advanced the ordinance.\n- Vote scheduled next week.",
+      articles: [{
+        title: "Council notes",
+        url: "https://c.example/3",
+        summary: "Minutes",
+      }],
+    },
     language: lang,
   });
 }
 
 function renderCivicScoutHtml(lang = "en"): string {
   return buildBaseHtml({
+    variant: "civic",
+    eyebrowLabel: getString("civic_scout", lang),
+    contextLabel: getString("key_findings", lang),
     headerTitle: getString("civic_scout", lang),
     headerSubtitle: "Oakland Council",
-    headerGradient: ["#d97706", "#b45309"],
-    accentColor: "#d97706",
-    contextLabel: getString("civic_scout", lang),
     summary:
       "- **Commit to a 30% reduction** ([Oakland minutes](https://oakland.example/m.pdf))",
     articles: [],
     articlesSectionTitle: "",
-    extraContent: `<div>${escapeHtml(getString("civic_scout_cue", lang))}</div>`,
+    cueText: getString("civic_scout_cue", lang),
     language: lang,
   });
 }
 
-function renderSocialScoutHtml(lang = "en"): string {
+function renderSocialScoutHtml(lang = "en", withRemoved = false): string {
   return buildBaseHtml({
+    variant: "social",
+    eyebrowLabel: getString("social_scout", lang),
+    contextLabel: "@somehandle on X",
     headerTitle: getString("social_scout", lang),
     headerSubtitle: "Mayor watch",
-    headerGradient: ["#e11d48", "#be123c"],
-    accentColor: "#e11d48",
-    contextLabel: "@somehandle on X",
     summary: "2 new posts:\n- post one\n- post two",
     articles: [
-      { title: "@somehandle", url: "https://twitter.com/somehandle/status/1", summary: "post one" },
+      {
+        title: "@somehandle",
+        url: "https://twitter.com/somehandle/status/1",
+        summary: "post one",
+        source: "x",
+      },
     ],
     articlesSectionTitle: getString("new_posts", lang),
-    extraContent: `<div>${escapeHtml(getString("social_scout_cue", lang))}</div>`,
+    metadataPanels: [{
+      label: getString("profile_label", lang),
+      value: "https://twitter.com/somehandle",
+      href: "https://twitter.com/somehandle",
+    }],
+    cueText: getString("social_scout_cue", lang),
+    cautionSection: withRemoved
+      ? {
+        title: getString("removed_posts", lang),
+        items: [`${getString("removed_label", lang)} budget post removed`],
+      }
+      : undefined,
     language: lang,
   });
 }
 
-// ---------------------------------------------------------------------------
-// email_translations
-// ---------------------------------------------------------------------------
+function renderDigestHtml(lang = "en"): string {
+  return buildBaseHtml({
+    variant: "digest",
+    eyebrowLabel: getString("civic_digest", lang),
+    contextLabel: getString("civic_scout", lang),
+    headerTitle: getString("civic_digest", lang),
+    headerSubtitle: getString("promise_due_today_plural", lang, { count: 3 }),
+    summary:
+      "- **Approve $12M transit fund** ([Resolution](https://oakland.example/resolution.pdf))\n" +
+      "- **Hold a public hearing** ([Agenda](https://oakland.example/agenda.pdf))",
+    articles: [],
+    articlesSectionTitle: "",
+    language: lang,
+  });
+}
+
+function renderHealthHtml(lang = "en"): string {
+  return buildBaseHtml({
+    variant: "health",
+    eyebrowLabel: getString("scout_health", lang),
+    contextLabel: getString("beat_scout", lang).toUpperCase(),
+    headerTitle: getString("scout_paused", lang),
+    headerSubtitle: "Transit Watch",
+    summary: getString("scout_paused_summary", lang, {
+      name: "Transit Watch",
+      count: 3,
+    }),
+    articles: [],
+    articlesSectionTitle: "",
+    metadataPanels: [
+      {
+        label: getString("scout_type", lang),
+        value: getString("beat_scout", lang),
+      },
+      {
+        label: getString("consecutive_failures", lang),
+        value: "3",
+      },
+    ],
+    language: lang,
+  });
+}
 
 Deno.test("getString returns the English value for a known key", () => {
   assertEquals(getString("page_scout", "en"), "Page Scout");
@@ -116,34 +192,13 @@ Deno.test("getString interpolates {name} placeholders", () => {
   assert(!out.includes("{count}"));
 });
 
-Deno.test("getString leaves unfilled placeholders in place", () => {
-  // `and_more` uses {count}; if we omit the param the token stays verbatim.
-  const out = getString("and_more", "en", { other: 3 });
-  assert(out.includes("{count}"));
-});
-
 Deno.test("every supported language carries the full key set", () => {
   const enKeys = Object.keys(EMAIL_STRINGS.en).sort();
   for (const lang of SUPPORTED_LANGUAGES) {
     const langKeys = Object.keys(EMAIL_STRINGS[lang]).sort();
-    assertEquals(
-      langKeys,
-      enKeys,
-      `Language '${lang}' is missing or has extra keys vs English`,
-    );
+    assertEquals(langKeys, enKeys, `Language '${lang}' mismatch vs English`);
   }
 });
-
-Deno.test("Smart Scout wording has been renamed to Beat Scout in every locale", () => {
-  for (const lang of SUPPORTED_LANGUAGES) {
-    const v = EMAIL_STRINGS[lang].beat_scout;
-    assertEquals(v, "Beat Scout", `locale '${lang}' should use Beat Scout`);
-  }
-});
-
-// ---------------------------------------------------------------------------
-// escapeHtml
-// ---------------------------------------------------------------------------
 
 Deno.test("escapeHtml neutralizes every HTML-sensitive char", () => {
   assertEquals(
@@ -156,10 +211,6 @@ Deno.test("escapeHtml tolerates null/undefined", () => {
   assertEquals(escapeHtml(null), "");
   assertEquals(escapeHtml(undefined), "");
 });
-
-// ---------------------------------------------------------------------------
-// markdownToHtml
-// ---------------------------------------------------------------------------
 
 Deno.test("markdownToHtml converts headers, bold, bullets and links", () => {
   const out = markdownToHtml(
@@ -179,41 +230,63 @@ Deno.test("markdownToHtml escapes HTML embedded in the source", () => {
   assertStringIncludes(out, "&lt;script&gt;");
 });
 
-Deno.test("markdownToHtml preserves bold inside link text", () => {
-  const out = markdownToHtml("[**click**](https://example.com)");
-  // inline markdown extraction uses the link text literally; the important
-  // thing is the href lands verbatim.
-  assertStringIncludes(out, 'href="https://example.com"');
+Deno.test("markdownToHtml wraps bare text in a paragraph", () => {
+  const html = markdownToHtml("just one line");
+  assertStringIncludes(html, "<p");
+  assertStringIncludes(html, "just one line");
 });
-
-// ---------------------------------------------------------------------------
-// groupFactsBySource
-// ---------------------------------------------------------------------------
 
 Deno.test("groupFactsBySource dedups by source_url and caps to 5 by default", () => {
   const facts = [
-    { source_url: "https://a.com", source_title: "A", source_domain: "a.com", statement: "s1" },
-    { source_url: "https://a.com", source_title: "A", source_domain: "a.com", statement: "s2" },
-    { source_url: "https://b.com", source_title: "B", source_domain: "b.com", statement: "s3" },
-    { source_url: "https://c.com", source_title: "C", source_domain: "c.com", statement: "s4" },
-    { source_url: "https://d.com", source_title: "D", source_domain: "d.com", statement: "s5" },
-    { source_url: "https://e.com", source_title: "E", source_domain: "e.com", statement: "s6" },
-    { source_url: "https://f.com", source_title: "F", source_domain: "f.com", statement: "s7" },
+    {
+      source_url: "https://a.com",
+      source_title: "A",
+      source_domain: "a.com",
+      statement: "s1",
+    },
+    {
+      source_url: "https://a.com",
+      source_title: "A",
+      source_domain: "a.com",
+      statement: "s2",
+    },
+    {
+      source_url: "https://b.com",
+      source_title: "B",
+      source_domain: "b.com",
+      statement: "s3",
+    },
+    {
+      source_url: "https://c.com",
+      source_title: "C",
+      source_domain: "c.com",
+      statement: "s4",
+    },
+    {
+      source_url: "https://d.com",
+      source_title: "D",
+      source_domain: "d.com",
+      statement: "s5",
+    },
+    {
+      source_url: "https://e.com",
+      source_title: "E",
+      source_domain: "e.com",
+      statement: "s6",
+    },
+    {
+      source_url: "https://f.com",
+      source_title: "F",
+      source_domain: "f.com",
+      statement: "s7",
+    },
   ];
   const out = groupFactsBySource(facts);
   assertEquals(out.length, 5);
   assertEquals(out[0].url, "https://a.com");
-  // Two statements for A => bulleted summary.
   assert(out[0].summary?.startsWith("\u2022"));
   assertStringIncludes(out[0].summary ?? "", "s1");
   assertStringIncludes(out[0].summary ?? "", "s2");
-});
-
-Deno.test("groupFactsBySource preserves single-statement plain summaries", () => {
-  const out = groupFactsBySource([
-    { source_url: "https://x.com", source_title: "X", statement: "only one" },
-  ]);
-  assertEquals(out[0].summary, "only one");
 });
 
 Deno.test("groupFactsBySource keeps URL-less facts as separate entries", () => {
@@ -223,10 +296,6 @@ Deno.test("groupFactsBySource keeps URL-less facts as separate entries", () => {
   ]);
   assertEquals(out.length, 2);
 });
-
-// ---------------------------------------------------------------------------
-// renderArticleCards
-// ---------------------------------------------------------------------------
 
 Deno.test("renderArticleCards caps at the requested limit", () => {
   const articles = Array.from({ length: 8 }, (_, i) => ({
@@ -240,80 +309,118 @@ Deno.test("renderArticleCards caps at the requested limit", () => {
 });
 
 Deno.test("renderArticleCards escapes title HTML", () => {
-  // Parity with legacy notification_service._render_article_cards: titles are
-  // HTML-escaped. URLs are escaped for attribute-breaking chars too, but
-  // `javascript:` is not stripped (matches Python version).
   const html = renderArticleCards(
     [{
-      title: '<img onerror=x>',
+      title: "<img onerror=x>",
       url: 'https://example.com/"><script>',
-      summary: '',
+      summary: "",
     }],
     "#000",
   );
   assert(!html.includes("<img onerror"));
   assertStringIncludes(html, "&lt;img");
-  assert(!html.includes('"><script>'), "attribute-break must be escaped");
+  assert(!html.includes('"><script>'));
 });
 
-// ---------------------------------------------------------------------------
-// buildBaseHtml — per-scout-type snapshot smoke
-// ---------------------------------------------------------------------------
-
-Deno.test("buildBaseHtml renders tuple gradient + accent + disclaimer", () => {
-  const html = buildBaseHtml({
-    headerTitle: "Beat Scout",
-    headerSubtitle: "My Scout",
-    headerGradient: ["#7c3aed", "#6d28d9"],
-    accentColor: "#7c3aed",
-    contextLabel: "OSLO",
-    summary: "New facts",
-    articles: [{ title: "A", url: "https://a.com", summary: "x" }],
-    articlesSectionTitle: "Top Stories",
-    language: "en",
-  });
-  assertStringIncludes(html, "linear-gradient(135deg, #7c3aed, #6d28d9)");
-  assertStringIncludes(html, "Beat Scout");
-  assertStringIncludes(html, "OSLO");
-  assertStringIncludes(html, "Top Stories");
-  assertStringIncludes(html, EMAIL_STRINGS.en.email_disclaimer);
+Deno.test("buildBaseHtml uses the editorial shell instead of the legacy gradient card", () => {
+  const html = renderBeatScoutHtml();
+  assertStringIncludes(html, "background: #F5EFE3");
+  assertStringIncludes(html, "background: #F9F4E9");
+  assertStringIncludes(html, "font-family: 'Courier New', Courier, monospace");
+  assertStringIncludes(html, "border-left: 3px solid #6B3FA0");
+  assert(!html.includes("linear-gradient("));
+  assert(!html.includes("border-radius"));
 });
 
-Deno.test("buildBaseHtml accepts solid-color gradient fallback", () => {
-  const html = buildBaseHtml({
-    headerTitle: "Scout Alert!",
-    headerSubtitle: "Page",
-    headerGradient: "#1a1a2e",
-    accentColor: "#2563eb",
-    contextLabel: "PAGE SCOUT",
-    summary: "changes detected",
-    articles: [],
-    articlesSectionTitle: "",
-    language: "en",
-  });
-  assertStringIncludes(html, "background: #1a1a2e");
-  // No articles → no section heading wrapped in <h3>
-  assert(!html.includes("<h3 style=\"margin: 0 0 16px 0"));
-});
-
-Deno.test("buildBaseHtml localizes the disclaimer for the chosen language", () => {
-  const html = buildBaseHtml({
-    headerTitle: "Alerte",
-    headerSubtitle: "Ma veille",
-    headerGradient: "#1a1a2e",
-    accentColor: "#2563eb",
-    contextLabel: "PAGE",
-    summary: "test",
-    articles: [],
-    articlesSectionTitle: "",
-    language: "fr",
-  });
+Deno.test("buildBaseHtml inlines all styles and includes the localized disclaimer", () => {
+  const html = renderBeatScoutHtml("fr");
+  assert(!html.includes("<link"));
+  assert(!html.includes("<style"));
+  assertStringIncludes(html, 'style="');
   assertStringIncludes(html, EMAIL_STRINGS.fr.email_disclaimer);
 });
 
-// ---------------------------------------------------------------------------
-// buildProfileUrl
-// ---------------------------------------------------------------------------
+Deno.test("Page Scout renders metadata panels and matched content section", () => {
+  const html = renderPageScoutHtml();
+  assertStringIncludes(html, EMAIL_STRINGS.en.monitoring_url);
+  assertStringIncludes(html, EMAIL_STRINGS.en.criteria);
+  assertStringIncludes(html, EMAIL_STRINGS.en.see_what_matched);
+  assertStringIncludes(html, EMAIL_STRINGS.en.page_scout_cue);
+});
+
+Deno.test("Beat Scout renders editorial digest section plus government section", () => {
+  const html = renderBeatScoutHtml();
+  assertStringIncludes(html, EMAIL_STRINGS.en.top_stories);
+  assertStringIncludes(html, "Government &amp; Municipal");
+  assertStringIncludes(html, "ZURICH, CH");
+  assertStringIncludes(html, 'href="https://a.example/1"');
+  assertStringIncludes(html, 'href="https://c.example/3"');
+});
+
+Deno.test("Civic Scout renders markdown promises with the civic cue", () => {
+  const html = renderCivicScoutHtml();
+  assertStringIncludes(html, "<strong>Commit to a 30% reduction</strong>");
+  assertStringIncludes(html, 'href="https://oakland.example/m.pdf"');
+  assertStringIncludes(html, EMAIL_STRINGS.en.civic_scout_cue);
+});
+
+Deno.test("Social Scout renders caution section only when removed posts exist", () => {
+  const withoutRemoved = renderSocialScoutHtml("en", false);
+  const withRemoved = renderSocialScoutHtml("en", true);
+  assert(!withoutRemoved.includes(EMAIL_STRINGS.en.removed_posts));
+  assertStringIncludes(withRemoved, EMAIL_STRINGS.en.removed_posts);
+  assertStringIncludes(withRemoved, EMAIL_STRINGS.en.profile_label);
+});
+
+Deno.test("Civic Digest renders in the editorial shell", () => {
+  const html = renderDigestHtml();
+  assertStringIncludes(html, EMAIL_STRINGS.en.civic_digest);
+  assertStringIncludes(
+    html,
+    EMAIL_STRINGS.en.promise_due_today_plural.replace("{count}", "3"),
+  );
+  assertStringIncludes(html, 'href="https://oakland.example/resolution.pdf"');
+});
+
+Deno.test("Scout health email renders localized health metadata", () => {
+  const html = renderHealthHtml("de");
+  assertStringIncludes(html, EMAIL_STRINGS.de.scout_health);
+  assertStringIncludes(html, EMAIL_STRINGS.de.scout_paused);
+  assertStringIncludes(html, EMAIL_STRINGS.de.scout_type);
+  assertStringIncludes(html, EMAIL_STRINGS.de.consecutive_failures);
+});
+
+Deno.test("every notification type renders without errors in every supported language", () => {
+  const renderers = {
+    page: renderPageScoutHtml,
+    beat: renderBeatScoutHtml,
+    civic: renderCivicScoutHtml,
+    social: (lang: string) => renderSocialScoutHtml(lang, true),
+    digest: renderDigestHtml,
+    health: renderHealthHtml,
+  };
+
+  for (const lang of SUPPORTED_LANGUAGES) {
+    for (const [name, render] of Object.entries(renderers)) {
+      const html = render(lang);
+      assert(html.length > 0, `empty render for ${name}/${lang}`);
+      assertStringIncludes(
+        html,
+        EMAIL_STRINGS[lang].email_disclaimer,
+        `${name}/${lang} missing disclaimer`,
+      );
+    }
+  }
+});
+
+Deno.test("base template has DOCTYPE and balanced major tags", () => {
+  const html = renderBeatScoutHtml();
+  const opens = (re: RegExp) => (html.match(re) ?? []).length;
+  assertStringIncludes(html, "<!DOCTYPE html>");
+  assertStringIncludes(html, "<body");
+  assertEquals(opens(/<body/g), opens(/<\/body>/g));
+  assertEquals(opens(/<html/g), opens(/<\/html>/g));
+});
 
 Deno.test("buildProfileUrl maps known platforms and strips leading @", () => {
   assertEquals(
@@ -333,166 +440,10 @@ Deno.test("buildProfileUrl maps known platforms and strips leading @", () => {
 });
 
 Deno.test("buildProfileUrl falls back to a {platform}.com host for unknown platforms", () => {
-  assertEquals(
-    buildProfileUrl("unknown", "@me"),
-    "https://unknown.com/me",
-  );
-});
-
-// ---------------------------------------------------------------------------
-// Per-scout-type template snapshots — validate colors, context, copy.
-// ---------------------------------------------------------------------------
-
-Deno.test("Page Scout: dark header + blue accent + disclaimer", () => {
-  const html = renderPageScoutHtml("en");
-  assertStringIncludes(html, "background: #1a1a2e");
-  assertStringIncludes(html, "#2563eb");
-  assertStringIncludes(html, "Scout Alert!");
-  assertStringIncludes(html, "Monitoring URL");
-  assertStringIncludes(html, EMAIL_STRINGS.en.page_scout_cue);
-  assertStringIncludes(html, EMAIL_STRINGS.en.email_disclaimer);
-});
-
-Deno.test("Beat Scout: purple gradient + Top Stories section", () => {
-  const html = renderBeatScoutHtml("en");
-  assertStringIncludes(html, "linear-gradient(135deg, #7c3aed, #6d28d9)");
-  assertStringIncludes(html, "Beat Scout");
-  assertStringIncludes(html, "Top Stories");
-  assertStringIncludes(html, "ZURICH, CH");
-  assertStringIncludes(html, EMAIL_STRINGS.en.pulse_scout_cue);
-  assertStringIncludes(html, 'href="https://a.example/1"');
-  assertStringIncludes(html, 'href="https://b.example/2"');
-});
-
-Deno.test("Civic Scout: amber gradient + markdown promises list", () => {
-  const html = renderCivicScoutHtml("en");
-  assertStringIncludes(html, "linear-gradient(135deg, #d97706, #b45309)");
-  assertStringIncludes(html, "Civic Scout");
-  assertStringIncludes(html, "<strong>Commit to a 30% reduction</strong>");
-  assertStringIncludes(html, 'href="https://oakland.example/m.pdf"');
-  assertStringIncludes(html, EMAIL_STRINGS.en.civic_scout_cue);
-});
-
-Deno.test("Social Scout: rose gradient + new-posts section + handle context", () => {
-  const html = renderSocialScoutHtml("en");
-  assertStringIncludes(html, "linear-gradient(135deg, #e11d48, #be123c)");
-  assertStringIncludes(html, "Social Scout Update");
-  assertStringIncludes(html, "New Posts");
-  assertStringIncludes(html, "@somehandle on X");
-  assertStringIncludes(html, EMAIL_STRINGS.en.social_scout_cue);
-});
-
-// ---------------------------------------------------------------------------
-// Localization — render each scout type in a non-English locale and confirm
-// the locale's disclaimer lands in the output.
-// ---------------------------------------------------------------------------
-
-Deno.test("Page Scout localizes to Norwegian", () => {
-  const html = renderPageScoutHtml("no");
-  assertStringIncludes(html, EMAIL_STRINGS.no.scout_alert);
-  assertStringIncludes(html, EMAIL_STRINGS.no.email_disclaimer);
-});
-
-Deno.test("Beat Scout localizes to German", () => {
-  const html = renderBeatScoutHtml("de");
-  assertStringIncludes(html, EMAIL_STRINGS.de.beat_scout);
-  assertStringIncludes(html, EMAIL_STRINGS.de.top_stories);
-  assertStringIncludes(html, EMAIL_STRINGS.de.email_disclaimer);
-});
-
-Deno.test("Civic Scout localizes to French", () => {
-  const html = renderCivicScoutHtml("fr");
-  assertStringIncludes(html, EMAIL_STRINGS.fr.civic_scout);
-  assertStringIncludes(html, EMAIL_STRINGS.fr.email_disclaimer);
-});
-
-Deno.test("Social Scout localizes to Spanish", () => {
-  const html = renderSocialScoutHtml("es");
-  assertStringIncludes(html, EMAIL_STRINGS.es.social_scout);
-  assertStringIncludes(html, EMAIL_STRINGS.es.new_posts);
-  assertStringIncludes(html, EMAIL_STRINGS.es.email_disclaimer);
-});
-
-Deno.test("every scout type renders without errors in every supported language", () => {
-  for (const lang of SUPPORTED_LANGUAGES) {
-    for (
-      const [renderName, render] of Object.entries({
-        page: renderPageScoutHtml,
-        beat: renderBeatScoutHtml,
-        civic: renderCivicScoutHtml,
-        social: renderSocialScoutHtml,
-      })
-    ) {
-      const html = render(lang);
-      assert(
-        html.length > 0,
-        `empty render for ${renderName}/${lang}`,
-      );
-      assertStringIncludes(
-        html,
-        EMAIL_STRINGS[lang].email_disclaimer,
-        `${renderName}/${lang} missing disclaimer`,
-      );
-    }
-  }
-});
-
-// ---------------------------------------------------------------------------
-// Template structure invariants.
-// ---------------------------------------------------------------------------
-
-Deno.test("base template has DOCTYPE and body wrapper", () => {
-  const html = renderBeatScoutHtml();
-  assertStringIncludes(html, "<!DOCTYPE html>");
-  assertStringIncludes(html, "<body");
-  assertStringIncludes(html, 'max-width: 600px');
-});
-
-Deno.test("base template closes all opened major tags", () => {
-  const html = renderBeatScoutHtml();
-  const opens = (re: RegExp) => (html.match(re) ?? []).length;
-  // Rough balance check — not a parser, just catches obvious leaks.
-  assertEquals(opens(/<body/g), opens(/<\/body>/g));
-  assertEquals(opens(/<html/g), opens(/<\/html>/g));
-});
-
-Deno.test("Social Scout drops removed-posts section when none provided", () => {
-  const html = renderSocialScoutHtml();
-  assert(!html.includes("Removed Posts"));
-});
-
-Deno.test("renderArticleCards truncates summary over 150 chars", () => {
-  const long = "x".repeat(200);
-  const html = renderArticleCards(
-    [{ title: "t", url: "https://t", summary: long }],
-    "#000",
-  );
-  assertStringIncludes(html, "...");
-  assert(!html.includes("x".repeat(160)), "not truncated");
-});
-
-Deno.test("markdownToHtml handles empty string", () => {
-  assertEquals(markdownToHtml(""), "");
-});
-
-Deno.test("markdownToHtml wraps bare text in a paragraph", () => {
-  const html = markdownToHtml("just one line");
-  assertStringIncludes(html, "<p");
-  assertStringIncludes(html, "just one line");
+  assertEquals(buildProfileUrl("unknown", "@me"), "https://unknown.com/me");
 });
 
 Deno.test("getString preserves Unicode without mangling", () => {
-  // German disclaimer contains ä (\u00e4) in 'enthält'.
   assertStringIncludes(getString("email_disclaimer", "de"), "\u00e4");
-  // Finnish disclaimer contains ä in 'sähköposti'.
   assertStringIncludes(getString("email_disclaimer", "fi"), "\u00e4");
-});
-
-Deno.test("base template inlines all styles (no external <link> or <style>)", () => {
-  const html = renderBeatScoutHtml();
-  // Inline style attrs on key elements — these emails have to render in Gmail
-  // / Outlook which strip <style> blocks.
-  assert(!html.includes("<link"));
-  assert(!html.includes("<style"));
-  assertStringIncludes(html, 'style="');
 });

@@ -24,17 +24,27 @@
 
 	const isSupabase = import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase';
 	const supabaseUrl = (import.meta.env.PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
-	const apiBase = isSupabase
-		? `${supabaseUrl}/functions/v1`
-		: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1`;
-	const specUrl = isSupabase
-		? `${supabaseUrl}/functions/v1/openapi-spec`
-		: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/openapi.json`;
+	const origin = typeof window !== 'undefined' ? window.location.origin : '';
+	const hostedBroker =
+		typeof window !== 'undefined' &&
+		['cojournalist.ai', 'www.cojournalist.ai', 'cojournalist.onrender.com'].includes(
+			window.location.hostname
+		);
+	const apiBase = hostedBroker
+		? `${origin}/functions/v1`
+		: isSupabase
+			? `${supabaseUrl}/functions/v1`
+			: `${origin}/api/v1`;
+	const specUrl = hostedBroker
+		? `${origin}/functions/v1/openapi-spec`
+		: isSupabase
+			? `${supabaseUrl}/functions/v1/openapi-spec`
+			: `${origin}/api/openapi.json`;
 	// Swagger UI: Supabase has no auto-generated /api/docs, so we serve our own
 	// SvelteKit route (/swagger) that loads swagger-ui-dist from CDN and points at specUrl.
 	// Route name deliberately avoids the `/api` prefix so the Vite dev proxy doesn't
 	// catch it and forward to the FastAPI backend.
-	const swaggerUrl = isSupabase ? '/swagger' : '/api/docs';
+	const swaggerUrl = hostedBroker || isSupabase ? '/swagger' : '/api/docs';
 
 	const AGENT_INSTRUCTIONS = `Base URL: ${apiBase}
 API Spec: ${specUrl}
@@ -115,7 +125,7 @@ Auth: Bearer <your-api-key>`;
 	<div class="api-content">
 		<!-- Section A: Getting Started -->
 		<div class="form-group">
-			<label class="field-label">{m.api_gettingStarted()}</label>
+			<p class="field-label">{m.api_gettingStarted()}</p>
 			<div class="agent-block">
 				<div class="agent-block-header">
 					<span class="agent-label">{m.api_agentInstructions()}</span>
@@ -136,7 +146,7 @@ Auth: Bearer <your-api-key>`;
 		<!-- Section B: API Keys -->
 		<div class="form-group">
 			<div class="field-label-row">
-				<label class="field-label">{m.api_keys()}</label>
+				<p class="field-label">{m.api_keys()}</p>
 				{#if keys.length >= 5}
 					<span class="max-keys-badge">{m.api_maxKeys()}</span>
 				{/if}
@@ -234,7 +244,7 @@ Auth: Bearer <your-api-key>`;
 
 		<!-- Section C: API Reference -->
 		<div class="form-group">
-			<label class="field-label">{m.api_reference()}</label>
+			<p class="field-label">{m.api_reference()}</p>
 			<div class="ref-links">
 				<a href={swaggerUrl} target="_blank" rel="noopener noreferrer" class="ref-link">
 					<ExternalLink size={16} />
@@ -267,7 +277,7 @@ Auth: Bearer <your-api-key>`;
 		margin: 0 auto;
 	}
 
-	/* Form groups — matches DataExtract, PageScoutView, etc. */
+	/* Form groups — shared with scout creation views */
 	.form-group {
 		display: flex;
 		flex-direction: column;

@@ -15,11 +15,15 @@
  *              error?: string }
  *
  * `discover` — Firecrawl /map on the root domain, then Gemini ranks up to
- * 5 candidate INDEX pages likely to list meeting protocols.
+ * 5 candidate INDEX pages likely to list meeting protocols. Discovery
+ * explicitly prefers listing pages like `/urversammlung/protokoll` over
+ * direct `/pdf/...` document URLs.
  *
- * `test` — for each tracked_url, Firecrawl scrape + Gemini-extract up to 10
- * promises. Mirrors the existing `civic-test` Edge Function at a different
- * URL path to match the frontend's `/civic/test` convention.
+ * `test` — for each tracked_url, scrape the listing page raw HTML, extract
+ * downstream meeting-document links, classify them with the old civic
+ * keyword/LLM flow, then preview promises from the resolved documents.
+ * Mirrors the existing `civic-test` Edge Function at a different URL path
+ * to match the frontend's `/civic/test` convention.
  *
  * Preview only — no persistence, no credit charge.
  */
@@ -30,7 +34,11 @@ import { requireUser, AuthedUser } from "../_shared/auth.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { ValidationError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
-import { firecrawlMap, firecrawlScrape } from "../_shared/firecrawl.ts";
+import { firecrawlMap } from "../_shared/firecrawl.ts";
+import {
+  filterCivicDiscoveryCandidates,
+} from "../_shared/civic_links.ts";
+import { previewCivicTrackedUrls } from "../_shared/civic_preview.ts";
 import { geminiExtract } from "../_shared/gemini.ts";
 
 // ---------------------------------------------------------------------------
@@ -75,39 +83,7 @@ const TestSchema = z.object({
   criteria: z.string().max(4000).optional(),
 });
 
-const TEST_MARKDOWN_MAX = 15_000;
 const PROMISES_PREVIEW_CAP = 10;
-
-const TEST_EXTRACTION_SCHEMA: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    promises: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          promise_text: { type: "string" },
-          context: { type: "string" },
-          source_date: { type: "string", nullable: true },
-          due_date: { type: "string", nullable: true },
-          date_confidence: { type: "string" },
-          criteria_match: { type: "boolean" },
-        },
-        required: ["promise_text"],
-      },
-    },
-  },
-  required: ["promises"],
-};
-
-interface ExtractedPromise {
-  promise_text: string;
-  context?: string;
-  source_date?: string | null;
-  due_date?: string | null;
-  date_confidence?: string;
-  criteria_match?: boolean;
-}
 
 // ---------------------------------------------------------------------------
 
@@ -186,12 +162,24 @@ async function discover(req: Request, user: AuthedUser): Promise<Response> {
 
   const list = urls.slice(0, 200).map((u, i) => `${i + 1}. ${u}`).join("\n");
   const prompt =
-    "You are a civic data assistant. Below are URLs from a local government website. " +
-    "Identify the best INDEX/LISTING pages that publish council meeting protocols, " +
-    "assembly minutes, or official decisions over time. Prefer index pages that LINK TO " +
-    "multiple PDFs or minutes — NOT individual documents.\n\n" +
-    "Return up to 5 candidates. For each: url (exact), description (1 sentence), " +
-    "confidence (0.0-1.0). Return JSON matching the provided schema.\n\n" +
+    "You are a civic data assistant. Below is a list of URLs from a local " +
+    "government website. Identify the best candidates — pages that serve as " +
+    "an INDEX or LISTING where council meeting protocols, assembly minutes, " +
+    "or official decision documents are published over time.\n\n" +
+    "IMPORTANT: Prefer index/listing pages over individual documents. " +
+    "A page like '/urversammlung/protokoll' that LISTS many protocol PDFs " +
+    "is far more valuable than a single PDF file. Do NOT return individual " +
+    "PDF or document URLs — return the pages that LINK TO them.\n\n" +
+    "Prioritize:\n" +
+    "- Pages that list/link to meeting protocol PDFs or minutes\n" +
+    "- Assembly proceedings index pages\n" +
+    "- Council news or decisions pages with recurring updates\n" +
+    "- Archive pages with historical meeting documents\n\n" +
+    "Return the top 5 most relevant INDEX pages. For each, provide:\n" +
+    "- url: the exact URL from the list\n" +
+    "- description: what it likely contains (1 sentence)\n" +
+    "- confidence: 0.0 to 1.0\n\n" +
+    "Return ONLY a JSON object with a 'candidates' array. Max 5 entries.\n\n" +
     `URLs (${urls.length} total, showing first ${Math.min(urls.length, 200)}):\n${list}`;
 
   let extraction: { candidates: Candidate[] };
@@ -208,10 +196,10 @@ async function discover(req: Request, user: AuthedUser): Promise<Response> {
     return jsonOk({ candidates: [] });
   }
 
-  const candidates = (extraction.candidates ?? [])
+  const candidates = filterCivicDiscoveryCandidates((extraction.candidates ?? [])
     .filter((c) => c && typeof c.url === "string" && c.url.trim().length > 0)
     .slice(0, 5)
-    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)));
 
   logEvent({
     level: "info",
@@ -241,77 +229,13 @@ async function test(req: Request, user: AuthedUser): Promise<Response> {
   }
   const { tracked_urls, criteria } = parsed.data;
 
-  const allPromises: Array<{
-    promise_text: string;
-    context: string;
-    source_url: string;
-    source_date: string;
-    due_date?: string;
-    date_confidence: string;
-    criteria_match: boolean;
-  }> = [];
-  let documentsFound = 0;
-
-  for (const url of tracked_urls) {
-    let scraped;
-    try {
-      scraped = await firecrawlScrape(url);
-    } catch (e) {
-      logEvent({
-        level: "warn",
-        fn: "civic",
-        event: "test_scrape_failed",
-        user_id: user.id,
-        url,
-        msg: e instanceof Error ? e.message : String(e),
-      });
-      continue;
-    }
-
-    const markdown = (scraped.markdown ?? "").slice(0, TEST_MARKDOWN_MAX);
-    if (!markdown.trim()) continue;
-
-    documentsFound += 1;
-
-    const prompt =
-      "Extract commitments, promises, votes, or decisions from this council document. " +
-      (criteria ? `Focus on items that match: "${criteria}".\n` : "") +
-      "For each: promise_text (the core commitment, one sentence), context (short " +
-      "quoted snippet), source_date (ISO 8601 if mentioned; else null), due_date " +
-      "(ISO 8601 if mentioned; else null), date_confidence ('high'|'medium'|'low'), " +
-      "criteria_match (boolean — true if matches criteria or there is no criteria). " +
-      "Return up to 10 items.\n\n---\n\n" +
-      markdown;
-
-    let extraction: { promises: ExtractedPromise[] };
-    try {
-      extraction = await geminiExtract(prompt, TEST_EXTRACTION_SCHEMA);
-    } catch (e) {
-      logEvent({
-        level: "warn",
-        fn: "civic",
-        event: "test_extract_failed",
-        user_id: user.id,
-        url,
-        msg: e instanceof Error ? e.message : String(e),
-      });
-      continue;
-    }
-
-    const promises = Array.isArray(extraction.promises) ? extraction.promises : [];
-    for (const p of promises.slice(0, PROMISES_PREVIEW_CAP)) {
-      if (!p || typeof p.promise_text !== "string" || !p.promise_text.trim()) continue;
-      allPromises.push({
-        promise_text: p.promise_text.trim(),
-        context: p.context ?? "",
-        source_url: url,
-        source_date: p.source_date ?? "",
-        due_date: p.due_date ?? undefined,
-        date_confidence: p.date_confidence ?? "low",
-        criteria_match: criteria ? !!p.criteria_match : true,
-      });
-    }
-  }
+  const preview = await previewCivicTrackedUrls(tracked_urls, criteria, {
+    maxDocs: 5,
+    maxPromisesPerDocument: PROMISES_PREVIEW_CAP,
+  });
+  const allPromises = preview.documents.flatMap((document) => document.promises)
+    .slice(0, PROMISES_PREVIEW_CAP);
+  const documentsFound = preview.documentsFound;
 
   logEvent({
     level: "info",

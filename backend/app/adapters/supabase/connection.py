@@ -21,5 +21,10 @@ async def get_pool() -> asyncpg.Pool:
             max_size=10,
             command_timeout=30,
             statement_cache_size=0,  # Required for PgBouncer/Supavisor compatibility
+            # Disable JIT: Supavisor's transaction-pooled connections get torn
+            # down before the JIT warm-up amortizes, so the first query on
+            # every fresh connection pays 200–800ms for nothing. Off is the
+            # right default for Supabase's pooler.
+            server_settings={"jit": "off"},
         )
         return _pool

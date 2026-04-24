@@ -31,7 +31,7 @@ class TestCreateScout:
             "id": scout_id,
             "user_id": uuid.uuid4(),
             "name": "my-scout",
-            "type": "pulse",
+            "type": "beat",
             "criteria": "local news",
             "preferred_language": "en",
             "regularity": "daily",
@@ -60,7 +60,7 @@ class TestCreateScout:
 
         result = await storage.create_scout("user-1", {
             "name": "my-scout",
-            "type": "pulse",
+            "type": "beat",
             "criteria": "local news",
             "regularity": "daily",
             "schedule_cron": "0 8 * * *",
@@ -68,7 +68,7 @@ class TestCreateScout:
         })
 
         assert result["name"] == "my-scout"
-        assert result["type"] == "pulse"
+        assert result["type"] == "beat"
         mock_pool.fetchrow.assert_called_once()
 
 
@@ -80,14 +80,14 @@ class TestCreateScoutFieldMapping:
         """#30: ScheduleService passes DynamoDB names, adapter should translate."""
         mock_pool.fetchrow = AsyncMock(return_value={
             "id": uuid.uuid4(), "user_id": uuid.uuid4(),
-            "name": "my-scout", "type": "pulse",
+            "name": "my-scout", "type": "beat",
             "schedule_cron": "0 8 * * *", "schedule_timezone": "UTC",
         })
 
         # Pass DynamoDB-style names (what ScheduleService sends)
         await storage.create_scout("user-1", {
             "scraper_name": "my-scout",  # DynamoDB name -> should become "name"
-            "scout_type": "pulse",       # DynamoDB name -> should become "type"
+            "scout_type": "beat",       # DynamoDB name -> should become "type"
             "cron_expression": "0 8 * * *",  # -> "schedule_cron"
             "timezone": "UTC",            # -> "schedule_timezone"
             "regularity": "daily",
@@ -105,12 +105,12 @@ class TestCreateScoutFieldMapping:
     async def test_filters_empty_strings(self, storage, mock_pool):
         """#32: Empty strings should be filtered out before INSERT."""
         mock_pool.fetchrow = AsyncMock(return_value={
-            "id": uuid.uuid4(), "name": "test", "type": "pulse",
+            "id": uuid.uuid4(), "name": "test", "type": "beat",
         })
 
         await storage.create_scout("user-1", {
             "name": "test",
-            "type": "pulse",
+            "type": "beat",
             "criteria": "",  # Empty string - should be filtered
             "topic": "",     # Empty string - should be filtered
             "regularity": "daily",
@@ -146,13 +146,13 @@ class TestCreateScoutFieldMapping:
     async def test_serializes_jsonb_fields(self, storage, mock_pool):
         """JSONB dict values should be serialized to JSON strings."""
         mock_pool.fetchrow = AsyncMock(return_value={
-            "id": uuid.uuid4(), "name": "test", "type": "pulse",
+            "id": uuid.uuid4(), "name": "test", "type": "beat",
             "location": '{"lat": 40.7, "lng": -74.0}',
         })
 
         await storage.create_scout("user-1", {
             "name": "test",
-            "type": "pulse",
+            "type": "beat",
             "location": {"lat": 40.7, "lng": -74.0},
         })
 
@@ -194,7 +194,7 @@ class TestListScouts:
         mock_pool.fetch = AsyncMock(side_effect=[
             # 1. Scout rows
             [
-                {"id": scout_id_1, "name": "scout-1", "type": "pulse",
+                {"id": scout_id_1, "name": "scout-1", "type": "beat",
                  "created_at": "2026-03-29T10:00:00"},
                 {"id": scout_id_2, "name": "scout-2", "type": "web",
                  "created_at": "2026-03-29T11:00:00"},
@@ -209,7 +209,7 @@ class TestListScouts:
         assert len(result) == 2
         # Verify normalization adds DynamoDB-style names
         assert result[0]["scraper_name"] == "scout-1"
-        assert result[0]["scout_type"] == "pulse"
+        assert result[0]["scout_type"] == "beat"
         assert result[0]["last_run"] is None
         assert result[0]["latest_execution"] is None
 
@@ -225,7 +225,7 @@ class TestListScoutsEnrichment:
 
         mock_pool.fetch = AsyncMock(side_effect=[
             # Scouts
-            [{"id": scout_id, "name": "scout-1", "type": "pulse",
+            [{"id": scout_id, "name": "scout-1", "type": "beat",
               "created_at": "2026-04-01T10:00:00"}],
             # Runs
             [{"scout_id": scout_id, "status": "success", "scraper_status": True,
@@ -263,7 +263,7 @@ class TestListScoutsEnrichment:
         """#34: Output should include both PG and DynamoDB field names."""
         scout_id = uuid.uuid4()
         mock_pool.fetch = AsyncMock(side_effect=[
-            [{"id": scout_id, "name": "test", "type": "pulse",
+            [{"id": scout_id, "name": "test", "type": "beat",
               "schedule_cron": "0 8 * * *", "schedule_timezone": "Europe/Zurich",
               "created_at": "2026-04-01T10:00:00"}],
             [], [],
@@ -273,11 +273,11 @@ class TestListScoutsEnrichment:
         scout = result[0]
         # PostgreSQL names
         assert scout["name"] == "test"
-        assert scout["type"] == "pulse"
+        assert scout["type"] == "beat"
         assert scout["schedule_cron"] == "0 8 * * *"
         # DynamoDB aliases
         assert scout["scraper_name"] == "test"
-        assert scout["scout_type"] == "pulse"
+        assert scout["scout_type"] == "beat"
         assert scout["cron_expression"] == "0 8 * * *"
         assert scout["timezone"] == "Europe/Zurich"
 
@@ -297,7 +297,7 @@ class TestUpdateScout:
         mock_pool.fetchrow = AsyncMock(return_value={
             "id": uuid.uuid4(),
             "name": "my-scout",
-            "type": "pulse",
+            "type": "beat",
             "criteria": "updated criteria",
         })
 

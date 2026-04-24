@@ -81,6 +81,64 @@ If a build-time var legitimately needs to differ between SaaS and OSS deploys (e
 
 ---
 
+## Local MuckRock Auth — DO NOT REGRESS
+
+The private repo has two distinct local auth goals and they are easy to mix up:
+
+- **Daily pre-push SaaS testing:** sign in with a real MuckRock account on `http://localhost:5173`, return to localhost, and view **real hosted account data** before deploy.
+- **Disposable demo testing:** local Supabase Auth with dummy/demo data only.
+
+### The correct daily SaaS path
+
+`cd frontend && npm run dev`
+
+This is the default local workflow for the private repo. It MUST keep the browser on localhost while still authenticating against the hosted Supabase project.
+
+Architecture:
+
+- Frontend runs on `http://localhost:5173`
+- Vite proxies `/api/auth/*` to the local FastAPI process on `http://127.0.0.1:8000`
+- FastAPI mounts `backend/app/routers/local_auth.py` only when `LOCAL_MUCKROCK_AUTH_BROKER=true`
+- The local broker talks to **MuckRock + hosted Supabase admin APIs**
+- The broker resolves the hosted magiclink server-side and redirects the browser back to `http://localhost:5173/auth/callback`
+
+Required local browser env contract:
+
+- `PUBLIC_MUCKROCK_BROKER_URL=http://localhost:5173/api/auth/login`
+- `PUBLIC_MUCKROCK_POST_LOGIN_REDIRECT=http://localhost:5173/auth/callback`
+- `PUBLIC_MUCKROCK_ENABLED=true`
+- `PUBLIC_LOCAL_DEMO_MODE=false`
+
+### Production must stay separate
+
+Production auth still uses `backend/app/routers/muckrock_proxy.py` to preserve the MuckRock-registered hosted callback/webhook URLs and forward to Supabase Edge Functions.
+
+Do NOT:
+
+- make daily local auth depend on `supabase functions serve auth-muckrock`
+- make daily local auth depend on the already-deployed hosted broker
+- repoint production callback/base URLs to the localhost broker path
+- “simplify” local auth by sending the browser to `cojournalist.ai` mid-flow
+
+### If you touch auth, verify all of this
+
+```bash
+cd frontend && npm run check
+cd frontend && npm test
+cd backend && python3 -m pytest tests/unit/ -v
+cd backend && python3 -m pytest tests/unit/api/test_local_auth.py -v
+cd backend && python3 -m pytest tests/unit/api/test_muckrock_proxy.py -v
+bash scripts/strip-oss.sh   # in throwaway copy/worktree
+```
+
+Also confirm manually:
+
+- `/login` on localhost shows the MuckRock branch
+- `/docs` and `/skills` stay on localhost
+- `GET /api/auth/login` on localhost 302s to MuckRock with `redirect_uri=http://localhost:5173/api/auth/callback`
+
+---
+
 AI-powered local news monitoring platform. Users create "scouts" that monitor websites, local news, or search queries on schedules, receiving email notifications when criteria are met. Scouts can be scoped by **location** (geo-targeted) or **topic** (keyword-based), or both.
 
 **Production URL:** `https://www.cojournalist.ai` — API at `/api/*`
@@ -127,8 +185,8 @@ Detailed docs for each sidebar service in `docs/features/`:
 | Service | File | Description |
 |---------|------|-------------|
 | Page Scout (type `web`) | `web-scouts.md` | Firecrawl changeTracking, per-scout baselines, criteria analysis |
-| Location Scout (type `pulse`) | `pulse.md` | Location-based monitoring — niche local sources by default |
-| Beat Scout (type `pulse`) | `pulse.md` | Topic/criteria monitoring — reliable sources by default |
+| Location Scout (type `beat`) | `beat.md` | Location-based monitoring — niche local sources by default |
+| Beat Scout (type `beat`) | `beat.md` | Topic/criteria monitoring — reliable sources by default |
 | Scrape | `scrape.md` | Firecrawl extraction, format options |
 | Social Scout (type `social`) | `social.md` | Social media monitoring, post diffing, Apify scraping |
 | Civic Scout (type `civic`) | `civic.md` | Council website monitoring, PDF parsing, promise extraction |
@@ -136,13 +194,13 @@ Detailed docs for each sidebar service in `docs/features/`:
 
 ## Sidebar Services
 
-| View | Internal Type | Router | Orchestrator |
-|------|---------------|--------|--------------|
-| Page Scout | `web` | `scouts.py` | `scout_service.py` |
-| Location Scout | `pulse` | `pulse.py` | `pulse_orchestrator.py` |
-| Beat Scout | `pulse` | `pulse.py` | `pulse_orchestrator.py` |
-| Social Scout | `social` | `social.py` | `social_orchestrator.py` |
-| Civic Scout | `civic` | `civic.py` | `civic_orchestrator.py` |
+| View | Internal Type | Primary Runtime | Orchestrator |
+|------|---------------|-----------------|--------------|
+| Page Scout | `web` | `scout-web-execute` | `scout_service.py` |
+| Location Scout | `beat` | `scout-beat-execute` | `beat_pipeline.ts` |
+| Beat Scout | `beat` | `scout-beat-execute` | `beat_pipeline.ts` |
+| Social Scout | `social` | `social-kickoff` | `social_orchestrator.py` |
+| Civic Scout | `civic` | `civic-execute` | `civic_orchestrator.py` |
 | Scrape | N/A | `data_extractor.py` | `firecrawl_client.py` |
 | Feed / Export | N/A | `export.py` | `export_generator.py` |
 
@@ -202,12 +260,12 @@ warnings) and published on the private monorepo via `cli-release.yml`.
 | Type | UI Name | Purpose | Scope | Notification |
 |------|---------|---------|-------|--------------|
 | `web` | Page Scout | Monitor URL for content changes | URL (+ optional topic) | When criteria match |
-| `pulse` | Location Scout | Location-based news monitoring | Location (+ optional criteria) | Always |
-| `pulse` | Beat Scout | Topic/criteria news monitoring | Criteria (no location) | Always |
+| `beat` | Location Scout | Location-based news monitoring | Location (+ optional criteria) | Always |
+| `beat` | Beat Scout | Topic/criteria news monitoring | Criteria (no location) | Always |
 | `social` | Social Scout | Monitor social media profiles | Platform + handle | Always |
 | `civic` | Civic Scout | Monitor council meetings for promises | Domain + confirmed URLs | When promises found |
 
-**Location Scout vs Beat Scout:** Both use the same backend `pulse` pipeline. Location Scout defaults to **niche** sources (local blogs, community sites); Beat Scout defaults to **reliable** sources (established outlets). Source mode is togglable in both. Location Scout requires a location and optionally accepts criteria; Beat Scout requires criteria only.
+**Location Scout vs Beat Scout:** Both use the same backend `beat` pipeline. Location Scout defaults to **niche** sources (local blogs, community sites); Beat Scout defaults to **reliable** sources (established outlets). Source mode is togglable in both. Location Scout requires a location and optionally accepts criteria; Beat Scout requires criteria only.
 
 **Page Scout change detection:** Uses Firecrawl `changeTracking` with per-scout `tag` parameter. Each scout has its own baseline. See `docs/features/web-scouts.md`.
 

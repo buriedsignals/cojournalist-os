@@ -7,7 +7,7 @@ function usage(): void {
       "Usage: cojo scouts <subcommand>",
       "",
       "  list",
-      "  add --name <name> --type <web|pulse|social|civic> [--url <url>]",
+      "  add --name <name> --type <web|beat|social|civic> [--url <url>]",
       "                   [--criteria <text>] [--project <id>] [--cron <expr>]",
       "  update <id> [--name <name>] [--criteria <text>] [--url <url>]",
       "              [--cron <expr>] [--active true|false]",
@@ -28,7 +28,7 @@ interface Scout {
   consecutive_failures?: number;
 }
 
-const VALID_TYPES = ["web", "pulse", "social", "civic"];
+const VALID_TYPES = ["web", "beat", "social", "civic"];
 
 export async function run(argv: string[]): Promise<void> {
   const [sub, ...rest] = argv;

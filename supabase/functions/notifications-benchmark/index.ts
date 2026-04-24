@@ -27,7 +27,7 @@ import { handleCors } from "../_shared/cors.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { AuthError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
-import { buildBaseHtml, escapeHtml } from "../_shared/notifications.ts";
+import { buildBaseHtml } from "../_shared/notifications.ts";
 import { getString } from "../_shared/email_translations.ts";
 
 const RESEND_URL = "https://api.resend.com/emails";
@@ -140,8 +140,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 // ---------------------------------------------------------------------------
 // Sample payloads per scout type — chosen to exercise each distinctive
-// template element (criteria boxes, grouped articles, markdown lists,
-// removed posts, gradients).
+// editorial section (metadata panels, findings block, secondary section,
+// caution block).
 // ---------------------------------------------------------------------------
 
 function buildSample(
@@ -161,59 +161,37 @@ function buildSample(
 }
 
 function buildPageSample(language: string): { subject: string; html: string } {
-  const headerTitle = getString("scout_alert", language);
-  const contextLabel = getString("page_scout", language);
-  const monitoringLabel = getString("monitoring_url", language);
-  const criteriaLabel = getString("criteria", language);
-  const seeWhatMatched = getString("see_what_matched", language);
-  const cueText = getString("page_scout_cue", language);
   const scoutName = "[BENCHMARK] Oakland City Hall";
   const url = "https://www.oaklandca.gov/news";
-  const criteria = "climate action, transit funding";
-  const matchedUrl = "https://www.oaklandca.gov/news/press-release-042026";
-  const matchedTitle = "Council approves $12M transit fund";
-  const summary =
-    "- Council approved a $12M transit fund for zero-emission buses.\n" +
-    "- Commitment to reduce city-fleet emissions by 30% by 2028.\n" +
-    "- Public comment period opens May 1.";
-
-  const extraContent = `
-    <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
-      <p style="margin: 0 0 4px 0; font-size: 12px; color: #666; text-transform: uppercase;">${
-    escapeHtml(monitoringLabel)
-  }</p>
-      <a href="${
-    escapeHtml(url)
-  }" style="color: #2563eb; text-decoration: none; word-break: break-all;">${
-    escapeHtml(url)
-  }</a>
-    </div>
-    <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
-      <p style="margin: 0 0 4px 0; font-size: 12px; color: #666; text-transform: uppercase;">${
-    escapeHtml(criteriaLabel)
-  }</p>
-      <p style="margin: 0; color: #333;">${escapeHtml(criteria)}</p>
-    </div>
-    <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
-      ${escapeHtml(cueText)}
-    </div>
-  `;
-
   const html = buildBaseHtml({
-    headerTitle,
-    headerSubtitle: escapeHtml(scoutName),
-    headerGradient: "#1a1a2e",
-    accentColor: "#2563eb",
-    contextLabel,
-    summary,
+    variant: "page",
+    eyebrowLabel: getString("page_scout", language),
+    contextLabel: getString("scout_alert", language),
+    headerTitle: getString("scout_alert", language),
+    headerSubtitle: scoutName,
+    summary:
+      "- Council approved a $12M transit fund for zero-emission buses.\n" +
+      "- Commitment to reduce city-fleet emissions by 30% by 2028.\n" +
+      "- Public comment period opens May 1.",
     articles: [{
-      title: matchedTitle,
-      url: matchedUrl,
-      summary: "",
-      source: "",
+      title: "Council approves $12M transit fund",
+      url: "https://www.oaklandca.gov/news/press-release-042026",
+      summary: "New language added to the public notice and funding memo.",
+      source: "oaklandca.gov",
     }],
-    articlesSectionTitle: seeWhatMatched,
-    extraContent,
+    articlesSectionTitle: getString("see_what_matched", language),
+    metadataPanels: [
+      {
+        label: getString("monitoring_url", language),
+        value: url,
+        href: url,
+      },
+      {
+        label: getString("criteria", language),
+        value: "climate action, transit funding",
+      },
+    ],
+    cueText: getString("page_scout_cue", language),
     language,
   });
   return {
@@ -223,28 +201,17 @@ function buildPageSample(language: string): { subject: string; html: string } {
 }
 
 function buildBeatSample(language: string): { subject: string; html: string } {
-  const headerTitle = getString("beat_scout", language);
-  const sectionTitle = getString("top_stories", language);
   const scoutName = "[BENCHMARK] Zurich climate beat";
   const location = "Zurich, Switzerland";
-  const summary =
-    "- Canton opens bids for city-wide e-bus fleet.\n" +
-    "- Protest outside parliament against cut to solar subsidies.\n" +
-    "- Vote scheduled May 15 on road pricing proposal.";
-
-  const cueHtml = `
-    <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
-      ${escapeHtml(getString("pulse_scout_cue", language))}
-    </div>
-  `;
-
   const html = buildBaseHtml({
-    headerTitle,
-    headerSubtitle: escapeHtml(scoutName),
-    headerGradient: ["#7c3aed", "#6d28d9"],
-    accentColor: "#7c3aed",
-    contextLabel: escapeHtml(location.toUpperCase()),
-    summary,
+    variant: "beat",
+    eyebrowLabel: getString("beat_scout", language),
+    contextLabel: location.toUpperCase(),
+    headerTitle: getString("beat_scout", language),
+    headerSubtitle: scoutName,
+    summary: "- Canton opens bids for city-wide e-bus fleet.\n" +
+      "- Protest outside parliament against cut to solar subsidies.\n" +
+      "- Vote scheduled May 15 on road pricing proposal.",
     articles: [
       {
         title: "Canton opens bids for e-bus fleet",
@@ -265,8 +232,20 @@ function buildBeatSample(language: string): { subject: string; html: string } {
         source: "srf.example",
       },
     ],
-    articlesSectionTitle: sectionTitle,
-    extraContent: cueHtml,
+    articlesSectionTitle: getString("top_stories", language),
+    cueText: getString("beat_scout_cue", language),
+    secondarySection: {
+      title: getString("government_municipal", language),
+      summary:
+        "- City transport committee published a revised cost estimate.\n" +
+        "- Final vote now expected next Tuesday.",
+      articles: [{
+        title: "Transport committee memo",
+        url: "https://stadt-zurich.example/memo",
+        summary: "Updated procurement and scheduling details.",
+        source: "stadt-zurich.example",
+      }],
+    },
     language,
   });
   return {
@@ -276,29 +255,20 @@ function buildBeatSample(language: string): { subject: string; html: string } {
 }
 
 function buildCivicSample(language: string): { subject: string; html: string } {
-  const headerTitle = getString("civic_scout", language);
   const scoutName = "[BENCHMARK] Oakland Council watch";
-  const summary =
-    "- **Commit to cutting fleet emissions 30% by 2028** ([April minutes](https://oakland.example/minutes-2026-04.pdf))\n" +
-    "- **Approve $12M transit fund** ([Resolution 2026-042](https://oakland.example/res-2026-042.pdf))\n" +
-    "- **Reopen public comment on zoning map** ([Agenda](https://oakland.example/agenda-2026-05.pdf))";
-
-  const cueHtml = `
-    <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
-      ${escapeHtml(getString("civic_scout_cue", language))}
-    </div>
-  `;
-
   const html = buildBaseHtml({
-    headerTitle,
-    headerSubtitle: escapeHtml(scoutName),
-    headerGradient: ["#d97706", "#b45309"],
-    accentColor: "#d97706",
-    contextLabel: headerTitle,
-    summary,
+    variant: "civic",
+    eyebrowLabel: getString("civic_scout", language),
+    contextLabel: getString("key_findings", language),
+    headerTitle: getString("civic_scout", language),
+    headerSubtitle: scoutName,
+    summary:
+      "- **Commit to cutting fleet emissions 30% by 2028** ([April minutes](https://oakland.example/minutes-2026-04.pdf))\n" +
+      "- **Approve $12M transit fund** ([Resolution 2026-042](https://oakland.example/res-2026-042.pdf))\n" +
+      "- **Reopen public comment on zoning map** ([Agenda](https://oakland.example/agenda-2026-05.pdf))",
     articles: [],
     articlesSectionTitle: "",
-    extraContent: cueHtml,
+    cueText: getString("civic_scout_cue", language),
     language,
   });
   return {
@@ -307,48 +277,21 @@ function buildCivicSample(language: string): { subject: string; html: string } {
   };
 }
 
-function buildSocialSample(language: string): { subject: string; html: string } {
-  const headerTitle = getString("social_scout", language);
-  const newPostsLabel = getString("new_posts", language);
-  const removedPostsLabel = getString("removed_posts", language);
-  const removedLabel = getString("removed_label", language);
-  const profileLabel = getString("profile_label", language);
+function buildSocialSample(
+  language: string,
+): { subject: string; html: string } {
   const scoutName = "[BENCHMARK] Mayor Khan watch";
   const handle = "SadiqKhan";
   const platform = "x";
   const profileUrl = `https://twitter.com/${handle}`;
-  const summary =
-    "Three new posts in the past 24 hours: a transit zone update, a climate milestone, and a response to opposition.";
-
-  const extraContent = `
-    <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
-      <p style="margin: 0 0 4px 0; font-size: 12px; color: #666; text-transform: uppercase;">${
-    escapeHtml(profileLabel)
-  }</p>
-      <a href="${
-    escapeHtml(profileUrl)
-  }" style="color: #e11d48; text-decoration: none;">${escapeHtml(profileUrl)}</a>
-    </div>
-    <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
-      ${escapeHtml(getString("social_scout_cue", language))}
-    </div>
-  `;
-
-  const removedHtml =
-    `<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">` +
-    `<h3 style="margin: 0 0 12px 0; color: #333;">${escapeHtml(removedPostsLabel)}</h3>` +
-    `<div style="margin-bottom: 8px; padding: 8px; background: #fff3f3; border-radius: 4px;">` +
-    `<span style="color: #dc2626; font-weight: 600;">${escapeHtml(removedLabel)}</span> ` +
-    `An older post about budget revisions has been deleted from the profile.</div>` +
-    `</div>`;
-
   const html = buildBaseHtml({
-    headerTitle,
-    headerSubtitle: escapeHtml(scoutName),
-    headerGradient: ["#e11d48", "#be123c"],
-    accentColor: "#e11d48",
-    contextLabel: `@${escapeHtml(handle)} on ${escapeHtml(platform.toUpperCase())}`,
-    summary,
+    variant: "social",
+    eyebrowLabel: getString("social_scout", language),
+    contextLabel: `@${handle} on ${platform.toUpperCase()}`,
+    headerTitle: getString("social_scout", language),
+    headerSubtitle: scoutName,
+    summary:
+      "Three new posts in the past 24 hours: a transit zone update, a climate milestone, and a response to opposition.",
     articles: [
       {
         title: `@${handle}`,
@@ -369,9 +312,21 @@ function buildSocialSample(language: string): { subject: string; html: string } 
         source: platform,
       },
     ],
-    articlesSectionTitle: newPostsLabel,
-    extraContent,
-    postContent: removedHtml,
+    articlesSectionTitle: getString("new_posts", language),
+    metadataPanels: [{
+      label: getString("profile_label", language),
+      value: profileUrl,
+      href: profileUrl,
+    }],
+    cueText: getString("social_scout_cue", language),
+    cautionSection: {
+      title: getString("removed_posts", language),
+      items: [
+        `${
+          getString("removed_label", language)
+        } An older post about budget revisions has been deleted from the profile.`,
+      ],
+    },
     language,
   });
   return {
@@ -379,4 +334,3 @@ function buildSocialSample(language: string): { subject: string; html: string } 
     html,
   };
 }
-

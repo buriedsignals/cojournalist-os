@@ -29,7 +29,7 @@
 <div class="flex flex-col gap-1.5">
 	<!-- Step 1 -->
 	<button
-		class="btn-primary w-full relative !justify-center"
+		class="btn-primary w-full relative justify-center!"
 		on:click={() => dispatch('step1')}
 		disabled={step1Disabled}
 	>
@@ -51,7 +51,7 @@
 
 	<!-- Step 2 -->
 	<button
-		class="btn-secondary w-full relative !justify-center transition-all duration-300 {step2Enabled ? 'ring-2 ring-purple-500/30' : 'opacity-50'}"
+		class="btn-secondary w-full relative justify-center! transition-all duration-300 {step2Enabled ? 'ring-2 ring-purple-500/30' : 'opacity-50'}"
 		disabled={!step2Enabled}
 		on:click={() => dispatch('step2')}
 	>
@@ -75,13 +75,17 @@
 
 		<!-- Step 3 -->
 		<button
-			class="btn-secondary w-full relative !justify-center transition-all duration-300 {step3Enabled ? 'ring-2 ring-purple-500/30' : 'opacity-50'}"
+			class="btn-secondary w-full relative justify-center! transition-all duration-300 {step3Enabled ? 'ring-2 ring-purple-500/30' : 'opacity-50'}"
 			disabled={!step3Enabled}
 			on:click={() => dispatch('step3')}
 		>
 			<span class="step-badge absolute left-4" class:step-active={step3Enabled}>3</span>
 			<span class="flex items-center gap-2">
-				<CalendarClock size={16} />
+				{#if step3Icon}
+					<svelte:component this={step3Icon} size={16} />
+				{:else}
+					<CalendarClock size={16} />
+				{/if}
 				<span>{step3Label}</span>
 			</span>
 		</button>

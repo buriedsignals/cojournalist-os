@@ -36,6 +36,9 @@ Zero-padded sequential. Never edit a shipped migration — add a new one.
 | 00030 | `units_hybrid_search.sql` | Hybrid keyword + vector search RPC for information_units / inbox. |
 | 00031 | `promises_due_date_confidence.sql` | Adds `due_date` + `date_confidence` columns (+ index) to `promises`, previously computed by the extractor but dropped by the DB. Adds `append_processed_pdf_url_capped(scout_id, url, cap)` so the civic-extract-worker marks `scouts.processed_pdf_urls` only on successful extraction (fixing silent data loss when Firecrawl failed). |
 | 00036 | `api_keys.sql` | `api_keys` table (sha256 hashes, `cj_xxxxxxxx` prefix shown in UI, owner-scoped RLS) + `validate_api_key(p_key text) RETURNS uuid` SECURITY DEFINER RPC that returns the owning `user_id` and stamps `last_used_at`. Backs the `Authorization: Bearer cj_<key>` agent path used by the `units` Edge Function. |
+| 00037 | `rename_pulse_to_beat.sql` | Canonical scout-type rename: rewrites stored `pulse` values in `scouts`, `execution_records`, `information_units`, and `usage_records`, renames the credit/audit operation to `beat`, and replaces the `scouts.type` check constraint with `web/beat/social/civic`. |
+| 00038 | `canonical_unit_dedup.sql` | Adds canonical-unit dedup: `unit_occurrences`, `information_units.first_seen_at/last_seen_at/occurrence_count/source_count`, `promises.unit_id`, `scout_runs.merged_existing_count`, atomic `upsert_canonical_unit(...)`, and project-aware `semantic_search_units(...)`. |
+| 00040 | `execution_embedding_model.sql` | Adds `execution_records.embedding_model` so execution-level dedup embeddings can be versioned during Gemini embedding migrations and backfills. |
 
 ## Conventions
 

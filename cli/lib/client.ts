@@ -51,15 +51,17 @@ export function loadConfig(): ResolvedConfig {
   if (!cfg.api_url) {
     throw new Error(
       "api_url not set.\n" +
-        "  For Supabase:    cojo config set api_url=https://<project>.supabase.co\n" +
-        "  For legacy SaaS: cojo config set api_url=https://www.cojournalist.ai/api",
+        "  Hosted coJournalist: cojo config set api_url=https://www.cojournalist.ai/functions/v1\n" +
+        "  Self-hosted Supabase: cojo config set api_url=https://<project>.supabase.co",
     );
   }
   if (!cfg.api_key && !cfg.auth_token) {
     throw new Error(
       "No credential set. Generate an API key at https://www.cojournalist.ai → Agents → API → Create key, then:\n" +
         "  cojo config set api_key=cj_xxx\n" +
-        "  cojo config set supabase_anon_key=<SUPABASE_ANON_KEY>   # required for Supabase EFs",
+        "  cojo config set api_url=https://www.cojournalist.ai/functions/v1\n" +
+        "  If you talk to a raw Supabase project URL instead, also set:\n" +
+        "  cojo config set supabase_anon_key=<SUPABASE_ANON_KEY>",
     );
   }
   // Warn (don't fail) if api_key is set against a Supabase URL without anon key —
@@ -76,12 +78,13 @@ export function loadConfig(): ResolvedConfig {
   return cfg as ResolvedConfig;
 }
 
-// Rewrite `/functions/v1/<rest>` → `/<rest>` when talking to the pre-cutover
-// FastAPI backend (anything that isn't a supabase.co URL). Lets a single
-// command set work against both backends during the migration window.
+// Rewrite `/functions/v1/<rest>` → `/<rest>` when talking to legacy /api
+// hosts, while preserving the hosted same-origin broker on
+// `https://www.cojournalist.ai/functions/v1`.
 export function resolvePath(path: string, apiUrl: string): string {
   const prefixed = path.startsWith("/") ? path : `/${path}`;
   if (apiUrl.includes("supabase.co")) return prefixed;
+  if (apiUrl.includes("/functions/v1")) return prefixed;
   return prefixed.replace(/^\/functions\/v1\//, "/");
 }
 

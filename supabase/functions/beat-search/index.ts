@@ -1,8 +1,8 @@
 /**
  * beat-search Edge Function — synchronous preview search for Beat / Location
- * Scouts. Returns a `PulseSearchResponse`-shaped payload used by the New Scout
- * UI (BeatScoutView "Start Search" button). Renamed from `pulse/search` to
- * `beat/search` to match the UI-facing naming.
+ * Scouts. Returns a `BeatSearchResponse`-shaped payload used by the New Scout
+ * UI (BeatScoutView "Start Search" button). This is the v2 successor to the
+ * old pulse preview search surface.
  *
  * Route:
  *   POST /beat-search
@@ -20,11 +20,10 @@
  *              summary, response_markdown, filteredOutCount }
  *
  * Pipeline:
- *   1. Build one or two search queries from location + criteria + category.
- *   2. Firecrawl /search per query (limit 10 each).
- *   3. Dedup + filter hits (excluded_domains).
- *   4. Parallel scrape up to 8 hits for markdown.
- *   5. Gemini structured extraction → `articles` with { title, url, source,
+ *   1. Shared Beat discovery pipeline (query generation, search, recency,
+ *      dedup, AI relevance filter).
+ *   2. Parallel scrape up to 8 selected hits for markdown.
+ *   3. Gemini structured extraction → `articles` with { title, url, source,
  *      summary, date?, verified:true } filtered against criteria.
  *
  * Nothing is persisted; no credit decrement (preview only). The authoritative
@@ -37,13 +36,25 @@ import { requireUser, AuthedUser } from "../_shared/auth.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { ValidationError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
+import { normalizeDate } from "../_shared/date_utils.ts";
 import {
   firecrawlScrape,
-  firecrawlSearch,
   ScrapeResult,
-  SearchHit,
 } from "../_shared/firecrawl.ts";
 import { geminiExtract } from "../_shared/gemini.ts";
+import {
+  countryPrimaryLanguage,
+  discoverBeatHits,
+  type BeatCategory,
+  type BeatHit,
+  type BeatScope,
+  type BeatSourceMode,
+} from "../_shared/beat_pipeline.ts";
+import {
+  buildBeatLocationMatcher,
+  parseBeatLocation,
+} from "../_shared/beat_location.ts";
+import { buildBeatCriteriaRule } from "../_shared/beat_criteria.ts";
 
 const LocationSchema = z.object({
   displayName: z.string().optional(),
@@ -66,8 +77,6 @@ const InputSchema = z.object({
   exclude_urls: z.array(z.string()).max(200).optional(),
 });
 
-const SEARCH_LIMIT_PER_QUERY = 10;
-const MAX_QUERIES = 2;
 const MAX_SCRAPES = 8;
 const SCRAPE_CONCURRENCY = 4;
 const MARKDOWN_PER_HIT = 6_000;
@@ -80,7 +89,8 @@ interface ExtractedArticle {
   source?: string;
   summary: string;
   date?: string | null;
-  matches?: boolean;
+  matches_criteria?: boolean;
+  matches_location?: boolean;
 }
 
 const ARTICLES_SCHEMA: Record<string, unknown> = {
@@ -97,7 +107,8 @@ const ARTICLES_SCHEMA: Record<string, unknown> = {
           source: { type: "string" },
           summary: { type: "string" },
           date: { type: "string", nullable: true },
-          matches: { type: "boolean" },
+          matches_criteria: { type: "boolean" },
+          matches_location: { type: "boolean" },
         },
         required: ["title", "url", "summary"],
       },
@@ -180,44 +191,50 @@ async function runSearch(
   user: AuthedUser,
   startedAt: number,
 ): Promise<Response> {
-  // 1. Build queries
-  const queries = buildQueries(input).slice(0, MAX_QUERIES);
-  if (queries.length === 0) {
-    return jsonOk(emptyResponse(input.category, startedAt, "No query built"));
-  }
-
-  // 2. Firecrawl search per query (in parallel)
   const excluded = new Set(
     (input.excluded_domains ?? []).map((d) => d.toLowerCase()),
   );
   const priority = (input.priority_sources ?? []).map((s) => s.trim()).filter(
     (s) => s.length > 0,
   );
-
-  const searched = await Promise.allSettled(
-    queries.map((q) =>
-      firecrawlSearch(q, { limit: SEARCH_LIMIT_PER_QUERY, scrape: false })
-    ),
-  );
-
-  const hits: SearchHit[] = [];
-  for (const r of searched) {
-    if (r.status === "fulfilled") hits.push(...r.value);
-  }
-
-  // Prepend priority sources as explicit hits (scraped below like any other).
-  const priorityHits: SearchHit[] = priority.map((url) => ({
-    url,
-    title: undefined,
-    description: undefined,
-  }));
-  const allHits = [...priorityHits, ...hits];
-
-  // 3. Dedup by URL, filter excluded_domains and exclude_urls.
   const seen = new Set<string>();
   const excludeUrls = new Set(input.exclude_urls ?? []);
-  const filteredHits: SearchHit[] = [];
-  for (const h of allHits) {
+
+  let queries: string[] = [];
+  let selectedHits: BeatHit[] = [];
+
+  if (priority.length > 0) {
+    selectedHits = priority.map((url) => ({ url }));
+  } else {
+    const location = parseBeatLocation(input.location);
+    const scope: BeatScope = input.location && input.criteria
+      ? "combined"
+      : input.location
+      ? "location"
+      : "topic";
+    const sourceMode: BeatSourceMode = input.source_mode === "niche"
+      ? "niche"
+      : "reliable";
+    const category = input.category as BeatCategory;
+    const discovery = await discoverBeatHits({
+      scope,
+      sourceMode,
+      category,
+      city: location.city,
+      country: location.country,
+      countryCode: location.countryCode,
+      criteria: input.criteria?.trim() || null,
+      preferredLanguage: location.countryCode
+        ? countryPrimaryLanguage(location.countryCode)
+        : "en",
+      excludedDomains: input.excluded_domains,
+    });
+    queries = discovery.queriesUsed;
+    selectedHits = discovery.hits;
+  }
+
+  const filteredHits: BeatHit[] = [];
+  for (const h of selectedHits) {
     if (!h.url || seen.has(h.url) || excludeUrls.has(h.url)) continue;
     const dom = safeDomain(h.url);
     if (dom && excluded.has(dom)) continue;
@@ -253,7 +270,7 @@ async function runSearch(
     },
   );
 
-  const scrapedOk: Array<{ hit: SearchHit; scrape: ScrapeResult }> = [];
+  const scrapedOk: Array<{ hit: BeatHit; scrape: ScrapeResult }> = [];
   for (let i = 0; i < filteredHits.length; i++) {
     const s = scraped[i];
     if (s && s.markdown && s.markdown.trim().length > 0) {
@@ -274,6 +291,9 @@ async function runSearch(
   }
 
   // 5. Gemini extraction.
+  const locationInstructions = buildLocationFilterInstructions(input.location);
+  const parsedLocation = parseBeatLocation(input.location);
+  const locationMatcher = buildBeatLocationMatcher(parsedLocation);
   const aggregated = scrapedOk
     .map(({ hit, scrape }) =>
       `=== SOURCE: ${hit.url}\nTITLE: ${scrape.title ?? hit.title ?? ""}\n\n${
@@ -288,8 +308,9 @@ async function runSearch(
     `distinct articles and return them as JSON matching the provided schema.\n\n` +
     `For each article: title, url (reuse the SOURCE URL exactly), source (the domain ` +
     `without www.), summary (2-3 sentences), date (ISO 8601 if known else null), ` +
-    `matches (true if the article matches the criteria — if no criteria, default true).\n\n` +
-    `${filterInstructions}\n\n` +
+    `matches_criteria (true if the article matches the criteria — if no criteria, default true), ` +
+    `matches_location (true if the article is primarily about the requested location — if no location, default true).\n\n` +
+    `${filterInstructions}\n${locationInstructions}\n\n` +
     `Also provide an overall "summary" field (1-3 sentences) describing what the ` +
     `results say about the topic/location. Set "filtered_out" to the number of ` +
     `articles you dropped as irrelevant.\n\n` +
@@ -337,6 +358,20 @@ async function runSearch(
   const extractedArticles = Array.isArray(extraction.articles)
     ? extraction.articles
     : [];
+  const rawSourceTextByUrl = new Map<string, string>();
+  for (const { hit, scrape } of scrapedOk) {
+    rawSourceTextByUrl.set(
+      hit.url,
+      [
+        scrape.title,
+        hit.title,
+        hit.description,
+        safeDomain(hit.url),
+        hit.url,
+        (scrape.markdown ?? "").slice(0, MARKDOWN_PER_HIT),
+      ].filter((value): value is string => typeof value === "string" && value.trim().length > 0).join(" "),
+    );
+  }
   const seenUrls = new Set<string>();
   const articles = [] as Array<{
     title: string;
@@ -351,7 +386,22 @@ async function runSearch(
   for (const a of extractedArticles) {
     if (!a || typeof a.url !== "string" || !a.url.trim()) continue;
     if (seenUrls.has(a.url)) continue;
-    if (input.criteria && a.matches === false) {
+    if (input.criteria && a.matches_criteria === false) {
+      filteredOut += 1;
+      continue;
+    }
+    if (input.location && a.matches_location === false) {
+      filteredOut += 1;
+      continue;
+    }
+    if (
+      input.location &&
+      locationMatcher &&
+      !locationMatcher(
+        rawSourceTextByUrl.get(a.url) ??
+          [a.title, a.summary, a.source, a.url].filter(Boolean).join(" "),
+      )
+    ) {
       filteredOut += 1;
       continue;
     }
@@ -371,6 +421,15 @@ async function runSearch(
   if (typeof extraction.filtered_out === "number") {
     filteredOut = Math.max(filteredOut, extraction.filtered_out);
   }
+
+  const finalSummary = input.location &&
+      locationMatcher &&
+      extraction.summary &&
+      !locationMatcher(extraction.summary)
+    ? articles.slice(0, 3).map((article) => article.summary).filter((s) =>
+      typeof s === "string" && s.trim().length > 0
+    ).join(" ")
+    : extraction.summary ?? "";
 
   logEvent({
     level: "info",
@@ -392,36 +451,10 @@ async function runSearch(
     search_queries_used: queries,
     urls_scraped: scrapedOk.map(({ hit }) => hit.url),
     processing_time_ms: Date.now() - startedAt,
-    summary: extraction.summary ?? "",
-    response_markdown: extraction.summary ?? "",
+    summary: finalSummary,
+    response_markdown: finalSummary,
     filteredOutCount: filteredOut,
   });
-}
-
-// ---------------------------------------------------------------------------
-
-function buildQueries(input: z.infer<typeof InputSchema>): string[] {
-  const loc = input.location;
-  const locLabel = loc?.displayName?.trim() ||
-    [loc?.city, loc?.country].filter(Boolean).join(", ").trim();
-  const criteria = (input.criteria ?? "").trim();
-  const categoryHint = input.category === "government"
-    ? "government council policy"
-    : input.category === "analysis"
-    ? "analysis reporting"
-    : "news";
-
-  const queries: string[] = [];
-  if (locLabel && criteria) {
-    queries.push(`${criteria} ${locLabel} ${categoryHint}`.trim());
-    queries.push(`"${locLabel}" ${criteria}`.trim());
-  } else if (locLabel) {
-    queries.push(`${locLabel} local ${categoryHint}`.trim());
-    queries.push(`${locLabel} recent developments`.trim());
-  } else if (criteria) {
-    queries.push(`${criteria} ${categoryHint}`.trim());
-  }
-  return queries.filter((q) => q.length > 0);
 }
 
 function buildFilterInstructions(
@@ -432,10 +465,26 @@ function buildFilterInstructions(
   }
   if (input.criteria) {
     return `Only include articles that match this criteria: "${input.criteria}". ` +
-      `Set matches=true when the article clearly relates; false otherwise.`;
+      `${buildBeatCriteriaRule(input.criteria)} ` +
+      `Set matches_criteria=true when the article clearly relates; false otherwise.`;
   }
   return `Include any article that is recent and substantive. ` +
-    `Set matches=true for all included articles.`;
+    `Set matches_criteria=true for all included articles.`;
+}
+
+function buildLocationFilterInstructions(
+  location: z.infer<typeof LocationSchema> | undefined,
+): string {
+  if (!location) {
+    return `No location filter. Set matches_location=true for all included articles.`;
+  }
+  const parsed = parseBeatLocation(location);
+  const locationLabel = parsed.city && parsed.country
+    ? `${parsed.city}, ${parsed.country}`
+    : parsed.city || parsed.country || location.displayName || "the requested location";
+  return `Only include articles primarily about ${locationLabel}. ` +
+    `If an article is mainly about another city, region, or country, set matches_location=false even if the topic matches. ` +
+    `For country targets, do not substitute same-language coverage from another country.`;
 }
 
 function emptyResponse(
@@ -493,13 +542,4 @@ function safeDomain(raw: string | null | undefined): string | null {
   }
 }
 
-function normalizeDate(v: string | null | undefined): string | null {
-  if (!v) return null;
-  const trimmed = v.trim();
-  if (!trimmed) return null;
-  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (match) return match[1];
-  const d = new Date(trimmed);
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
-}
+// normalizeDate moved to ../_shared/date_utils.ts (imported at the top).

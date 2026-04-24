@@ -16,7 +16,14 @@ import {
 	type WorkspaceUnit,
 	type WorkspacePaginatedUnits
 } from '$lib/api-client';
-import { DEMO_UNITS, demoDismissed, isDemoId } from '$lib/demo/seed';
+import {
+	DEMO_UNITS,
+	demoDismissed,
+	isDemoId,
+	isDemoUnit,
+	shouldUseLocalDemoUnits
+} from '$lib/demo/seed';
+import { IS_LOCAL_DEMO_MODE } from '$lib/demo/state';
 
 export interface UnitsState {
 	units: WorkspaceUnit[];
@@ -55,6 +62,65 @@ function errorMessage(e: unknown): string {
 	return String(e);
 }
 
+type SearchKeywordField = NonNullable<WorkspaceUnit['search_match']>['keyword_fields'][number];
+
+function normalizeForSearch(value: string | null | undefined): string {
+	return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function includesQuery(value: string | null | undefined, query: string): boolean {
+	return normalizeForSearch(value).includes(query);
+}
+
+function demoSearchReason(fields: SearchKeywordField[]): string {
+	const labels: Record<SearchKeywordField, string> = {
+		statement: 'statement',
+		context_excerpt: 'context',
+		source: 'source metadata',
+		entities: 'entities',
+		scout_name: 'scout name',
+		linked_scouts: 'linked scouts',
+		tags: 'tags'
+	};
+	const present = [...new Set(fields)].map((field) => labels[field]);
+	if (present.length === 0) return 'Direct text match.';
+	if (present.length === 1) return `Direct text match in ${present[0]}.`;
+	if (present.length === 2) return `Direct text match in ${present[0]} and ${present[1]}.`;
+	return `Direct text match in ${present.slice(0, -1).join(', ')}, and ${present[present.length - 1]}.`;
+}
+
+function annotateDemoSearchMatch(unit: WorkspaceUnit, loweredQuery: string): WorkspaceUnit {
+	const keywordFields: SearchKeywordField[] = [];
+
+	if (includesQuery(unit.statement, loweredQuery)) keywordFields.push('statement');
+	if (includesQuery(unit.context_excerpt, loweredQuery)) keywordFields.push('context_excerpt');
+	if (
+		includesQuery(unit.source?.title, loweredQuery) ||
+		includesQuery(unit.source?.domain, loweredQuery) ||
+		includesQuery(unit.source?.url, loweredQuery)
+	) {
+		keywordFields.push('source');
+	}
+	if (includesQuery(unit.scout_name, loweredQuery)) keywordFields.push('scout_name');
+	if ((unit.entities ?? []).some((entity) => includesQuery(entity.mention_text, loweredQuery))) {
+		keywordFields.push('entities');
+	}
+	if ((unit.tags ?? []).some((tag) => includesQuery(tag, loweredQuery))) {
+		keywordFields.push('tags');
+	}
+
+	return {
+		...unit,
+		search_match: {
+			category: 'direct',
+			reason: demoSearchReason(keywordFields),
+			keyword_fields: keywordFields,
+			semantic_similarity: null,
+			below_interest_threshold: false
+		}
+	};
+}
+
 /**
  * Factory that builds a fresh units store wired to the given api-client
  * surface. Exposed for tests.
@@ -75,6 +141,28 @@ export function createUnitsStore(api: UnitsApi = defaultApi as unknown as UnitsA
 		return s;
 	}
 
+	function searchDemoUnits(query: string, scoutId: string | null): WorkspaceUnit[] {
+		const haystack = (value: WorkspaceUnit): string => [
+			value.statement,
+			value.context_excerpt,
+			value.source?.title,
+			value.source?.domain,
+			value.source?.url,
+			value.scout_name,
+			...(value.entities ?? []).map((entity) => entity.mention_text),
+			...(value.tags ?? [])
+		]
+			.filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+			.join(' ')
+			.toLowerCase();
+
+		const lowered = query.trim().toLowerCase();
+		return DEMO_UNITS
+			.filter((unit) => !scoutId || unit.scout_id === scoutId)
+			.filter((unit) => haystack(unit).includes(lowered))
+			.map((unit) => annotateDemoSearchMatch(unit, lowered));
+	}
+
 	return {
 		subscribe,
 
@@ -83,6 +171,19 @@ export function createUnitsStore(api: UnitsApi = defaultApi as unknown as UnitsA
 		 * `scoutId` is null). Replaces existing units. Clears searchQuery.
 		 */
 		async load(scoutId: string | null): Promise<void> {
+			if (IS_LOCAL_DEMO_MODE && scoutId === null) {
+				update((s) => ({
+					...s,
+					loading: false,
+					error: null,
+					searchQuery: '',
+					scoutId: null,
+					units: demoDismissed() ? [] : [...DEMO_UNITS],
+					cursor: null,
+					hasMore: false
+				}));
+				return;
+			}
 			// Demo-scoped load: serve in-memory demo units without hitting the API.
 			if (scoutId && isDemoId(scoutId) && !demoDismissed()) {
 				update((s) => ({
@@ -153,11 +254,31 @@ export function createUnitsStore(api: UnitsApi = defaultApi as unknown as UnitsA
 		 */
 		async search(query: string, scoutId?: string | null): Promise<void> {
 			const trimmed = query.trim();
-			const scope = scoutId === undefined ? snapshot().scoutId : scoutId;
+			const current = snapshot();
+			const scope = scoutId === undefined ? current.scoutId : scoutId;
 			if (trimmed === '') {
 				// Exit search mode and reload.
 				update((s) => ({ ...s, searchQuery: '', error: null }));
 				await this.load(scope ?? null);
+				return;
+			}
+
+			const localDemoScope = shouldUseLocalDemoUnits({
+				scopeScoutId: scope ?? null,
+				units: current.units
+			});
+
+			if (localDemoScope) {
+				update((s) => ({
+					...s,
+					searchQuery: trimmed,
+					loading: false,
+					error: null,
+					cursor: null,
+					hasMore: false,
+					scoutId: scope ?? null,
+					units: searchDemoUnits(trimmed, scope ?? null)
+				}));
 				return;
 			}
 
@@ -233,7 +354,7 @@ export function createUnitsStore(api: UnitsApi = defaultApi as unknown as UnitsA
 		clearDemo(): void {
 			update((s) => ({
 				...s,
-				units: s.units.filter((u) => !isDemoId(u.id))
+				units: s.units.filter((u) => !isDemoUnit(u))
 			}));
 		},
 

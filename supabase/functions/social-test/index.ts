@@ -29,10 +29,17 @@
 
 import { z } from "https://esm.sh/zod@3";
 import { handleCors } from "../_shared/cors.ts";
-import { requireUser, AuthedUser } from "../_shared/auth.ts";
+import { AuthedUser, requireUser } from "../_shared/auth.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { ValidationError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
+import {
+  buildSocialProfileUrl,
+  classifyProfileProbeStatus,
+  looksLikeMissingProfileError,
+  normalizeSocialHandle,
+  type ProfileProbeResult,
+} from "../_shared/social_profiles.ts";
 
 const InputSchema = z.object({
   platform: z.enum(["instagram", "x", "facebook", "tiktok"]),
@@ -131,7 +138,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   }
 
-  const profileUrl = buildProfileUrl(platform, handle);
+  const normalizedHandle = normalizeSocialHandle(platform, handle);
+  const profileUrl = buildSocialProfileUrl(platform, normalizedHandle);
   if (!profileUrl) {
     return jsonOk({
       valid: false,
@@ -143,21 +151,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   }
 
-  // Step 1: HEAD/GET validation
-  const headValid = await validateProfileExists(platform, profileUrl);
-  if (!headValid) {
+  // Step 1: browser-like probe. Anti-bot responses are inconclusive, not missing.
+  const probeResult = await validateProfileExists(platform, profileUrl);
+  if (probeResult === "missing") {
     logEvent({
       level: "info",
       fn: "social-test",
       event: "profile_invalid",
       user_id: user.id,
       platform,
-      handle,
+      handle: normalizedHandle,
     });
     return jsonOk({
       valid: false,
       profile_url: profileUrl,
-      error: "Profile not found or inaccessible",
+      error: "Profile not found or private",
       post_ids: [],
       preview_posts: [],
       posts_data: [],
@@ -174,10 +182,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       user_id: user.id,
       platform,
     });
+    const error = probeResult === "exists"
+      ? "APIFY_API_TOKEN not configured — baseline scan skipped"
+      : "Profile could not be verified directly and APIFY_API_TOKEN is not configured — baseline scan skipped";
     return jsonOk({
       valid: true,
       profile_url: profileUrl,
-      error: "APIFY_API_TOKEN not configured — baseline scan skipped",
+      error,
       post_ids: [],
       preview_posts: [],
       posts_data: [],
@@ -236,9 +247,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       event: "scrape_failed",
       user_id: user.id,
       platform,
-      handle,
+      handle: normalizedHandle,
       msg,
     });
+    if (probeResult !== "exists" && looksLikeMissingProfileError(msg)) {
+      return jsonOk({
+        valid: false,
+        profile_url: profileUrl,
+        error: "Profile not found or private",
+        post_ids: [],
+        preview_posts: [],
+        posts_data: [],
+      });
+    }
     // HEAD succeeded, so profile is valid — return partial success with empty baseline.
     return jsonOk({
       valid: true,
@@ -253,23 +274,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 // ---------------------------------------------------------------------------
 
-function buildProfileUrl(platform: string, handle: string): string {
-  const clean = handle.replace(/^@/, "").trim();
-  if (!clean) return "";
-  switch (platform) {
-    case "instagram":
-      return `https://www.instagram.com/${clean}/`;
-    case "x":
-      return `https://x.com/${clean}`;
-    case "facebook":
-      return `https://www.facebook.com/${clean}`;
-    case "tiktok":
-      return `https://www.tiktok.com/@${clean}`;
-    default:
-      return "";
-  }
-}
-
 function isFacebookPageUrl(input: string): boolean {
   const s = input.toLowerCase();
   return s.includes("/pg/") || s.includes("/pages/") || /\/p\//.test(s);
@@ -278,19 +282,27 @@ function isFacebookPageUrl(input: string): boolean {
 async function validateProfileExists(
   platform: string,
   url: string,
-): Promise<boolean> {
-  // X/TikTok reject HEAD for logged-out users; use GET with no-follow.
-  const method = platform === "x" || platform === "tiktok" ? "GET" : "HEAD";
+): Promise<ProfileProbeResult> {
+  // Social platforms often anti-bot HEAD probes; a browser-like GET is less brittle.
   try {
     const res = await fetch(url, {
-      method,
+      method: "GET",
       redirect: "follow",
+      headers: {
+        "accept":
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "accept-language": "en-US,en;q=0.9",
+        "cache-control": "no-cache",
+        "pragma": "no-cache",
+        "user-agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+      },
       // Keep it quick.
       signal: AbortSignal.timeout(10_000),
     });
-    return res.status < 400;
+    return classifyProfileProbeStatus(res.status);
   } catch {
-    return false;
+    return "uncertain";
   }
 }
 
@@ -342,7 +354,8 @@ function normalizePost(
     id = str(r.shortCode) || str(r.id) || str(r.url);
     text = str(r.caption);
     timestamp = str(r.timestamp) || str(r.takenAt) || "";
-    imageUrl = str(r.displayUrl) || firstImage(r.images) || firstImage(r.imagesUrls);
+    imageUrl = str(r.displayUrl) || firstImage(r.images) ||
+      firstImage(r.imagesUrls);
   } else if (platform === "x") {
     id = str(r.id) || str(r.conversationId) || str(r.url);
     text = str(r.text) || str(r.fullText);

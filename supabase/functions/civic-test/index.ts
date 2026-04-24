@@ -7,9 +7,10 @@
  *     body: { tracked_urls: string[] (1..2), criteria?: string }
  *     -> 200 { results: [{ url, title?, promises_count?, promises?, error? }] }
  *
- * For each URL (max 2): firecrawlScrape, then Gemini-extract up to 10
- * promises. Per-URL failures (scrape or extract) are reported in the result
- * entry rather than surfacing as a 500.
+ * For each tracked URL (max 2): scrape the listing page raw HTML, resolve
+ * downstream meeting documents, then preview promises from those documents.
+ * Per-URL failures are reported in the result entry rather than surfacing
+ * as a 500.
  */
 
 import { z } from "https://esm.sh/zod@3";
@@ -18,35 +19,12 @@ import { requireUser, AuthedUser } from "../_shared/auth.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { ValidationError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
-import { firecrawlScrape } from "../_shared/firecrawl.ts";
-import { geminiExtract } from "../_shared/gemini.ts";
+import { previewCivicTrackedUrls } from "../_shared/civic_preview.ts";
 
 const InputSchema = z.object({
   tracked_urls: z.array(z.string().url()).min(1).max(2),
   criteria: z.string().max(4000).optional(),
 });
-
-const MARKDOWN_MAX = 15_000;
-const PROMISES_PREVIEW_CAP = 10;
-
-const EXTRACTION_SCHEMA: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    promises: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          promise_text: { type: "string" },
-          context: { type: "string" },
-          meeting_date: { type: "string", nullable: true },
-        },
-        required: ["promise_text"],
-      },
-    },
-  },
-  required: ["promises"],
-};
 
 interface ExtractedPromise {
   promise_text: string;
@@ -126,52 +104,22 @@ async function previewUrl(
   url: string,
   criteria: string | undefined,
 ): Promise<UrlResult> {
-  let scraped;
-  try {
-    scraped = await firecrawlScrape(url);
-  } catch (e) {
-    return {
-      url,
-      error: `scrape failed: ${e instanceof Error ? e.message : String(e)}`,
-    };
-  }
-
-  const markdown = scraped.markdown ?? "";
-  if (!markdown.trim()) {
-    return {
-      url,
-      title: scraped.title,
-      promises_count: 0,
-      promises: [],
-    };
-  }
-
-  const prompt =
-    `Extract commitments, promises, and votes from this council document. ` +
-    `If a criteria is given, only include matching items. ` +
-    `${criteria ? "Criteria: " + criteria : ""}` +
-    `\n\n---\n\n${markdown.slice(0, MARKDOWN_MAX)}`;
-
-  let extraction: { promises: ExtractedPromise[] };
-  try {
-    extraction = await geminiExtract<{ promises: ExtractedPromise[] }>(
-      prompt,
-      EXTRACTION_SCHEMA,
-    );
-  } catch (_e) {
-    return { url, title: scraped.title, error: "extract failed" };
-  }
-
-  const all = Array.isArray(extraction?.promises) ? extraction.promises : [];
-  const filtered = all.filter(
-    (p) => p && typeof p.promise_text === "string" && p.promise_text.trim(),
+  const preview = await previewCivicTrackedUrls([url], criteria, {
+    maxDocs: 5,
+    maxPromisesPerDocument: 10,
+  });
+  const promises: ExtractedPromise[] = preview.documents.flatMap((document) =>
+    document.promises.map((promise) => ({
+      promise_text: promise.promise_text,
+      context: promise.context,
+      meeting_date: promise.source_date || null,
+    }))
   );
-  const preview = filtered.slice(0, PROMISES_PREVIEW_CAP);
 
   return {
     url,
-    title: scraped.title,
-    promises_count: filtered.length,
-    promises: preview,
+    title: preview.documents[0]?.title,
+    promises_count: promises.length,
+    promises,
   };
 }

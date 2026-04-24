@@ -1,5 +1,5 @@
 /**
- * Tests for ScoutsPanel utility functions.
+ * Tests for shared scout utility functions.
  * Pure logic tests — no Svelte rendering needed.
  */
 import { describe, it, expect } from 'vitest';
@@ -8,6 +8,8 @@ import {
 	SOCIAL_SCOUT_COSTS,
 	EXTRACT_COSTS,
 	getScoutCost,
+	normalizeScoutType,
+	getScoutTypeDisplay,
 	formatRegularity,
 	truncateUrl,
 	stripMarkdown,
@@ -41,6 +43,12 @@ describe('getScoutCost', () => {
 	it('returns base cost for non-social types', () => {
 		expect(getScoutCost('web')).toBe(1);
 		expect(getScoutCost('pulse')).toBe(7);
+	});
+
+	it('accepts legacy beat aliases from live data', () => {
+		expect(normalizeScoutType('beat')).toBe('pulse');
+		expect(getScoutCost('beat')).toBe(7);
+		expect(getScoutTypeDisplay('beat').label).toBe('Beat Monitor');
 	});
 
 	it('returns platform-specific cost for social scouts', () => {

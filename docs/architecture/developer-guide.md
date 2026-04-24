@@ -66,16 +66,31 @@ uvicorn app.main:app --reload --port 8000
 cd frontend
 nvm use          # Ensure Node 22 — IMPORTANT
 npm install
-npm run dev      # Dev server at http://localhost:5173
+npm run dev                     # private repo default: local FastAPI MuckRock broker on http://localhost:5173
+npm run dev:hosted-broker       # diagnostic: same frontend, but use the deployed broker
+npm run dev:supabase-local-demo # local Supabase Auth + local-only demo workspace
+npm run dev:raw                 # manual env override / OSS-style raw Vite boot
 ```
 
-The Vite dev server proxies `/api/*` to `http://localhost:8000`. Set the following in
-your frontend `.env.local`:
+The private repo now has two explicit local auth modes:
+
+- `npm run dev`: local frontend + local FastAPI auth broker, but authenticated against the hosted Supabase project so localhost shows your real account data before deploy.
+- `npm run dev:hosted-broker`: diagnostic mode that keeps the frontend local but uses the already-deployed broker path.
+- `npm run dev:supabase-local-demo`: disposable local Supabase email/password login for checking the onboarding/demo UI without touching hosted auth.
+- Local demo mode keeps the example workspace local-only. Demo unit verify/delete interactions are simulated in-memory so the signup/demo flow still behaves like production onboarding, but scout creation/scheduling remains disabled.
+- Local MuckRock dev is pinned to `http://localhost:5173/auth/callback`, and Vite proxies `/api/auth/*` to the local FastAPI process on `127.0.0.1:8000` so the browser never has to round-trip through Render just to finish login.
+
+The raw/manual path still exists for OSS-style development. Set the following in
+your frontend `.env.local` only when you intentionally want manual control:
 
 ```bash
 PUBLIC_DEPLOYMENT_TARGET=supabase   # or 'aws' for SaaS target
 PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=xxx
+PUBLIC_MUCKROCK_ENABLED=false
+PUBLIC_MUCKROCK_BROKER_URL=http://localhost:5173/api/auth/login
+PUBLIC_MUCKROCK_POST_LOGIN_REDIRECT=http://localhost:5173/auth/callback
+PUBLIC_LOCAL_DEMO_MODE=false
 PUBLIC_MAPTILER_API_KEY=xxx         # optional (geocoding)
 ```
 

@@ -1,0 +1,6 @@
+{
+  "lock": false,
+  "tasks": {
+    "test": "deno test --allow-env _shared/"
+  }
+}

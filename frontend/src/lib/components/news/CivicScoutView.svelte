@@ -6,7 +6,6 @@
 	import CriteriaInput from '$lib/components/ui/CriteriaInput.svelte';
 	import ScoutScheduleModal from '$lib/components/modals/ScoutScheduleModal.svelte';
 	import { apiClient } from '$lib/api-client';
-	import { sidebarNav } from '$lib/stores/sidebar-nav';
 	import type { ScoutType } from '$lib/types';
 	import { createEventDispatcher } from 'svelte';
 
@@ -46,6 +45,8 @@
 
 	// Schedule modal state
 	let showScheduleModal = false;
+	let scheduledTrackedUrls: string[] = [];
+	let scheduledRootDomain = '';
 
 	$: canDiscover = domain.trim().length > 0;
 	$: canSchedule = selectedUrls.size > 0 && selectedUrls.size <= 2;
@@ -173,6 +174,8 @@
 	}
 
 	function handleOpenSchedule() {
+		scheduledTrackedUrls = [...selectedUrls];
+		scheduledRootDomain = domain.trim();
 		showScheduleModal = true;
 	}
 </script>
@@ -224,10 +227,10 @@
 							<div slot="between-step2-step3">
 								{#if hasResults && canSchedule}
 									<div class="field-group criteria-section">
-										<label class="field-label">
+										<div class="field-label">
 											{m.scheduleSearch_criteriaLabel()}
 											<span class="field-subtitle">{m.civic_criteriaHint()}</span>
-										</label>
+										</div>
 										<CriteriaInput
 											bind:value={criteria}
 											placeholder={m.webScout_criteriaPlaceholder()}
@@ -337,14 +340,13 @@
 <ScoutScheduleModal
 	bind:open={showScheduleModal}
 	scoutType={'civic' as ScoutType}
-	root_domain={domain.trim()}
-	tracked_urls={[...selectedUrls]}
+	root_domain={scheduledRootDomain}
+	tracked_urls={scheduledTrackedUrls}
 	criteria={criteria}
 	initialPromises={testResult?.sample_promises ?? []}
 	on:close={() => showScheduleModal = false}
 	on:success={() => {
 		showScheduleModal = false;
-		sidebarNav.setView('scouts');
 		dispatch('scheduled', { scoutType: 'civic' });
 	}}
 />
@@ -513,11 +515,6 @@
 	.url-item--disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
-	}
-
-	/* Test results */
-	.test-results-section {
-		margin-top: 1.5rem;
 	}
 
 	/* Promises preview */

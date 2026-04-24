@@ -1,8 +1,1344 @@
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap") layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility eyebrow {
+  /* ──────────────────────────────────────────────────────────
+	   Utility — eyebrow label (uppercase mono, ≤12px)
+	   ────────────────────────────────────────────────────────── */
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1.45;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+@utility eyebrow--primary {
+  color: var(--color-primary);
+}
+
+@utility eyebrow--secondary {
+  color: var(--color-secondary);
+}
+
+@utility btn-primary {
+  /* ──────────────────────────────────────────────────────────
+	   Buttons — sharp, uppercase mono (landing) / Inter (dashboard)
+	   ────────────────────────────────────────────────────────── */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--color-primary);
+  color: var(--color-bg);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid var(--color-primary);
+  border-radius: 0;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-deep);
+    border-color: var(--color-primary-deep);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@utility btn-primary--landing {
+  /* Landing variant — uppercase mono label */
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.875rem 1.5rem;
+}
+
+@utility btn-primary--ink {
+  /* Ink-surface variant (hero CTA) */
+  background: var(--color-ink);
+  color: var(--color-bg);
+  border-color: var(--color-ink);
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-deep);
+    border-color: var(--color-primary-deep);
+  }
+}
+
+@utility btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--color-surface-alt);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--color-bg);
+    border-color: var(--color-border-strong);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@utility btn-scout {
+  /* Scout button — alias to primary (retained for legacy markup) */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--color-primary);
+  color: var(--color-bg);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid var(--color-primary);
+  border-radius: 0;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-deep);
+    border-color: var(--color-primary-deep);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@utility form-field {
+  /* ──────────────────────────────────────────────────────────
+	   Form field primitives — every modal + form uses these so
+	   dropdowns, inputs, textareas, and labels render identically.
+	   Usage:
+	     <div class="form-field">
+	       <label class="form-label" for="x">Label</label>
+	       <input class="form-input" id="x" />
+	       <p class="form-helper">Helper text</p>
+	     </div>
+	   ────────────────────────────────────────────────────────── */
+  margin-bottom: 1.25rem;
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+@utility form-label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: 0.375rem;
+}
+
+@utility form-helper {
+  margin-top: 0.375rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--color-ink-subtle);
+  line-height: 1.45;
+}
+
+@utility form-checkbox {
+  /* Native checkbox — sharp 16×16, plum accent. */
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+@utility form-input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+  }
+
+  &:hover:not(:focus) {
+    border-color: var(--color-border-strong);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: var(--color-surface);
+    color: var(--color-ink-subtle);
+  }
+
+  &select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236E6380' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 1rem;
+  }
+}
+
+@utility form-select {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+  }
+
+  &:hover:not(:focus) {
+    border-color: var(--color-border-strong);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: var(--color-surface);
+    color: var(--color-ink-subtle);
+  }
+
+  & select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236E6380' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 1rem;
+  }
+}
+
+@utility form-textarea {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+  }
+
+  &:hover:not(:focus) {
+    border-color: var(--color-border-strong);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: var(--color-surface);
+    color: var(--color-ink-subtle);
+  }
+  resize: none;
+}
+
+@utility sidebar-card {
+  /* ──────────────────────────────────────────────────────────
+	   Sidebar card — hairline + cream-alt fill, sharp edges
+	   ────────────────────────────────────────────────────────── */
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  text-align: left;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+}
+
+@utility sidebar-card--interactive {
+  cursor: pointer;
+
+  &:hover:not(.sidebar-card--active) {
+    background: var(--color-bg);
+    border-color: var(--color-border-strong);
+  }
+}
+
+@utility sidebar-card--active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+
+  & .sidebar-card__step {
+    background: var(--color-primary);
+    color: var(--color-bg);
+  }
+
+  & .sidebar-card__icon {
+    color: var(--color-primary);
+  }
+}
+
+@utility sidebar-card--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@utility sidebar-card__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+@utility sidebar-card__description {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--color-ink-muted);
+}
+
+@utility sidebar-card__step {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+
+  .sidebar-card--active & {
+    background: var(--color-primary);
+    color: var(--color-bg);
+  }
+}
+
+@utility sidebar-card__icon {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-ink-subtle);
+  transition: color 150ms ease;
+
+  .sidebar-card--active & {
+    color: var(--color-primary);
+  }
+}
+
+@utility custom-scrollbar {
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--color-surface);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: var(--radius-pill);
+    transition: background 150ms ease;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ink-muted);
+  }
+}
+
+@utility panel-view {
+  /* Used by .extraction-error (below). Kept so one keyframe serves the
+	   whole app — components can reference it without redefining. */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  height: 100%;
+  background: var(--color-bg);
+  overflow-y: auto;
+  padding: var(--space-6);
+
+  & .two-column-layout {
+    display: grid;
+    grid-template-columns: 480px 1fr;
+    gap: var(--space-6);
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  & .query-column {
+    position: sticky;
+    top: var(--space-6);
+  }
+
+  & .results-column {
+    min-height: 400px;
+  }
+
+  @media (max-width: 1280px) {
+    & .two-column-layout {
+      grid-template-columns: 1fr;
+    }
+
+    & .query-column {
+      position: static;
+    }
+  }
+}
+
+@utility two-column-layout {
+  .panel-view & {
+    display: grid;
+    grid-template-columns: 480px 1fr;
+    gap: var(--space-6);
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  @media (max-width: 1280px) {
+    .panel-view & {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+@utility query-column {
+  .panel-view & {
+    position: sticky;
+    top: var(--space-6);
+  }
+
+  @media (max-width: 1280px) {
+    .panel-view & {
+      position: static;
+    }
+  }
+}
+
+@utility results-column {
+  .panel-view & {
+    min-height: 400px;
+  }
+}
+
+@utility extraction-progress {
+  /* ──────────────────────────────────────────────────────────
+	   Extraction Progress — editorial
+	   ────────────────────────────────────────────────────────── */
+  position: relative;
+  padding: 1.5rem;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--color-primary);
+  }
+}
+
+@utility extraction-progress__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+@utility extraction-progress__message {
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  letter-spacing: -0.01em;
+}
+
+@utility extraction-progress__percentage {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--color-primary);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+@utility extraction-progress__track {
+  position: relative;
+  width: 100%;
+  height: 0.375rem;
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+@utility extraction-progress__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility extraction-progress__shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(245, 239, 227, 0.4) 50%,
+    transparent 100%
+  );
+  border-radius: var(--radius-pill);
+  animation: shimmerProgress 2s infinite;
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility extraction-progress__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+@utility extraction-progress__hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-ink-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+@utility extraction-progress__icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+@utility extraction-progress__cancel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-error);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 150ms ease;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--color-ink);
+  }
+}
+
+@utility extraction-error {
+  /* ──────────────────────────────────────────────────────────
+	   Extraction Error — editorial
+	   ────────────────────────────────────────────────────────── */
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-error);
+  border-radius: 0;
+  animation: fadeInUp 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility extraction-error__icon {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-error);
+
+  & svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+@utility extraction-error__content {
+  flex: 1;
+  min-width: 0;
+}
+
+@utility extraction-error__title {
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-error);
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.01em;
+}
+
+@utility extraction-error__details {
+  font-size: 0.875rem;
+  color: var(--color-ink-muted);
+  margin: 0 0 0.75rem 0;
+  line-height: 1.5;
+}
+
+@utility extraction-error__list {
+  margin: 0.5rem 0 0 1.25rem;
+  padding: 0;
+  list-style: disc;
+
+  & li {
+    font-size: 0.8125rem;
+    color: var(--color-ink-muted);
+    line-height: 1.6;
+    margin-bottom: 0.25rem;
+  }
+}
+
+@utility extraction-error__suggestions {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+@utility extraction-error__suggestions-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 0 0 0.375rem 0;
+}
+
+@utility modal-backdrop {
+  /* ──────────────────────────────────────────────────────────
+	   Shared modal shell — used by all modals so we don't reinvent
+	   a shell + header + body + footer in every component.
+	   Usage:
+	     <div class="modal-backdrop">
+	       <div class="modal-panel">
+	         <header class="modal-header">
+	           <div class="modal-icon-tile">{icon}</div>
+	           <div class="modal-header-text">
+	             <h2 class="modal-title">…</h2>
+	             <p class="modal-subtitle">…</p>
+	           </div>
+	           <button class="modal-close">×</button>
+	         </header>
+	         <div class="modal-body">…</div>
+	         <footer class="modal-footer">
+	           <button class="btn-secondary">Cancel</button>
+	           <button class="btn-primary">Save</button>
+	         </footer>
+	       </div>
+	     </div>
+	   ────────────────────────────────────────────────────────── */
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(32, 26, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: modalBackdropIn 150ms ease-out;
+}
+
+@utility modal-panel {
+  width: 100%;
+  max-width: 32rem;
+  max-height: calc(100vh - 3rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  font-family: var(--font-body);
+  animation: modalPanelIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility modal-panel--wide {
+  max-width: 52rem;
+}
+
+@utility modal-panel--narrow {
+  max-width: 26rem;
+}
+
+@utility modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+@utility modal-icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+@utility modal-icon-tile--secondary {
+  background: var(--color-secondary-soft);
+  color: var(--color-secondary);
+  border-color: var(--color-secondary);
+}
+
+@utility modal-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+@utility modal-title {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 0 0 0.1875rem 0;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+@utility modal-subtitle {
+  font-size: 0.875rem;
+  font-weight: 300;
+  color: var(--color-ink-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+@utility modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-ink-subtle);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+
+  &:hover {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border-color: var(--color-border);
+  }
+}
+
+@utility modal-body {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+}
+
+@utility modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+}
+
+@utility modal-section-label {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+  margin: 0 0 0.75rem 0;
+}
+
+@utility modal-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 1.25rem 0;
+}
+
+@utility scout-shell {
+  /* ──────────────────────────────────────────────────────────
+	   Scout display primitives — shared across ScoutCard (state 1,
+	   workspace grid) and ScoutFocus (state 2, focused detail).
+	   Both components use the same shell recipe — type-colored left
+	   stripe, mono eyebrow at top, Crimson Pro title, footer status
+	   pill + schedule chip. Size/padding differs per variant but the
+	   atoms here are shared.
+	   ────────────────────────────────────────────────────────── */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-radius: 0;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
+  font-family: var(--font-body);
+
+  &.web {
+    border-left-color: var(--color-primary);
+  }
+
+  &.pulse {
+    border-left-color: var(--color-primary);
+  }
+  &.social {
+    border-left-color: var(--color-secondary);
+  }
+  &.civic {
+    border-left-color: var(--color-secondary);
+  }
+
+  &:hover {
+    background: var(--color-bg);
+    border-top-color: var(--color-border-strong);
+    border-right-color: var(--color-border-strong);
+    border-bottom-color: var(--color-border-strong);
+  }
+
+  &.demo {
+    border-style: dashed;
+    border-color: var(--color-border-strong);
+  }
+  &.demo:hover {
+    border-top-color: var(--color-primary);
+    border-right-color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+
+  &.dimmed {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  &.deleting {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+@utility web {
+  &.scout-shell {
+    border-left-color: var(--color-primary);
+  }
+
+  &.scout-shell-eyebrow {
+    color: var(--color-primary);
+  }
+}
+
+@utility pulse {
+  & .scout-shell {
+    border-left-color: var(--color-primary);
+  }
+
+  & .scout-shell-eyebrow {
+    color: var(--color-primary);
+  }
+}
+
+@utility social {
+  &.scout-shell {
+    border-left-color: var(--color-secondary);
+  }
+  &.scout-shell-eyebrow {
+    color: var(--color-secondary);
+  }
+}
+
+@utility civic {
+  & .scout-shell {
+    border-left-color: var(--color-secondary);
+  }
+  & .scout-shell-eyebrow {
+    color: var(--color-secondary);
+  }
+}
+
+@utility demo {
+  &.scout-shell {
+    border-style: dashed;
+    border-color: var(--color-border-strong);
+  }
+  &.scout-shell:hover {
+    border-top-color: var(--color-primary);
+    border-right-color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+}
+
+@utility dimmed {
+  &.scout-shell {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+@utility deleting {
+  & .scout-shell {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+@utility scout-shell-eyebrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+@utility scout-shell-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+
+  &.web {
+    color: var(--color-primary);
+  }
+
+  &.pulse {
+    color: var(--color-primary);
+  }
+  &.social {
+    color: var(--color-secondary);
+  }
+  &.civic {
+    color: var(--color-secondary);
+  }
+
+}
+
+@utility scout-shell-eyebrow-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+
+  & svg {
+    display: block;
+  }
+}
+
+@utility scout-shell-eyebrow-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+@utility scout-shell-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 0 0 0.5rem;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@utility scout-shell-status {
+  /* Status pill — uppercase mono with color-coded background/text. */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--color-surface);
+  color: var(--color-ink-muted);
+  border-radius: var(--radius-pill);
+
+  &.status-success {
+    background: rgba(47, 143, 95, 0.12);
+    color: var(--color-success);
+  }
+  &.status-error {
+    background: rgba(179, 62, 46, 0.12);
+    color: var(--color-error);
+  }
+  &.status-waiting {
+    background: var(--color-secondary-soft);
+    color: var(--color-secondary);
+  }
+  &.status-neutral {
+    background: var(--color-surface);
+    color: var(--color-ink-muted);
+  }
+}
+
+@utility status-success {
+  &.scout-shell-status {
+    background: rgba(47, 143, 95, 0.12);
+    color: var(--color-success);
+  }
+}
+
+@utility status-error {
+  &.scout-shell-status {
+    background: rgba(179, 62, 46, 0.12);
+    color: var(--color-error);
+  }
+}
+
+@utility status-waiting {
+  &.scout-shell-status {
+    background: var(--color-secondary-soft);
+    color: var(--color-secondary);
+  }
+}
+
+@utility status-neutral {
+  &.scout-shell-status {
+    background: var(--color-surface);
+    color: var(--color-ink-muted);
+  }
+}
+
+@utility scout-shell-status-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+@utility scout-shell-schedule {
+  /* Schedule chip — mono uppercase plum. */
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+@utility scout-shell-actions {
+  /* Action toolbar (run / trash) that sits in the eyebrow row. */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+  position: relative;
+}
+
+@utility scout-shell-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-ink-subtle);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+
+  &:hover {
+    border-color: var(--color-border);
+    color: var(--color-ink);
+  }
+
+  &.run-btn:hover {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  &.trash-btn:hover {
+    background: rgba(179, 62, 46, 0.1);
+    color: var(--color-error);
+    border-color: var(--color-error);
+  }
+}
+
+@utility run-btn {
+  &.scout-shell-icon-btn:hover {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+}
+
+@utility trash-btn {
+  &.scout-shell-icon-btn:hover {
+    background: rgba(179, 62, 46, 0.1);
+    color: var(--color-error);
+    border-color: var(--color-error);
+  }
+}
+
+@utility scout-shell-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+@utility scout-shell-confirm {
+  /* "Delete?" confirm strip — opens over the trash slot. */
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-error);
+  border-left-width: 3px;
+  position: absolute;
+  right: 0;
+  white-space: nowrap;
+}
+
+@utility scout-shell-confirm-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--color-error);
+  text-transform: uppercase;
+  padding: 0 0.25rem;
+}
+
+@utility scout-shell-confirm-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    opacity 150ms ease;
+
+  &.cancel {
+    background: var(--color-bg);
+    color: var(--color-ink-muted);
+    border-color: var(--color-border);
+  }
+  &.cancel:hover {
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
+
+  &.confirm {
+    background: var(--color-error);
+    color: var(--color-bg);
+    border-color: var(--color-error);
+  }
+  &.confirm:hover {
+    opacity: 0.85;
+  }
+}
+
+@utility cancel {
+  &.scout-shell-confirm-btn {
+    background: var(--color-bg);
+    color: var(--color-ink-muted);
+    border-color: var(--color-border);
+  }
+  &.scout-shell-confirm-btn:hover {
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
+}
+
+@utility confirm {
+  &.scout-shell-confirm-btn {
+    background: var(--color-error);
+    color: var(--color-bg);
+    border-color: var(--color-error);
+  }
+  &.scout-shell-confirm-btn:hover {
+    opacity: 0.85;
+  }
+}
+
+@utility card-header {
+  /* ──────────────────────────────────────────────────────────
+	   Card header atoms (header-badge → eyebrow)
+	   ────────────────────────────────────────────────────────── */
+  margin-bottom: var(--space-4);
+}
+
+@utility header-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  margin-bottom: var(--space-2);
+}
+
+@utility card-title {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: var(--space-1);
+  line-height: 1.27;
+}
+
+@utility card-subtitle {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--color-ink-muted);
+  line-height: 1.5;
+}
 
 @layer base {
 	:root {
@@ -182,451 +1518,9 @@
 }
 
 @layer components {
-	/* ──────────────────────────────────────────────────────────
-	   Utility — eyebrow label (uppercase mono, ≤12px)
-	   ────────────────────────────────────────────────────────── */
-	.eyebrow {
-		display: inline-block;
-		font-family: var(--font-mono);
-		font-size: 0.6875rem;   /* 11px */
-		line-height: 1.45;
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--color-ink-muted);
-	}
-
-	.eyebrow--primary   { color: var(--color-primary); }
-	.eyebrow--secondary { color: var(--color-secondary); }
-
-	/* ──────────────────────────────────────────────────────────
-	   Buttons — sharp, uppercase mono (landing) / Inter (dashboard)
-	   ────────────────────────────────────────────────────────── */
-	.btn-primary {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1.25rem;
-		background: var(--color-primary);
-		color: var(--color-bg);
-		font-family: var(--font-body);
-		font-size: 0.8125rem;
-		font-weight: 600;
-		letter-spacing: 0.01em;
-		border: 1px solid var(--color-primary);
-		border-radius: 0;
-		cursor: pointer;
-		transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: var(--color-primary-deep);
-		border-color: var(--color-primary-deep);
-	}
-
-	.btn-primary:focus-visible {
-		outline: 2px solid var(--color-primary);
-		outline-offset: 2px;
-	}
-
-	.btn-primary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	/* Landing variant — uppercase mono label */
-	.btn-primary--landing {
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		padding: 0.875rem 1.5rem;
-	}
-
-	/* Ink-surface variant (hero CTA) */
-	.btn-primary--ink {
-		background: var(--color-ink);
-		color: var(--color-bg);
-		border-color: var(--color-ink);
-	}
-
-	.btn-primary--ink:hover:not(:disabled) {
-		background: var(--color-primary-deep);
-		border-color: var(--color-primary-deep);
-	}
-
-	.btn-secondary {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1.25rem;
-		background: var(--color-surface-alt);
-		color: var(--color-ink);
-		font-family: var(--font-body);
-		font-size: 0.8125rem;
-		font-weight: 600;
-		letter-spacing: 0.01em;
-		border: 1px solid var(--color-border);
-		border-radius: 0;
-		cursor: pointer;
-		transition: border-color 150ms ease, background 150ms ease;
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: var(--color-bg);
-		border-color: var(--color-border-strong);
-	}
-
-	.btn-secondary:focus-visible {
-		outline: 2px solid var(--color-primary);
-		outline-offset: 2px;
-	}
-
-	.btn-secondary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	/* Scout button — alias to primary (retained for legacy markup) */
-	.btn-scout {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 0.625rem 1rem;
-		background: var(--color-primary);
-		color: var(--color-bg);
-		font-family: var(--font-body);
-		font-size: 0.8125rem;
-		font-weight: 600;
-		letter-spacing: 0.01em;
-		border: 1px solid var(--color-primary);
-		border-radius: 0;
-		cursor: pointer;
-		transition: background 150ms ease, border-color 150ms ease;
-	}
-
-	.btn-scout:hover:not(:disabled) {
-		background: var(--color-primary-deep);
-		border-color: var(--color-primary-deep);
-	}
-
-	.btn-scout:focus-visible {
-		outline: 2px solid var(--color-primary);
-		outline-offset: 2px;
-	}
-
-	.btn-scout:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	/* ──────────────────────────────────────────────────────────
-	   Form field primitives — every modal + form uses these so
-	   dropdowns, inputs, textareas, and labels render identically.
-	   Usage:
-	     <div class="form-field">
-	       <label class="form-label" for="x">Label</label>
-	       <input class="form-input" id="x" />
-	       <p class="form-helper">Helper text</p>
-	     </div>
-	   ────────────────────────────────────────────────────────── */
-	.form-field {
-		margin-bottom: 1.25rem;
-	}
-	.form-field:last-child {
-		margin-bottom: 0;
-	}
-
-	.form-label {
-		display: block;
-		font-family: var(--font-body);
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--color-ink);
-		margin-bottom: 0.375rem;
-	}
-
-	.form-helper {
-		margin-top: 0.375rem;
-		font-family: var(--font-body);
-		font-size: 0.75rem;
-		color: var(--color-ink-subtle);
-		line-height: 1.45;
-	}
-
-	/* Native checkbox — sharp 16×16, plum accent. */
-	.form-checkbox {
-		width: 1rem;
-		height: 1rem;
-		accent-color: var(--color-primary);
-		cursor: pointer;
-		margin: 0;
-		flex-shrink: 0;
-	}
-
-	.form-input,
-	.form-select,
-	.form-textarea {
-		width: 100%;
-		padding: 0.625rem 0.75rem;
-		font-family: var(--font-body);
-		font-size: 0.875rem;
-		color: var(--color-ink);
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		border-radius: 0;
-		transition: border-color 150ms ease, box-shadow 150ms ease;
-	}
-
-	.form-input:focus,
-	.form-select:focus,
-	.form-textarea:focus {
-		outline: none;
-		border-color: var(--color-primary);
-		box-shadow: 0 0 0 3px var(--color-primary-soft);
-	}
-
-	.form-input:hover:not(:focus),
-	.form-select:hover:not(:focus),
-	.form-textarea:hover:not(:focus) {
-		border-color: var(--color-border-strong);
-	}
-
-	.form-input:disabled,
-	.form-select:disabled,
-	.form-textarea:disabled {
-		cursor: not-allowed;
-		background: var(--color-surface);
-		color: var(--color-ink-subtle);
-	}
-
-	select.form-input,
-	select.form-select {
-		appearance: none;
-		-webkit-appearance: none;
-		padding-right: 2.25rem;
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236E6380' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-		background-repeat: no-repeat;
-		background-position: right 0.625rem center;
-		background-size: 1rem;
-	}
-
-	.form-textarea {
-		resize: none;
-	}
-
-	/* ──────────────────────────────────────────────────────────
-	   Sidebar card — hairline + cream-alt fill, sharp edges
-	   ────────────────────────────────────────────────────────── */
-	.sidebar-card {
-		display: block;
-		width: 100%;
-		padding: 1rem;
-		text-align: left;
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		border-radius: 0;
-		transition: border-color 150ms ease, background 150ms ease;
-	}
-
-	.sidebar-card--interactive {
-		cursor: pointer;
-	}
-
-	.sidebar-card--interactive:hover:not(.sidebar-card--active) {
-		background: var(--color-bg);
-		border-color: var(--color-border-strong);
-	}
-
-	.sidebar-card--active {
-		background: var(--color-primary-soft);
-		border-color: var(--color-primary);
-	}
-
-	.sidebar-card--disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.sidebar-card__title {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--color-ink);
-	}
-
-	.sidebar-card__description {
-		margin-top: 0.25rem;
-		font-size: 0.75rem;
-		line-height: 1.45;
-		color: var(--color-ink-muted);
-	}
-
-	.sidebar-card__step {
-		display: inline-flex;
-		flex-shrink: 0;
-		width: 1.5rem;
-		height: 1.5rem;
-		align-items: center;
-		justify-content: center;
-		border-radius: var(--radius-pill);
-		background: var(--color-surface);
-		color: var(--color-ink-muted);
-		font-size: 0.75rem;
-		font-weight: 600;
-		font-family: var(--font-mono);
-		transition: background 150ms ease, color 150ms ease;
-	}
-
-	.sidebar-card--active .sidebar-card__step {
-		background: var(--color-primary);
-		color: var(--color-bg);
-	}
-
-	.sidebar-card__icon {
-		flex-shrink: 0;
-		width: 1.25rem;
-		height: 1.25rem;
-		color: var(--color-ink-subtle);
-		transition: color 150ms ease;
-	}
-
-	.sidebar-card--active .sidebar-card__icon {
-		color: var(--color-primary);
-	}
-
-	/* Custom scrollbar */
-	.custom-scrollbar::-webkit-scrollbar {
-		width: 8px;
-	}
-
-	.custom-scrollbar::-webkit-scrollbar-track {
-		background: var(--color-surface);
-	}
-
-	.custom-scrollbar::-webkit-scrollbar-thumb {
-		background: var(--color-border-strong);
-		border-radius: var(--radius-pill);
-		transition: background 150ms ease;
-	}
-
-	.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-		background: var(--color-ink-muted);
-	}
-
-	/* Used by .extraction-error (below). Kept so one keyframe serves the
-	   whole app — components can reference it without redefining. */
 	@keyframes fadeInUp {
 		from { opacity: 0; transform: translateY(8px); }
 		to   { opacity: 1; transform: translateY(0); }
-	}
-
-	.panel-view {
-		display: flex;
-		flex-direction: column;
-		justify-content: flex-start;
-		height: 100%;
-		background: var(--color-bg);
-		overflow-y: auto;
-		padding: var(--space-6);
-	}
-
-	.panel-view .two-column-layout {
-		display: grid;
-		grid-template-columns: 480px 1fr;
-		gap: var(--space-6);
-		max-width: 1400px;
-		margin: 0 auto;
-		width: 100%;
-	}
-
-	.panel-view .query-column {
-		position: sticky;
-		top: var(--space-6);
-	}
-
-	.panel-view .results-column {
-		min-height: 400px;
-	}
-
-	@media (max-width: 1280px) {
-		.panel-view .two-column-layout {
-			grid-template-columns: 1fr;
-		}
-
-		.panel-view .query-column {
-			position: static;
-		}
-	}
-
-	/* ──────────────────────────────────────────────────────────
-	   Extraction Progress — editorial
-	   ────────────────────────────────────────────────────────── */
-	.extraction-progress {
-		position: relative;
-		padding: 1.5rem;
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		border-radius: 0;
-		overflow: hidden;
-	}
-
-	.extraction-progress::before {
-		content: '';
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		height: 2px;
-		background: var(--color-primary);
-	}
-
-	.extraction-progress__header {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		margin-bottom: 1rem;
-		gap: 1rem;
-	}
-
-	.extraction-progress__message {
-		font-family: var(--font-body);
-		font-size: 0.9375rem;
-		font-weight: 500;
-		color: var(--color-ink);
-		letter-spacing: -0.01em;
-	}
-
-	.extraction-progress__percentage {
-		font-family: var(--font-mono);
-		font-size: 1.25rem;
-		font-weight: 500;
-		color: var(--color-primary);
-		letter-spacing: 0.02em;
-		flex-shrink: 0;
-	}
-
-	.extraction-progress__track {
-		position: relative;
-		width: 100%;
-		height: 0.375rem;
-		background: var(--color-primary-soft);
-		border-radius: var(--radius-pill);
-		overflow: hidden;
-		margin-bottom: 1rem;
-	}
-
-	.extraction-progress__fill {
-		position: absolute;
-		top: 0;
-		left: 0;
-		height: 100%;
-		background: var(--color-primary);
-		border-radius: var(--radius-pill);
-		transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
 	}
 
 	@keyframes shimmerProgress {
@@ -634,566 +1528,14 @@
 		100% { transform: translateX(400%); }
 	}
 
-	.extraction-progress__shimmer {
-		position: absolute;
-		top: 0;
-		left: 0;
-		height: 100%;
-		background: linear-gradient(
-			90deg,
-			transparent 0%,
-			rgba(245, 239, 227, 0.4) 50%,
-			transparent 100%
-		);
-		border-radius: var(--radius-pill);
-		animation: shimmerProgress 2s infinite;
-		transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
-	}
-
-	.extraction-progress__footer {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-
-	.extraction-progress__hint {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.8125rem;
-		color: var(--color-ink-muted);
-		font-style: italic;
-		margin: 0;
-	}
-
-	.extraction-progress__icon {
-		width: 1rem;
-		height: 1rem;
-		color: var(--color-primary);
-		flex-shrink: 0;
-	}
-
-	.extraction-progress__cancel {
-		font-size: 0.8125rem;
-		font-weight: 500;
-		color: var(--color-error);
-		background: none;
-		border: none;
-		padding: 0;
-		cursor: pointer;
-		text-decoration: underline;
-		text-underline-offset: 2px;
-		transition: color 150ms ease;
-		flex-shrink: 0;
-	}
-
-	.extraction-progress__cancel:hover {
-		color: var(--color-ink);
-	}
-
-	/* ──────────────────────────────────────────────────────────
-	   Extraction Error — editorial
-	   ────────────────────────────────────────────────────────── */
-	.extraction-error {
-		display: flex;
-		gap: 1rem;
-		padding: 1.25rem;
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		border-left: 3px solid var(--color-error);
-		border-radius: 0;
-		animation: fadeInUp 300ms cubic-bezier(0.4, 0, 0.2, 1);
-	}
-
-	.extraction-error__icon {
-		flex-shrink: 0;
-		width: 1.5rem;
-		height: 1.5rem;
-		color: var(--color-error);
-	}
-
-	.extraction-error__icon svg {
-		width: 100%;
-		height: 100%;
-	}
-
-	.extraction-error__content {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.extraction-error__title {
-		font-family: var(--font-body);
-		font-size: 0.9375rem;
-		font-weight: 600;
-		color: var(--color-error);
-		margin: 0 0 0.5rem 0;
-		letter-spacing: -0.01em;
-	}
-
-	.extraction-error__details {
-		font-size: 0.875rem;
-		color: var(--color-ink-muted);
-		margin: 0 0 0.75rem 0;
-		line-height: 1.5;
-	}
-
-	.extraction-error__list {
-		margin: 0.5rem 0 0 1.25rem;
-		padding: 0;
-		list-style: disc;
-	}
-
-	.extraction-error__list li {
-		font-size: 0.8125rem;
-		color: var(--color-ink-muted);
-		line-height: 1.6;
-		margin-bottom: 0.25rem;
-	}
-
-	.extraction-error__suggestions {
-		margin-top: 0.75rem;
-		padding-top: 0.75rem;
-		border-top: 1px solid var(--color-border);
-	}
-
-	.extraction-error__suggestions-title {
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--color-ink);
-		margin: 0 0 0.375rem 0;
-	}
-
-	/* ──────────────────────────────────────────────────────────
-	   Shared modal shell — used by all modals so we don't reinvent
-	   a shell + header + body + footer in every component.
-	   Usage:
-	     <div class="modal-backdrop">
-	       <div class="modal-panel">
-	         <header class="modal-header">
-	           <div class="modal-icon-tile">{icon}</div>
-	           <div class="modal-header-text">
-	             <h2 class="modal-title">…</h2>
-	             <p class="modal-subtitle">…</p>
-	           </div>
-	           <button class="modal-close">×</button>
-	         </header>
-	         <div class="modal-body">…</div>
-	         <footer class="modal-footer">
-	           <button class="btn-secondary">Cancel</button>
-	           <button class="btn-primary">Save</button>
-	         </footer>
-	       </div>
-	     </div>
-	   ────────────────────────────────────────────────────────── */
-	.modal-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 100;
-		background: rgba(32, 26, 42, 0.65);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 1.5rem;
-		animation: modalBackdropIn 150ms ease-out;
-	}
-
 	@keyframes modalBackdropIn {
 		from { opacity: 0; }
 		to   { opacity: 1; }
 	}
 
-	.modal-panel {
-		width: 100%;
-		max-width: 32rem;
-		max-height: calc(100vh - 3rem);
-		display: flex;
-		flex-direction: column;
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		box-shadow: var(--shadow-modal);
-		overflow: hidden;
-		font-family: var(--font-body);
-		animation: modalPanelIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
-	}
-
-	.modal-panel--wide { max-width: 52rem; }
-	.modal-panel--narrow { max-width: 26rem; }
-
 	@keyframes modalPanelIn {
 		from { opacity: 0; transform: translateY(8px); }
 		to   { opacity: 1; transform: translateY(0); }
-	}
-
-	.modal-header {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.875rem;
-		padding: 1.25rem 1.5rem;
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.modal-icon-tile {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 2.25rem;
-		height: 2.25rem;
-		background: var(--color-primary-soft);
-		color: var(--color-primary);
-		border: 1px solid var(--color-primary);
-	}
-
-	.modal-icon-tile--secondary {
-		background: var(--color-secondary-soft);
-		color: var(--color-secondary);
-		border-color: var(--color-secondary);
-	}
-
-	.modal-header-text {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.modal-title {
-		font-family: var(--font-display);
-		font-size: 1.375rem;
-		font-weight: 600;
-		color: var(--color-ink);
-		margin: 0 0 0.1875rem 0;
-		letter-spacing: -0.01em;
-		line-height: 1.15;
-	}
-
-	.modal-subtitle {
-		font-size: 0.875rem;
-		font-weight: 300;
-		color: var(--color-ink-muted);
-		margin: 0;
-		line-height: 1.5;
-	}
-
-	.modal-close {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 1.75rem;
-		height: 1.75rem;
-		background: transparent;
-		border: 1px solid transparent;
-		color: var(--color-ink-subtle);
-		cursor: pointer;
-		transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
-	}
-
-	.modal-close:hover {
-		background: var(--color-surface);
-		color: var(--color-ink);
-		border-color: var(--color-border);
-	}
-
-	.modal-body {
-		padding: 1.25rem 1.5rem;
-		overflow-y: auto;
-	}
-
-	.modal-footer {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: 0.5rem;
-		padding: 1rem 1.5rem;
-		background: var(--color-bg);
-		border-top: 1px solid var(--color-border);
-	}
-
-	.modal-section-label {
-		display: inline-block;
-		font-family: var(--font-mono);
-		font-size: 0.6875rem;
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--color-secondary);
-		margin: 0 0 0.75rem 0;
-	}
-
-	.modal-divider {
-		height: 1px;
-		background: var(--color-border);
-		margin: 1.25rem 0;
-	}
-
-	/* ──────────────────────────────────────────────────────────
-	   Scout display primitives — shared across ScoutCard (state 1,
-	   workspace grid) and ScoutFocus (state 2, focused detail).
-	   Both components use the same shell recipe — type-colored left
-	   stripe, mono eyebrow at top, Crimson Pro title, footer status
-	   pill + schedule chip. Size/padding differs per variant but the
-	   atoms here are shared.
-	   ────────────────────────────────────────────────────────── */
-	.scout-shell {
-		display: flex;
-		flex-direction: column;
-		position: relative;
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-border);
-		border-left-width: 3px;
-		border-radius: 0;
-		transition: background 150ms ease, border-color 150ms ease;
-		font-family: var(--font-body);
-	}
-
-	.scout-shell.web,
-	.scout-shell.pulse {
-		border-left-color: var(--color-primary);
-	}
-	.scout-shell.social,
-	.scout-shell.civic {
-		border-left-color: var(--color-secondary);
-	}
-
-	.scout-shell:hover {
-		background: var(--color-bg);
-		border-top-color: var(--color-border-strong);
-		border-right-color: var(--color-border-strong);
-		border-bottom-color: var(--color-border-strong);
-	}
-
-	.scout-shell.demo {
-		border-style: dashed;
-		border-color: var(--color-border-strong);
-	}
-	.scout-shell.demo:hover {
-		border-top-color: var(--color-primary);
-		border-right-color: var(--color-primary);
-		border-bottom-color: var(--color-primary);
-	}
-
-	.scout-shell.dimmed,
-	.scout-shell.deleting {
-		opacity: 0.5;
-		pointer-events: none;
-	}
-
-	.scout-shell-eyebrow-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		margin-bottom: 0.5rem;
-	}
-
-	.scout-shell-eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4375rem;
-		font-family: var(--font-mono);
-		font-size: 0.6875rem;
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-	}
-
-	.scout-shell-eyebrow.web,
-	.scout-shell-eyebrow.pulse {
-		color: var(--color-primary);
-	}
-	.scout-shell-eyebrow.social,
-	.scout-shell-eyebrow.civic {
-		color: var(--color-secondary);
-	}
-
-	.scout-shell-eyebrow svg {
-		flex-shrink: 0;
-	}
-
-	.scout-shell-name {
-		font-family: var(--font-display);
-		font-weight: 600;
-		color: var(--color-ink);
-		margin: 0 0 0.5rem;
-		line-height: 1.15;
-		letter-spacing: -0.015em;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	/* Status pill — uppercase mono with color-coded background/text. */
-	.scout-shell-status {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0.25rem 0.625rem;
-		font-family: var(--font-mono);
-		font-size: 0.6875rem;
-		font-weight: 500;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		background: var(--color-surface);
-		color: var(--color-ink-muted);
-		border-radius: var(--radius-pill);
-	}
-
-	.scout-shell-status.status-success { background: rgba(47, 143, 95, 0.12);   color: var(--color-success); }
-	.scout-shell-status.status-error   { background: rgba(179, 62, 46, 0.12);   color: var(--color-error); }
-	.scout-shell-status.status-waiting { background: var(--color-secondary-soft); color: var(--color-secondary); }
-	.scout-shell-status.status-neutral { background: var(--color-surface);      color: var(--color-ink-muted); }
-
-	.scout-shell-status-dot {
-		width: 0.375rem;
-		height: 0.375rem;
-		border-radius: var(--radius-pill);
-		background: currentColor;
-	}
-
-	/* Schedule chip — mono uppercase plum. */
-	.scout-shell-schedule {
-		font-family: var(--font-mono);
-		font-size: 0.6875rem;
-		font-weight: 500;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--color-primary);
-	}
-
-	/* Action toolbar (run / trash) that sits in the eyebrow row. */
-	.scout-shell-actions {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.125rem;
-		flex-shrink: 0;
-		position: relative;
-	}
-
-	.scout-shell-icon-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.75rem;
-		height: 1.75rem;
-		background: transparent;
-		border: 1px solid transparent;
-		color: var(--color-ink-subtle);
-		cursor: pointer;
-		transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
-	}
-
-	.scout-shell-icon-btn:hover {
-		border-color: var(--color-border);
-		color: var(--color-ink);
-	}
-
-	.scout-shell-icon-btn.run-btn:hover {
-		background: var(--color-primary-soft);
-		color: var(--color-primary);
-		border-color: var(--color-primary);
-	}
-
-	.scout-shell-icon-btn.trash-btn:hover {
-		background: rgba(179, 62, 46, 0.1);
-		color: var(--color-error);
-		border-color: var(--color-error);
-	}
-
-	.scout-shell-spinner {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.75rem;
-		height: 1.75rem;
-	}
-
-	/* "Delete?" confirm strip — opens over the trash slot. */
-	.scout-shell-confirm {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0.25rem;
-		background: var(--color-surface-alt);
-		border: 1px solid var(--color-error);
-		border-left-width: 3px;
-		position: absolute;
-		right: 0;
-		white-space: nowrap;
-	}
-
-	.scout-shell-confirm-label {
-		font-family: var(--font-mono);
-		font-size: 0.625rem;
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		color: var(--color-error);
-		text-transform: uppercase;
-		padding: 0 0.25rem;
-	}
-
-	.scout-shell-confirm-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.5rem;
-		height: 1.5rem;
-		border: 1px solid transparent;
-		cursor: pointer;
-		transition: background 150ms ease, color 150ms ease, opacity 150ms ease;
-	}
-
-	.scout-shell-confirm-btn.cancel {
-		background: var(--color-bg);
-		color: var(--color-ink-muted);
-		border-color: var(--color-border);
-	}
-	.scout-shell-confirm-btn.cancel:hover {
-		background: var(--color-surface);
-		color: var(--color-ink);
-	}
-
-	.scout-shell-confirm-btn.confirm {
-		background: var(--color-error);
-		color: var(--color-bg);
-		border-color: var(--color-error);
-	}
-	.scout-shell-confirm-btn.confirm:hover {
-		opacity: 0.85;
-	}
-
-	/* ──────────────────────────────────────────────────────────
-	   Card header atoms (header-badge → eyebrow)
-	   ────────────────────────────────────────────────────────── */
-	.card-header {
-		margin-bottom: var(--space-4);
-	}
-
-	.header-badge {
-		display: inline-block;
-		font-family: var(--font-mono);
-		font-size: 0.6875rem;
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--color-ink-muted);
-		margin-bottom: var(--space-2);
-	}
-
-	.card-title {
-		font-family: var(--font-display);
-		font-size: 1.375rem;
-		font-weight: 600;
-		color: var(--color-ink);
-		margin-bottom: var(--space-1);
-		line-height: 1.27;
-	}
-
-	.card-subtitle {
-		font-family: var(--font-body);
-		font-size: 0.875rem;
-		color: var(--color-ink-muted);
-		line-height: 1.5;
 	}
 }
 

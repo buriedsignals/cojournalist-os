@@ -15,8 +15,6 @@ from app.dependencies.auth import (
     require_admin,
     verify_api_key,
     verify_service_key,
-    verify_scraper_key,
-    verify_promise_key,
 )
 from app.dependencies.billing import (
     decrement_credit,
@@ -43,8 +41,6 @@ __all__ = [
     "verify_api_key",
     "require_admin",
     "verify_service_key",
-    "verify_scraper_key",
-    "verify_promise_key",
     "decrement_credit",
     "get_user_credits",
     "get_user_org_id",

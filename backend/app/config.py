@@ -11,7 +11,7 @@ USED BY: Nearly all services and routers (imported as `settings` or `get_setting
 import os
 from pathlib import Path
 from typing import Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -19,6 +19,12 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
+
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR.parent / ".env",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
     # App settings
     app_name: str = "coJournalist API"
@@ -31,6 +37,7 @@ class Settings(BaseSettings):
     session_secret: str = os.getenv("SESSION_SECRET", "")
     muckrock_base_url: str = os.getenv("MUCKROCK_BASE_URL", "https://accounts.muckrock.com")
     oauth_redirect_base: str = os.getenv("OAUTH_REDIRECT_BASE", "")  # e.g. http://localhost:5173
+    local_muckrock_auth_broker: bool = os.getenv("LOCAL_MUCKROCK_AUTH_BROKER", "false").lower() == "true"
     session_max_age: int = int(os.getenv("SESSION_MAX_AGE", str(86400 * 7)))  # 7 days
 
     # Stripe (license key management)
@@ -78,8 +85,6 @@ class Settings(BaseSettings):
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     resend_api_key: str = os.getenv("RESEND_API_KEY", "")
     internal_service_key: str = os.getenv("INTERNAL_SERVICE_KEY", "")
-    scraper_service_key: str = os.getenv("SCRAPER_SERVICE_KEY", "")
-    promise_service_key: str = os.getenv("PROMISE_SERVICE_KEY", "")
 
     # Deployment target — retained as a hard-coded constant after AWS retirement,
     # so existing `settings.deployment_target == "supabase"` checks keep working
@@ -89,7 +94,7 @@ class Settings(BaseSettings):
     # Supabase / asyncpg
     database_url: str = os.getenv("DATABASE_URL", "")
     supabase_url: str = os.getenv("SUPABASE_URL", "")
-    supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+    supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY", os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""))
     supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")
     supabase_jwt_secret: str = os.getenv("SUPABASE_JWT_SECRET", "")
 
@@ -114,12 +119,6 @@ class Settings(BaseSettings):
         "https://cojournalist.ai",  # Production frontend
         "https://www.cojournalist.ai",  # Production frontend (www)
     ]
-
-    class Config:
-        env_file = BASE_DIR.parent / ".env"  # Points to root .env file
-        case_sensitive = False
-        extra = "ignore"  # Ignore extra fields from .env
-
 
 # Global settings instance
 settings = Settings()

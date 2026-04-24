@@ -6,7 +6,6 @@
 	import TogglePicker from '$lib/components/ui/TogglePicker.svelte';
 	import ScoutScheduleModal from '$lib/components/modals/ScoutScheduleModal.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { sidebarNav } from '$lib/stores/sidebar-nav';
 	import { buildApiUrl } from '$lib/config/api';
 	import { createEventDispatcher } from 'svelte';
 
@@ -186,7 +185,7 @@
 
 				<!-- Monitor Mode Picker -->
 				<div class="field-group">
-					<label class="field-label">{m.socialScout_modeLabel()}</label>
+					<div class="field-label">{m.socialScout_modeLabel()}</div>
 					<TogglePicker
 						bind:value={monitorMode}
 						options={[
@@ -302,7 +301,6 @@
 		previewPosts = [];
 		scanWarning = '';
 		showScheduleModal = false;
-		sidebarNav.setView('scouts');
 		dispatch('scheduled', { scoutType: 'social' });
 	}}
 />

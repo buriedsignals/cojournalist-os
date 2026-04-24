@@ -20,8 +20,8 @@
 	import { safeHtml } from '$lib/utils/sanitize';
 	import { parseExcludedDomains, parsePrioritySources } from '$lib/utils/domains';
 	import { easeOutProgress, formatEstimatedTime, PULSE_EXPECTED_DURATION_MS } from '$lib/utils/progress-timer';
+	import { buildBeatScoutScheduleDraft, buildBeatScoutSearchRequest } from './beat-scout';
 	import * as m from '$lib/paraglide/messages';
-	import { sidebarNav } from '$lib/stores/sidebar-nav';
 	import { createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher<{ scheduled: { scoutType: 'pulse' } }>();
@@ -48,15 +48,17 @@
 	// Schedule modal state
 	let showScheduleModal = false;
 	let searchCompleted = false;
+	let searchError = '';
 
 	// Prompt editing state
 	let showPromptEditor = false;
 	let editedNewsPrompt = '';
 	let editedGovPrompt = '';
 
-	// Derive mode from sidebar nav, or from explicit prop (e.g. when mounted from /new/pulse)
-	export let initialMode: 'location' | 'beat' | null = null;
-	$: mode = (initialMode ?? ($sidebarNav.activeView === 'beat-scout' ? 'beat' : 'location')) as 'location' | 'beat';
+	// The current workspace route owns panel state directly; this view no
+	// longer infers mode from the deleted sidebar UI.
+	export let initialMode: 'location' | 'beat' = 'location';
+	$: mode = initialMode;
 
 	// Source mode — default depends on panel mode
 	let sourceMode: 'reliable' | 'niche' = 'niche';
@@ -69,9 +71,6 @@
 		topicInput = '';
 		searchCompleted = false;
 		pulseStore.reset();
-		if (mode === 'beat') {
-			locationStore.clear();
-		}
 	}
 
 	// Excluded domains
@@ -255,20 +254,33 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 		if (!canSearch) return;
 
 		try {
+			searchError = '';
 			startProgress();
+			const request = buildBeatScoutSearchRequest({
+				mode,
+				sourceMode,
+				topicInput,
+				selectedLocation,
+				excludedDomains: parsedExcludedDomains,
+				prioritySources: parsedPrioritySources
+			});
+			if (!request) return;
 
-			const location = mode === 'location' ? (selectedLocation || undefined) : undefined;
-			const criteriaValue = (mode === 'location' && sourceMode === 'niche')
-				? undefined
-				: topicInput.trim() || undefined;
-
-			await pulseStore.fetchBothCategories(location, sourceMode, criteriaValue, parsedExcludedDomains.length ? parsedExcludedDomains : undefined, parsedPrioritySources.length ? parsedPrioritySources : undefined);
+			await pulseStore.fetchBothCategories(
+				request.location,
+				sourceMode,
+				request.criteria,
+				request.excludedDomains,
+				request.prioritySources
+			);
 
 			stopProgress(true);
 			searchCompleted = true;
 		} catch (error) {
 			console.error('[BeatScoutView] Search error:', error);
+			searchError = error instanceof Error ? error.message : 'Search failed. Please try again.';
 			stopProgress(false);
+			searchCompleted = false;
 		}
 	}
 
@@ -289,17 +301,17 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	$: totalFound = $pulseStore.newsTotalResults + $pulseStore.govTotalResults;
 
 	// Dynamic title/subtitle
-	$: formTitle = isTopicOnly
-		? m.pulse_titleTopic()
-		: !!topicInput.trim()
-			? m.pulse_titleBoth()
-			: m.pulse_titleLocation();
+	$: formTitle = (() => {
+		if (isTopicOnly) return m.pulse_titleTopic();
+		return topicInput.trim() ? m.pulse_titleBoth() : m.pulse_titleLocation();
+	})();
 
-	$: formSubtitle = isTopicOnly
-		? m.pulse_subtitleTopic()
-		: !!topicInput.trim()
-			? m.pulse_subtitleBoth()
-			: m.pulse_subtitleLocation();
+	$: formSubtitle = (() => {
+		if (isTopicOnly) return m.pulse_subtitleTopic();
+		return topicInput.trim() ? m.pulse_subtitleBoth() : m.pulse_subtitleLocation();
+	})();
+
+	$: scheduleDraft = buildBeatScoutScheduleDraft(selectedLocation, topicInput);
 </script>
 
 <div class="panel-view">
@@ -314,7 +326,7 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 				{#if mode === 'location'}
 					<!-- Location (required) -->
 					<div class="field-group">
-						<label class="field-label">{m.filter_locationLabel()}</label>
+						<div class="field-label">{m.filter_locationLabel()}</div>
 						<LocationAutocomplete
 							selectedLocation={selectedLocation}
 							on:select={handleLocationSelect}
@@ -341,11 +353,24 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 							<p class="scope-hint">{m.beatScout_broadCriteriaHint()}</p>
 						{/if}
 					</div>
+
+					<div class="field-group">
+						<div class="field-label">
+							{m.filter_locationLabel()}
+							<span class="field-subtitle">{m.common_optional()}</span>
+						</div>
+						<p class="field-hint">{m.beatScout_optionalLocationLabel()}</p>
+						<LocationAutocomplete
+							selectedLocation={selectedLocation}
+							on:select={handleLocationSelect}
+							on:clear={handleLocationClear}
+						/>
+					</div>
 				{/if}
 
 				<!-- Sources Toggle -->
 				<div class="field-group">
-					<label class="field-label">{m.sourceMode_label()}</label>
+					<div class="field-label">{m.sourceMode_label()}</div>
 					<TogglePicker
 						bind:value={sourceMode}
 						options={[
@@ -473,6 +498,10 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 					{/if}
 				</div>
 
+				{#if searchError}
+					<div class="error-block">{searchError}</div>
+				{/if}
+
 				<StepButtons
 					step1Disabled={!canSearch || isLoading}
 					step1Loading={isLoading}
@@ -498,10 +527,12 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 			{:else if hasResults}
 				<section class="results-section">
 					<div class="results-header">
-						<div class="results-count">
-							<span class="count-number">{totalArticles}</span>
-							<span class="count-label">{m.pulse_selectedByAI()}</span>
-							<span class="count-secondary">{m.pulse_fromFound({ count: totalFound })}</span>
+						<div class="results-header-copy">
+							<p class="results-eyebrow">{m.pulse_selectedByAI()}</p>
+							<div class="results-count">
+								<span class="count-number">{totalArticles}</span>
+								<span class="count-label">{m.pulse_fromFound({ count: totalFound })}</span>
+							</div>
 						</div>
 						{#if $pulseStore.processingTimeMs}
 							<div class="results-meta">
@@ -514,32 +545,39 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 					<!-- Structured Summary -->
 					{#if $pulseStore.structuredSummary.news_summary || $pulseStore.structuredSummary.gov_summary}
 						<div class="structured-summary">
+							<p class="summary-eyebrow">{m.pulse_latestIn({ location: isTopicOnly ? topicInput : (selectedLocation?.displayName || 'Your Area') })}</p>
 							<h3 class="summary-title">
-								{m.pulse_latestIn({ location: isTopicOnly ? topicInput : (selectedLocation?.displayName || 'Your Area') })}
+								Editor Brief
 							</h3>
+							<div class="summary-stack">
 							{#if $pulseStore.structuredSummary.news_summary}
-								<div class="summary-section">
-									<span class="summary-label">
-										<Sparkles size={12} />
-										{m.pulse_news()}
-									</span>
+								<section class="summary-section">
+									<div class="summary-header">
+										<span class="summary-label">
+											<Sparkles size={12} />
+											{m.pulse_news()}
+										</span>
+									</div>
 									<div class="summary-text">{@html safeHtml(marked($pulseStore.structuredSummary.news_summary) as string)}</div>
-								</div>
+								</section>
 							{/if}
 							{#if $pulseStore.structuredSummary.gov_summary}
-								<div class="summary-section">
-									<span class="summary-label">
-										{#if isTopicOnly}
-											<Lightbulb size={12} />
-											{m.pulse_analysisInsights()}
-										{:else}
-											<Building2 size={12} />
-											{m.pulse_government()}
-										{/if}
-									</span>
+								<section class="summary-section">
+									<div class="summary-header">
+										<span class="summary-label">
+											{#if isTopicOnly}
+												<Lightbulb size={12} />
+												{m.pulse_analysisInsights()}
+											{:else}
+												<Building2 size={12} />
+												{m.pulse_government()}
+											{/if}
+										</span>
+									</div>
 									<div class="summary-text">{@html safeHtml(marked($pulseStore.structuredSummary.gov_summary) as string)}</div>
-								</div>
+								</section>
 							{/if}
+							</div>
 						</div>
 					{/if}
 
@@ -548,12 +586,15 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 						<div class="category-section">
 							<div class="category-header">
 								<Sparkles size={16} class="category-icon" />
-								<h4 class="category-title">{isTopicOnly ? m.pulse_newsUpdates() : m.pulse_localNews()}</h4>
-								<span class="category-count">({$pulseStore.newsArticles.length})</span>
+								<div class="category-heading">
+									<p class="category-eyebrow">{m.pulse_news()}</p>
+									<h4 class="category-title">{isTopicOnly ? m.pulse_newsUpdates() : m.pulse_localNews()}</h4>
+								</div>
+								<span class="category-count">{$pulseStore.newsArticles.length}</span>
 							</div>
 							<div class="articles-grid">
 								{#each $pulseStore.newsArticles as article, i (article.url)}
-									<div class="article-item" style="animation-delay: {i * 0.05}s">
+									<div class="article-item">
 										<AINewsCard {article} />
 									</div>
 								{/each}
@@ -571,16 +612,22 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 							<div class="category-header">
 								{#if isTopicOnly}
 									<Lightbulb size={16} class="category-icon" />
-									<h4 class="category-title">{m.pulse_analysisInsights()}</h4>
+									<div class="category-heading">
+										<p class="category-eyebrow">{m.pulse_analysisInsights()}</p>
+										<h4 class="category-title">{m.pulse_analysisInsights()}</h4>
+									</div>
 								{:else}
 									<Building2 size={16} class="category-icon" />
-									<h4 class="category-title">{m.pulse_governmentMunicipal()}</h4>
+									<div class="category-heading">
+										<p class="category-eyebrow">{m.pulse_government()}</p>
+										<h4 class="category-title">{m.pulse_governmentMunicipal()}</h4>
+									</div>
 								{/if}
-								<span class="category-count">({$pulseStore.govArticles.length})</span>
+								<span class="category-count">{$pulseStore.govArticles.length}</span>
 							</div>
 							<div class="articles-grid">
 								{#each $pulseStore.govArticles as article, i (article.url)}
-									<div class="article-item" style="animation-delay: {i * 0.05}s">
+									<div class="article-item">
 										<AINewsCard {article} />
 									</div>
 								{/each}
@@ -618,15 +665,14 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 <ScoutScheduleModal
 	bind:open={showScheduleModal}
 	scoutType="pulse"
-	location={selectedLocation}
-	criteria={topicInput.trim() || ''}
+	location={scheduleDraft.location}
+	criteria={scheduleDraft.criteria}
 	{sourceMode}
 	excludedDomains={parsedExcludedDomains}
 	prioritySources={parsedPrioritySources}
 	on:close={() => showScheduleModal = false}
 	on:success={() => {
 		showScheduleModal = false;
-		sidebarNav.setView('scouts');
 		dispatch('scheduled', { scoutType: 'pulse' });
 	}}
 />
@@ -637,9 +683,11 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	.field-group { margin-bottom: 0.75rem; }
 	.field-label { display: block; font-size: 0.8125rem; font-weight: 500; color: var(--color-ink); margin-bottom: 0.375rem; }
 	.field-subtitle { font-weight: 400; color: var(--color-text-secondary); margin-left: 0.375rem; font-size: 0.8125rem; }
+	.field-hint { font-size: 0.75rem; color: var(--color-ink-subtle); margin: 0 0 0.375rem; line-height: 1.4; }
 	.niche-disclaimer { font-size: 0.75rem; color: var(--color-ink-subtle); margin: 0.375rem 0 0; line-height: 1.4; }
 	.scope-hint { font-size: 0.75rem; color: var(--color-ink-subtle); margin: 0.375rem 0 0; line-height: 1.4; }
 	.filtered-disclaimer { font-size: 0.75rem; color: var(--color-ink-subtle); margin: 0.75rem 0 0; line-height: 1.4; text-align: center; }
+	.error-block { padding: 0.75rem; font-size: 0.8125rem; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 0.5rem; margin-bottom: 1rem; }
 
 	/* Prompt Editor Section */
 	.prompt-section { margin-bottom: 1.5rem; }
@@ -749,56 +797,92 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	/* Results Section */
 	.results-section {
 		background: var(--color-surface-alt);
-		border-radius: var(--radius-xl);
-		box-shadow: var(--shadow-md);
 		border: 1px solid var(--color-border);
 		padding: 1.5rem;
 	}
 
 	.results-header {
 		display: flex;
-		align-items: center;
+		align-items: flex-end;
 		justify-content: space-between;
 		margin-bottom: 1rem;
 		padding-bottom: 0.75rem;
 		border-bottom: 1px solid var(--color-border);
 	}
 
-	.results-count { display: flex; align-items: baseline; gap: 0.375rem; }
-	.count-number { font-size: 1.5rem; font-weight: 700; color: var(--color-accent); font-family: 'Crimson Pro', serif; }
-	.count-label { font-size: 0.875rem; color: var(--color-text-secondary); }
-	.count-secondary { font-size: 0.75rem; color: var(--color-text-tertiary); margin-left: 0.25rem; }
+	.results-header-copy { display: flex; flex-direction: column; gap: 0.25rem; }
+	.results-eyebrow {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-secondary);
+	}
+	.results-count { display: flex; align-items: baseline; gap: 0.5rem; }
+	.count-number {
+		font-size: 1.875rem;
+		font-weight: 600;
+		color: var(--color-ink);
+		font-family: var(--font-display);
+		line-height: 1;
+	}
+	.count-label { font-size: 0.8125rem; color: var(--color-ink-muted); }
 
 	/* Structured Summary */
 	.structured-summary {
-		padding: 1.25rem;
-		background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 100%);
-		border-radius: var(--radius-lg);
+		padding: 1rem 1.125rem;
+		background: var(--color-bg);
 		margin-bottom: 1.5rem;
-		border: 1px solid #e0f2fe;
+		border: 1px solid var(--color-border);
 	}
 
-	.summary-title { font-size: 1rem; font-weight: 600; color: var(--color-text-primary); margin: 0 0 1rem 0; font-family: 'Crimson Pro', serif; }
-	.summary-section { margin-bottom: 0.75rem; }
-	.summary-section:last-child { margin-bottom: 0; }
+	.summary-eyebrow {
+		margin: 0 0 0.25rem;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-ink-muted);
+	}
+	.summary-title {
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: var(--color-ink);
+		margin: 0 0 0.875rem 0;
+		font-family: var(--font-display);
+		letter-spacing: -0.01em;
+	}
+	.summary-stack { display: flex; flex-direction: column; gap: 0.75rem; }
+	.summary-section {
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.summary-section:first-child {
+		padding-top: 0;
+		border-top: none;
+	}
+	.summary-header { margin-bottom: 0.375rem; }
 
 	.summary-label {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.375rem;
 		font-size: 0.6875rem;
-		font-weight: 600;
+		font-family: var(--font-mono);
+		font-weight: 500;
 		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--color-accent);
-		margin-bottom: 0.375rem;
+		letter-spacing: 0.1em;
+		color: var(--color-secondary);
 	}
 
-	.summary-text { font-size: 0.9375rem; line-height: 1.6; color: var(--color-text-primary); margin: 0; }
+	.summary-text { font-size: 0.9375rem; line-height: 1.65; color: var(--color-ink); margin: 0; }
 	.summary-text :global(ul) { margin: 0; padding-left: 1.25rem; list-style-type: disc; }
 	.summary-text :global(li) { margin-bottom: 0.5rem; }
 	.summary-text :global(li:last-child) { margin-bottom: 0; }
-	.summary-text :global(a) { color: var(--color-accent); text-decoration: none; display: inline-flex; align-items: center; }
+	.summary-text :global(a) { color: var(--color-primary); text-decoration: none; display: inline-flex; align-items: center; }
 	.summary-text :global(a:hover) { opacity: 0.8; }
 	.summary-text :global(a svg) { transition: transform 0.15s ease; }
 	.summary-text :global(a:hover svg) { transform: translate(1px, -1px); }
@@ -811,30 +895,63 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 
 	.category-header {
 		display: flex;
-		align-items: center;
-		gap: 0.5rem;
+		align-items: flex-start;
+		gap: 0.75rem;
 		margin-bottom: 1rem;
 		padding-bottom: 0.5rem;
 		border-bottom: 1px solid var(--color-border);
 	}
 
-	.category-header :global(.category-icon) { color: var(--color-accent); }
-	.category-title { font-size: 0.875rem; font-weight: 600; color: var(--color-text-primary); margin: 0; text-transform: uppercase; letter-spacing: 0.05em; }
-	.category-count { font-size: 0.75rem; color: var(--color-text-tertiary); font-weight: 400; }
+	.category-header :global(.category-icon) { color: var(--color-primary); margin-top: 0.125rem; }
+	.category-heading { display: flex; flex-direction: column; gap: 0.125rem; flex: 1; min-width: 0; }
+	.category-eyebrow {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-secondary);
+	}
+	.category-title {
+		font-size: 1rem;
+		font-weight: 600;
+		color: var(--color-ink);
+		margin: 0;
+		font-family: var(--font-display);
+		line-height: 1.2;
+		letter-spacing: -0.01em;
+	}
+	.category-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 1.5rem;
+		padding: 0.125rem 0.375rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-pill);
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		color: var(--color-ink-muted);
+		font-weight: 500;
+	}
 	.section-divider { border: none; border-top: 2px solid var(--color-border); margin: 1.5rem 0; }
-	.results-meta { display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--color-text-tertiary); }
+	.results-meta {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-ink-muted);
+	}
 
 	.articles-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
 
 	@media (min-width: 768px) {
 		.articles-grid { grid-template-columns: repeat(2, 1fr); }
-	}
-
-	.article-item { animation: fadeInUp 0.4s ease forwards; opacity: 0; }
-
-	@keyframes fadeInUp {
-		from { opacity: 0; transform: translateY(10px); }
-		to { opacity: 1; transform: translateY(0); }
 	}
 
 	/* Queries Info */
@@ -848,7 +965,21 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 		border-top: 1px solid var(--color-border);
 	}
 
-	.queries-label { font-size: 0.75rem; color: var(--color-text-tertiary); }
+	.queries-label {
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-ink-muted);
+	}
 	.queries-list { display: flex; flex-wrap: wrap; gap: 0.375rem; }
-	.query-tag { padding: 0.25rem 0.5rem; background: var(--color-surface); border-radius: var(--radius-sm); font-size: 0.6875rem; color: var(--color-text-secondary); }
+	.query-tag {
+		padding: 0.25rem 0.5rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-pill);
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		color: var(--color-ink-muted);
+	}
 </style>

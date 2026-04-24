@@ -11,6 +11,8 @@
  *                    params `mcp_callback` + `mcp_state` forward a remote
  *                    MCP client's OAuth context through the MuckRock flow
  *                    so the magiclink lands back in the MCP OAuth broker.
+ *                    Optional `post_login_redirect` is accepted only for
+ *                    localhost /auth/callback targets in local dev.
  *   GET /callback  — exchange code, upsert Supabase user, sync tier, 302
  *                    to the Supabase magiclink. Magiclink's redirect_to is
  *                    either PUBLIC_APP_URL (normal login) or the MCP
@@ -23,6 +25,8 @@
  *   MUCKROCK_CLIENT_ID, MUCKROCK_CLIENT_SECRET
  *   MUCKROCK_BASE_URL (optional, default https://accounts.muckrock.com)
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto-injected by Supabase)
+ *   SERVICE_SUPABASE_URL, SERVICE_SUPABASE_SERVICE_ROLE_KEY (optional local-dev
+ *     overrides when `supabase functions serve` blocks custom SUPABASE_* vars)
  *   SESSION_SECRET — HMAC key for stateless OAuth state tokens
  *   PUBLIC_APP_URL — app origin. Used for (a) error redirects and (b) the
  *     MuckRock-registered `redirect_uri`: `${PUBLIC_APP_URL}/api/auth/callback`
@@ -51,6 +55,11 @@ import { logEvent } from "../_shared/log.ts";
 import { MuckrockClient } from "../_shared/muckrock.ts";
 import { applyUserEvent } from "../_shared/entitlements.ts";
 import { getServiceClient } from "../_shared/supabase.ts";
+import {
+  buildLocalPostLoginHandoffUrl,
+  parseAllowedPostLoginRedirect,
+  resolvePostLoginRedirect,
+} from "./redirects.ts";
 
 const SCOPES = "openid profile uuid organizations email preferences";
 const STATE_TTL_SECONDS = 600;
@@ -63,6 +72,14 @@ function envOrThrow(name: string): string {
 
 function envOr(name: string, fallback: string): string {
   return Deno.env.get(name) ?? fallback;
+}
+
+function serviceSupabaseUrl(): string {
+  return Deno.env.get("SERVICE_SUPABASE_URL") ?? envOrThrow("SUPABASE_URL");
+}
+
+function serviceRoleKey(): string {
+  return Deno.env.get("SERVICE_SUPABASE_SERVICE_ROLE_KEY") ?? envOrThrow("SUPABASE_SERVICE_ROLE_KEY");
 }
 
 function stripPrefix(pathname: string): string {
@@ -130,6 +147,8 @@ interface StatePayload {
   mcp_callback?: string;
   /** MCP broker's signed state blob — we pass this through untouched. */
   mcp_state?: string;
+  /** Optional local-dev frontend callback after Supabase magiclink. */
+  post_login_redirect?: string;
 }
 
 function b64urlEncode(s: string): string {
@@ -204,6 +223,12 @@ async function handleLogin(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const mcpCallback = url.searchParams.get("mcp_callback") ?? undefined;
   const mcpState = url.searchParams.get("mcp_state") ?? undefined;
+  const postLoginRedirect = parseAllowedPostLoginRedirect(
+    url.searchParams.get("post_login_redirect"),
+  );
+  if (url.searchParams.has("post_login_redirect") && !postLoginRedirect) {
+    return jsonError("invalid post_login_redirect", 400);
+  }
   // Only accept mcp_callback URLs on the same Supabase project — belt and
   // braces against someone using us as an open redirector.
   if (mcpCallback) {
@@ -221,6 +246,7 @@ async function handleLogin(req: Request): Promise<Response> {
   const state = await createState(envOrThrow("SESSION_SECRET"), {
     mcp_callback: mcpCallback,
     mcp_state: mcpState,
+    post_login_redirect: postLoginRedirect,
   });
   return new Response(null, {
     status: 302,
@@ -233,6 +259,12 @@ function jsonError(message: string, status: number): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+async function resolveActionLinkRedirect(actionLink: string): Promise<string | null> {
+  const response = await fetch(actionLink, { redirect: "manual" });
+  if (response.status < 300 || response.status >= 400) return null;
+  return response.headers.get("location");
 }
 
 async function handleCallback(req: Request): Promise<Response> {
@@ -332,8 +364,8 @@ async function handleCallback(req: Request): Promise<Response> {
     return redirectToLogin("not_available", publicBase);
   }
 
-  const supabaseUrl = envOrThrow("SUPABASE_URL");
-  const serviceKey = envOrThrow("SUPABASE_SERVICE_ROLE_KEY");
+  const supabaseUrl = serviceSupabaseUrl();
+  const serviceKey = serviceRoleKey();
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -394,12 +426,12 @@ async function handleCallback(req: Request): Promise<Response> {
   //    with the signed mcp_state echoed back as a query param; Supabase will
   //    append the session tokens as a URL fragment.
   try {
-    let redirectTo = envOrThrow("APP_POST_LOGIN_REDIRECT");
-    if (statePayload.mcp_callback) {
-      const cb = new URL(statePayload.mcp_callback);
-      if (statePayload.mcp_state) cb.searchParams.set("mcp_state", statePayload.mcp_state);
-      redirectTo = cb.toString();
-    }
+    const fallbackRedirect = envOrThrow("APP_POST_LOGIN_REDIRECT");
+    const localBrowserRedirect = statePayload.post_login_redirect;
+    const shouldUseLocalHandoff = Boolean(localBrowserRedirect && !statePayload.mcp_callback);
+    const redirectTo = shouldUseLocalHandoff
+      ? fallbackRedirect
+      : resolvePostLoginRedirect(fallbackRedirect, statePayload);
     const { data, error: linkErr } = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: userinfo.email ?? "",
@@ -414,6 +446,29 @@ async function handleCallback(req: Request): Promise<Response> {
       });
       return redirectToLogin("callback_failed", publicBase);
     }
+
+    if (shouldUseLocalHandoff) {
+      const actionLocation = await resolveActionLinkRedirect(data.properties.action_link);
+      const browserLocation = actionLocation && localBrowserRedirect
+        ? buildLocalPostLoginHandoffUrl(localBrowserRedirect, actionLocation)
+        : undefined;
+
+      if (!browserLocation) {
+        logEvent({
+          level: "error",
+          fn: "auth-muckrock",
+          event: "local_handoff_failed",
+          msg: actionLocation ?? "missing action location",
+        });
+        return redirectToLogin("callback_failed", publicBase);
+      }
+
+      return new Response(null, {
+        status: 302,
+        headers: { Location: browserLocation },
+      });
+    }
+
     return new Response(null, {
       status: 302,
       headers: { Location: data.properties.action_link },

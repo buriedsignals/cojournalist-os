@@ -20,11 +20,20 @@
  */
 
 import { handleCors } from "../_shared/cors.ts";
-import { getServiceClient, SupabaseClient } from "../_shared/supabase.ts";
+import {
+  getServiceClient,
+  getServiceRoleKey,
+  SupabaseClient,
+} from "../_shared/supabase.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
-import { AuthError, NotFoundError, ValidationError } from "../_shared/errors.ts";
+import {
+  AuthError,
+  NotFoundError,
+  ValidationError,
+} from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
-import { geminiEmbed, geminiExtract } from "../_shared/gemini.ts";
+import { EMBEDDING_MODEL_TAG, geminiEmbed, geminiExtract } from "../_shared/gemini.ts";
+import type { CanonicalUnitType } from "../_shared/unit_dedup.ts";
 import {
   RemovedPostSummary,
   sendSocialAlert,
@@ -35,6 +44,7 @@ import {
   refundCredits,
   SOCIAL_MONITORING_KEYS,
 } from "../_shared/credits.ts";
+import { sha256Hex, upsertCanonicalUnit } from "../_shared/unit_dedup.ts";
 
 const MAX_NEW_POSTS = 20;
 const DATASET_LIMIT = 50;
@@ -86,7 +96,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   // Service-role-only auth (exact Bearer match).
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const serviceKey = (() => {
+    try {
+      return getServiceRoleKey();
+    } catch {
+      return "";
+    }
+  })();
   const authHeader = req.headers.get("authorization") ??
     req.headers.get("Authorization") ?? "";
   if (!serviceKey || authHeader !== `Bearer ${serviceKey}`) {
@@ -151,7 +167,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     if (queueRow.user_id && queueRow.platform) {
-      const op = SOCIAL_MONITORING_KEYS[queueRow.platform] ?? "social_monitoring_instagram";
+      const op = SOCIAL_MONITORING_KEYS[queueRow.platform] ??
+        "social_monitoring_instagram";
       await refundCredits(svc, {
         userId: queueRow.user_id,
         cost: getSocialMonitoringCost(queueRow.platform),
@@ -191,6 +208,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           status: "success",
           scraper_status: true,
           articles_count: result.units_extracted,
+          merged_existing_count: result.merged_existing_count,
           completed_at: new Date().toISOString(),
         })
         .eq("id", queueRow.scout_run_id);
@@ -198,7 +216,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Notify on new posts. Never throws.
     if (
-      result.new_posts_count > 0 &&
+      result.units_extracted > 0 &&
       queueRow.scout_run_id &&
       result.scout_row
     ) {
@@ -230,12 +248,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       scout_id: queueRow.scout_id,
       new_posts_count: result.new_posts_count,
       units_extracted: result.units_extracted,
+      merged_existing_count: result.merged_existing_count,
     });
 
     return jsonOk({
       status: "processed",
       new_posts_count: result.new_posts_count,
       units_extracted: result.units_extracted,
+      merged_existing_count: result.merged_existing_count,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -354,6 +374,7 @@ interface QueueRow {
 interface ProcessResult {
   new_posts_count: number;
   units_extracted: number;
+  merged_existing_count: number;
   new_posts?: ApifyPost[];
   removed_posts?: ApifyPost[];
   scout_row?: ScoutRow;
@@ -378,7 +399,9 @@ async function processSucceededRun(
     `https://api.apify.com/v2/datasets/${datasetId}/items?token=${apifyToken}&format=json&limit=${DATASET_LIMIT}`;
   const res = await fetch(datasetUrl);
   if (!res.ok) {
-    throw new Error(`apify dataset fetch failed: ${res.status} ${await res.text()}`);
+    throw new Error(
+      `apify dataset fetch failed: ${res.status} ${await res.text()}`,
+    );
   }
   const raw = await res.json();
   const currentPosts: ApifyPost[] = Array.isArray(raw) ? raw : [];
@@ -416,7 +439,9 @@ async function processSucceededRun(
   //    has no matching posts). Without the filter they land in the baseline
   //    as ghost rows and every real post on the next run flags "new".
   const realCurrentPosts = currentPosts.filter((p) => typeof p.id === "string");
-  const newPosts = realCurrentPosts.filter((p) => !previousIds.has(p.id as string));
+  const newPosts = realCurrentPosts.filter((p) =>
+    !previousIds.has(p.id as string)
+  );
   const currentIds = new Set<string>(
     realCurrentPosts.map((p) => p.id as string),
   );
@@ -426,7 +451,8 @@ async function processSucceededRun(
   // applied the same heuristic (routers/social.py:205-213) to avoid
   // flagging 18+ ghost removals on a single flaky Apify run.
   const actorLikelyOk = previousPosts.length === 0 ||
-    realCurrentPosts.length >= Math.max(1, Math.floor(previousPosts.length * 0.2));
+    realCurrentPosts.length >=
+      Math.max(1, Math.floor(previousPosts.length * 0.2));
   const removedPosts = actorLikelyOk
     ? previousPosts.filter(
       (p) => typeof p.id === "string" && !currentIds.has(p.id),
@@ -452,6 +478,7 @@ async function processSucceededRun(
   // 6. Extract units for each new post (cap MAX_NEW_POSTS).
   const capped = newPosts.slice(0, MAX_NEW_POSTS);
   let unitsExtracted = 0;
+  let mergedExistingCount = 0;
 
   for (const post of capped) {
     const text = String(post.caption ?? post.text ?? post.fullText ?? "");
@@ -468,7 +495,10 @@ async function processSucceededRun(
           type: "entity_update",
           context_excerpt: undefined,
         }, post);
-        if (inserted) unitsExtracted += 1;
+        if (inserted.createdCanonical) unitsExtracted += 1;
+        else if (inserted.mergedExisting && inserted.occurrenceCreated) {
+          mergedExistingCount += 1;
+        }
       } catch (e) {
         logEvent({
           level: "warn",
@@ -507,11 +537,16 @@ async function processSucceededRun(
     }
 
     for (const u of extracted) {
-      if (!u || typeof u.statement !== "string" || !u.statement.trim()) continue;
+      if (!u || typeof u.statement !== "string" || !u.statement.trim()) {
+        continue;
+      }
       if (!["fact", "event", "entity_update"].includes(u.type)) continue;
       try {
         const inserted = await insertUnit(svc, scout, queueRow, u, post);
-        if (inserted) unitsExtracted += 1;
+        if (inserted.createdCanonical) unitsExtracted += 1;
+        else if (inserted.mergedExisting && inserted.occurrenceCreated) {
+          mergedExistingCount += 1;
+        }
       } catch (e) {
         logEvent({
           level: "warn",
@@ -527,6 +562,7 @@ async function processSucceededRun(
   return {
     new_posts_count: newPosts.length,
     units_extracted: unitsExtracted,
+    merged_existing_count: mergedExistingCount,
     new_posts: newPosts,
     removed_posts: removedPosts,
     scout_row: scout as ScoutRow,
@@ -551,15 +587,25 @@ async function insertUnit(
   queueRow: QueueRow,
   unit: ExtractedUnit,
   post: ApifyPost,
-): Promise<boolean> {
+): Promise<{
+  createdCanonical: boolean;
+  mergedExisting: boolean;
+  occurrenceCreated: boolean;
+}> {
   const userId = scout.user_id ?? queueRow.user_id;
   const platform = scout.platform ?? queueRow.platform;
   const sourceUrl = typeof post.url === "string" ? post.url : "";
+  const content = String(post.caption ?? post.text ?? post.fullText ?? "");
+  const extractedAt = new Date().toISOString();
 
   // Embedding is best-effort; if it fails we still insert the unit without one.
   let embedding: number[] | null = null;
   try {
-    embedding = await geminiEmbed(unit.statement, "RETRIEVAL_DOCUMENT");
+    embedding = await geminiEmbed(unit.statement, "RETRIEVAL_DOCUMENT", {
+      title: typeof post.id === "string"
+        ? `${platform} post ${post.id}`
+        : `${platform} post`,
+    });
   } catch (e) {
     logEvent({
       level: "warn",
@@ -570,22 +616,30 @@ async function insertUnit(
     });
   }
 
-  const { error } = await svc.from("information_units").insert({
-    user_id: userId,
-    scout_id: scout.id,
-    scout_type: "social",
+  const unitType = unit.type as CanonicalUnitType;
+  return await upsertCanonicalUnit(svc, {
+    userId,
     statement: unit.statement.slice(0, STATEMENT_MAX_CHARS),
-    type: unit.type,
-    context_excerpt: unit.context_excerpt ?? null,
-    source_url: sourceUrl,
-    source_domain: platform,
-    extracted_at: new Date().toISOString(),
-    source_type: "scout",
-    ...(embedding ? { embedding, embedding_model: "gemini-embedding-2-preview" } : {}),
-    used_in_article: false,
+    unitType,
+    entities: [],
+    embedding,
+    embeddingModel: EMBEDDING_MODEL_TAG,
+    sourceUrl,
+    sourceDomain: platform,
+    sourceTitle: typeof post.id === "string"
+      ? `${platform} post ${post.id}`
+      : `${platform} post`,
+    contextExcerpt: unit.context_excerpt ?? null,
+    extractedAt,
+    sourceType: "scout",
+    contentSha256: content ? await sha256Hex(content) : null,
+    scoutId: scout.id,
+    scoutType: "social",
+    scoutRunId: queueRow.scout_run_id,
+    metadata: {
+      handle: scout.profile_handle ?? queueRow.handle,
+      platform,
+      post_id: typeof post.id === "string" ? post.id : null,
+    },
   });
-  if (error) {
-    throw new Error(error.message);
-  }
-  return true;
 }

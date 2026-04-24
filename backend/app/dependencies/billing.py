@@ -1,13 +1,8 @@
 """
-FastAPI billing dependencies — credit balance and decrement operations.
+FastAPI billing helpers kept for the optional Python API surface.
 
-PURPOSE: Provides credit-related utility functions used by scout execution
-pipelines: get_user_org_id, get_user_credits, decrement_credit, validate_credits.
-Also writes USAGE# audit records on every successful credit decrement.
-
-DEPENDS ON: auth._get_services (lazy-init UserService)
-USED BY: services/scout_service.py, services/execute_pipeline.py,
-    dependencies/__init__.py
+Supabase-backed credits are now the primary path. These helpers still exist so
+the legacy FastAPI routes can validate/decrement credits without breaking.
 """
 import logging
 from typing import Optional
@@ -32,7 +27,7 @@ def _get_admin_storage():
 
 
 async def get_user_org_id(user_id: str) -> Optional[str]:
-    """Get user's team org_id from DynamoDB PROFILE.
+    """Get user's team org_id from the legacy profile service.
 
     Used by Lambda-triggered endpoints that don't have a session cookie.
     Returns None for non-team users or on error.
@@ -47,7 +42,7 @@ async def get_user_org_id(user_id: str) -> Optional[str]:
 
 
 async def get_user_credits(user_id: str) -> int:
-    """Get user's current credit balance from DynamoDB.
+    """Get user's current credit balance from the legacy profile service.
 
     Args:
         user_id: User ID.
@@ -75,15 +70,15 @@ async def decrement_credit(
     scout_name: str = "",
     scout_type: str = "",
 ) -> bool:
-    """Atomically decrement credits in DynamoDB and log a USAGE# audit record.
+    """Atomically decrement credits and log a usage audit record.
 
     Args:
         user_id: User ID.
         amount: Number of credits to decrement (default 1).
         org_id: Optional org ID. When set, decrement from org pool.
-        operation: Pricing key (e.g. "pulse", "website_extraction").
+        operation: Pricing key (e.g. "beat", "website_extraction").
         scout_name: Name of the scout that triggered the charge.
-        scout_type: Type of scout (e.g. "web", "pulse", "social").
+        scout_type: Type of scout (e.g. "web", "beat", "social").
 
     Returns:
         True if credits were decremented, False on insufficient credits or error.

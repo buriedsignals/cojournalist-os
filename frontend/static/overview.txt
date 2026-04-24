@@ -1,0 +1,37 @@
+# coJournalist overview
+
+> coJournalist is AI-powered monitoring infrastructure for journalists. It runs scouts on schedules, watches public sources, extracts atomic facts, deduplicates across sources, and hands the results to journalists and AI assistants as a searchable knowledge base with an explicit verification step.
+
+coJournalist is built for local and investigative reporting. The public product story is:
+
+- Watch pages, social profiles, local news, and council sites without living in tabs and feeds.
+- Turn recurring monitoring into structured information units instead of chat transcripts.
+- Let agents draft, triage, and search while journalists remain the verifier.
+- Work through the web app, MCP, REST API, and the `cojo` CLI.
+- Stay portable: hosted at cojournalist.ai, source-available, and self-hostable.
+
+## Core benefits
+
+- **Schedule from a chat**: tell your agent what to monitor and let it create or manage scouts.
+- **Every story, once**: dedup collapses the same development across outlets and follow-up coverage.
+- **A newsroom database, not a chat log**: information units are citeable records with dates, sources, and verification state.
+- **Fits existing workflows**: output is useful for briefs, scripts, CMS exports, and editorial review.
+- **Human verification stays in the loop**: unverified units are leads, not publishable facts.
+
+## What it monitors
+
+- **Page Scout**: track one URL for meaningful changes.
+- **Beat Scout**: monitor a beat by topic or geography, with source-mode control.
+- **Social Scout**: track social accounts, including deletions.
+- **Civic Scout**: monitor councils, agendas, minutes, and PDFs for promises and decisions.
+
+## Start here
+
+- App and sign-in: https://www.cojournalist.ai/login
+- Documentation: https://www.cojournalist.ai/docs
+- Docs in text form: https://www.cojournalist.ai/docs.txt
+- Skills index: https://www.cojournalist.ai/skills
+- Product skill: https://www.cojournalist.ai/skills/cojournalist.md
+- Setup skill: https://www.cojournalist.ai/skills/cojournalist-setup.md
+- llms.txt: https://www.cojournalist.ai/llms.txt
+- Full flattened docs: https://www.cojournalist.ai/llms-full.txt

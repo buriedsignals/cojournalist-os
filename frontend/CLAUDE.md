@@ -42,31 +42,46 @@ frontend/src/
 ## State Management
 
 Svelte stores in `lib/stores/`:
-- `auth.ts` - MuckRock OAuth session state
-- `extraction-state.ts` - Data extraction job state tracking
-- `feed.ts` - Feed panel state (units, export)
-- `location.ts` - Shared location state (used by Pulse, WebScout)
+- `auth.ts` - deployment-aware auth loader
+- `auth-supabase.ts` - primary auth store post-cutover. Used for both OSS Supabase auth and hosted MuckRock-on-Supabase flows.
+- `location.ts` - Shared location state (used by Beat Scout, WebScout)
 - `notifications.ts` - In-app notification state
-- `onboarding-tour.ts` - Onboarding tour progress
-- `pulse.ts` - Location Scout / Beat Scout (type `pulse`) shared state
+- `pulse.ts` - Beat Scout shared state (historical file name; canonical type `beat`)
 - `recent-locations.ts` - Recently used locations cache
-- `sidebar-nav.ts` - Sidebar navigation state
-- `feed-refresh.ts` - Feed refresh trigger state
 
 ## API Client
 
 `lib/api-client.ts` - Typed wrapper for backend API calls. Handles:
-- Auth via session cookies (SaaS) or Bearer JWT from `authStore.getToken()` (OSS/Supabase)
+- Auth via Bearer JWT from Supabase session for the main post-cutover surface
 - Error handling
 - Type safety
 
 **Key Methods:**
-- `searchPulse()` - Smart Scout search with optional criteria (POST /pulse/search)
+- `searchPulse()` - Beat Scout search with optional criteria (historical method name; POST /pulse/search)
 
 ## Environment Variables (Build-time)
 
 These must be set during Docker build:
 - `PUBLIC_MAPTILER_API_KEY` - Geocoding for location autocomplete
+
+### Local auth split — important
+
+Private repo daily SaaS testing uses:
+
+- `npm run dev`
+- `PUBLIC_MUCKROCK_ENABLED=true`
+- `PUBLIC_MUCKROCK_BROKER_URL=http://localhost:5173/api/auth/login`
+- `PUBLIC_MUCKROCK_POST_LOGIN_REDIRECT=http://localhost:5173/auth/callback`
+
+That path must keep the browser on localhost while authenticating against the
+hosted Supabase project. It is **not** the same as:
+
+- `npm run dev:supabase-local-demo` — disposable local Supabase Auth + demo data
+- the deployed hosted broker — diagnostic only, not the daily local default
+
+If you change login flow code, verify that `/docs` and `/skills` stay same-origin
+on localhost and that `/api/auth/login` on localhost redirects to MuckRock with
+`redirect_uri=http://localhost:5173/api/auth/callback`.
 
 ## i18n (Paraglide)
 

@@ -1,8 +1,9 @@
 /**
  * civic-execute Edge Function — Civic Scout fast entry point.
  *
- * Uses Firecrawl changeTracking against each tracked URL; when a page has
- * changed, parses the markdown for PDF / minutes / agenda document links
+ * Uses Firecrawl changeTracking against each tracked URL; when a tracked
+ * listing page changes, it parses the raw HTML, extracts downstream meeting
+ * document links, classifies them with the migrated civic keyword/LLM flow,
  * and enqueues them in civic_extraction_queue for downstream processing by
  * a PDF worker. Per-scout `processed_pdf_urls` is maintained to suppress
  * repeat enqueues (cap 100 most recent).
@@ -29,6 +30,10 @@ import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { NotFoundError, ValidationError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
 import { firecrawlChangeTrackingScrape } from "../_shared/firecrawl.ts";
+import {
+  classifyCivicMeetingUrls,
+  extractCivicLinksFromPages,
+} from "../_shared/civic_links.ts";
 import { incrementAndMaybeNotify } from "../_shared/scout_failures.ts";
 import {
   CREDIT_COSTS,
@@ -37,6 +42,7 @@ import {
   insufficientCreditsResponse,
   refundCredits,
 } from "../_shared/credits.ts";
+import { normalizeSourceUrl } from "../_shared/unit_dedup.ts";
 
 const InputSchema = z.object({
   scout_id: z.string().uuid(),
@@ -50,40 +56,6 @@ const MAX_TRACKED = 20;
 const MAX_DOCS_PER_RUN = 2;
 // Civic scouts are weekly-or-slower only; block misconfigured daily crons.
 const ALLOWED_REGULARITIES = new Set(["weekly", "monthly"]);
-const PDF_LINK_RE = /\[([^\]]+)\]\(([^)]+\.pdf)\)/gi;
-const MD_LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/gi;
-
-/**
- * Multilingual civic-document keywords — ported from
- * backend/app/services/civic_orchestrator.py:_MEETING_KEYWORDS. Covers
- * DE/FR/EN/IT/ES/PT/NL/PL so Swiss, French, Italian etc. council pages
- * whose link text doesn't say "minutes" are still picked up.
- */
-const MEETING_KEYWORDS: readonly string[] = [
-  // German
-  "protokoll", "vollprotokoll", "wortprotokoll", "beschlussprotokoll",
-  "tagesordnung", "geschaeftsverzeichnis", "sitzung", "niederschrift",
-  "verhandlung", "ratssitzung", "gemeinderat",
-  // French
-  "proces-verbal", "procès-verbal", "ordre-du-jour", "délibération",
-  "compte-rendu", "compte rendu", "séance", "seance",
-  // English
-  "minutes", "agenda", "proceedings", "transcript", "meeting",
-  "decision", "resolution", "motion",
-  // Italian
-  "verbale", "ordine-del-giorno", "delibera", "seduta",
-  // Spanish
-  "acta", "orden del día", "orden-del-dia", "sesión", "sesion",
-  "pleno", "deliberación",
-  // Portuguese
-  "ata", "ordem do dia", "deliberação", "sessão",
-  // Dutch
-  "notulen", "vergadering", "raadsvergadering", "besluitenlijst",
-  // Polish
-  "protokół", "protokol", "porządek obrad", "sesja",
-  // Generic / cross-language
-  "protocol", "session",
-];
 
 Deno.serve(async (req: Request): Promise<Response> => {
   const cors = handleCors(req);
@@ -193,7 +165,11 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     // at 3 and we trust that terminal state; re-enqueueing such a URL on the
     // next run is an operator-initiated recovery path.
     const scoutSeen = new Set<string>(
-      Array.isArray(scout.processed_pdf_urls) ? scout.processed_pdf_urls : [],
+      (Array.isArray(scout.processed_pdf_urls) ? scout.processed_pdf_urls : [])
+        .map((url: unknown) =>
+          typeof url === "string" ? normalizeCivicUrl(url) : null
+        )
+        .filter((url: string | null): url is string => Boolean(url)),
     );
     const queueSeen = await loadQueuedSourceUrls(db, scoutId);
     const skipSet = new Set<string>([...scoutSeen, ...queueSeen]);
@@ -222,8 +198,12 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         continue;
       }
 
-      const md = result.markdown ?? "";
-      const docs = extractDocLinks(md, url);
+      const docs = (await classifyCivicMeetingUrls(extractCivicLinksFromPages([{
+        pageUrl: url,
+        rawHtml: result.rawHtml ?? "",
+      }]))).map((docUrl) => normalizeCivicUrl(docUrl)).filter(
+        (docUrl): docUrl is string => Boolean(docUrl),
+      );
       for (const docUrl of docs) {
         if (queuedCount >= MAX_DOCS_PER_RUN) break;
         if (skipSet.has(docUrl)) continue;
@@ -391,8 +371,9 @@ async function loadQueuedSourceUrls(
     return new Set<string>();
   }
   const urls = Array.isArray(data)
-    ? data.map((r) => String((r as { source_url?: string }).source_url ?? ""))
-        .filter((s) => s.length > 0)
+    ? data
+        .map((r) => normalizeCivicUrl(String((r as { source_url?: string }).source_url ?? "")))
+        .filter((s): s is string => Boolean(s))
     : [];
   return new Set<string>(urls);
 }
@@ -430,52 +411,9 @@ async function resolveRun(
   return data.id as string;
 }
 
-/**
- * Extract candidate civic-document links from markdown. Includes every `.pdf`
- * link plus markdown links whose URL or anchor text contains civic keywords
- * (minutes/meeting/agenda/decision/resolution/motion). Relative URLs are
- * resolved against `pageUrl`. Returns a deduped list, absolute URLs only.
- */
-function extractDocLinks(md: string, pageUrl: string): string[] {
-  const found = new Set<string>();
-
-  // 1. All PDF links
-  let m: RegExpExecArray | null;
-  PDF_LINK_RE.lastIndex = 0;
-  while ((m = PDF_LINK_RE.exec(md)) !== null) {
-    const abs = absolutize(m[2], pageUrl);
-    if (abs) found.add(abs);
-  }
-
-  // 2. Any markdown link whose URL path or anchor text hits a civic keyword.
-  MD_LINK_RE.lastIndex = 0;
-  while ((m = MD_LINK_RE.exec(md)) !== null) {
-    const anchor = m[1] ?? "";
-    const href = m[2] ?? "";
-    const hay = `${anchor} ${href}`.toLowerCase();
-    if (!hasMeetingKeyword(hay)) continue;
-    const abs = absolutize(href, pageUrl);
-    if (abs) found.add(abs);
-  }
-
-  return [...found];
-}
-
-function hasMeetingKeyword(lowerHay: string): boolean {
-  for (const kw of MEETING_KEYWORDS) {
-    if (lowerHay.includes(kw)) return true;
-  }
-  return false;
-}
-
-function absolutize(raw: string, base: string): string | null {
-  try {
-    const u = new URL(raw, base);
-    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
-    return u.toString();
-  } catch {
-    return null;
-  }
+function normalizeCivicUrl(url: string): string | null {
+  const normalized = normalizeSourceUrl(url);
+  return normalized && normalized.length > 0 ? normalized : null;
 }
 
 async function shortHash(input: string): Promise<string> {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { X, ExternalLink } from 'lucide-svelte';
+	import { X, ExternalLink, Trash2 } from 'lucide-svelte';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
@@ -12,11 +12,16 @@
 	export let open: boolean;
 	export let loading = false;
 	export let actionLoading: 'verify' | 'reject' | null = null;
+	export let confirmingDelete = false;
+	export let deleting = false;
 
 	const dispatch = createEventDispatcher<{
 		close: void;
 		verify: { id: string };
 		reject: { id: string };
+		requestDelete: { id: string };
+		cancelDelete: { id: string };
+		confirmDelete: { id: string };
 	}>();
 
 	let activeTab: DrawerTab = DEFAULT_TAB;
@@ -109,6 +114,21 @@
 	function handleReject() {
 		if (!unit || actionLoading) return;
 		dispatch('reject', { id: unit.id });
+	}
+
+	function handleRequestDelete() {
+		if (!unit || actionLoading || deleting) return;
+		dispatch('requestDelete', { id: unit.id });
+	}
+
+	function handleCancelDelete() {
+		if (!unit || deleting) return;
+		dispatch('cancelDelete', { id: unit.id });
+	}
+
+	function handleConfirmDelete() {
+		if (!unit || deleting) return;
+		dispatch('confirmDelete', { id: unit.id });
 	}
 </script>
 
@@ -242,30 +262,53 @@
 		</div>
 
 		<div class="drawer-footer">
-			<button
-				type="button"
-				class="footer-btn verify-btn"
-				on:click={handleVerify}
-				disabled={actionLoading !== null}
-			>
-				{#if actionLoading === 'verify'}
-					<Spinner size="sm" variant="white" />
-				{:else}
-					<span>✓ Mark verified</span>
+			{#if confirmingDelete}
+				<button
+					type="button"
+					class="footer-btn cancel-delete-btn"
+					on:click={handleCancelDelete}
+					disabled={deleting}
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="footer-btn delete-btn"
+					on:click={handleConfirmDelete}
+					disabled={deleting}
+				>
+					{#if deleting}
+						<Spinner size="sm" />
+					{:else}
+						<Trash2 size={14} />
+						<span>Delete permanently</span>
+					{/if}
+				</button>
+			{:else}
+				{#if !verified}
+					<button
+						type="button"
+						class="footer-btn verify-btn"
+						on:click={handleVerify}
+						disabled={actionLoading !== null}
+					>
+						{#if actionLoading === 'verify'}
+							<Spinner size="sm" variant="white" />
+						{:else}
+							<span>✓ Mark verified</span>
+						{/if}
+					</button>
 				{/if}
-			</button>
-			<button
-				type="button"
-				class="footer-btn reject-btn"
-				on:click={handleReject}
-				disabled={actionLoading !== null}
-			>
-				{#if actionLoading === 'reject'}
-					<Spinner size="sm" />
-				{:else}
-					<span>✗ Mark as false</span>
-				{/if}
-			</button>
+				<button
+					type="button"
+					class="footer-btn delete-btn"
+					on:click={handleRequestDelete}
+					disabled={actionLoading !== null}
+				>
+					<Trash2 size={14} />
+					<span>Delete</span>
+				</button>
+			{/if}
 		</div>
 	{/if}
 </aside>
@@ -597,13 +640,24 @@
 		border-color: var(--color-success);
 	}
 
-	.reject-btn {
+	.delete-btn {
 		background: var(--color-surface-alt);
 		color: var(--color-error);
-		border: 1px solid var(--color-error);
+		border: 1px solid rgba(179, 62, 46, 0.3);
 	}
 
-	.reject-btn:hover:not(:disabled) {
+	.delete-btn:hover:not(:disabled) {
 		background: rgba(179, 62, 46, 0.08);
+	}
+
+	.cancel-delete-btn {
+		background: var(--color-surface-alt);
+		color: var(--color-ink-muted);
+		border: 1px solid var(--color-border);
+	}
+
+	.cancel-delete-btn:hover:not(:disabled) {
+		border-color: var(--color-border-strong);
+		color: var(--color-ink);
 	}
 </style>

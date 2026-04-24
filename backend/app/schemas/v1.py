@@ -14,7 +14,7 @@ import re
 from typing import Literal, Optional
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.scouts import GeocodedLocation
 from app.models.modes import RegularityType, ScoutType
@@ -28,14 +28,15 @@ from app.models.modes import RegularityType, ScoutType
 class CreateApiKeyRequest(BaseModel):
     """Request to create a new API key."""
 
-    name: str = Field(default="", max_length=100, description="Human-readable label for the key")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "name": "My integration"
             }
         }
+    )
+
+    name: str = Field(default="", max_length=100, description="Human-readable label for the key")
 
 
 class ApiKeyResponse(BaseModel):
@@ -76,6 +77,16 @@ class ApiKeyListResponse(BaseModel):
 class ScheduleConfig(BaseModel):
     """Schedule configuration for a scout."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "regularity": "weekly",
+                "time": "08:00",
+                "day_number": 1,
+            }
+        }
+    )
+
     regularity: RegularityType = Field(..., description="Run frequency: daily, weekly, or monthly")
     time: str = Field(
         ...,
@@ -92,16 +103,6 @@ class ScheduleConfig(BaseModel):
         ),
     )
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "regularity": "weekly",
-                "time": "08:00",
-                "day_number": 1,
-            }
-        }
-
-
 # =============================================================================
 # Scouts — request models
 # =============================================================================
@@ -110,8 +111,24 @@ class ScheduleConfig(BaseModel):
 class CreateScoutRequest(BaseModel):
     """Request to create a new scout."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Local news — Vienna",
+                "type": "beat",
+                "schedule": {"regularity": "daily", "time": "07:00"},
+                "location": {
+                    "displayName": "Vienna, Austria",
+                    "city": "Vienna",
+                    "country": "AT",
+                    "locationType": "city",
+                },
+            }
+        }
+    )
+
     name: str = Field(..., min_length=1, max_length=120, description="Display name for the scout")
-    type: ScoutType = Field(default="pulse", description="Scout type: 'web' (Page Scout) or 'pulse' (Smart Scout)")
+    type: ScoutType = Field(default="beat", description="Scout type: 'web' (Page Scout) or 'beat' (Beat Scout)")
     schedule: ScheduleConfig
 
     # Web scout fields
@@ -120,20 +137,20 @@ class CreateScoutRequest(BaseModel):
     # Shared optional fields
     criteria: Optional[str] = Field(None, max_length=500, description="Optional criteria to narrow AI analysis")
 
-    # Pulse scout fields
-    location: Optional[GeocodedLocation] = Field(None, description="Geo-targeted location (pulse scouts)")
-    topic: Optional[str] = Field(None, max_length=200, description="Topic keyword (pulse scouts)")
+    # Beat scout fields
+    location: Optional[GeocodedLocation] = Field(None, description="Geo-targeted location (beat scouts)")
+    topic: Optional[str] = Field(None, max_length=200, description="Topic keyword (beat scouts)")
     source_mode: Literal["reliable", "niche"] = Field(
         default="niche",
         description="Source mode: 'reliable' for established outlets, 'niche' for community/underreported content",
     )
     excluded_domains: Optional[list[str]] = Field(
         None,
-        description="Per-scout domain blacklist (pulse scouts)",
+        description="Per-scout domain blacklist (beat scouts)",
     )
     priority_sources: Optional[list[str]] = Field(
         None,
-        description="Domains to boost in AI filter ranking (pulse scouts)",
+        description="Domains to boost in AI filter ranking (beat scouts)",
     )
 
     @field_validator('priority_sources')
@@ -160,26 +177,10 @@ class CreateScoutRequest(BaseModel):
         if self.type == "web":
             if not (self.url and self.url.strip()):
                 raise ValueError("url is required for web scouts")
-        elif self.type == "pulse":
+        elif self.type == "beat":
             if not self.location and not self.topic:
-                raise ValueError("At least one of location or topic is required for pulse scouts")
+                raise ValueError("At least one of location or topic is required for beat scouts")
         return self
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "name": "Local news — Vienna",
-                "type": "pulse",
-                "schedule": {"regularity": "daily", "time": "07:00"},
-                "location": {
-                    "displayName": "Vienna, Austria",
-                    "city": "Vienna",
-                    "country": "AT",
-                    "locationType": "city",
-                },
-            }
-        }
-
 
 # =============================================================================
 # Scouts — response models
@@ -190,14 +191,14 @@ class ScoutResponse(BaseModel):
     """Scout summary returned in list and detail responses."""
 
     name: str = Field(..., description="Scout name (also used as identifier)")
-    type: str = Field(..., description="Scout type: 'web' or 'pulse'")
+    type: str = Field(..., description="Scout type: 'web' or 'beat'")
     status: Optional[bool] = Field(None, description="Last run scraper status (True = success)")
     schedule: Optional[ScheduleConfig] = Field(None, description="Schedule configuration")
-    location: Optional[GeocodedLocation] = Field(None, description="Geo-targeted location (pulse scouts)")
-    topic: Optional[str] = Field(None, description="Topic keyword (pulse scouts)")
+    location: Optional[GeocodedLocation] = Field(None, description="Geo-targeted location (beat scouts)")
+    topic: Optional[str] = Field(None, description="Topic keyword (beat scouts)")
     url: Optional[str] = Field(None, description="Monitored URL (web scouts)")
     criteria: Optional[str] = Field(None, description="AI analysis criteria")
-    source_mode: Optional[str] = Field(None, description="Source mode (pulse scouts)")
+    source_mode: Optional[str] = Field(None, description="Source mode (beat scouts)")
     last_run: Optional[str] = Field(None, description="Formatted timestamp of last run")
     card_summary: Optional[str] = Field(None, description="AI-generated summary from latest run")
     created_at: Optional[str] = Field(None, description="ISO 8601 creation timestamp (UTC)")
@@ -293,13 +294,14 @@ class UnitSearchResponse(BaseModel):
 class ErrorResponse(BaseModel):
     """Standard error response for v1 API."""
 
-    error: str = Field(..., description="Human-readable error message")
-    code: str = Field(..., description="Machine-readable error code (e.g. 'not_found', 'validation_error')")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "error": "Scout not found",
                 "code": "not_found",
             }
         }
+    )
+
+    error: str = Field(..., description="Human-readable error message")
+    code: str = Field(..., description="Machine-readable error code (e.g. 'not_found', 'validation_error')")

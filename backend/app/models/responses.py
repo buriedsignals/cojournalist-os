@@ -1,32 +1,24 @@
 """
-API response models for scraper and other endpoints.
+API response models.
 
 PURPOSE: Pydantic request/response models for schedule management,
-credit operations, auth status, and user preferences. Used by
-scraper, auth, and user routers.
+credit operations, auth status, and user preferences.
 
 DEPENDS ON: models/modes (RegularityType, MonitoringType, ScoutType),
     schemas/scouts (GeocodedLocation)
-USED BY: routers/scraper.py, routers/auth.py, routers/user.py
+USED BY: routers/user.py
 """
 from typing import Optional, Any, List
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.models.modes import RegularityType, MonitoringType, ScoutType
 from app.schemas.scouts import GeocodedLocation
 
 
 class ScraperCreate(BaseModel):
     """Request model for creating a scraper."""
-    url: str = Field(..., description="URL to scrape")
-    criteria: str = Field(..., description="Scraping criteria or prompt")
-    regularity: RegularityType
-    day_number: int = Field(..., ge=1, le=31, description="Day of week (1-7) or day of month (1-31)")
-    time: str = Field(..., pattern=r"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", description="Time in HH:MM format (UTC)")
-    monitoring: MonitoringType
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "url": "https://example.com",
                 "criteria": "Find articles about AI",
@@ -36,10 +28,19 @@ class ScraperCreate(BaseModel):
                 "monitoring": "EMAIL"
             }
         }
+    )
 
+    url: str = Field(..., description="URL to scrape")
+    criteria: str = Field(..., description="Scraping criteria or prompt")
+    regularity: RegularityType
+    day_number: int = Field(..., ge=1, le=31, description="Day of week (1-7) or day of month (1-31)")
+    time: str = Field(..., pattern=r"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", description="Time in HH:MM format (UTC)")
+    monitoring: MonitoringType
 
 class ScraperResponse(BaseModel):
     """Response model for scraper data."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     user_id: str
     name: str
@@ -51,10 +52,6 @@ class ScraperResponse(BaseModel):
     prompt_summary: Optional[str] = None
     monitoring: bool
     created_at: datetime
-
-    class Config:
-        from_attributes = True
-
 
 class ScraperListResponse(BaseModel):
     """Response model for list of scrapers."""
@@ -82,9 +79,9 @@ class MonitoringScheduleRequest(BaseModel):
     topic: Optional[str] = Field(default=None, max_length=200, description="Topic for topic-based scouts")
     # Web scout first-run behavior
     content_hash: Optional[str] = Field(default=None, description="Content hash from test scrape for baseline (web scouts only)")
-    source_mode: Optional[str] = Field(default="niche", pattern=r"^(reliable|niche)$", description="Source mode for pulse scouts")
-    excluded_domains: Optional[list[str]] = Field(default=None, description="Per-scout domain blacklist for pulse scouts")
-    priority_sources: Optional[list[str]] = Field(default=None, description="Domains to boost in AI filter ranking for pulse scouts")
+    source_mode: Optional[str] = Field(default="niche", pattern=r"^(reliable|niche)$", description="Source mode for beat scouts")
+    excluded_domains: Optional[list[str]] = Field(default=None, description="Per-scout domain blacklist for beat scouts")
+    priority_sources: Optional[list[str]] = Field(default=None, description="Domains to boost in AI filter ranking for beat scouts")
     # Provider detection (web scouts)
     provider: Optional[str] = Field(default=None, pattern=r"^(firecrawl|firecrawl_plain)$", description="Detected scraping provider for web scouts")
     # Social scout fields

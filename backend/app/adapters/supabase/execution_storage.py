@@ -1,9 +1,9 @@
 """Supabase implementation of ExecutionStoragePort.
 
 Uses asyncpg for storage. Embeddings are stored as native pgvector vector(1536) columns.
-NOTE: check_duplicate is NOT in this adapter -- it lives in ExecutionDeduplicationService
-(business logic). This adapter provides get_recent_embeddings() so the service can
-fetch raw records and compute similarity itself.
+Duplicate detection that previously lived in ExecutionDeduplicationService (deleted
+post-cutover) now runs inside Supabase Edge Functions; this adapter exposes
+get_recent_embeddings() for that purpose.
 
 DEPENDS ON: connection (get_pool), ports.storage (ExecutionStoragePort)
 USED BY: dependencies/providers.py (DI wiring)
@@ -16,6 +16,7 @@ from typing import Optional
 from app.adapters.supabase.connection import get_pool
 from app.adapters.supabase.utils import row_to_dict
 from app.ports.storage import ExecutionStoragePort
+from app.services.embedding_utils import EMBEDDING_MODEL_TAG
 
 logger = logging.getLogger(__name__)
 
@@ -49,20 +50,20 @@ class SupabaseExecutionStorage(ExecutionStoragePort):
             """
             INSERT INTO execution_records (
                 user_id, scout_id, scout_type, summary_text,
-                embedding, content_hash, is_duplicate,
+                embedding, embedding_model, content_hash, is_duplicate,
                 metadata, completed_at
             )
             VALUES (
                 $1::uuid,
                 (SELECT id FROM scouts WHERE user_id = $1::uuid AND name = $2),
-                $3, $4, $5::vector, $6, $7,
-                jsonb_build_object('provider', $8, 'started_at', $9),
+                $3, $4, $5::vector, $6, $7, $8,
+                jsonb_build_object('provider', $9, 'started_at', $10),
                 NOW()
             )
             RETURNING *
             """,
             user_id, scout_name, scout_type, summary_text,
-            embedding_str, content_hash, is_duplicate,
+            embedding_str, EMBEDDING_MODEL_TAG, content_hash, is_duplicate,
             provider, started_at,
         )
         return row_to_dict(row)
@@ -88,9 +89,8 @@ class SupabaseExecutionStorage(ExecutionStoragePort):
                                      limit: int = 20) -> list[dict]:
         """Return recent execution records with embeddings for dedup comparison.
 
-        check_duplicate stays in ExecutionDeduplicationService -- it generates
-        embeddings and computes similarity (business logic), then calls this
-        method for storage access.
+        Similarity computation now happens in Supabase Edge Functions; this
+        method exposes the raw rows they need.
         """
         await self._ensure_pool()
         rows = await self.pool.fetch(

@@ -16,7 +16,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 export const CREDIT_COSTS = {
   website_extraction: 1,
 
-  pulse: 7,
+  beat: 7,
 
   social_monitoring_instagram: 2,
   social_monitoring_x: 2,
@@ -60,12 +60,12 @@ export const EXTRACTION_KEYS: Record<string, CreditOperation> = {
   tiktok: "tiktok_extraction",
 };
 
-/** Pulse cost is flat across modes; kept as a helper to mirror the Python API. */
-export function getPulseCost(
+/** Beat cost is flat across modes; kept as a helper to mirror the Python API. */
+export function getBeatCost(
   _sourceMode: string | null,
   _hasLocation: boolean,
 ): number {
-  return CREDIT_COSTS.pulse;
+  return CREDIT_COSTS.beat;
 }
 
 export function getSocialMonitoringCost(platform: string): number {

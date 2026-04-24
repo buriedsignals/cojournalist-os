@@ -22,8 +22,7 @@ src/tests/
 ├── setup.ts                   # Global setup (jest-dom matchers)
 ├── api-client.test.ts         # API client contract tests
 ├── utils/
-│   ├── scouts.test.ts         # ScoutsPanel pure logic
-│   └── feed.test.ts            # FeedView pure logic
+│   └── scouts.test.ts         # Scout/shared utility logic
 └── mocks/
     ├── app-environment.ts     # Mock $app/environment
     ├── app-stores.ts          # Mock $app/stores
@@ -45,8 +44,7 @@ Logic extracted from Svelte components into testable `.ts` files:
 
 | Module | Source Component | Functions |
 |--------|-----------------|-----------|
-| `$lib/utils/scouts.ts` | `ScoutsPanel.svelte` | `SCOUT_COSTS`, `formatRegularity`, `truncateUrl`, `stripMarkdown`, `getCriteriaStatusVariant` |
-| `$lib/utils/feed.ts` | `FeedView.svelte` | `parseLocationKey`, `deriveScoutNames`, `filterUnits`, `countByType`, `canExport` |
+| `$lib/utils/scouts.ts` | workspace and scheduling UI | `SCOUT_COSTS`, `formatRegularity`, `truncateUrl`, `stripMarkdown`, `getCriteriaStatusVariant` |
 
 ## Mock Strategy
 

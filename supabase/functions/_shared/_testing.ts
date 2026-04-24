@@ -1,26 +1,45 @@
 /**
- * Test helpers for Deno.test() runs against local supabase (127.0.0.1:54321).
+ * Test helpers for Deno.test() runs against a configured Supabase project.
  *
  * Usage:
  *   import { createTestUser, functionUrl } from "../_shared/_testing.ts";
  *   const { id, token, cleanup } = await createTestUser();
  *   try { ... } finally { await cleanup(); }
  *
- * Requires env vars (see .env.test.local — supabase status prints them):
- *   SUPABASE_URL              e.g. http://127.0.0.1:54321
+ * Requires env vars:
+ *   SUPABASE_URL              e.g. https://<project-ref>.supabase.co
  *   SUPABASE_ANON_KEY         anon publishable key
  *   SUPABASE_SERVICE_ROLE_KEY service-role secret key
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-function env(name: string, fallback?: string): string {
-  const v = Deno.env.get(name) ?? fallback;
-  if (!v) throw new Error(`Missing env var ${name} for tests`);
-  return v;
+function envAny(...names: string[]): string {
+  for (const name of names) {
+    const value = Deno.env.get(name);
+    if (value) return value;
+  }
+  const joined = names.join(", ");
+  throw new Error(`Missing env var ${joined} for tests`);
 }
 
-export const SUPABASE_URL = env("SUPABASE_URL", "http://127.0.0.1:54321");
+export function getTestingSupabaseUrl(): string {
+  return envAny("SUPABASE_URL", "API_URL");
+}
+
+export function getTestingAnonKey(): string {
+  return envAny("SUPABASE_ANON_KEY", "ANON_KEY", "PUBLISHABLE_KEY");
+}
+
+export function getTestingServiceRoleKey(): string {
+  return envAny(
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SERVICE_ROLE_KEY",
+    "SECRET_KEY",
+  );
+}
+
+export const SUPABASE_URL = getTestingSupabaseUrl();
 
 export function functionUrl(name: string, path = ""): string {
   return `${SUPABASE_URL}/functions/v1/${name}${path}`;
@@ -33,42 +52,101 @@ export interface TestUser {
   cleanup: () => Promise<void>;
 }
 
-export async function createTestUser(): Promise<TestUser> {
-  const service = createClient(
+function serviceClient() {
+  return createClient(
     SUPABASE_URL,
-    env("SUPABASE_SERVICE_ROLE_KEY"),
+    getTestingServiceRoleKey(),
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
-  const email = `test-${crypto.randomUUID()}@example.test`;
+}
+
+function anonClient() {
+  return createClient(
+    SUPABASE_URL,
+    getTestingAnonKey(),
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
+
+async function resolveMagicLinkToken(actionLink: string): Promise<string> {
+  const response = await fetch(actionLink, {
+    method: "GET",
+    redirect: "manual",
+  });
+  try {
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new Error("generateLink returned no redirect location");
+    }
+
+    const fragment = location.split("#")[1] ?? "";
+    const params = new URLSearchParams(fragment);
+    const token = params.get("access_token") ?? "";
+    if (!token) {
+      throw new Error("magiclink redirect returned no access_token");
+    }
+    return token;
+  } finally {
+    await response.body?.cancel();
+  }
+}
+
+export async function createTestUser(): Promise<TestUser> {
+  const email = `test-${crypto.randomUUID()}@example.com`;
   const password = "test-pw-" + crypto.randomUUID();
+  const service = serviceClient();
+  const anon = anonClient();
 
-  const { data: created, error: createErr } = await service.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
-  if (createErr || !created.user) {
-    throw new Error(`failed to create test user: ${createErr?.message}`);
-  }
-
-  const anon = createClient(SUPABASE_URL, env("SUPABASE_ANON_KEY"), {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: session, error: signErr } = await anon.auth.signInWithPassword({
+  const { data: signUpData, error: signUpErr } = await anon.auth.signUp({
     email,
     password,
   });
-  if (signErr || !session.session) {
-    throw new Error(`failed to sign in test user: ${signErr?.message}`);
+  if (signUpErr) {
+    throw new Error(`failed to sign up test user: ${signUpErr.message}`);
+  }
+  const userId = signUpData.user?.id;
+  if (!userId) {
+    throw new Error("failed to sign up test user: missing user id");
   }
 
-  const id = created.user.id;
+  const { error: creditsErr } = await service.from("credit_accounts").upsert({
+    user_id: userId,
+    tier: "free",
+    monthly_cap: 100,
+    balance: 100,
+    entitlement_source: "test-seed",
+  }, { onConflict: "user_id" });
+  if (creditsErr) {
+    throw new Error(`failed to seed credit account: ${creditsErr.message}`);
+  }
+
+  let token = signUpData.session?.access_token ?? "";
+  if (!token) {
+    const { data: signInData, error: signInErr } = await anon.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signInErr) {
+      throw new Error(`failed to sign in test user: ${signInErr.message}`);
+    }
+    token = signInData.session?.access_token ?? "";
+  }
+  if (!token) {
+    throw new Error("failed to acquire test user token");
+  }
+
   return {
-    id,
+    id: userId,
     email,
-    token: session.session.access_token,
+    token,
     cleanup: async () => {
-      await service.auth.admin.deleteUser(id);
+      try {
+        await service.auth.admin.deleteUser(userId);
+      } catch {
+        // Local Supabase now issues opaque sb_secret_* keys that do not work
+        // with the legacy auth-admin helper path. Test users are unique and
+        // isolated, so cleanup remains best-effort for local integration runs.
+      }
     },
   };
 }

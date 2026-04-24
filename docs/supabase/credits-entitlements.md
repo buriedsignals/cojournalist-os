@@ -21,7 +21,7 @@ Ported verbatim to `supabase/functions/_shared/credits.ts`.
 | Operation | Cost |
 |---|---|
 | `website_extraction` (Page Scout) | 1 |
-| `pulse` (Smart / Beat Scout) | 7 |
+| `beat` (Smart / Beat Scout) | 7 |
 | `social_monitoring_instagram` / `_x` / `_tiktok` | 2 |
 | `social_monitoring_facebook` | 15 |
 | `social_extraction`, `instagram_extraction`, `tiktok_extraction` | 2 |
@@ -85,7 +85,7 @@ Constraints:
 | `user_id` | UUID → `auth.users(id)` | Always set (who triggered the decrement) |
 | `org_id` | UUID → `orgs(id)` | Set when a team pool paid |
 | `scout_id` | UUID | Not FK'd — scouts may be deleted before the audit expires |
-| `scout_type` | TEXT | `web`/`pulse`/`social`/`civic` |
+| `scout_type` | TEXT | `web`/`beat`/`social`/`civic` |
 | `operation` | TEXT NOT NULL | `CREDIT_COSTS` key |
 | `cost` | INT NOT NULL | |
 | `created_at` | TIMESTAMPTZ | |
@@ -190,7 +190,7 @@ pg_cron(scout-<uuid>) → execute-scout → scout-web-execute
                                           └─ P0002 → InsufficientCreditsError → 402 JSON
 ```
 
-Same flow for `scout-beat-execute` (cost 7, `pulse`), `social-kickoff` (cost depends on platform), `civic-execute` (cost 10, `civic`; refunded via `refund_credits` when no docs were queued or on error).
+Same flow for `scout-beat-execute` (cost 7, `beat`), `social-kickoff` (cost depends on platform), `civic-execute` (cost 10, `civic`; refunded via `refund_credits` when no docs were queued or on error).
 
 ### MuckRock webhook (billing change)
 
@@ -261,7 +261,7 @@ Better: run a MuckRock entitlement update so the flow goes through the webhook. 
 INSERT INTO credit_accounts (user_id, tier, monthly_cap, balance)
   VALUES ('11111111-1111-1111-1111-111111111111', 'pro', 1000, 1000);
 SELECT * FROM decrement_credits(
-  '11111111-1111-1111-1111-111111111111', 7, NULL, 'pulse', 'pulse');
+  '11111111-1111-1111-1111-111111111111', 7, NULL, 'beat', 'beat');
 -- (993, 'user')
 
 -- Insufficient:

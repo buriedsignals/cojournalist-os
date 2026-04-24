@@ -1,23 +1,23 @@
 # Information units & entities
 
-Atomic facts extracted from scout runs + the canonical-entity graph that links them. This doc covers `information_units`, `entities`, `unit_entities`, `reflections`, their semantic search and entity-merge RPCs.
+Canonical facts extracted from scout runs + the canonical-entity graph that links them. `information_units` is now the per-user canonical layer; `unit_occurrences` stores every scout/run/source hit that attached to that canonical fact. This doc covers `information_units`, `unit_occurrences`, `entities`, `unit_entities`, `reflections`, and the search / merge RPCs.
 
 ## Tables
 
 ### `information_units`
 
-One row per atomic fact extracted from a scout run, ingest, or manual edit.
+One canonical row per user-visible fact, promise, or entity update. Cross-run and cross-scout duplicates merge into the same row; provenance lives in `unit_occurrences`.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID PK | |
 | `user_id` | UUID → `auth.users(id)` | |
-| `scout_id` | UUID → `scouts(id)` ON DELETE CASCADE | |
-| `scout_type` | TEXT | `web`/`pulse`/`social`/`civic` |
+| `scout_id` | UUID → `scouts(id)` ON DELETE SET NULL | Canonical origin only; filtering happens via `unit_occurrences` |
+| `scout_type` | TEXT | `web`/`beat`/`social`/`civic` |
 | `project_id` | UUID → `projects(id)` | Backfilled to default Inbox project (00013) |
 | `raw_capture_id` | UUID → `raw_captures(id)` | Provenance for verification |
 | `statement` | TEXT NOT NULL | The fact itself |
-| `type` | TEXT CHECK IN ('fact','event','entity_update') | |
+| `type` | TEXT CHECK IN ('fact','event','entity_update','promise') | `promise` is the civic canonical type |
 | `entities` | TEXT[] | Mention list (canonical resolution happens via `unit_entities`) |
 | `context_excerpt` | TEXT | Supporting snippet from source |
 | `embedding` | `vector(1536)` | Gemini embedding of `statement` |
@@ -25,10 +25,14 @@ One row per atomic fact extracted from a scout run, ingest, or manual edit.
 | `source_url` | TEXT | |
 | `source_domain` | TEXT | |
 | `source_title` | TEXT | |
-| `source_type` | TEXT CHECK IN ('scout','manual_ingest','agent_ingest') DEFAULT 'scout' | |
+| `source_type` | TEXT CHECK IN ('scout','manual_ingest','agent_ingest','civic_promise') DEFAULT 'scout' | Canonical origin only |
 | `event_date` | DATE | Legacy field |
-| `occurred_at` | TIMESTAMPTZ | When the event happened (if known) |
-| `extracted_at` | TIMESTAMPTZ DEFAULT NOW() | |
+| `occurred_at` | DATE | When the event happened (if known) |
+| `extracted_at` | TIMESTAMPTZ DEFAULT NOW() | First-seen timestamp for the canonical row |
+| `first_seen_at` | TIMESTAMPTZ | First time any occurrence created this canonical row |
+| `last_seen_at` | TIMESTAMPTZ | Most recent occurrence timestamp |
+| `occurrence_count` | INT DEFAULT 1 | Number of attached provenance rows |
+| `source_count` | INT DEFAULT 1 | Distinct source signatures across occurrences |
 | `country`, `state`, `city`, `topic`, `dataset_id` | TEXT | Denormalised filter fields |
 | `used_in_article` | BOOLEAN DEFAULT FALSE | Flipped when exported |
 | `verified` | BOOLEAN DEFAULT FALSE | Manual verification flag |
@@ -38,7 +42,32 @@ One row per atomic fact extracted from a scout run, ingest, or manual edit.
 | `created_at` | TIMESTAMPTZ | |
 | `expires_at` | TIMESTAMPTZ DEFAULT (NOW() + 90d) | TTL |
 
-Indexes: HNSW `idx_unit_embedding(embedding)` vector_cosine_ops, `idx_units_project(project_id, extracted_at DESC)`, partial `idx_units_unused(user_id, used_in_article, extracted_at DESC) WHERE used_in_article=FALSE`.
+Indexes: HNSW `idx_unit_embedding(embedding)` vector_cosine_ops, `idx_units_user_last_seen(user_id, last_seen_at DESC)`, plus the legacy inbox indexes.
+
+### `unit_occurrences` (00038)
+
+One row per scout/run/source hit that attached to a canonical unit.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `unit_id` | UUID → `information_units(id)` ON DELETE CASCADE | Canonical fact |
+| `user_id` | UUID → `auth.users(id)` | |
+| `project_id` | UUID → `projects(id)` ON DELETE SET NULL | Project membership is occurrence-scoped |
+| `scout_id` | UUID → `scouts(id)` ON DELETE SET NULL | Scout membership is occurrence-scoped |
+| `scout_run_id` | UUID → `scout_runs(id)` ON DELETE SET NULL | Run pointer survives run cleanup |
+| `raw_capture_id` | UUID → `raw_captures(id)` ON DELETE SET NULL | Verification provenance |
+| `scout_type` | TEXT | `web` / `beat` / `social` / `civic` |
+| `source_kind` | TEXT CHECK IN ('scout','manual_ingest','agent_ingest','civic_promise') | |
+| `source_url` / `normalized_source_url` | TEXT | Exact-match dedup keys |
+| `source_title` / `source_domain` | TEXT | |
+| `content_sha256` | TEXT | Exact-match dedup key |
+| `statement_hash` | TEXT NOT NULL | Normalized statement SHA-256 |
+| `occurred_at` | DATE | |
+| `extracted_at` | TIMESTAMPTZ | When this occurrence landed |
+| `metadata` | JSONB | Scout-specific context |
+
+Hot indexes: `(scout_id, extracted_at DESC)`, `(project_id, unit_id)`, `(user_id, normalized_source_url)`, `(user_id, content_sha256)`, `(user_id, statement_hash)`.
 
 ### `entities` (00008)
 
@@ -97,9 +126,9 @@ Index: HNSW on `embedding`.
 
 ## RPCs
 
-### `semantic_search_units(p_embedding vector(1536), p_user_id UUID, p_project_id UUID DEFAULT NULL, p_limit INT DEFAULT 20) RETURNS TABLE(...)`
+### `semantic_search_units(p_embedding vector(1536), p_user_id UUID, p_project_id UUID DEFAULT NULL, p_limit INT DEFAULT 20, p_query_text TEXT DEFAULT NULL, p_rrf_k INT DEFAULT 50) RETURNS TABLE(...)`
 
-Cosine-similarity search over `information_units`. Scoped to the caller's rows via the `p_user_id` parameter (SECURITY DEFINER bypasses RLS, so ownership is enforced by the RPC body — callers must pass `auth.uid()`).
+Hybrid keyword + vector search over canonical `information_units`. `p_project_id` now scopes through `unit_occurrences`, not `information_units.project_id`, so a canonical row created by one scout still appears when another scout/project later attaches provenance to it.
 
 Returns: `id, statement, type, source_url, source_title, occurred_at, extracted_at, similarity_score`. Ordered by similarity DESC.
 
@@ -117,9 +146,19 @@ Merges duplicate entities into a keeper.
 4. Delete the merged entities.
 5. Recompute `mention_count` for keeper from `unit_entities`.
 
-### `check_unit_dedup(p_embedding vector(1536), p_scout_id UUID, p_threshold REAL DEFAULT 0.85, p_days INT DEFAULT 90) RETURNS BOOLEAN`
+### `upsert_canonical_unit(...) RETURNS TABLE(unit_id UUID, created_canonical BOOLEAN, merged_existing BOOLEAN, match_scope TEXT, occurrence_created BOOLEAN)`
 
-Returns TRUE if any `execution_records` row under the same scout within `p_days` has cosine ≥ `p_threshold`. Used by `scout-*-execute` before inserting a new unit.
+Single authoritative write path for scout/web/beat/social/civic/manual-ingest writes. The function:
+
+1. Acquires a per-user advisory lock keyed by normalized statement hash.
+2. Checks same-scout exact matches first (`normalized_source_url`, `content_sha256`, `statement_hash`).
+3. Checks cross-scout exact matches across the user's corpus.
+4. Falls back to semantic matching against canonical rows only.
+   Social scouts stay on the same write path, but semantic matching is blocked
+   across the `social` / `non-social` boundary. Exact matches still merge
+   across that boundary (`normalized_source_url`, `content_sha256`,
+   `statement_hash`).
+5. Either inserts a new canonical `information_units` row or appends a `unit_occurrences` row to an existing one.
 
 ## RLS
 
@@ -129,6 +168,7 @@ Core policies in 00004 + 00011:
 |---|---|---|
 | `information_units` | `units_read` (SELECT) | `auth.uid() = user_id OR project shared via project_members` |
 | `information_units` | `units_insert/update/delete` | `auth.uid() = user_id` |
+| `unit_occurrences` | `unit_occurrences_user` | `auth.uid() = user_id` (writes revoked from user roles; workers use service-role) |
 | `entities` | `ent_user` | `auth.uid() = user_id` (ALL) |
 | `unit_entities` | `ue_user` | `auth.uid() = user_id` (ALL) |
 | `reflections` | `refl_read` (SELECT) | owner OR project shared |
@@ -145,7 +185,7 @@ Entities, unit_entities, and reflections have no TTL — they're the durable kno
 ## Edge Functions
 
 ### `units`
-CRUD over `information_units`. Handles listing, filtering (project/topic/location/date range), single fetch. Enforces RLS via the user-scoped client.
+CRUD over canonical `information_units`. Project and scout filters resolve through `unit_occurrences`, not the canonical origin row.
 
 ### `units-search`
 Semantic search entrypoint. Takes a text query, embeds via Gemini, calls `semantic_search_units` RPC.
@@ -157,19 +197,16 @@ CRUD over `entities`. The merge endpoint wraps `merge_entities` RPC.
 CRUD + search over `reflections`. Wraps `semantic_search_reflections`.
 
 ### `ingest`
-User-driven ingest (text/url/pdf). Fetches content (firecrawl or direct), stores in `raw_captures`, extracts via Gemini (same EXTRACTION_SCHEMA as scout-web-execute), inserts units with `source_type='manual_ingest'`, runs embedding, resolves NER candidates into `unit_entities` (entity_id=NULL until canonicalised).
-
-### `export-claude`
-Returns a markdown dump of verified units in a project — for pulling into Claude/Claude Code as context. Authed via API key (not JWT) for headless use.
+User-driven ingest (text/url/pdf). Fetches content (firecrawl or direct), stores in `raw_captures`, extracts via Gemini, and calls `upsert_canonical_unit` with `source_type='manual_ingest'`.
 
 ## Extraction pipeline
 
 ```
 Scout run → raw_captures (source of truth)
-          → geminiExtract(EXTRACTION_SCHEMA, content) → [{statement, type, context_excerpt, occurred_at}, ...]
+          → geminiExtract(EXTRACTION_SCHEMA, content) → [{statement, type, context_excerpt, occurred_at, entities}, ...]
           → geminiEmbed(statement) → vector(1536)
-          → check_unit_dedup(embedding, scout_id)   # skip if ≥ 0.85 cosine
-          → information_units INSERT
+          → upsert_canonical_unit(...)              # exact same-scout → exact cross-scout → semantic canonical match
+          → information_units INSERT or unit_occurrences INSERT
           → NER on statement → candidates
           → unit_entities INSERT (entity_id = NULL if no canonical match yet)
           → canonical resolution worker (offline) → attaches entity_id
@@ -181,9 +218,10 @@ Scout run → raw_captures (source of truth)
 
 1. **Entity identity is per-user.** No shared canonical graph across users. Merging Marc1's "UBS" with Marc2's "UBS" would be wrong — they might be talking about different things.
 2. **`unit_entities.entity_id` can be NULL.** Unresolved mentions stay in the graph so a later canonicalisation pass can attach them; don't filter them out.
-3. **`information_units.expires_at` is 90 days by default.** Renewal requires user action (verification or export). Entities and reflections do not expire.
-4. **Dedup is per-scout, not global.** Different scouts covering the same topic will each get their own units — intentional, because dedup thresholds collapse perspective.
-5. **Semantic search RPCs require `p_user_id`.** SECURITY DEFINER bypasses RLS, so the callsite must pass `auth.uid()` explicitly — otherwise it's a data leak.
+3. **`information_units.expires_at` is 90 days by default.** Renewal requires explicit retention policy work if that changes. Entities and reflections do not expire.
+4. **Dedup scope is per-user and global across scouts/projects.** A fact discovered by Page Scout, Beat Scout, Civic Scout, Social Scout, or manual ingest should converge on one canonical unit with multiple occurrences when the evidence is exact or when semantic matching is allowed.
+5. **Social scouts are stricter across scout boundaries.** Same-social reruns use the same dedup path as every other scout. Exact cross-scout matches are allowed, but semantic matching does not cross between `social` and `non-social` canonical rows.
+6. **Semantic search RPCs require `p_user_id`.** SECURITY DEFINER bypasses RLS, so the callsite must pass `auth.uid()` explicitly — otherwise it's a data leak.
 
 ## Operations
 
@@ -220,6 +258,5 @@ SELECT merge_entities(
 
 - `docs/supabase/scouts-runs.md` — how units get created
 - `docs/supabase/projects-ingest.md` — manual ingest + project scoping
-- `docs/features/feed.md` — UI feed view over units
 - `supabase/migrations/00008_phase1_tables.sql` — tables
 - `supabase/migrations/00016_semantic_search_rpc.sql`, `00017_merge_entities_rpc.sql`, `00018_reflection_search_rpc.sql`, `00019_scout_rpcs.sql`

@@ -1,8 +1,7 @@
 /**
  * Onboarding Placeholders -- static demo data for the guided tour.
  *
- * USED BY: FeedView.svelte, ScoutsPanel.svelte,
- *          tests/utils/onboarding-placeholders.test.ts
+ * USED BY: workspace demo seed, tests/utils/onboarding-placeholders.test.ts
  * DEPENDS ON: $lib/types (ActiveJob)
  *
  * These constants populate empty panels during the guided tour so new users
@@ -14,7 +13,7 @@
 import type { ActiveJob } from '$lib/types';
 
 // ---------------------------------------------------------------------------
-// PlaceholderUnit — lightweight information-unit shape used in the feed panel
+// PlaceholderUnit — lightweight information-unit shape used in the workspace inbox
 // ---------------------------------------------------------------------------
 
 export interface PlaceholderUnit {
@@ -112,7 +111,7 @@ export const PLACEHOLDER_SCOUTS: ActiveJob[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// PLACEHOLDER_UNITS — four demo feed items spanning multiple cities
+// PLACEHOLDER_UNITS — four demo inbox items spanning multiple cities
 // ---------------------------------------------------------------------------
 
 export const PLACEHOLDER_UNITS: PlaceholderUnit[] = [
@@ -165,4 +164,3 @@ export const PLACEHOLDER_UNITS: PlaceholderUnit[] = [
 		created_at: '2026-03-03T06:00:00Z'
 	}
 ];
-

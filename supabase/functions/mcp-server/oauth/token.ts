@@ -30,6 +30,18 @@ import { logEvent } from "../../_shared/log.ts";
 import { verifyS256, validateVerifier } from "./pkce.ts";
 import { oauthError, oauthJson } from "./errors.ts";
 
+interface OAuthCodeRow {
+  code: string;
+  client_id: string;
+  user_id: string;
+  supabase_access_token: string;
+  supabase_refresh_token: string;
+  code_challenge: string;
+  redirect_uri: string;
+  expires_at: string;
+  used_at: string | null;
+}
+
 function parseBasicAuth(header: string | null): { id: string; secret: string } | null {
   if (!header) return null;
   const m = /^Basic\s+([A-Za-z0-9+/=]+)$/.exec(header.trim());
@@ -121,7 +133,7 @@ async function handleAuthorizationCode(req: Request, form: URLSearchParams): Pro
   const db = getServiceClient();
 
   // Load code.
-  const { data: row, error } = await db
+  const { data: rowRaw, error } = await db
     .from("mcp_oauth_codes")
     .select(
       "code, client_id, user_id, supabase_access_token, supabase_refresh_token, " +
@@ -133,6 +145,7 @@ async function handleAuthorizationCode(req: Request, form: URLSearchParams): Pro
     logEvent({ level: "error", fn: "mcp-server.token", event: "code_lookup_failed", msg: error.message });
     return oauthError("server_error", "code lookup failed", 500);
   }
+  const row = rowRaw as OAuthCodeRow | null;
   if (!row) return oauthError("invalid_grant", "unknown authorization code", 400);
 
   // Expired or already used? Treat both as invalid_grant (don't leak which).

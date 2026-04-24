@@ -2,10 +2,14 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { auth } from '$lib/stores/auth';
+	import { IS_LOCAL_DEMO_MODE } from '$lib/demo/state';
 	import { onMount } from 'svelte';
 
 	let mounted = false;
 	let featureListEl: HTMLElement;
+	const isSupabaseDeployment = import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase';
+	const showSupabaseAuth = () =>
+		isSupabaseDeployment && !(false || false);
 
 	// Supabase self-hosted auth state
 	let isSignup = false;
@@ -83,14 +87,6 @@
 	onMount(() => {
 		mounted = true;
 
-		// Check first-run status (async, non-blocking)
-		if (import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase') {
-			fetch('/api/auth/has-users')
-				.then(res => res.json())
-				.then(data => { if (!data.has_users) isSignup = true; })
-				.catch(() => { /* ignore */ });
-		}
-
 		const unsubscribe = auth.subscribe(async (state) => {
 			if (state.authenticated) {
 				await goto('/');
@@ -142,10 +138,19 @@
 								coJournalist is not currently available for new signups. We'll notify you when access opens up.
 							</p>
 						{:else}
-							{#if !(false || false)}
+							{#if showSupabaseAuth()}
 								<span class="brand-dot"></span>
 								<p class="auth-title">{isSignup ? 'Create Account' : 'Welcome Back'}</p>
-								<p class="auth-subtitle">{isSignup ? 'Set up your admin account' : 'Sign in to your account'}</p>
+								<p class="auth-subtitle">
+									{#if IS_LOCAL_DEMO_MODE}
+										{isSignup ? 'Create a local demo account' : 'Sign in to the local demo workspace'}
+									{:else}
+										{isSignup ? 'Set up your admin account' : 'Sign in to your account'}
+									{/if}
+								</p>
+								{#if IS_LOCAL_DEMO_MODE}
+									<p class="auth-mode-note">Local demo workspace. Example scouts stay local and never hit hosted auth.</p>
+								{/if}
 
 								{#if authError}
 									<p class="auth-error">{authError}</p>
@@ -167,6 +172,8 @@
 									
 									<span class="auth-cta-sep">·</span>
 									<a href="/docs" class="auth-cta-link">See docs</a>
+									<span class="auth-cta-sep">·</span>
+									<a href="/skills" class="auth-cta-link">See skills</a>
 								</div>
 							{:else}
 								<span class="brand-dot"></span>
@@ -179,12 +186,11 @@
 									
 									<span class="auth-cta-sep">·</span>
 									<a href="/docs" class="auth-cta-link">See docs</a>
+									<span class="auth-cta-sep">·</span>
+									<a href="/skills" class="auth-cta-link">See skills</a>
 								</div>
 							{/if}
 
-							{#if import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase' && import.meta.env.DEV}
-								
-							{/if}
 
 							<div class="auth-oss-badge">
 								<p class="auth-oss-text">
@@ -787,6 +793,16 @@
 	.auth-github-link:hover {
 		border-color: var(--color-primary);
 		color: var(--color-primary);
+	}
+
+	.auth-mode-note {
+		margin: 0 0 0.75rem;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 500;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		color: var(--color-primary-deep);
 	}
 
 	.sign-in-button {

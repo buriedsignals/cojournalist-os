@@ -265,7 +265,7 @@ async function fetchUnits(
   qs.set("limit", "30");
   const res = await fetch(`${ctx.supabaseUrl}/rest/v1/information_units?${qs}`, {
     headers: {
-      apikey: ctx.serviceKey,
+      apikey: ctx.apiKey,
       Authorization: `Bearer ${ctx.serviceKey}`,
     },
   });

@@ -63,7 +63,7 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+		class="fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center z-50 px-4"
 	>
 		<form
 			class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-5"

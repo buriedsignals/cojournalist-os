@@ -7,6 +7,25 @@
 # Usage: bash scripts/strip-oss.sh
 set -euo pipefail
 
+sed() {
+  if [ "${1:-}" = "-i" ]; then
+    shift
+    if command sed --version >/dev/null 2>&1; then
+      command sed -i "$@"
+    else
+      command sed -i '' "$@"
+    fi
+    return
+  fi
+  command sed "$@"
+}
+
+sed_if_exists() {
+  local file="${@: -1}"
+  [ -f "$file" ] || return 0
+  sed "$@"
+}
+
 echo "=== Stripping SaaS-only code ==="
 
 # AWS infrastructure was removed in the v2 migration — nothing to strip here.
@@ -14,6 +33,8 @@ echo "=== Stripping SaaS-only code ==="
 
 # Backend: remove SaaS-only auth broker (MuckRock OAuth)
 rm -f backend/app/routers/auth.py
+rm -f backend/app/routers/local_auth.py
+rm -f backend/app/services/muckrock_client.py
 rm -f backend/app/services/muckrock_client.py
 rm -f backend/tests/unit/auth/test_auth_router.py
 
@@ -73,13 +94,9 @@ rm -rf .firecrawl/
 rm -rf scripts/migrate/
 
 # -------------------------------------------------------------------
-# Premium automation & deploy configs (license-gated)
+# Public setup assets remain in the OSS mirror. /setup links to these
+# files directly, so they must survive the strip step.
 # -------------------------------------------------------------------
-rm -f automation/SETUP_AGENT.md
-rm -f automation/setup.sh
-rm -f automation/sync-upstream.yml
-rm -f deploy/render/render.yaml
-rm -f deploy/SETUP.md
 
 # -------------------------------------------------------------------
 # Frontend: replace auth system (MuckRock OAuth → Supabase Auth)
@@ -114,55 +131,155 @@ rm -f frontend/src/lib/stores/auth-muckrock.ts
 # -------------------------------------------------------------------
 rm -rf frontend/src/routes/admin/
 rm -rf frontend/src/routes/pricing/
-rm -rf frontend/src/routes/terms/
 
-sed -i "s|'/login', '/pricing', '/setup', '/terms'|'/login', '/setup'|" frontend/src/routes/+layout.svelte
+sed -i "s|'/login', '/pricing', '/setup', '/terms'|'/login', '/setup', '/terms'|" frontend/src/routes/+layout.svelte
 sed -i 's|href="/pricing"|href="/"|' frontend/src/routes/setup/+page.svelte
-sed -i "s#\$page.url.pathname === '/pricing' || ##" frontend/src/lib/components/ui/MobileBlocker.svelte
+sed_if_exists -i "s|'/login', '/pricing', '/faq', '/skills', '/terms'|'/login', '/faq', '/skills', '/terms'|" frontend/src/lib/components/ui/MobileBlocker.svelte
 sed -i "s|goto('/pricing');|return; // unlimited in self-hosted|" frontend/src/lib/components/workspace/NewScoutDropdown.svelte
 sed -i "s|https://accounts.muckrock.com/[^']*|#|g" frontend/src/lib/components/modals/PreferencesModal.svelte
 # Login page carries the MuckRock signup link in the OAuth branch (dead
 # code in OSS since PUBLIC_MUCKROCK_ENABLED is never true there, but the
 # URL still appears in the source and fails the OSS mirror grep check).
-sed -i 's|https://accounts.muckrock.com/[^"]*|#|g' frontend/src/routes/login/+page.svelte
+sed_if_exists -i 's|https://accounts.muckrock.com/[^"]*|#|g' frontend/src/routes/login/+page.svelte
 # Remove UpgradeModal and all credit-gating logic (no credits in OSS)
 rm -f frontend/src/lib/components/modals/UpgradeModal.svelte
 
-# Strip UpgradeModal imports from components that reference it
-sed -i "/import UpgradeModal/d" frontend/src/lib/components/feed/FeedView.svelte
-sed -i "/import UpgradeModal/d" frontend/src/lib/components/panels/ScoutsPanel.svelte
-sed -i "/import UpgradeModal/d" frontend/src/lib/components/modals/ScoutScheduleModal.svelte
-sed -i "/import UpgradeModal/d" frontend/src/lib/components/sidebars/DataExtract.svelte
+# Strip UpgradeModal and pricing-only UI from the current workspace shell.
+python3 - <<'PY'
+from pathlib import Path
+import re
 
-# Strip showUpgradeModal state and credit gate blocks
-sed -i "/let showUpgradeModal/d" frontend/src/lib/components/feed/FeedView.svelte
-sed -i "/let showUpgradeModal/d" frontend/src/lib/components/panels/ScoutsPanel.svelte
-sed -i "/let showUpgradeModal/d" frontend/src/lib/components/modals/ScoutScheduleModal.svelte
-sed -i "/let showUpgradeModal/d" frontend/src/lib/components/sidebars/DataExtract.svelte
 
-# Strip <UpgradeModal .../> component blocks (multi-line: delete from <UpgradeModal to />)
-sed -i '/<UpgradeModal/,/\/>/d' frontend/src/lib/components/feed/FeedView.svelte
-sed -i '/<UpgradeModal/,/\/>/d' frontend/src/lib/components/panels/ScoutsPanel.svelte
-sed -i '/<UpgradeModal/,/\/>/d' frontend/src/lib/components/modals/ScoutScheduleModal.svelte
-sed -i '/<UpgradeModal/,/\/>/d' frontend/src/lib/components/sidebars/DataExtract.svelte
+def rewrite(path: str, replacements: list[tuple[str, str, int]]) -> None:
+    p = Path(path)
+    if not p.exists():
+        return
+    src = p.read_text()
+    for pattern, repl, flags in replacements:
+        src = re.sub(pattern, repl, src, flags=flags)
+    p.write_text(src)
 
-# Replace credit gates with unlimited (credits ?? 0 → 999999)
-sed -i 's/\$authStore\.user?\.credits ?? 0/999999/g' frontend/src/lib/components/feed/FeedView.svelte
-sed -i 's/\$authStore\.user?\.credits ?? 0/999999/g' frontend/src/lib/components/panels/ScoutsPanel.svelte
-sed -i 's/\$authStore\.user?\.credits ?? 0/999999/g' frontend/src/lib/components/modals/ScoutScheduleModal.svelte
-sed -i 's/\$authStore\.user?\.credits ?? 0/999999/g' frontend/src/lib/components/sidebars/DataExtract.svelte
+
+rewrite(
+    "frontend/src/routes/+page.svelte",
+    [
+        (r"\n\timport MetricPill from '\$lib/components/ui/MetricPill\.svelte';", "", 0),
+        (r"\n\timport UpgradeModal from '\$lib/components/modals/UpgradeModal\.svelte';", "", 0),
+        (r"\n\tlet showUpgradeModal = false;\n\tlet upgradeRequired = 0;\n", "\n", 0),
+        (
+            r"\n\t\t// Pre-check credits client-side\..*?\n\t\tconst perRunCost = .*?\n\t\tconst currentCredits = .*?\n\t\tif \(currentCredits < perRunCost\) \{\n\t\t\tupgradeRequired = perRunCost;\n\t\t\tshowUpgradeModal = true;\n\t\t\treturn;\n\t\t\}\n",
+            "\n",
+            re.DOTALL,
+        ),
+        (
+            r"\n\t\t\t\{#if \$authStore\.authenticated \|\| \$authStore\.user\}\n\t\t\t\t<MetricPill.*?\/>\n\t\t\t\{/if\}",
+            "",
+            re.DOTALL,
+        ),
+        (r"\n\t\t\t\t\t\t<a href=\"/pricing\" class=\"user-menu-item\" role=\"menuitem\" on:click=\{\(\) => \(userMenuOpen = false\)\}>Pricing</a>", "", 0),
+        (
+            r"\n\t<UpgradeModal\n\t\topen=\{showUpgradeModal\}\n\t\tcurrentCredits=\{\$authStore\.user\?\.credits \?\? 0\}\n\t\trequiredCredits=\{upgradeRequired\}\n\t\toperationType=\"monitoring\"\n\t\ton:close=\{\(\) => \(showUpgradeModal = false\)\}\n\t/>\n",
+            "\n",
+            0,
+        ),
+    ],
+)
+
+rewrite(
+    "frontend/src/lib/components/modals/ScoutScheduleModal.svelte",
+    [
+        (r"import \{ getScoutCost, validateScheduleCredits \} from '\$lib/utils/scouts';", "import { getScoutCost } from '$lib/utils/scouts';", 0),
+        (r"\n\timport UpgradeModal from '\$lib/components/modals/UpgradeModal\.svelte';", "", 0),
+        (r"\n\tlet showUpgradeModal = false;\n\tlet upgradeRequiredCredits = 0;\n", "\n", 0),
+        (
+            r"\n\t\t// Validate credits client-side\..*?\n\t\tconst creditCheck = validateScheduleCredits\(\{\n\t\t\tscoutType,\n\t\t\tregularity: regularity as 'daily' \| 'weekly' \| 'monthly',\n\t\t\tplatform: scoutType === 'social' \? platform : undefined,\n\t\t\tcurrentCredits: \$authStore\.user\?\.credits \?\? 0\n\t\t\}\);\n\t\tif \(!creditCheck\.valid\) \{\n\t\t\tisSubmitting = false;\n\t\t\tupgradeRequiredCredits = creditCheck\.monthlyCost;\n\t\t\tshowUpgradeModal = true;\n\t\t\treturn;\n\t\t\}\n",
+            "\n",
+            re.DOTALL,
+        ),
+        (
+            r"\n<UpgradeModal\n\topen=\{showUpgradeModal\}\n\tcurrentCredits=\{\$authStore\.user\?\.credits \?\? 0\}\n\trequiredCredits=\{upgradeRequiredCredits\}\n\toperationType=\"scout scheduling\"\n\ton:close=\{\(\) => \(showUpgradeModal = false\)\}\n/>\n",
+            "\n",
+            0,
+        ),
+    ],
+)
+PY
 
 # Frontend: remove FeedbackModal and BugReportButton (Linear integration — SaaS-only)
 rm -f frontend/src/lib/components/modals/FeedbackModal.svelte
-sed -i "/import BugReportButton from/d" frontend/src/routes/+layout.svelte
-sed -i "/import FeedbackModal from/d" frontend/src/routes/+layout.svelte
-sed -i "/let feedbackModalOpen/d" frontend/src/routes/+layout.svelte
-sed -i "/BugReportButton/d" frontend/src/routes/+layout.svelte
-sed -i "/FeedbackModal/d" frontend/src/routes/+layout.svelte
+sed_if_exists -i "/import BugReportButton from/d" frontend/src/routes/+layout.svelte
+sed_if_exists -i "/import FeedbackModal from/d" frontend/src/routes/+layout.svelte
+sed_if_exists -i "/let feedbackModalOpen/d" frontend/src/routes/+layout.svelte
+sed_if_exists -i "/BugReportButton/d" frontend/src/routes/+layout.svelte
+sed_if_exists -i "/FeedbackModal/d" frontend/src/routes/+layout.svelte
 
 # Backend: strip feedback router import and mount from main.py
 sed -i '/^    feedback,$/d' backend/app/main.py
 sed -i '/feedback\.router/d' backend/app/main.py
+
+# Backend: the OSS frontend is Supabase-native. Keep FastAPI only as the
+# optional /api/v1 add-on and strip the legacy user/feed/export surface.
+sed -i '/^    onboarding,$/d' backend/app/main.py
+sed -i '/^    user,$/d' backend/app/main.py
+sed -i '/^    units,$/d' backend/app/main.py
+sed -i '/^    export,$/d' backend/app/main.py
+sed -i '/^    license,$/d' backend/app/main.py
+sed -i '/^from app\.routers import muckrock_proxy$/d' backend/app/main.py
+sed -i '/^from app\.routers import local_auth$/d' backend/app/main.py
+sed -i '/onboarding\.router/d' backend/app/main.py
+sed -i '/user\.router/d' backend/app/main.py
+sed -i '/units\.router/d' backend/app/main.py
+sed -i '/export\.router/d' backend/app/main.py
+sed -i '/license\.router/d' backend/app/main.py
+sed -i '/muckrock_proxy\.router/d' backend/app/main.py
+
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("backend/app/main.py")
+lines = p.read_text().splitlines()
+targets = (
+    "muckrock_proxy.router",
+    "local_auth.router",
+    "onboarding.router",
+    "user.router",
+    "units.router",
+    "export.router",
+    "license.router",
+    "feedback.router",
+    'prefix="/api/auth"',
+    'tags=["Auth (MuckRock proxy)"]',
+    'tags=["Auth (local MuckRock broker)"]',
+)
+out = []
+i = 0
+while i < len(lines):
+    line = lines[i]
+    if "from app.routers import muckrock_proxy" in line:
+        i += 1
+        continue
+    if "from app.routers import local_auth" in line:
+        i += 1
+        continue
+    if line.lstrip().startswith("app.include_router("):
+        block = [line]
+        j = i + 1
+        while j < len(lines):
+            block.append(lines[j])
+            if lines[j].strip() == ")":
+                break
+            j += 1
+        block_text = "\n".join(block)
+        if any(target in block_text for target in targets):
+            i = j + 1
+            continue
+    out.append(line)
+    i += 1
+
+text = "\n".join(out) + "\n"
+text = text.replace("if settings.local_muckrock_auth_broker:\nelse:\n", "")
+p.write_text(text)
+PY
 
 # -------------------------------------------------------------------
 # Frontend: strip leftover MuckRock + /pricing references from shared
@@ -173,12 +290,12 @@ sed -i '/feedback\.router/d' backend/app/main.py
 # -------------------------------------------------------------------
 
 # docs/+page.svelte: pricing links + MuckRock mention in prose
-sed -i 's|<a href="/pricing">|<a href="#">|g' frontend/src/routes/docs/+page.svelte
-sed -i 's|href="/pricing"|href="#"|g' frontend/src/routes/docs/+page.svelte
-sed -i 's|sign in with MuckRock OAuth\. Free tier starts with 100 credits/month\.|sign in with your email address.|' frontend/src/routes/docs/+page.svelte
+sed_if_exists -i 's|<a href="/pricing">|<a href="#">|g' frontend/src/routes/docs/+page.svelte
+sed_if_exists -i 's|href="/pricing"|href="#"|g' frontend/src/routes/docs/+page.svelte
+sed_if_exists -i 's|sign in with MuckRock OAuth\. Free tier starts with 100 credits/month\.|sign in with your email address.|' frontend/src/routes/docs/+page.svelte
 
 # +page.svelte (home/workspace): credits-pill + user-menu pricing links
-sed -i 's|href="/pricing"|href="/"|g' frontend/src/routes/+page.svelte
+sed_if_exists -i 's|href="/pricing"|href="/"|g' frontend/src/routes/+page.svelte
 
 # login/+page.svelte: remove the entire MuckRock-preview branch + "See pricing" CTAs
 # The {#if PUBLIC_DEPLOYMENT_TARGET === 'supabase' && !previewMuckRock} block shows
@@ -203,6 +320,14 @@ src = re.sub(r"\bpreviewMuckRock\b", "false", src)
 src = re.sub(r'<a href="/pricing"[^>]*>[^<]*</a>', '', src)
 # Strip the MuckRock-preview checkbox/label (entire <label class="muckrock-toggle">...</label>)
 src = re.sub(r'<label class="muckrock-toggle">.*?</label>', '', src, flags=re.DOTALL)
+# Strip the surrounding dev-only preview conditional so no SaaS env guard
+# survives in OSS source after the label has been removed.
+src = re.sub(
+    r'\n\s*\{#if\s+import\.meta\.env\.PUBLIC_DEPLOYMENT_TARGET === \'supabase\' && import\.meta\.env\.DEV && import\.meta\.env\.PUBLIC_MUCKROCK_ENABLED !== \'true\' && !IS_LOCAL_DEMO_MODE\}\s*\n\s*\{/if\}',
+    '\n',
+    src,
+    flags=re.DOTALL,
+)
 # Strip the MuckRock preview text comment lines
 src = re.sub(r'<p class="auth-subtitle">Sign in via MuckRock</p>', '<p class="auth-subtitle">Sign in</p>', src)
 src = src.replace("Sign in with MuckRock", "Sign in")
@@ -230,9 +355,31 @@ p.write_text(src)
 PY
 
 # api-client.ts: strip MuckRock JSDoc comments (comment-only references)
-sed -i "s|, '' for MuckRock cookies|, '' for self-hosted|g" frontend/src/lib/api-client.ts
-sed -i "s|for MuckRock session-cookie auth|for legacy session-cookie auth|g" frontend/src/lib/api-client.ts
-sed -i "s|MuckRock||g" frontend/src/lib/api-client.ts
+sed_if_exists -i "s|, '' for MuckRock cookies|, '' for self-hosted|g" frontend/src/lib/api-client.ts
+sed_if_exists -i "s|for MuckRock session-cookie auth|for legacy session-cookie auth|g" frontend/src/lib/api-client.ts
+sed_if_exists -i "s|MuckRock||g" frontend/src/lib/api-client.ts
+
+# Frontend package scripts: private repo defaults `npm run dev` to the local
+# MuckRock broker launcher. OSS should keep a generic raw Vite default instead.
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+p = Path("frontend/package.json")
+if p.exists():
+    package = json.loads(p.read_text())
+    scripts = package.get("scripts", {})
+    if scripts.get("dev") == "bash ../scripts/dev/run-frontend-muckrock-local.sh":
+        scripts["dev"] = "npm run dev:raw"
+    scripts.pop("dev:hosted-broker", None)
+    package["scripts"] = scripts
+    p.write_text(json.dumps(package, indent=2) + "\n")
+PY
+
+# Remove the private-repo MuckRock launchers from the OSS mirror. The local
+# Supabase demo launcher can stay; it does not depend on SaaS auth.
+rm -f scripts/dev/run-frontend-muckrock-local.sh
+rm -f scripts/dev/run-frontend-muckrock-hosted.sh
 
 # -------------------------------------------------------------------
 # Validate: no SaaS-only references remain
@@ -240,22 +387,22 @@ sed -i "s|MuckRock||g" frontend/src/lib/api-client.ts
 echo "=== Validating OSS build ==="
 FAIL=0
 
-if grep -ri "muckrock" --exclude="auth-supabase.ts" --exclude="types.ts" --exclude="PreferencesModal.svelte" --exclude-dir="faq" --exclude-dir="paraglide" frontend/src/ 2>/dev/null; then
+if grep -ri "muckrock" --exclude="auth-supabase.ts" --exclude="types.ts" --exclude="PreferencesModal.svelte" --exclude-dir="faq" --exclude-dir="paraglide" --exclude-dir="tests" frontend/src/ 2>/dev/null; then
   echo "ERROR: MuckRock references found in OSS build"
   FAIL=1
 fi
 
-if grep -rE "'/pricing'|\"/pricing\"" frontend/src/ 2>/dev/null; then
+if grep -rE "'/pricing'|\"/pricing\"" --exclude-dir="tests" frontend/src/ 2>/dev/null; then
   echo "ERROR: /pricing references found in OSS build"
   FAIL=1
 fi
 
-if grep -r "accounts.muckrock.com" frontend/src/ 2>/dev/null; then
+if grep -r "accounts.muckrock.com" --exclude-dir="tests" frontend/src/ 2>/dev/null; then
   echo "ERROR: accounts.muckrock.com URLs found in OSS build"
   FAIL=1
 fi
 
-if grep -r "auth-muckrock" --exclude="auth-supabase.ts" frontend/src/ 2>/dev/null; then
+if grep -r "auth-muckrock" --exclude="auth-supabase.ts" --exclude-dir="tests" frontend/src/ 2>/dev/null; then
   echo "ERROR: auth-muckrock references found in OSS build"
   FAIL=1
 fi

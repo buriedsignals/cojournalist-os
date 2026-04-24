@@ -18,13 +18,14 @@ function firecrawlApiKey(): string {
 export interface ScrapeResult {
   markdown: string;
   html?: string;
+  rawHtml?: string;
   title?: string;
   source_url: string;
   fetched_at: string;
 }
 
 export interface ScrapeOptions {
-  formats?: Array<"markdown" | "html">;
+  formats?: Array<"markdown" | "html" | "rawHtml">;
   onlyMainContent?: boolean;
   /**
    * PDF parser mode. Defaults to "fast", which matches the dorfkoenig
@@ -49,7 +50,7 @@ export async function firecrawlScrape(
 
   const body: Record<string, unknown> = {
     url,
-    formats: opts.formats ?? ["markdown"],
+    formats: opts.formats ?? ["markdown", "rawHtml"],
     onlyMainContent: opts.onlyMainContent ?? true,
     timeout: timeoutMs,
   };
@@ -74,19 +75,26 @@ export async function firecrawlScrape(
   } catch (e) {
     clearTimeout(fuse);
     if ((e as { name?: string }).name === "AbortError") {
-      throw new ApiError(`firecrawl scrape aborted after ${abortAfterMs}ms`, 504);
+      throw new ApiError(
+        `firecrawl scrape aborted after ${abortAfterMs}ms`,
+        504,
+      );
     }
     throw e;
   }
   clearTimeout(fuse);
   if (!res.ok) {
-    throw new ApiError(`firecrawl scrape failed: ${res.status} ${await res.text()}`, 502);
+    throw new ApiError(
+      `firecrawl scrape failed: ${res.status} ${await res.text()}`,
+      502,
+    );
   }
   const bodyJson = await res.json();
   const d = bodyJson?.data ?? {};
   return {
     markdown: d.markdown ?? "",
     html: d.html,
+    rawHtml: d.rawHtml ?? null,
     title: d.metadata?.title,
     source_url: url,
     fetched_at: new Date().toISOString(),
@@ -107,7 +115,8 @@ export interface SearchHit {
  */
 export async function firecrawlSearch(
   query: string,
-  opts: { limit?: number; scrape?: boolean; lang?: string; country?: string } = {},
+  opts: { limit?: number; scrape?: boolean; lang?: string; country?: string } =
+    {},
 ): Promise<SearchHit[]> {
   const body: Record<string, unknown> = {
     query,
@@ -181,7 +190,9 @@ export async function firecrawlMap(
     ? body.data.links
     : [];
   return links
-    .map((l: unknown) => typeof l === "string" ? l : (l as { url?: string }).url ?? "")
+    .map((l: unknown) =>
+      typeof l === "string" ? l : (l as { url?: string }).url ?? ""
+    )
     .filter((s: string) => typeof s === "string" && s.length > 0);
 }
 
@@ -189,6 +200,14 @@ export interface ChangeTrackingResult extends ScrapeResult {
   change_status: "new" | "same" | "changed" | "removed";
   visibility?: "visible" | "hidden";
   previous_scrape_at?: string;
+}
+
+export interface ChangeTrackingOptions {
+  onlyMainContent?: boolean;
+  /** Firecrawl server-side timeout in ms. Default 120_000. */
+  timeoutMs?: number;
+  /** Client-side AbortController fuse in ms. Defaults to timeoutMs + 5000. */
+  abortAfterMs?: number;
 }
 
 /**
@@ -220,15 +239,16 @@ export interface ChangeTrackingResult extends ScrapeResult {
 export async function doubleProbe(
   url: string,
   tag: string,
+  opts: ChangeTrackingOptions = {},
 ): Promise<"firecrawl" | "firecrawl_plain"> {
   try {
-    await firecrawlChangeTrackingScrape(url, tag);
+    await firecrawlChangeTrackingScrape(url, tag, opts);
   } catch {
     return "firecrawl_plain";
   }
   let result2: ChangeTrackingResult;
   try {
-    result2 = await firecrawlChangeTrackingScrape(url, tag);
+    result2 = await firecrawlChangeTrackingScrape(url, tag, opts);
   } catch {
     return "firecrawl_plain";
   }
@@ -242,22 +262,48 @@ export async function doubleProbe(
 export async function firecrawlChangeTrackingScrape(
   url: string,
   tag: string,
+  opts: ChangeTrackingOptions = {},
 ): Promise<ChangeTrackingResult> {
   const safeTag = tag.length > 128 ? tag.slice(0, 128) : tag;
-  const res = await fetch(`${FIRECRAWL_BASE}/scrape`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${firecrawlApiKey()}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      url,
-      formats: ["markdown", { type: "changeTracking", tag: safeTag }],
-      onlyMainContent: true,
-    }),
-  });
+  const timeoutMs = opts.timeoutMs ?? 120_000;
+  const abortAfterMs = opts.abortAfterMs ?? timeoutMs + 5_000;
+  const ac = new AbortController();
+  const fuse = setTimeout(() => ac.abort(), abortAfterMs);
+  let res: Response;
+  try {
+    res = await fetch(`${FIRECRAWL_BASE}/scrape`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${firecrawlApiKey()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url,
+        formats: ["markdown", "rawHtml", {
+          type: "changeTracking",
+          tag: safeTag,
+        }],
+        onlyMainContent: opts.onlyMainContent ?? true,
+        timeout: timeoutMs,
+      }),
+      signal: ac.signal,
+    });
+  } catch (e) {
+    clearTimeout(fuse);
+    if ((e as { name?: string }).name === "AbortError") {
+      throw new ApiError(
+        `firecrawl change-tracking aborted after ${abortAfterMs}ms`,
+        504,
+      );
+    }
+    throw e;
+  }
+  clearTimeout(fuse);
   if (!res.ok) {
-    throw new ApiError(`firecrawl change-tracking failed: ${res.status} ${await res.text()}`, 502);
+    throw new ApiError(
+      `firecrawl change-tracking failed: ${res.status} ${await res.text()}`,
+      502,
+    );
   }
   const body = await res.json();
   const d = body?.data ?? {};
@@ -265,10 +311,12 @@ export async function firecrawlChangeTrackingScrape(
   return {
     markdown: d.markdown ?? "",
     html: d.html,
+    rawHtml: d.rawHtml ?? null,
     title: d.metadata?.title,
     source_url: url,
     fetched_at: new Date().toISOString(),
-    change_status: (ct.changeStatus ?? "new") as ChangeTrackingResult["change_status"],
+    change_status:
+      (ct.changeStatus ?? "new") as ChangeTrackingResult["change_status"],
     visibility: ct.visibility,
     previous_scrape_at: ct.previousScrapeAt,
   };

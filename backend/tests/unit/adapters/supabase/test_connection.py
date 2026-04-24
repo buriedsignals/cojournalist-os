@@ -43,6 +43,7 @@ async def test_get_pool_creates_pool_with_correct_params():
         max_size=10,
         command_timeout=30,
         statement_cache_size=0,
+        server_settings={"jit": "off"},
     )
 
 
@@ -80,3 +81,5 @@ async def test_statement_cache_size_is_zero():
 
     _, kwargs = mock_create.call_args
     assert kwargs.get("statement_cache_size") == 0
+    # JIT disabled for Supavisor compatibility (cold-connection warm-up tax).
+    assert kwargs.get("server_settings", {}).get("jit") == "off"

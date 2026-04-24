@@ -24,7 +24,7 @@ Migration files live in `supabase/migrations/`. They run in order:
 | `TIME#` | `scout_runs` | Per-run execution history |
 | `EXEC#` | `execution_records` | Summary cards + embedding dedup |
 | `POSTS#` | `post_snapshots` | Social scout baselines |
-| `SEEN#` | `seen_records` | URL deduplication for pulse scouts |
+| `SEEN#` | `seen_records` | URL deduplication for beat scouts |
 | `PROMISE#` | `promises` | Civic scout extracted promises |
 | `information-units` | `information_units` | Atomic facts with embeddings |
 | `USER#` / `PROFILE` | `user_preferences` | User config (no billing columns) |
@@ -35,14 +35,14 @@ Migration files live in `supabase/migrations/`. They run in order:
 
 ### `scouts`
 
-Stores scout definitions for all four scout types (`web`, `pulse`, `social`, `civic`).
+Stores scout definitions for all four scout types (`web`, `beat`, `social`, `civic`).
 A single wide table with type-specific columns left null for inapplicable types.
 
 ```
 id                    UUID PRIMARY KEY
 user_id               UUID → auth.users(id)
 name                  TEXT NOT NULL
-type                  TEXT  -- 'web' | 'pulse' | 'social' | 'civic'
+type                  TEXT  -- 'web' | 'beat' | 'social' | 'civic'
 criteria              TEXT  -- AI filter criteria (optional)
 preferred_language    TEXT  -- default 'en'
 regularity            TEXT  -- 'daily' | 'weekly' | 'monthly'
@@ -51,7 +51,7 @@ schedule_timezone     TEXT  -- default 'UTC'
 topic                 TEXT  -- organizational tag
 url                   TEXT  -- web scouts only
 provider              TEXT  -- 'firecrawl' | 'firecrawl_plain' (web only)
-source_mode           TEXT  -- 'reliable' | 'niche' (pulse only)
+source_mode           TEXT  -- 'reliable' | 'niche' (beat only)
 excluded_domains      TEXT[]
 platform              TEXT  -- 'instagram' | 'x' | 'facebook' (social only)
 profile_handle        TEXT  -- social only
@@ -104,6 +104,7 @@ user_id       UUID → auth.users(id)
 scout_type    TEXT
 summary_text  TEXT NOT NULL  -- 1-sentence summary for display
 embedding     vector(1536)   -- for cosine dedup (see Indexes)
+embedding_model TEXT         -- version tag for the stored summary embedding
 content_hash  TEXT           -- for web scout baseline dedup
 is_duplicate  BOOLEAN
 metadata      JSONB
@@ -135,7 +136,7 @@ One row per scout (enforced by `UNIQUE(scout_id)`). Each execution overwrites `p
 
 ### `seen_records`
 
-URL-level deduplication for Beat Scouts (type `pulse`). A `signature` is a stable hash
+URL-level deduplication for Beat Scouts (type `beat`). A `signature` is a stable hash
 of a URL. If the signature exists for a given `(scout_id, user_id)`, the article is
 skipped. Replaces `SEEN#` records.
 

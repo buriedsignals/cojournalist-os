@@ -309,21 +309,21 @@
 		gap: 0.5rem;
 		width: 100%;
 		padding: 0.625rem 0.75rem;
-		background: linear-gradient(135deg, rgba(107, 63, 160, 0.12), rgba(78, 44, 120, 0.08));
-		border: 1px solid rgba(107, 63, 160, 0.25);
+		background: var(--color-primary-soft);
+		border: 1px solid var(--color-primary);
 		border-radius: 0;
 		font-size: 0.8125rem;
 		font-weight: 500;
-		font-family: 'DM Sans', sans-serif;
-		color: #1e293b;
+		font-family: var(--font-body);
+		color: var(--color-ink);
 		cursor: pointer;
 		transition: all 0.2s ease;
 		text-align: left;
 	}
 
 	.selected-location:hover {
-		background: linear-gradient(135deg, rgba(107, 63, 160, 0.18), rgba(78, 44, 120, 0.14));
-		border-color: #6B3FA0;
+		background: color-mix(in srgb, var(--color-primary-soft) 70%, var(--color-surface-alt));
+		border-color: var(--color-primary-deep);
 	}
 
 	.selected-global {
@@ -332,21 +332,21 @@
 		gap: 0.5rem;
 		width: 100%;
 		padding: 0.625rem 0.75rem;
-		background: linear-gradient(135deg, rgba(100, 116, 139, 0.10), rgba(100, 116, 139, 0.06));
-		border: 1px solid rgba(100, 116, 139, 0.25);
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
 		border-radius: 0;
 		font-size: 0.8125rem;
 		font-weight: 500;
-		font-family: 'DM Sans', sans-serif;
-		color: #475569;
+		font-family: var(--font-body);
+		color: var(--color-ink-muted);
 		cursor: pointer;
 		transition: all 0.2s ease;
 		text-align: left;
 	}
 
 	.selected-global:hover {
-		background: linear-gradient(135deg, rgba(100, 116, 139, 0.16), rgba(100, 116, 139, 0.10));
-		border-color: #94a3b8;
+		background: var(--color-bg);
+		border-color: var(--color-border-strong);
 	}
 
 	.selected-global :global(.remove-icon) {
@@ -398,24 +398,24 @@
 	.search-input {
 		width: 100%;
 		padding: 0.625rem 0.75rem 0.625rem 2.25rem;
-		background: #fafafa;
+		background: var(--color-bg);
 		border: 1px solid var(--color-border);
 		border-radius: 0;
 		font-size: 0.8125rem;
-		font-family: 'DM Sans', sans-serif;
-		color: #1e293b;
+		font-family: var(--font-body);
+		color: var(--color-ink);
 		transition: all 0.2s ease;
 	}
 
 	.search-input:focus {
 		outline: none;
-		border-color: #6B3FA0;
+		border-color: var(--color-primary);
 		background: var(--color-surface-alt);
-		box-shadow: 0 0 0 3px rgba(107, 63, 160, 0.1);
+		box-shadow: 0 0 0 3px var(--color-primary-soft);
 	}
 
 	.search-input::placeholder {
-		color: #94a3b8;
+		color: var(--color-ink-subtle);
 	}
 
 	.search-input.has-global-btn {
@@ -429,22 +429,22 @@
 		align-items: center;
 		gap: 0.25rem;
 		padding: 0.3rem 0.5rem;
-		background: #f1f5f9;
-		border: 1px solid #e2e8f0;
+		background: var(--color-surface-alt);
+		border: 1px solid var(--color-border);
 		border-radius: 0;
 		font-size: 0.6875rem;
 		font-weight: 500;
-		font-family: 'DM Sans', sans-serif;
-		color: #64748b;
+		font-family: var(--font-body);
+		color: var(--color-ink-muted);
 		cursor: pointer;
 		transition: all 0.15s ease;
 		white-space: nowrap;
 	}
 
 	.global-btn:hover {
-		background: #e2e8f0;
-		border-color: #cbd5e1;
-		color: #475569;
+		background: var(--color-bg);
+		border-color: var(--color-border-strong);
+		color: var(--color-ink);
 	}
 
 	.input-wrapper :global(.loading-icon) {
@@ -488,8 +488,8 @@
 		padding: 0.625rem 0.75rem;
 		border-radius: 0;
 		font-size: 0.8125rem;
-		font-family: 'DM Sans', sans-serif;
-		color: #1e293b;
+		font-family: var(--font-body);
+		color: var(--color-ink);
 		background: transparent;
 		border: none;
 		text-align: left;
@@ -498,7 +498,7 @@
 	}
 
 	.suggestion-item:hover {
-		background: #f8f9fa;
+		background: var(--color-bg);
 	}
 
 	.suggestion-item :global(svg) {

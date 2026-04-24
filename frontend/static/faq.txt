@@ -1,0 +1,27 @@
+# coJournalist FAQ in text form
+
+## Licensing
+
+coJournalist is source-available under the Sustainable Use License. Newsrooms can use, modify, and deploy it internally. You cannot resell it, host it as a competing service, or white-label it as your own hosted product.
+
+## Self-hosting
+
+Self-hosting is supported. You bring your own Supabase, Gemini, Firecrawl, Resend, Apify, and hosting setup. The public setup skill is:
+
+- https://www.cojournalist.ai/skills/cojournalist-setup.md
+
+## Hosted vs self-hosted
+
+- **Hosted**: sign in at cojournalist.ai and use the managed product with credits.
+- **Self-hosted**: deploy it yourself, keep full control, and use your own API keys.
+
+## Product basics
+
+coJournalist helps journalists monitor beats, sources, pages, social profiles, and civic sites through scheduled scouts. Agents can help search, summarize, and export the resulting information units, but journalists remain responsible for verification.
+
+## Useful links
+
+- FAQ page: https://www.cojournalist.ai/faq
+- Skills index: https://www.cojournalist.ai/skills
+- Docs: https://www.cojournalist.ai/docs
+- GitHub: https://github.com/buriedsignals/cojournalist-os

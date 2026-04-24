@@ -6,10 +6,8 @@
 	import { authStore } from '$lib/stores/auth';
 	import { notificationStore } from '$lib/stores/notifications';
 	import { initLocaleFromCache, setLocaleFromUser } from '$lib/i18n/locale';
-	import { isTourCompleted, markTourCompleted, onboardingTour } from '$lib/stores/onboarding-tour';
 	import OnboardingModal from '$lib/components/modals/OnboardingModal.svelte';
 	import OnboardingVideoModal from '$lib/components/modals/OnboardingVideoModal.svelte';
-	import GuidedTourController from '$lib/components/tour/GuidedTourController.svelte';
 	import type { GeocodedLocation } from '$lib/types';
 
 	import '../app.css';
@@ -18,6 +16,8 @@
 	if (browser) {
 		initLocaleFromCache();
 	}
+
+	const isSupabaseDeployment = import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase';
 
 let timezoneModalOpen = false;
 let timezoneSaving = false;
@@ -52,7 +52,7 @@ function markTimezoneVerified(userId?: string | null) {
 			if (cancelled) return;
 
 			const loginPath = '/login';
-			const publicPaths = ['/login', '/setup', '/faq', '/docs', '/swagger'];
+			const publicPaths = ['/login', '/setup', '/terms', '/faq', '/docs', '/skills', '/swagger'];
 
 			unsubscribe = authStore.subscribe(async (state) => {
 				if (!state.authenticated && !publicPaths.includes($page.url.pathname)) {
@@ -88,11 +88,12 @@ function markTimezoneVerified(userId?: string | null) {
 					}
 				}
 
-				needsInitialization = Boolean(state.user?.needs_initialization);
+				needsInitialization = !isSupabaseDeployment && Boolean(state.user?.needs_initialization);
 
 				// Only prompt for NEW users who need initialization
 				// Existing users with missing timezone will be prompted when they try to schedule monitoring
 				const shouldPromptTimezone =
+					!isSupabaseDeployment &&
 					state.authenticated &&
 					state.user &&
 					!timezoneVerified &&
@@ -126,11 +127,14 @@ async function handleOnboardingSave(event: CustomEvent<{ timezone: string; locat
 	const requiresInitialization = needsInitialization;
 
 	try {
-		if (requiresInitialization) {
+		if (requiresInitialization && !isSupabaseDeployment) {
 			isInitializing = true;
 			await authStore.initializeUser(timezone, location, preferred_language);
 		} else {
-			await authStore.updatePreferences({ timezone });
+			await authStore.updatePreferences({
+				timezone,
+				preferred_language
+			});
 		}
 
 		markTimezoneVerified($authStore.user?.user_id);
@@ -143,11 +147,6 @@ async function handleOnboardingSave(event: CustomEvent<{ timezone: string; locat
 
 		if (currentUser?.timezone === timezone) {
 			timezoneModalOpen = false;
-			// Show video modal for new users who need the full onboarding experience
-			if (requiresInitialization) {
-				// videoModalOpen = true;  // Disabled until new video is recorded
-				onboardingTour.start();
-			}
 		} else {
 			timezoneError = 'Timezone was saved but could not be verified. Please refresh the page.';
 		}
@@ -167,17 +166,6 @@ async function handleOnboardingSave(event: CustomEvent<{ timezone: string; locat
 
 function handleVideoReady() {
 	videoModalOpen = false;
-	// Start the guided tour
-	onboardingTour.start();
-}
-
-function handleTourComplete() {
-	onboardingTour.complete();
-	// Mark tour as completed for this user
-	const userId = $authStore.user?.user_id;
-	if (userId) {
-		markTourCompleted(userId);
-	}
 }
 </script>
 
@@ -189,20 +177,17 @@ function handleTourComplete() {
 	/>
 {/if}
 
-<OnboardingModal
-	open={timezoneModalOpen}
-	saving={timezoneSaving}
-	errorMessage={timezoneError}
-	initialTimezone={$authStore.user?.timezone ?? null}
-	on:save={handleOnboardingSave}
-/>
+{#if !isSupabaseDeployment}
+	<OnboardingModal
+		open={timezoneModalOpen}
+		saving={timezoneSaving}
+		errorMessage={timezoneError}
+		initialTimezone={$authStore.user?.timezone ?? null}
+		on:save={handleOnboardingSave}
+	/>
 
-<OnboardingVideoModal
-	open={videoModalOpen}
-	on:ready={handleVideoReady}
-/>
-
-<GuidedTourController
-	onComplete={handleTourComplete}
-/>
-
+	<OnboardingVideoModal
+		open={videoModalOpen}
+		on:ready={handleVideoReady}
+	/>
+{/if}

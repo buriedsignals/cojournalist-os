@@ -246,3 +246,10 @@ def test_validate_upstream_accepts_self_hosted_supabase_in():
         "https://x.supabase.in/functions/v1/billing-webhook",
         "TEST",
     )
+
+
+def test_validate_upstream_accepts_localhost_http_for_dev_callback_proxy():
+    muckrock_proxy._validate_upstream(
+        "http://127.0.0.1:54321/functions/v1/auth-muckrock/callback",
+        "TEST",
+    )

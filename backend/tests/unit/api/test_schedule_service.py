@@ -338,12 +338,12 @@ class TestCreateScout:
 
     @pytest.mark.skip(reason="AWS-specific (Decimal coercion for DynamoDB); v2 uses Supabase floats")
     @pytest.mark.asyncio
-    async def test_writes_scraper_record_pulse(self, schedule_service, mock_scout_storage, mock_scheduler, mock_cron_schedule):
+    async def test_writes_scraper_record_beat(self, schedule_service, mock_scout_storage, mock_scheduler, mock_cron_schedule):
         mock_scout_storage.create_scout.return_value = {"scraper_name": "Oslo News"}
         mock_scheduler.create_schedule.return_value = "arn:..."
 
         body = {
-            "scout_type": "pulse",
+            "scout_type": "beat",
             "location": {"lat": 59.95, "lng": 10.75, "name": "Oslo"},
             "topic": "real estate",
             "criteria": "new listings",
@@ -357,7 +357,7 @@ class TestCreateScout:
 
         call_args = mock_scout_storage.create_scout.call_args
         item = call_args[0][1]
-        assert item["scout_type"] == "pulse"
+        assert item["scout_type"] == "beat"
         assert item["topic"] == "real estate"
         assert item["criteria"] == "new listings"
         assert item["source_mode"] == "niche"
@@ -402,15 +402,15 @@ class TestCreateScout:
         mock_scheduler.create_schedule.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_skips_url_validation_pulse(self, schedule_service, mock_scout_storage, mock_scheduler, mock_cron_schedule):
-        """Pulse scouts don't have URLs, so no validation needed."""
-        mock_scout_storage.create_scout.return_value = {"scraper_name": "Pulse"}
+    async def test_skips_url_validation_beat(self, schedule_service, mock_scout_storage, mock_scheduler, mock_cron_schedule):
+        """Beat scouts don't have URLs, so no validation needed."""
+        mock_scout_storage.create_scout.return_value = {"scraper_name": "Beat"}
         mock_scheduler.create_schedule.return_value = "arn:..."
-        body = {"scout_type": "pulse", "location": {"lat": 59.95, "lng": 10.75}}
+        body = {"scout_type": "beat", "location": {"lat": 59.95, "lng": 10.75}}
 
-        result = await schedule_service.create_scout("user-123", "Pulse", body, mock_cron_schedule)
+        result = await schedule_service.create_scout("user-123", "Beat", body, mock_cron_schedule)
 
-        assert result["scraper_name"] == "Pulse"
+        assert result["scraper_name"] == "Beat"
 
     @pytest.mark.asyncio
     async def test_writes_scraper_record_social(self, schedule_service, mock_scout_storage, mock_scheduler, mock_cron_schedule):
@@ -505,7 +505,7 @@ class TestCreateScout:
 
         for scout_type, extra_fields in [
             ("web", {"url": "https://example.com"}),
-            ("pulse", {"location": {"lat": 59.95, "lng": 10.75}}),
+            ("beat", {"location": {"lat": 59.95, "lng": 10.75}}),
             ("social", {"platform": "instagram", "profile_handle": "test"}),
         ]:
             mock_scheduler.reset_mock()

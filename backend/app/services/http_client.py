@@ -10,10 +10,11 @@ PURPOSE: Two client pools with different connection reuse strategies:
   which causes response body reads to hang indefinitely.
 
 DEPENDS ON: (stdlib + httpx only — no app imports)
-USED BY: services/openrouter.py, services/embedding_utils.py,
-    services/query_generator.py, services/notification_service.py,
-    services/news_utils.py, services/export_generator.py,
-    services/scout_service.py, main.py (shutdown hook)
+USED BY: services/embedding_utils.py, main.py (shutdown hook)
+NOTE: get_llm_client() has no current consumers after the openrouter/
+scout_service removal — kept for now so future LLM work can reuse the
+keepalive-off policy without rediscovering it. Delete if still unused in
+a future sweep.
 
 CRITICAL: Do not create standalone httpx.AsyncClient instances in services.
 Always use get_http_client() or get_llm_client() and ensure proper shutdown.

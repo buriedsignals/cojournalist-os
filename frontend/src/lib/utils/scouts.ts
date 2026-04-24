@@ -1,11 +1,11 @@
 /**
  * Scout Utilities -- pure functions for scout card display and status logic.
  *
- * USED BY: ScoutsPanel.svelte, ScoutScheduleModal.svelte,
+ * USED BY: ScoutScheduleModal.svelte, workspace components,
  *          tests/utils/scouts.test.ts
  * DEPENDS ON: $lib/types (ScoutType)
  *
- * Extracted from ScoutsPanel for testability. Contains credit costs,
+ * Shared scout UI logic. Contains credit costs,
  * schedule formatting, URL truncation, markdown stripping, and the
  * consolidated scout status cascade (priority-ordered condition matching).
  */
@@ -13,6 +13,8 @@
 import type { ComponentType } from 'svelte';
 import { Globe, Radar, Users, Landmark } from 'lucide-svelte';
 import type { ScoutType } from '$lib/types';
+
+export type ScoutTypeLike = ScoutType | 'beat' | 'page' | 'location' | string;
 
 /**
  * Per-scout-type display config: the icon for the eyebrow glyph, the CSS
@@ -34,6 +36,38 @@ export const SCOUT_TYPE_CONFIG: Record<ScoutType, ScoutTypeDisplay> = {
 	civic:  { icon: Landmark, className: 'civic',  label: 'Civic Monitor' }
 };
 
+const DEFAULT_SCOUT_DISPLAY: ScoutTypeDisplay = {
+	icon: Globe,
+	className: 'web',
+	label: 'Scout'
+};
+
+export function normalizeScoutType(type: ScoutTypeLike | null | undefined): ScoutType {
+	switch (type) {
+		case 'beat':
+		case 'location':
+			return 'pulse';
+		case 'page':
+			return 'web';
+		case 'web':
+		case 'pulse':
+		case 'social':
+		case 'civic':
+			return type;
+		default:
+			return 'web';
+	}
+}
+
+export function getScoutTypeDisplay(type: ScoutTypeLike | null | undefined): ScoutTypeDisplay {
+	if (!type) return DEFAULT_SCOUT_DISPLAY;
+	if (type in SCOUT_TYPE_CONFIG) {
+		return SCOUT_TYPE_CONFIG[type as ScoutType];
+	}
+	const normalized = normalizeScoutType(type);
+	return SCOUT_TYPE_CONFIG[normalized] ?? DEFAULT_SCOUT_DISPLAY;
+}
+
 /** Credit costs per scout type (see supabase/functions/_shared/credits.ts:CREDIT_COSTS) */
 export const SCOUT_COSTS: Record<ScoutType, number> = {
 	// Civic: weekly/monthly only, refunded when a run queues zero docs.
@@ -53,11 +87,12 @@ export const SOCIAL_SCOUT_COSTS: Record<string, number> = {
 };
 
 /** Get credit cost for a scout, with platform awareness for social scouts. */
-export function getScoutCost(type: ScoutType, platform?: string): number {
-	if (type === 'social' && platform) {
+export function getScoutCost(type: ScoutTypeLike, platform?: string): number {
+	const canonicalType = normalizeScoutType(type);
+	if (canonicalType === 'social' && platform) {
 		return SOCIAL_SCOUT_COSTS[platform] ?? SCOUT_COSTS.social;
 	}
-	return SCOUT_COSTS[type] ?? 1;
+	return SCOUT_COSTS[canonicalType] ?? 1;
 }
 
 /** Regularity → number of runs per month (matches backend/app/utils/pricing.py:82-84). */

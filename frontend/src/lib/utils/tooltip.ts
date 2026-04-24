@@ -1,7 +1,7 @@
 /**
  * Tooltip Action -- custom Svelte action for hover tooltips.
  *
- * USED BY: ExportSlideOver.svelte, SelectionBar.svelte, UnifiedSidebar.svelte
+ * USED BY: active workspace controls that need delayed hover tooltips
  * DEPENDS ON: (none)
  *
  * Creates a positioned tooltip DOM element on mouseenter with a 400ms delay.

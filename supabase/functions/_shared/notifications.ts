@@ -2,12 +2,13 @@
  * Scout notification emails via Resend. Shared helper called by every worker
  * on its success path.
  *
- * Legacy reference: backend/app/services/notification_service.py. Templates
- * (colors, gradients, layout, copy) are ported verbatim for visual parity.
+ * Legacy reference: backend/app/services/notification_service.py. The shared
+ * renderer has been redesigned around the editorial design system in DESIGN.md
+ * while preserving the same delivery semantics and sender entry points.
  *
  * Per-type entry points:
  *   - sendPageScoutAlert   (web  scout, dark blue)
- *   - sendBeatAlert        (pulse scout, purple, formerly "Smart Scout")
+ *   - sendBeatAlert        (beat scout, purple, formerly "Smart Scout")
  *   - sendCivicAlert       (civic scout, amber)
  *   - sendSocialAlert      (social scout, rose)
  *
@@ -116,7 +117,7 @@ export interface ScoutDeactivatedParams {
   userId: string;
   scoutId: string;
   scoutName: string;
-  scoutType: "web" | "pulse" | "civic" | "social" | string;
+  scoutType: "web" | "beat" | "civic" | "social" | string;
   consecutiveFailures: number;
   language?: string | null;
 }
@@ -126,6 +127,84 @@ interface UserContext {
   language: string;
   healthNotificationsEnabled: boolean;
 }
+
+type NotificationVariant =
+  | "page"
+  | "beat"
+  | "civic"
+  | "social"
+  | "digest"
+  | "health";
+
+interface MetadataPanel {
+  label: string;
+  value: string;
+  href?: string;
+  valueColor?: string;
+}
+
+interface SecondarySection {
+  title: string;
+  summary?: string;
+  articles?: Article[];
+}
+
+interface CautionSection {
+  title: string;
+  items: string[];
+}
+
+const COLORS = {
+  bg: "#F5EFE3",
+  surface: "#EBE4D4",
+  surfaceAlt: "#F9F4E9",
+  primary: "#6B3FA0",
+  primarySoft: "#E7DBF1",
+  secondary: "#C77A1D",
+  secondarySoft: "#F4E7CF",
+  ink: "#201A2A",
+  inkMuted: "#6E6380",
+  inkSubtle: "#9A8FAA",
+  border: "#D9D0BE",
+  borderStrong: "#B8AC93",
+  success: "#2F8F5F",
+  error: "#B33E2E",
+  info: "#3F5EA6",
+} as const;
+
+const FONT_DISPLAY = "Georgia, 'Times New Roman', serif";
+const FONT_BODY = "Arial, Helvetica, sans-serif";
+const FONT_MONO = "'Courier New', Courier, monospace";
+
+const VARIANT_THEME: Record<
+  NotificationVariant,
+  { accent: string; accentSoft: string; labelColor?: string }
+> = {
+  page: {
+    accent: COLORS.info,
+    accentSoft: "#E4EAF6",
+  },
+  beat: {
+    accent: COLORS.primary,
+    accentSoft: COLORS.primarySoft,
+  },
+  civic: {
+    accent: COLORS.secondary,
+    accentSoft: COLORS.secondarySoft,
+  },
+  social: {
+    accent: COLORS.error,
+    accentSoft: "#F3E4E2",
+  },
+  digest: {
+    accent: COLORS.secondary,
+    accentSoft: COLORS.secondarySoft,
+  },
+  health: {
+    accent: COLORS.error,
+    accentSoft: "#F3E4E2",
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Public entry points
@@ -138,23 +217,10 @@ export async function sendPageScoutAlert(
   return guarded(svc, "page", params.userId, params.runId, async (ctx) => {
     const language = params.language ?? ctx.language;
     const headerTitle = getString("scout_alert", language);
-    const contextLabel = getString("page_scout", language);
     const monitoringLabel = getString("monitoring_url", language);
     const criteriaLabel = getString("criteria", language);
     const cueText = getString("page_scout_cue", language);
     const seeWhatMatched = getString("see_what_matched", language);
-
-    const urlEscaped = escapeHtml(params.url);
-    const criteriaSection = params.criteria
-      ? `
-      <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
-        <p style="margin: 0 0 4px 0; font-size: 12px; color: #666; text-transform: uppercase;">${
-        escapeHtml(criteriaLabel)
-      }</p>
-        <p style="margin: 0; color: #333;">${escapeHtml(params.criteria)}</p>
-      </div>
-      `
-      : "";
 
     const articles: Article[] = params.matchedUrl && params.matchedTitle
       ? [{
@@ -166,29 +232,30 @@ export async function sendPageScoutAlert(
       : [];
     const articlesSectionTitle = articles.length > 0 ? seeWhatMatched : "";
 
-    const extraContent = `
-      <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
-        <p style="margin: 0 0 4px 0; font-size: 12px; color: #666; text-transform: uppercase;">${
-      escapeHtml(monitoringLabel)
-    }</p>
-        <a href="${urlEscaped}" style="color: #2563eb; text-decoration: none; word-break: break-all;">${urlEscaped}</a>
-      </div>
-      ${criteriaSection}
-      <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
-        ${escapeHtml(cueText)}
-      </div>
-    `;
-
     const html = buildBaseHtml({
+      variant: "page",
+      eyebrowLabel: getString("page_scout", language),
+      contextLabel: headerTitle,
       headerTitle,
-      headerSubtitle: escapeHtml(params.scoutName),
-      headerGradient: "#1a1a2e",
-      accentColor: "#2563eb",
-      contextLabel,
+      headerSubtitle: params.scoutName,
       summary: params.summary,
       articles,
       articlesSectionTitle,
-      extraContent,
+      metadataPanels: [
+        {
+          label: monitoringLabel,
+          value: params.url,
+          href: params.url,
+          valueColor: VARIANT_THEME.page.accent,
+        },
+        ...(params.criteria
+          ? [{
+            label: criteriaLabel,
+            value: params.criteria,
+          }]
+          : []),
+      ],
+      cueText,
       language,
     });
 
@@ -209,45 +276,29 @@ export async function sendBeatAlert(
     const sectionTitle = getString("top_stories", language);
 
     const contextSource = params.topic ?? params.location ?? "";
-    const contextLabel = escapeHtml((contextSource || "").toUpperCase());
     const subjectContext = params.topic ?? params.location ?? params.scoutName;
 
-    const accent = "#7c3aed";
-    const pulseCue = `
-      <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
-        ${escapeHtml(getString("pulse_scout_cue", language))}
-      </div>
-    `;
-
-    let postContent = "";
+    let secondarySection: SecondarySection | undefined;
     if (params.govArticles && params.govArticles.length > 0) {
       const govTitle = getString("government_municipal", language);
-      const govSummaryHtml = params.govSummary
-        ? `
-        <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid ${accent};">
-          ${markdownToHtml(params.govSummary, accent)}
-        </div>`
-        : "";
-      const govCards = renderArticleCards(params.govArticles, accent);
-      postContent = `
-        <div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-          <h3 style="margin: 0 0 16px 0; color: #333;">${escapeHtml(govTitle)}</h3>
-          ${govSummaryHtml}
-          ${govCards}
-        </div>`;
+      secondarySection = {
+        title: govTitle,
+        summary: params.govSummary,
+        articles: params.govArticles,
+      };
     }
 
     const html = buildBaseHtml({
+      variant: "beat",
+      eyebrowLabel: headerTitle,
+      contextLabel: (contextSource || params.scoutName).toUpperCase(),
       headerTitle,
-      headerSubtitle: escapeHtml(params.scoutName),
-      headerGradient: ["#7c3aed", "#6d28d9"],
-      accentColor: accent,
-      contextLabel,
+      headerSubtitle: params.scoutName,
       summary: params.summary,
       articles: params.articles,
       articlesSectionTitle: sectionTitle,
-      extraContent: pulseCue,
-      postContent,
+      cueText: getString("beat_scout_cue", language),
+      secondarySection,
       language,
     });
 
@@ -268,24 +319,17 @@ export async function sendCivicAlert(
   return guarded(svc, "civic", params.userId, params.runId, async (ctx) => {
     const language = params.language ?? ctx.language;
     const headerTitle = getString("civic_scout", language);
-    const cueText = getString("civic_scout_cue", language);
-
-    const civicCueHtml = `
-      <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
-        ${escapeHtml(cueText)}
-      </div>
-    `;
 
     const html = buildBaseHtml({
+      variant: "civic",
+      eyebrowLabel: headerTitle,
+      contextLabel: getString("key_findings", language),
       headerTitle,
-      headerSubtitle: escapeHtml(params.scoutName),
-      headerGradient: ["#d97706", "#b45309"],
-      accentColor: "#d97706",
-      contextLabel: headerTitle,
+      headerSubtitle: params.scoutName,
       summary: params.summary,
       articles: [],
       articlesSectionTitle: "",
-      extraContent: civicCueHtml,
+      cueText: getString("civic_scout_cue", language),
       language,
     });
 
@@ -310,56 +354,41 @@ export async function sendSocialAlert(
     const cueText = getString("social_scout_cue", language);
 
     const profileUrl = buildProfileUrl(params.platform, params.handle);
-    const safeProfileUrl = escapeHtml(profileUrl);
-    const safeHandle = escapeHtml(params.handle);
-
     const articles: Article[] = params.newPosts.slice(0, 5).map((p) => ({
       title: p.author ? `@${p.author}` : "New Post",
       summary: (p.text ?? "").slice(0, 150),
       url: p.url ?? "#",
       source: params.platform,
     }));
-
-    const extraContent = `
-      <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
-        <p style="margin: 0 0 4px 0; font-size: 12px; color: #666; text-transform: uppercase;">${
-      escapeHtml(profileLabel)
-    }</p>
-        <a href="${safeProfileUrl}" style="color: #e11d48; text-decoration: none;">${safeProfileUrl}</a>
-      </div>
-      <div style="margin-bottom: 16px; font-size: 12px; color: #9ca3af; font-style: italic;">
-        ${escapeHtml(cueText)}
-      </div>
-    `;
-
-    let postContent = "";
+    let cautionSection: CautionSection | undefined;
     if (params.removedPosts && params.removedPosts.length > 0) {
-      const removalLines = params.removedPosts.slice(0, 5).map((rp) =>
-        `<div style="margin-bottom: 8px; padding: 8px; background: #fff3f3; border-radius: 4px;">` +
-        `<span style="color: #dc2626; font-weight: 600;">${
-          escapeHtml(removedLabel)
-        }</span> ${escapeHtml(rp.captionTruncated)}</div>`
-      );
-      postContent =
-        `<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">` +
-        `<h3 style="margin: 0 0 12px 0; color: #333;">${
-          escapeHtml(removedPostsLabel)
-        }</h3>` +
-        removalLines.join("\n") +
-        `</div>`;
+      cautionSection = {
+        title: removedPostsLabel,
+        items: params.removedPosts.slice(0, 5).map((rp) =>
+          `${removedLabel} ${rp.captionTruncated}`
+        ),
+      };
     }
 
     const html = buildBaseHtml({
+      variant: "social",
+      eyebrowLabel: getString("social_scout", language),
+      contextLabel: `@${
+        params.handle.replace(/^@/, "")
+      } on ${params.platform.toUpperCase()}`,
       headerTitle,
-      headerSubtitle: escapeHtml(params.scoutName),
-      headerGradient: ["#e11d48", "#be123c"],
-      accentColor: "#e11d48",
-      contextLabel: `@${safeHandle} on ${escapeHtml(params.platform.toUpperCase())}`,
+      headerSubtitle: params.scoutName,
       summary: params.summary,
       articles,
       articlesSectionTitle: newPostsLabel,
-      extraContent,
-      postContent,
+      metadataPanels: [{
+        label: profileLabel,
+        value: profileUrl,
+        href: profileUrl,
+        valueColor: VARIANT_THEME.social.accent,
+      }],
+      cueText,
+      cautionSection,
       language,
     });
 
@@ -409,7 +438,9 @@ export async function sendCivicPromiseDigest(
     .slice(0, 20)
     .map((item) => {
       const escapedText = escapeMarkdown(item.promiseText);
-      const due = item.dueDate ? ` _(due ${item.dueDate})_` : "";
+      const due = item.dueDate
+        ? ` _(${getString("due_label", language)} ${item.dueDate})_`
+        : "";
       if (!item.sourceUrl) return `- **${escapedText}**${due}`;
       let label = item.sourceTitle?.trim() || "";
       if (!label) {
@@ -425,19 +456,21 @@ export async function sendCivicPromiseDigest(
     .join("\n");
 
   const n = params.items.length;
-  const nounPlural = n === 1 ? "promise" : "promises";
+  const digestSubtitle = getPromiseDueLabel(language, n);
   const html = buildBaseHtml({
-    headerTitle: "Civic Digest",
-    headerSubtitle: `${n} ${nounPlural} due today`,
-    headerGradient: ["#d97706", "#b45309"],
-    accentColor: "#d97706",
-    contextLabel: "Civic Digest",
+    variant: "digest",
+    eyebrowLabel: getString("civic_digest", language),
+    contextLabel: getString("civic_scout", language),
+    headerTitle: getString("civic_digest", language),
+    headerSubtitle: digestSubtitle,
     summary,
     articles: [],
     articlesSectionTitle: "",
     language,
   });
-  const subject = `📅 Civic Digest: ${n} ${nounPlural} due today`;
+  const subject = `📅 ${
+    getString("civic_digest", language)
+  }: ${digestSubtitle}`;
 
   try {
     return await sendWithRetry(resendKey, ctx.email, subject, html);
@@ -456,6 +489,30 @@ export async function sendCivicPromiseDigest(
 
 function escapeMarkdown(s: string): string {
   return s.replace(/[\[\]()*_]/g, (c) => `\\${c}`);
+}
+
+function getPromiseDueLabel(language: string, count: number): string {
+  return count === 1
+    ? getString("promise_due_today_singular", language, { count })
+    : getString("promise_due_today_plural", language, { count });
+}
+
+function getScoutTypeLabel(
+  scoutType: ScoutDeactivatedParams["scoutType"],
+  language: string,
+): string {
+  switch ((scoutType || "").toLowerCase()) {
+    case "web":
+      return getString("page_scout", language);
+    case "beat":
+      return getString("beat_scout", language);
+    case "civic":
+      return getString("civic_scout", language);
+    case "social":
+      return getString("social_scout", language);
+    default:
+      return scoutType || "Scout";
+  }
 }
 
 /**
@@ -494,22 +551,35 @@ export async function sendScoutDeactivated(
   }
 
   const language = params.language ?? ctx.language;
-  const summary =
-    `**${escapeMarkdown(params.scoutName)}** was paused after ` +
-    `${params.consecutiveFailures} consecutive failures. ` +
-    `Re-enable it in the dashboard once the issue is resolved.`;
+  const scoutTypeLabel = getScoutTypeLabel(params.scoutType, language);
+  const summary = getString("scout_paused_summary", language, {
+    name: escapeMarkdown(params.scoutName),
+    count: params.consecutiveFailures,
+  });
   const html = buildBaseHtml({
-    headerTitle: "Scout Paused",
-    headerSubtitle: escapeHtml(params.scoutName),
-    headerGradient: ["#991b1b", "#7f1d1d"],
-    accentColor: "#991b1b",
-    contextLabel: "Scout Health",
+    variant: "health",
+    eyebrowLabel: getString("scout_health", language),
+    contextLabel: scoutTypeLabel.toUpperCase(),
+    headerTitle: getString("scout_paused", language),
+    headerSubtitle: params.scoutName,
     summary,
     articles: [],
     articlesSectionTitle: "",
+    metadataPanels: [
+      {
+        label: getString("scout_type", language),
+        value: scoutTypeLabel,
+      },
+      {
+        label: getString("consecutive_failures", language),
+        value: String(params.consecutiveFailures),
+      },
+    ],
     language,
   });
-  const subject = `⚠️ Scout paused: ${params.scoutName}`;
+  const subject = `⚠️ ${
+    getString("scout_paused", language)
+  }: ${params.scoutName}`;
 
   try {
     return await sendWithRetry(resendKey, ctx.email, subject, html);
@@ -644,7 +714,9 @@ export async function resolveUserContext(
       .eq("user_id", userId)
       .maybeSingle();
     if (data) {
-      if (typeof data.preferred_language === "string" && data.preferred_language) {
+      if (
+        typeof data.preferred_language === "string" && data.preferred_language
+      ) {
         language = data.preferred_language;
       }
       if (typeof data.health_notifications_enabled === "boolean") {
@@ -744,39 +816,55 @@ function sleep(ms: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 interface BaseHtmlParams {
+  variant: NotificationVariant;
+  eyebrowLabel: string;
+  contextLabel?: string;
   headerTitle: string;
   headerSubtitle: string;
-  headerGradient: string | [string, string];
-  accentColor: string;
-  contextLabel: string;
   summary: string;
   articles: Article[];
   articlesSectionTitle: string;
-  extraContent?: string;
-  postContent?: string;
+  metadataPanels?: MetadataPanel[];
+  cueText?: string;
+  secondarySection?: SecondarySection;
+  cautionSection?: CautionSection;
   ctaText?: string;
   language: string;
 }
 
 export function buildBaseHtml(p: BaseHtmlParams): string {
-  const bgStyle = Array.isArray(p.headerGradient)
-    ? `linear-gradient(135deg, ${p.headerGradient[0]}, ${p.headerGradient[1]})`
-    : p.headerGradient;
+  const theme = VARIANT_THEME[p.variant];
+  const accentColor = theme.accent;
+  const accentSoft = theme.accentSoft;
 
-  const articlesHtml = renderArticleCards(p.articles, p.accentColor);
-  const articlesSection = p.articles.length > 0 && p.articlesSectionTitle
-    ? `
-      <h3 style="margin: 0 0 16px 0; color: #333;">${escapeHtml(p.articlesSectionTitle)}</h3>
-      ${articlesHtml}
-      `
+  const articlesHtml = renderArticleCards(p.articles, accentColor);
+  const summaryHtml = markdownToHtml(p.summary, accentColor);
+  const metadataHtml = p.metadataPanels?.length
+    ? renderMetadataPanels(p.metadataPanels, accentColor)
     : "";
-
-  const summaryHtml = markdownToHtml(p.summary, p.accentColor);
+  const cueHtml = p.cueText ? renderCueBlock(p.cueText, accentSoft) : "";
+  const articlesSection = p.articles.length > 0 && p.articlesSectionTitle
+    ? renderSection({
+      title: p.articlesSectionTitle,
+      content: articlesHtml,
+    })
+    : "";
+  const secondarySection = p.secondarySection
+    ? renderSection({
+      title: p.secondarySection.title,
+      summary: p.secondarySection.summary,
+      articles: p.secondarySection.articles ?? [],
+      accentColor,
+    })
+    : "";
+  const cautionSection = p.cautionSection
+    ? renderCautionSection(p.cautionSection, accentColor)
+    : "";
 
   const ctaSection = p.ctaText
     ? `
-      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center;">
-        <a href="https://cojournalist.ai" style="color: ${p.accentColor}; text-decoration: none; font-size: 14px;">
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid ${COLORS.border}; text-align: center;">
+        <a href="https://cojournalist.ai" style="color: ${accentColor}; text-decoration: none; font-size: 14px; font-family: ${FONT_BODY};">
           ${escapeHtml(p.ctaText)}
         </a>
       </div>`
@@ -790,32 +878,39 @@ export function buildBaseHtml(p: BaseHtmlParams): string {
 <head>
     <meta charset="utf-8">
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px;">
-    <div style="max-width: 600px; margin: 0 auto;">
-        <div style="background: ${bgStyle}; padding: 24px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">${escapeHtml(p.headerTitle)}</h1>
-            <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0;">${p.headerSubtitle}</p>
-        </div>
-        <div style="background: white; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-            <div style="margin-bottom: 16px;">
-                <span style="font-size: 12px; text-transform: uppercase; color: ${p.accentColor}; font-weight: 600;">
-                    ${p.contextLabel}
-                </span>
+<body style="margin: 0; padding: 24px 16px; background: ${COLORS.bg}; color: ${COLORS.ink}; font-family: ${FONT_BODY}; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; border: 1px solid ${COLORS.borderStrong}; background: ${COLORS.surfaceAlt};">
+        <div style="padding: 24px 24px 20px 24px; border-bottom: 1px solid ${COLORS.border}; background: ${COLORS.surfaceAlt};">
+            <div style="margin-bottom: 14px; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: ${accentColor};">
+                ${escapeHtml(p.eyebrowLabel)}${
+    p.contextLabel
+      ? `<span style="color: ${COLORS.inkSubtle};"> / ${
+        escapeHtml(p.contextLabel)
+      }</span>`
+      : ""
+  }
             </div>
-
-            ${p.extraContent ?? ""}
-
-            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid ${p.accentColor};">
+            <h1 style="margin: 0; font-family: ${FONT_DISPLAY}; font-size: 34px; line-height: 1.1; font-weight: 700; color: ${COLORS.ink};">
+                ${escapeHtml(p.headerTitle)}
+            </h1>
+            <p style="margin: 10px 0 0 0; font-family: ${FONT_BODY}; font-size: 16px; color: ${COLORS.inkMuted};">
+                ${escapeHtml(p.headerSubtitle)}
+            </p>
+        </div>
+        <div style="padding: 24px; background: ${COLORS.surfaceAlt};">
+            ${metadataHtml}
+            ${cueHtml}
+            <div style="margin-bottom: 20px; padding: 18px 18px 16px 18px; background: ${accentSoft}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor};">
+                <div style="margin: 0 0 8px 0; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: ${accentColor};">
+                    ${escapeHtml(getString("key_findings", p.language))}
+                </div>
                 ${summaryHtml}
             </div>
-
             ${articlesSection}
-
-            ${p.postContent ?? ""}
-
+            ${secondarySection}
+            ${cautionSection}
             ${ctaSection}
-
-            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #9ca3af; line-height: 1.5;">
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid ${COLORS.border}; text-align: center; font-size: 11px; color: ${COLORS.inkSubtle}; line-height: 1.5; font-family: ${FONT_BODY};">
                 ${disclaimer}
             </div>
         </div>
@@ -823,6 +918,96 @@ export function buildBaseHtml(p: BaseHtmlParams): string {
 </body>
 </html>
 `;
+}
+
+function renderMetadataPanels(
+  panels: MetadataPanel[],
+  accentColor: string,
+): string {
+  return `
+    <div style="margin-bottom: 20px;">
+      ${
+    panels.map((panel) => {
+      const value = panel.href
+        ? `<a href="${escapeHtml(panel.href)}" style="color: ${
+          panel.valueColor ?? accentColor
+        }; text-decoration: none; word-break: break-word;">${
+          escapeHtml(panel.value)
+        }</a>`
+        : escapeHtml(panel.value);
+      return `
+          <div style="margin-bottom: 10px; padding: 12px 14px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border};">
+            <div style="margin: 0 0 6px 0; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: ${COLORS.inkSubtle};">
+              ${escapeHtml(panel.label)}
+            </div>
+            <div style="font-family: ${FONT_BODY}; font-size: 14px; color: ${COLORS.ink};">
+              ${value}
+            </div>
+          </div>
+        `;
+    }).join("")
+  }
+    </div>
+  `;
+}
+
+function renderCueBlock(cueText: string, background: string): string {
+  return `
+    <div style="margin-bottom: 20px; padding: 12px 14px; background: ${background}; border: 1px solid ${COLORS.border}; font-family: ${FONT_BODY}; font-size: 13px; color: ${COLORS.inkMuted}; font-style: italic;">
+      ${escapeHtml(cueText)}
+    </div>
+  `;
+}
+
+function renderSection(
+  section: {
+    title: string;
+    summary?: string;
+    articles?: Article[];
+    content?: string;
+    accentColor?: string;
+  },
+): string {
+  const accentColor = section.accentColor ?? COLORS.primary;
+  const summaryHtml = section.summary
+    ? `<div style="margin-bottom: 14px; padding: 14px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor};">${
+      markdownToHtml(section.summary, accentColor)
+    }</div>`
+    : "";
+  const articlesHtml = section.articles?.length
+    ? renderArticleCards(section.articles, accentColor)
+    : "";
+
+  return `
+    <div style="margin-top: 24px;">
+      <div style="margin: 0 0 12px 0; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: ${accentColor};">
+        ${escapeHtml(section.title)}
+      </div>
+      ${section.content ?? ""}
+      ${summaryHtml}
+      ${articlesHtml}
+    </div>
+  `;
+}
+
+function renderCautionSection(
+  section: CautionSection,
+  accentColor: string,
+): string {
+  return `
+    <div style="margin-top: 24px; padding: 16px; background: ${COLORS.surfaceAlt}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor};">
+      <div style="margin: 0 0 10px 0; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: ${accentColor};">
+        ${escapeHtml(section.title)}
+      </div>
+      ${
+    section.items.map((item) =>
+      `<div style="margin-top: 8px; font-family: ${FONT_BODY}; font-size: 14px; color: ${COLORS.inkMuted};">${
+        escapeHtml(item)
+      }</div>`
+    ).join("")
+  }
+    </div>
+  `;
 }
 
 export function renderArticleCards(
@@ -845,20 +1030,20 @@ export function renderArticleCards(
     }
     const source = escapeHtml(article.source ?? "");
     const sourceHtml = source
-      ? `<span style="font-size: 12px; color: #999;">${source}</span>`
+      ? `<div style="margin-top: 10px; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: ${COLORS.inkSubtle};">${source}</div>`
       : "";
     const originalTitle = escapeHtml(article.originalTitle ?? "");
     const originalHtml = originalTitle
-      ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">Original: ${originalTitle}</div>`
+      ? `<div style="font-size: 11px; color: ${COLORS.inkSubtle}; margin-top: 6px; font-family: ${FONT_BODY};">Original: ${originalTitle}</div>`
       : "";
 
     out += `
-      <div style="margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
-        <a href="${url}" style="color: ${accentColor}; text-decoration: none; font-weight: 600;">
+      <div style="margin-bottom: 12px; padding: 14px 16px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor};">
+        <a href="${url}" style="color: ${COLORS.ink}; text-decoration: none; font-family: ${FONT_DISPLAY}; font-size: 22px; line-height: 1.2; font-weight: 700;">
           ${title}
         </a>
         ${originalHtml}
-        <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">
+        <p style="margin: 10px 0 0 0; color: ${COLORS.inkMuted}; font-size: 14px; font-family: ${FONT_BODY};">
           ${summary}
         </p>
         ${sourceHtml}
@@ -943,7 +1128,7 @@ export function markdownToHtml(text: string, accentColor = "#7c6fc7"): string {
         inList = false;
       }
       out.push(
-        `<h3 style="margin: 16px 0 8px 0; font-size: 16px; color: #333;">${
+        `<h3 style="margin: 16px 0 8px 0; font-size: 18px; line-height: 1.3; color: ${COLORS.ink}; font-family: ${FONT_DISPLAY};">${
           escapeHtml(stripped.slice(4))
         }</h3>`,
       );
@@ -955,7 +1140,7 @@ export function markdownToHtml(text: string, accentColor = "#7c6fc7"): string {
         inList = false;
       }
       out.push(
-        `<h2 style="margin: 20px 0 12px 0; font-size: 18px; color: #333;">${
+        `<h2 style="margin: 20px 0 12px 0; font-size: 24px; line-height: 1.2; color: ${COLORS.ink}; font-family: ${FONT_DISPLAY};">${
           escapeHtml(stripped.slice(3))
         }</h2>`,
       );
@@ -965,11 +1150,15 @@ export function markdownToHtml(text: string, accentColor = "#7c6fc7"): string {
     const listMatch = /^[-*\u2022]\s+(.+)$/.exec(stripped);
     if (listMatch) {
       if (!inList) {
-        out.push(`<ul style="margin: 8px 0; padding-left: 20px;">`);
+        out.push(
+          `<ul style="margin: 8px 0; padding-left: 20px; color: ${COLORS.inkMuted};">`,
+        );
         inList = true;
       }
       const item = processInlineMarkdown(listMatch[1], accentColor);
-      out.push(`<li style="margin: 4px 0; color: #333;">${item}</li>`);
+      out.push(
+        `<li style="margin: 4px 0; color: ${COLORS.inkMuted}; font-family: ${FONT_BODY};">${item}</li>`,
+      );
       continue;
     }
 
@@ -989,7 +1178,7 @@ export function markdownToHtml(text: string, accentColor = "#7c6fc7"): string {
 
     const processed = processInlineMarkdown(stripped, accentColor);
     out.push(
-      `<p style="margin: 8px 0; color: #333; line-height: 1.6;">${processed}</p>`,
+      `<p style="margin: 8px 0; color: ${COLORS.inkMuted}; line-height: 1.6; font-family: ${FONT_BODY};">${processed}</p>`,
     );
   }
 
@@ -1003,11 +1192,14 @@ function processInlineMarkdown(text: string, accentColor: string): string {
   const boldParts: string[] = [];
   const linkParts: Array<[string, string]> = [];
 
-  let t = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, a: string, b: string) => {
-    const idx = linkParts.length;
-    linkParts.push([a, b]);
-    return `\x00LINK${idx}\x00`;
-  });
+  let t = text.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    (_m, a: string, b: string) => {
+      const idx = linkParts.length;
+      linkParts.push([a, b]);
+      return `\x00LINK${idx}\x00`;
+    },
+  );
   t = t.replace(/\*\*([^*]+)\*\*/g, (_m, inner: string) => {
     const idx = boldParts.length;
     boldParts.push(inner);
@@ -1025,7 +1217,9 @@ function processInlineMarkdown(text: string, accentColor: string): string {
   linkParts.forEach(([linkText, linkUrl], idx) => {
     t = t.replace(
       `\x00LINK${idx}\x00`,
-      `<a href="${escapeHtml(linkUrl)}" style="color: ${accentColor}; text-decoration: none;">${
+      `<a href="${
+        escapeHtml(linkUrl)
+      }" style="color: ${accentColor}; text-decoration: none;">${
         escapeHtml(linkText)
       }</a>`,
     );

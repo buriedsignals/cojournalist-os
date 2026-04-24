@@ -3,7 +3,7 @@
 	import { MapPin, Tag, Calendar, Play, Trash2, ArrowLeft, X, Check } from 'lucide-svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import DemoBadge from '$lib/components/ui/DemoBadge.svelte';
-	import { SCOUT_TYPE_CONFIG } from '$lib/utils/scouts';
+	import { getScoutTypeDisplay } from '$lib/utils/scouts';
 	import type { Scout } from '$lib/types/workspace';
 
 	export let scout: Scout;
@@ -21,7 +21,7 @@
 		cancelDelete: { id: string };
 	}>();
 
-	$: cfg = SCOUT_TYPE_CONFIG[scout.type];
+	$: cfg = getScoutTypeDisplay(scout.type);
 
 	function locationDisplay(loc: unknown): string | null {
 		if (!loc || typeof loc !== 'object') return null;
@@ -80,8 +80,10 @@
 	<div class="scout-shell scout-focus {cfg.className}">
 		<div class="scout-shell-eyebrow-row">
 			<span class="scout-shell-eyebrow {cfg.className}">
-				<svelte:component this={cfg.icon} size={12} />
-				<span>{cfg.label}</span>
+				<span class="scout-shell-eyebrow-icon">
+					<svelte:component this={cfg.icon} size={12} />
+				</span>
+				<span class="scout-shell-eyebrow-label">{cfg.label}</span>
 			</span>
 			{#if demo}
 				<div class="scout-shell-actions">

@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { ArrowLeft, Copy, Check, ExternalLink, FileCode, Terminal, Plug, Bot } from 'lucide-svelte';
+	import { ArrowLeft, ExternalLink, FileCode, Terminal, Plug, Bot } from 'lucide-svelte';
 	import { authStore } from '$lib/stores/auth';
+	import SharpAction from '$lib/components/docs/SharpAction.svelte';
+	import SharpCodeBlock from '$lib/components/docs/SharpCodeBlock.svelte';
+	import SharpPanel from '$lib/components/docs/SharpPanel.svelte';
 
 	$: backHref = $authStore.authenticated ? '/' : '/login';
 
@@ -15,7 +18,6 @@
 			title: 'Scouts',
 			children: [
 				{ id: 'scout-page', title: 'Page Scout' },
-				{ id: 'scout-location', title: 'Location Scout' },
 				{ id: 'scout-beat', title: 'Beat Scout' },
 				{ id: 'scout-social', title: 'Social Scout' },
 				{ id: 'scout-civic', title: 'Civic Scout' }
@@ -47,7 +49,7 @@
 			children: [
 				{ id: 'recipe-triage', title: 'Daily triage' },
 				{ id: 'recipe-extract', title: 'Structured extraction' },
-				{ id: 'recipe-export', title: 'Export to CMS' }
+				{ id: 'recipe-lifecycle', title: 'Manage unit lifecycle' }
 			]
 		},
 		{
@@ -67,15 +69,6 @@
 
 	let activeId = 'intro';
 	let observer: IntersectionObserver | null = null;
-	let copiedKey: string | null = null;
-
-	function copy(key: string, text: string) {
-		navigator.clipboard.writeText(text);
-		copiedKey = key;
-		setTimeout(() => {
-			copiedKey = null;
-		}, 1500);
-	}
 
 	onMount(() => {
 		const ids: string[] = [];
@@ -124,23 +117,26 @@
 		name="description"
 		content="Reference for the coJournalist scouts API — MCP, REST, and CLI integrations for connecting your AI agent to monitoring jobs."
 	/>
+	<link rel="alternate" type="text/plain" title="docs.txt" href="/docs.txt" />
 	<link rel="alternate" type="text/plain" title="llms.txt" href="/llms.txt" />
 	<link rel="alternate" type="text/plain" title="llms-full.txt" href="/llms-full.txt" />
+	<link rel="alternate" type="text/markdown" title="coJournalist skill" href="/skills/cojournalist.md" />
+	<link rel="alternate" type="text/markdown" title="coJournalist setup skill" href="/skills/cojournalist-setup.md" />
 </svelte:head>
 
 <div class="docs">
-	<a href={backHref} class="mobile-back" aria-label="Back">
+	<SharpAction href={backHref} className="mobile-back" ariaLabel="Back">
 		<ArrowLeft size={14} />
 		<span>Back</span>
-	</a>
+	</SharpAction>
 
 	<div class="layout">
 		<aside class="sidebar" aria-label="Documentation table of contents">
 			<div class="sidebar-inner">
-				<a href={backHref} class="sidebar-back">
+				<SharpAction href={backHref} variant="ghost" size="sm" className="sidebar-back">
 					<ArrowLeft size={13} />
 					<span>Back</span>
-				</a>
+				</SharpAction>
 				<div class="sidebar-head">
 					<span class="eyebrow">Docs · v2</span>
 				</div>
@@ -172,6 +168,8 @@
 					<a href="/swagger">API reference</a>
 					<a href="#">Pricing</a>
 					<a href="/faq">FAQ</a>
+					<a href="/skills">Skills</a>
+					<a href="/docs.txt">docs.txt</a>
 					<a href="https://github.com/buriedsignals/cojournalist-os" target="_blank" rel="noopener noreferrer">
 						GitHub
 						<ExternalLink size={11} />
@@ -194,12 +192,12 @@
 						assistant — as a searchable knowledge base.
 					</p>
 					<div class="pills">
-						<a href="#quickstart" class="pill primary">Quickstart</a>
-						<a href="#mcp" class="pill">Connect via MCP</a>
-						<a href="/swagger" class="pill">API reference</a>
+						<SharpAction href="#quickstart" variant="primary" className="pill">Quickstart</SharpAction>
+						<SharpAction href="#mcp" className="pill">Connect via MCP</SharpAction>
+						<SharpAction href="/swagger" className="pill">API reference</SharpAction>
 					</div>
 
-					<aside class="callout llms">
+					<SharpPanel tone="soft" className="callout llms">
 						<div class="callout-head">
 							<Bot size={14} />
 							<strong>For AI assistants</strong>
@@ -212,13 +210,17 @@
 						<ul>
 							<li><a href="/llms.txt"><code>/llms.txt</code></a> — curated link index</li>
 							<li><a href="/llms-full.txt"><code>/llms-full.txt</code></a> — full flattened docs</li>
+							<li><a href="/docs.txt"><code>/docs.txt</code></a> — short text version of the public docs</li>
+							<li><a href="/skills"><code>/skills</code></a> — public skills index</li>
+							<li><a href="/skills/cojournalist.md"><code>/skills/cojournalist.md</code></a> — product skill</li>
+							<li><a href="/skills/cojournalist-setup.md"><code>/skills/cojournalist-setup.md</code></a> — setup skill</li>
 							<li>
 								<a href="/swagger"><code>/swagger</code></a> — interactive OpenAPI 3.1 browser; raw
 								spec at <code>/functions/v1/openapi-spec</code>
 							</li>
 							<li><code>/mcp</code> — MCP server endpoint (OAuth 2.1 required)</li>
 						</ul>
-					</aside>
+					</SharpPanel>
 				</header>
 
 				<!-- INTRODUCTION -->
@@ -241,7 +243,7 @@
 					</p>
 
 					<div class="grid-2">
-						<div class="card">
+						<SharpPanel className="card">
 							<h4>Who it's for</h4>
 							<ul>
 								<li>Local and investigative reporters monitoring beats</li>
@@ -249,8 +251,8 @@
 								<li>Researchers following social accounts and niche publications</li>
 								<li>Anyone who wants an AI assistant with editorial guardrails</li>
 							</ul>
-						</div>
-						<div class="card">
+						</SharpPanel>
+						<SharpPanel className="card">
 							<h4>What makes it different</h4>
 							<ul>
 								<li>Per-scout change baselines — only real changes fire</li>
@@ -258,7 +260,7 @@
 								<li>Entity resolution tracked longitudinally</li>
 								<li>OAuth-authenticated MCP server plus REST and CLI</li>
 							</ul>
-						</div>
+						</SharpPanel>
 					</div>
 				</section>
 
@@ -286,8 +288,9 @@
 								<h4>Create your first scout</h4>
 								<p>
 									Click <strong>+ New scout</strong> in the sidebar. Pick a type (start with Page
-									Scout or Location Scout), name it, paste a URL or a location, and schedule it
-									(daily / weekly / monthly). The first run establishes a baseline.
+									Scout or Beat Scout), name it, paste a URL, criteria, or a geography, and schedule it
+									(daily / weekly / monthly). Scheduling saves the current page as the baseline; only
+									later changes create inbox units.
 								</p>
 							</div>
 						</li>
@@ -344,15 +347,9 @@
 									<td>1 credit</td>
 								</tr>
 								<tr>
-									<td><a href="#scout-location"><code>pulse</code> — Location Scout</a></td>
-									<td>Local news for a geography, favouring niche sources</td>
-									<td>Location + optional criteria</td>
-									<td>7 credits</td>
-								</tr>
-								<tr>
-									<td><a href="#scout-beat"><code>pulse</code> — Beat Scout</a></td>
-									<td>Topic news across reliable outlets</td>
-									<td>Criteria (no location required)</td>
+									<td><a href="#scout-beat"><code>beat</code> — Beat Scout</a></td>
+									<td>Topic- or geography-scoped monitoring across niche or reliable outlets</td>
+									<td>Criteria, geography, or both</td>
 									<td>7 credits</td>
 								</tr>
 								<tr>
@@ -376,25 +373,18 @@
 						Point it at any URL. Uses Firecrawl <code>changeTracking</code> with a per-scout tag so
 						each scout has its own baseline — you can track ten variants of the same page without
 						interference. Only real content changes fire notifications. Optional topic filter lets
-						AI skip changes that don't match your criteria. First-run behaviour is controlled by
-						the "Import current page data" toggle: off (default) establishes baseline only; on
-						extracts the current content into your knowledge base as the first unit.
-					</p>
-
-					<h3 id="scout-location">Location Scout</h3>
-					<p>
-						Give it a place (city, neighbourhood, district). Location Scout generates
-						location-aware search queries in your preferred language (12 locales), favours niche
-						sources (local blogs, community publishers, regional sites) over national outlets, and
-						returns atomic facts that passed similarity dedup against your prior runs.
+						AI skip changes that don't match your criteria. Scheduling establishes a baseline only;
+						the inbox gets units later when the page changes and those changes survive extraction +
+						dedup.
 					</p>
 
 					<h3 id="scout-beat">Beat Scout</h3>
 					<p>
-						Same underlying <code>pulse</code> pipeline as Location Scout, but sourced from
-						established outlets (reliable mode) and criteria-driven rather than location-driven.
-						Use it to watch a topic across geographies — <em>housing supply decisions</em>,
-						<em>state AG activity</em>, <em>FCC filings</em> — where the where doesn't matter.
+						Beat Scout covers the product's recurring news-monitoring surface. It can be scoped by
+						criteria, geography, or both. In geography-heavy use cases it can favour niche local
+						sources; in topic-driven use cases it can focus on more established outlets. Use it to
+						watch a town, a district, or a topic such as <em>housing supply decisions</em>,
+						<em>state AG activity</em>, or <em>FCC filings</em>.
 					</p>
 
 					<h3 id="scout-social">Social Scout</h3>
@@ -409,8 +399,9 @@
 					<p>
 						Give it a council domain. Civic Scout discovers meeting pages, downloads agendas and
 						minutes (often PDFs), has Gemini extract <strong>promises</strong> — commitments,
-						deadlines, and dollar figures — with meeting-date context. Costs more because PDF
-						parsing and promise extraction are expensive.
+						deadlines, and dollar figures — with meeting-date context. Those promises dedup into the
+						same canonical unit layer as Page Scout and Beat Scout findings, so civic hits add
+						provenance instead of spawning parallel cards.
 					</p>
 				</section>
 
@@ -437,15 +428,16 @@
 					</p>
 
 					<h3 id="dedup">Deduplication</h3>
-					<p>Dedup operates at four layers, so nothing gets surfaced twice:</p>
+					<p>Dedup operates at four layers, with one canonical fact layer shared across all scouts:</p>
 					<ul>
 						<li>
-							<strong>Fact-level</strong> — semantic similarity on extracted facts. Six rewrites of
-							the same wire story become one unit.
+							<strong>Canonical fact-level</strong> — Page Scout, Beat Scout, Civic Scout, Social
+							Scout, and manual ingest all write through one canonical-unit layer. Repeats attach as
+							new provenance, not new cards.
 						</li>
 						<li>
-							<strong>Source-level</strong> — each unit stores every source URL, so your assistant
-							can cite the original and the follow-ups.
+							<strong>Source-level</strong> — each unit stores linked sources and linked scouts, so
+							your assistant can cite the original and the follow-ups.
 						</li>
 						<li>
 							<strong>Entity-level</strong> — entity resolution means "SRP", "Salt River Project",
@@ -485,21 +477,21 @@
 					</p>
 
 					<div class="surface-grid">
-						<a href="#mcp" class="surface">
+						<SharpPanel href="#mcp" className="surface">
 							<div class="surface-icon"><Plug size={18} /></div>
 							<h4>MCP</h4>
 							<p>For Claude Desktop, Cursor, Windsurf, Goose, any MCP client.</p>
-						</a>
-						<a href="#rest" class="surface">
+						</SharpPanel>
+						<SharpPanel href="#rest" className="surface">
 							<div class="surface-icon"><FileCode size={18} /></div>
 							<h4>REST API</h4>
 							<p>For ChatGPT Actions, custom agents, browser automations, scripts.</p>
-						</a>
-						<a href="#cli" class="surface">
+						</SharpPanel>
+						<SharpPanel href="#cli" className="surface">
 							<div class="surface-icon"><Terminal size={18} /></div>
 							<h4>CLI (<code>cojo</code>)</h4>
 							<p>Deno-based binary for terminal workflows and shell automation.</p>
-						</a>
+						</SharpPanel>
 					</div>
 
 					<h3 id="mcp">MCP server</h3>
@@ -509,29 +501,11 @@
 						OAuth dance — you never paste tokens. The endpoint is:
 					</p>
 
-					<div class="code-block">
-						<button
-							class="copy-btn"
-							on:click={() => copy('mcp-url', `${mcpOrigin}/mcp`)}
-							aria-label="Copy MCP URL"
-						>
-							{#if copiedKey === 'mcp-url'}<Check size={12} /> Copied{:else}<Copy size={12} /> Copy{/if}
-						</button>
-<pre><code>{mcpOrigin}/mcp</code></pre>
-					</div>
+					<SharpCodeBlock code={`${mcpOrigin}/mcp`} ariaLabel="Copy MCP URL" />
 
 					<p>Drop this into your MCP client config (example: <code>claude_desktop_config.json</code>):</p>
 
-					<div class="code-block">
-						<button
-							class="copy-btn"
-							on:click={() => copy('mcp-config', mcpConfig)}
-							aria-label="Copy MCP config"
-						>
-							{#if copiedKey === 'mcp-config'}<Check size={12} /> Copied{:else}<Copy size={12} /> Copy{/if}
-						</button>
-						<pre><code>{mcpConfig}</code></pre>
-					</div>
+					<SharpCodeBlock code={mcpConfig} ariaLabel="Copy MCP config" />
 
 					<p>Tools exposed over MCP (non-exhaustive):</p>
 					<div class="table-wrap">
@@ -547,11 +521,11 @@
 								<tr><td><code>get_scout</code></td><td>Fetch a scout by ID with latest run status</td></tr>
 								<tr><td><code>run_scout</code></td><td>Trigger an on-demand run (counts against credits)</td></tr>
 								<tr><td><code>list_units</code></td><td>List information units, filterable by scout / verified / time</td></tr>
-								<tr><td><code>search_units</code></td><td>Semantic search across units</td></tr>
-								<tr><td><code>promote_unit</code> / <code>reject_unit</code></td><td>Verification actions; stamps your user ID</td></tr>
-								<tr><td><code>list_entities</code></td><td>People, orgs, locations, documents</td></tr>
-								<tr><td><code>ingest_url</code></td><td>Ingest an ad-hoc URL into the knowledge base</td></tr>
-								<tr><td><code>export_project</code></td><td>Export a project as markdown or JSON</td></tr>
+								<tr><td><code>search_units</code></td><td>Semantic, keyword, or hybrid search across units</td></tr>
+								<tr><td><code>verify_unit</code> / <code>reject_unit</code></td><td>Verification actions; stamps your user ID</td></tr>
+								<tr><td><code>search_entities</code></td><td>People, orgs, locations, documents</td></tr>
+								<tr><td><code>ingest_content</code></td><td>Ingest an ad-hoc URL or text into the knowledge base</td></tr>
+								<tr><td><code>mark_unit_used</code></td><td>Mark a unit used in a published story</td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -564,28 +538,14 @@
 						<a href="/swagger">/swagger</a>; raw JSON at <code>/functions/v1/openapi-spec</code>.
 					</p>
 
-					<div class="code-block">
-						<button
-							class="copy-btn"
-							on:click={() =>
-								copy(
-									'rest-example',
-									`curl https://www.cojournalist.ai/functions/v1/scouts \\
+					<SharpCodeBlock
+						ariaLabel="Copy curl example"
+						code={`curl https://www.cojournalist.ai/functions/v1/scouts \\
   -H "Authorization: Bearer $COJO_TOKEN"
 
 curl "https://www.cojournalist.ai/functions/v1/units?verified=false&limit=20" \\
-  -H "Authorization: Bearer $COJO_TOKEN"`
-								)}
-							aria-label="Copy curl example"
-						>
-							{#if copiedKey === 'rest-example'}<Check size={12} /> Copied{:else}<Copy size={12} /> Copy{/if}
-						</button>
-<pre><code>{`curl https://www.cojournalist.ai/functions/v1/scouts \\
-  -H "Authorization: Bearer $COJO_TOKEN"
-
-curl "https://www.cojournalist.ai/functions/v1/units?verified=false&limit=20" \\
-  -H "Authorization: Bearer $COJO_TOKEN"`}</code></pre>
-					</div>
+  -H "Authorization: Bearer $COJO_TOKEN"`}
+					/>
 
 					<p>
 						Responses are JSON. Lists return a paginated envelope:
@@ -596,42 +556,32 @@ curl "https://www.cojournalist.ai/functions/v1/units?verified=false&limit=20" \\
 					<h3 id="cli">CLI</h3>
 					<p>
 						<code>cojo</code> is a tiny Deno-based binary that speaks the same REST API. Useful for
-						shell pipelines, nightly scripts, and piping Markdown exports into your clipboard or
-						static site generator.
+						shell pipelines, nightly scripts, and direct unit triage workflows.
 					</p>
 
-					<div class="code-block">
-						<button
-							class="copy-btn"
-							on:click={() =>
-								copy(
-									'cli-install',
-									`curl -L https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mac \\
+					<SharpCodeBlock
+						ariaLabel="Copy CLI install"
+						copyValue={`curl -L https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mac \\
   -o /usr/local/bin/cojo
 chmod +x /usr/local/bin/cojo
-cojo config set api_url=https://www.cojournalist.ai/api
-cojo config set auth_token=<cj_... API key>
-cojo scouts list`
-								)}
-							aria-label="Copy CLI install"
-						>
-							{#if copiedKey === 'cli-install'}<Check size={12} /> Copied{:else}<Copy size={12} /> Copy{/if}
-						</button>
-<pre><code>{`# Install (macOS)
+cojo config set api_url=https://www.cojournalist.ai/functions/v1
+cojo config set api_key=<cj_... API key>
+cojo scouts list`}
+						code={`# Install (macOS)
 curl -L https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mac \\
   -o /usr/local/bin/cojo
 chmod +x /usr/local/bin/cojo
 
 # Configure (generate a cj_... API key in the app: Agents → API → Create key)
-cojo config set api_url=https://www.cojournalist.ai/api
-cojo config set auth_token=<cj_... API key>
+cojo config set api_url=https://www.cojournalist.ai/functions/v1
+cojo config set api_key=<cj_... API key>
 
 # Use
 cojo scouts list
-cojo units list --since 7d --verified
+cojo units list --verified
 cojo units verify <id> --notes "Cross-checked with minutes"
-cojo export claude --project <id> --limit 50 | pbcopy`}</code></pre>
-					</div>
+cojo units search --query "zoning variance" --mode hybrid --project <id>`}
+					/>
 				</section>
 
 				<!-- COOKBOOK -->
@@ -640,7 +590,7 @@ cojo export claude --project <id> --limit 50 | pbcopy`}</code></pre>
 					<p>Worked examples. Copy, adapt, ship.</p>
 
 					<h3 id="recipe-triage">Daily triage with an AI assistant</h3>
-					<div class="recipe">
+					<SharpPanel className="recipe">
 						<div class="recipe-block">
 							<div class="recipe-label">You → Claude Desktop</div>
 							<p class="recipe-prompt">
@@ -654,23 +604,23 @@ cojo export claude --project <id> --limit 50 | pbcopy`}</code></pre>
 							<ol class="recipe-steps">
 								<li>Calls <code>list_scouts()</code> → finds Phoenix Council and Oakland local.</li>
 								<li>
-									Calls <code>list_units(scout_ids=[…], verified=false, since='7d')</code> → 9 units.
+									Calls <code>list_units(scout_id=…, verified=false)</code> → 9 units.
 								</li>
 								<li>
-									Calls <code>search_units(query='$M OR deadline OR by 2026')</code> → narrows to 4.
+									Calls <code>search_units(query_text='$M OR deadline OR by 2026', mode='hybrid')</code> → narrows to 4.
 								</li>
 								<li>Drafts a 150-word brief with source links.</li>
-								<li>Waits for your <code>promote_unit</code> / <code>reject_unit</code> calls.</li>
+								<li>Waits for your <code>verify_unit</code> / <code>reject_unit</code> calls.</li>
 							</ol>
 						</div>
 						<p class="recipe-note">
-							The assistant never publishes on its own. <code>promote_unit</code> is the editorial
+							The assistant never publishes on its own. <code>verify_unit</code> is the editorial
 							checkpoint — it stamps your user ID into the audit trail.
 						</p>
-					</div>
+					</SharpPanel>
 
 					<h3 id="recipe-extract">Structured extraction</h3>
-					<div class="recipe">
+					<SharpPanel className="recipe">
 						<div class="recipe-block">
 							<div class="recipe-label">You → ChatGPT (REST Action)</div>
 							<p class="recipe-prompt">
@@ -684,21 +634,20 @@ cojo export claude --project <id> --limit 50 | pbcopy`}</code></pre>
 							<code>/units/search</code> narrows to agenda-relevant ones → assistant renders the
 							table. All on-the-fly, no storage on your machine.
 						</p>
-					</div>
+					</SharpPanel>
 
-					<h3 id="recipe-export">Export to CMS</h3>
-					<div class="recipe">
-<pre><code>{`# Export a project as Claude-flavoured Markdown and pipe into your CMS
-cojo export claude --project phoenix-council --limit 50 \\
-  | pandoc -f markdown -t html \\
-  | curl -X POST https://cms.example.com/api/drafts \\
-      -H "Authorization: Bearer $CMS_TOKEN" \\
-      -H "Content-Type: text/html" --data-binary @-`}</code></pre>
+					<h3 id="recipe-lifecycle">Manage unit lifecycle</h3>
+					<SharpPanel className="recipe">
+<pre><code>{`# Mark facts as published once they make it into a story
+cojo units mark-used <unit-id> --url https://cms.example.com/story/slug
+
+# Soft-delete facts you want out of the active pool
+cojo units delete <unit-id>`}</code></pre>
 						<p class="recipe-note">
-							Swap <code>--format claude</code> for <code>json</code> or
-							<code>markdown</code> depending on downstream needs.
+							Agents can keep working from the same searchable unit pool while these lifecycle
+							flags track what has been reviewed, published, or removed.
 						</p>
-					</div>
+					</SharpPanel>
 				</section>
 
 				<!-- REFERENCE -->
@@ -722,6 +671,10 @@ cojo export claude --project phoenix-council --limit 50 \\
 								<tr><td>Swagger UI</td><td><a href="/swagger">/swagger</a></td></tr>
 								<tr><td>llms.txt</td><td><a href="/llms.txt">/llms.txt</a></td></tr>
 								<tr><td>llms-full.txt</td><td><a href="/llms-full.txt">/llms-full.txt</a></td></tr>
+								<tr><td>docs.txt</td><td><a href="/docs.txt">/docs.txt</a></td></tr>
+								<tr><td>skills</td><td><a href="/skills">/skills</a></td></tr>
+								<tr><td>Product skill</td><td><a href="/skills/cojournalist.md">/skills/cojournalist.md</a></td></tr>
+								<tr><td>Setup skill</td><td><a href="/skills/cojournalist-setup.md">/skills/cojournalist-setup.md</a></td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -750,13 +703,13 @@ cojo export claude --project phoenix-council --limit 50 \\
 								<tr><td>POST</td><td><code>/projects</code></td><td>Create a project</td></tr>
 								<tr><td>GET</td><td><code>/scouts</code></td><td>List scouts</td></tr>
 								<tr><td>POST</td><td><code>/scouts</code></td><td>Create a scout</td></tr>
-								<tr><td>POST</td><td><code>/execute-scout</code></td><td>Trigger a scout run</td></tr>
+								<tr><td>POST</td><td><code>/scouts/:id/run</code></td><td>Trigger a scout run</td></tr>
 								<tr><td>GET</td><td><code>/units</code></td><td>List information units</td></tr>
-								<tr><td>POST</td><td><code>/units/search</code></td><td>Semantic search</td></tr>
-								<tr><td>POST</td><td><code>/units/:id/verify</code></td><td>Promote a unit</td></tr>
+								<tr><td>POST</td><td><code>/units/search</code></td><td>Semantic, keyword, or hybrid search</td></tr>
+								<tr><td>PATCH</td><td><code>/units/:id</code></td><td>Verify, reject, or mark used</td></tr>
 								<tr><td>GET</td><td><code>/entities</code></td><td>List resolved entities</td></tr>
 								<tr><td>POST</td><td><code>/ingest</code></td><td>Ingest a URL or raw text</td></tr>
-								<tr><td>POST</td><td><code>/export-claude</code></td><td>Export project as Claude-flavoured Markdown</td></tr>
+								<tr><td>DELETE</td><td><code>/units/:id</code></td><td>Soft-delete a unit</td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -785,7 +738,7 @@ cojo export claude --project phoenix-council --limit 50 \\
 							</thead>
 							<tbody>
 								<tr><td>Page Scout run (<code>web</code>)</td><td>1</td></tr>
-								<tr><td>Location / Beat Scout run (<code>pulse</code>)</td><td>7</td></tr>
+								<tr><td>Beat Scout run (<code>beat</code>)</td><td>7</td></tr>
 								<tr><td>Social Scout — Instagram / X / TikTok</td><td>2</td></tr>
 								<tr><td>Social Scout — Facebook</td><td>15</td></tr>
 								<tr><td>Civic Scout run (weekly or monthly only)</td><td>10 <small>(refunded when a run queues 0 docs)</small></td></tr>
@@ -860,36 +813,19 @@ cojo export claude --project phoenix-council --limit 50 \\
 	.docs {
 		min-height: 100vh;
 		background: var(--color-bg);
-		font-family: 'DM Sans', -apple-system, system-ui, sans-serif;
+		font-family: var(--font-body);
 		color: var(--color-ink);
 	}
 
-	.mobile-back {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 1rem 1.5rem 0.25rem;
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--color-ink-muted);
-		text-decoration: none;
-		transition: color 0.15s ease;
+	:global(.mobile-back) {
+		margin-top: 1rem;
+		margin-left: 1.5rem;
 	}
-	.mobile-back:hover { color: var(--color-primary-deep); }
-	@media (min-width: 960px) { .mobile-back { display: none; } }
+	@media (min-width: 960px) { :global(.mobile-back) { display: none; } }
 
-	.sidebar-back {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
+	:global(.sidebar-back) {
 		margin-bottom: 1.5rem;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--color-ink-subtle);
-		text-decoration: none;
-		transition: color 0.15s ease;
 	}
-	.sidebar-back:hover { color: var(--color-primary-deep); }
 
 	.layout {
 		display: grid;
@@ -947,7 +883,7 @@ cojo export claude --project phoenix-council --limit 50 \\
 		font-size: 0.8125rem;
 		color: var(--color-ink-muted);
 		text-decoration: none;
-		border-radius: 0.375rem;
+		border-radius: 0;
 		line-height: 1.4;
 		transition: background 0.12s ease, color 0.12s ease;
 	}
@@ -979,7 +915,7 @@ cojo export claude --project phoenix-council --limit 50 \\
 	.hero { margin-bottom: 4rem; }
 
 	.hero h1 {
-		font-family: 'Crimson Pro', Georgia, serif;
+		font-family: var(--font-display);
 		font-size: clamp(2rem, 4vw, 2.75rem);
 		font-weight: 600;
 		line-height: 1.2;
@@ -1002,45 +938,22 @@ cojo export claude --project phoenix-council --limit 50 \\
 		gap: 0.5rem;
 		margin-top: 1.5rem;
 	}
-	.pill {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.4375rem 0.875rem;
-		border-radius: 999px;
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		background: white;
+	:global(.pill) {
 		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--color-ink);
-		text-decoration: none;
-		transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
-	}
-	.pill:hover { border-color: rgba(78, 44, 120, 0.4); color: var(--color-primary-deep); }
-	.pill.primary {
-		background: var(--color-ink);
-		color: var(--color-bg);
-		border-color: var(--color-ink);
-	}
-	.pill.primary:hover {
-		background: var(--color-ink);
-		color: white;
 	}
 
-	.callout {
+	:global(.callout) {
 		margin-top: 2rem;
 		padding: 1rem 1.125rem;
-		background: rgba(107, 63, 160, 0.06);
-		border: 1px solid rgba(107, 63, 160, 0.2);
-		border-radius: 0.75rem;
 	}
-	.callout.llms ul {
+	:global(.callout.llms ul) {
 		margin: 0.5rem 0 0 0;
 		padding-left: 1.125rem;
 		font-size: 0.8125rem;
 		line-height: 1.8;
 		color: var(--color-ink-muted);
 	}
-	.callout.llms p {
+	:global(.callout.llms p) {
 		margin: 0;
 		font-size: 0.8125rem;
 		line-height: 1.6;
@@ -1061,7 +974,7 @@ cojo export claude --project phoenix-council --limit 50 \\
 	section { margin-top: 4rem; scroll-margin-top: 2rem; }
 
 	section h2 {
-		font-family: 'Crimson Pro', Georgia, serif;
+		font-family: var(--font-display);
 		font-size: 1.875rem;
 		font-weight: 600;
 		color: var(--color-ink);
@@ -1070,7 +983,7 @@ cojo export claude --project phoenix-council --limit 50 \\
 	}
 
 	section h3 {
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--font-body);
 		font-size: 1.0625rem;
 		font-weight: 600;
 		color: var(--color-ink);
@@ -1080,7 +993,7 @@ cojo export claude --project phoenix-council --limit 50 \\
 	}
 
 	h4 {
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--font-body);
 		font-size: 0.9375rem;
 		font-weight: 600;
 		color: var(--color-ink);
@@ -1113,59 +1026,25 @@ cojo export claude --project phoenix-council --limit 50 \\
 	a:hover { text-decoration: underline; }
 
 	code {
-		font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-family: var(--font-mono);
 		font-size: 0.8125em;
 		padding: 0.0625rem 0.375rem;
 		background: rgba(107, 63, 160, 0.08);
 		color: var(--color-primary);
-		border-radius: 0.25rem;
+		border-radius: 0;
 		font-weight: 500;
 	}
 
 	pre {
-		position: relative;
 		margin: 0.75rem 0 1rem 0;
-		padding: 1rem 1.125rem;
-		background: var(--color-ink);
-		color: var(--color-surface);
-		border-radius: 0.625rem;
 		font-size: 0.75rem;
 		line-height: 1.6;
-		overflow-x: auto;
 	}
 	pre code {
 		background: transparent;
 		color: inherit;
 		padding: 0;
 		font-weight: 400;
-	}
-
-	.code-block {
-		position: relative;
-	}
-	.code-block pre { padding-right: 4.75rem; }
-	.copy-btn {
-		position: absolute;
-		top: 0.625rem;
-		right: 0.625rem;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		padding: 0.25rem 0.5rem;
-		font-family: inherit;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		color: var(--color-border-strong);
-		background: rgba(255, 255, 255, 0.08);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 0.375rem;
-		cursor: pointer;
-		transition: background 0.15s ease, color 0.15s ease;
-		z-index: 1;
-	}
-	.copy-btn:hover {
-		background: rgba(255, 255, 255, 0.14);
-		color: white;
 	}
 
 	.grid-2 {
@@ -1178,20 +1057,17 @@ cojo export claude --project phoenix-council --limit 50 \\
 		.grid-2 { grid-template-columns: 1fr 1fr; }
 	}
 
-	.card {
+	:global(.card) {
 		padding: 1.125rem 1.25rem;
-		background: white;
-		border: 1px solid rgba(0, 0, 0, 0.06);
-		border-radius: 0.875rem;
 	}
-	.card h4 { margin-bottom: 0.625rem; }
-	.card ul {
+	:global(.card h4) { margin-bottom: 0.625rem; }
+	:global(.card ul) {
 		margin: 0;
 		padding-left: 1.125rem;
 		font-size: 0.8125rem;
 		line-height: 1.6;
 	}
-	.card ul li { margin-bottom: 0.25rem; }
+	:global(.card ul li) { margin-bottom: 0.25rem; }
 
 	.steps {
 		list-style: none;
@@ -1213,8 +1089,9 @@ cojo export claude --project phoenix-council --limit 50 \\
 		justify-content: center;
 		width: 1.75rem;
 		height: 1.75rem;
-		border-radius: 999px;
-		background: rgba(107, 63, 160, 0.12);
+		border-radius: 0;
+		border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+		background: rgba(107, 63, 160, 0.08);
 		color: var(--color-primary-deep);
 		font-size: 0.75rem;
 		font-weight: 700;
@@ -1225,9 +1102,9 @@ cojo export claude --project phoenix-council --limit 50 \\
 	.table-wrap {
 		margin: 0.75rem 0 1.25rem 0;
 		border: 1px solid rgba(0, 0, 0, 0.06);
-		border-radius: 0.75rem;
+		border-radius: 0;
 		overflow: hidden;
-		background: white;
+		background: var(--color-surface-alt);
 	}
 	.table-wrap table {
 		width: 100%;
@@ -1256,19 +1133,11 @@ cojo export claude --project phoenix-council --limit 50 \\
 	@media (min-width: 720px) {
 		.surface-grid { grid-template-columns: repeat(3, 1fr); }
 	}
-	.surface {
+	:global(.surface) {
 		display: block;
 		padding: 1rem 1.125rem;
-		background: white;
-		border: 1px solid rgba(0, 0, 0, 0.06);
-		border-radius: 0.75rem;
 		text-decoration: none;
 		color: var(--color-ink);
-		transition: border-color 0.15s ease, transform 0.15s ease;
-	}
-	.surface:hover {
-		border-color: rgba(78, 44, 120, 0.35);
-		transform: translateY(-1px);
 	}
 	.surface-icon {
 		display: inline-flex;
@@ -1276,25 +1145,23 @@ cojo export claude --project phoenix-council --limit 50 \\
 		justify-content: center;
 		width: 2rem;
 		height: 2rem;
-		border-radius: 0.5rem;
+		border-radius: 0;
+		border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
 		background: rgba(107, 63, 160, 0.1);
 		color: var(--color-primary-deep);
 		margin-bottom: 0.5rem;
 	}
-	.surface h4 { margin: 0 0 0.25rem 0; }
-	.surface p {
+	:global(.surface h4) { margin: 0 0 0.25rem 0; }
+	:global(.surface p) {
 		margin: 0;
 		font-size: 0.8125rem;
 		line-height: 1.5;
 		color: var(--color-ink-muted);
 	}
 
-	.recipe {
+	:global(.recipe) {
 		margin: 0.75rem 0 1.5rem 0;
 		padding: 1.125rem 1.25rem;
-		background: white;
-		border: 1px solid rgba(0, 0, 0, 0.06);
-		border-radius: 0.875rem;
 	}
 	.recipe-block {
 		margin-bottom: 0.875rem;
@@ -1311,7 +1178,7 @@ cojo export claude --project phoenix-council --limit 50 \\
 		padding: 0.75rem 0.875rem;
 		background: rgba(107, 63, 160, 0.06);
 		border-left: 3px solid var(--color-primary);
-		border-radius: 0.375rem;
+		border-radius: 0;
 		font-size: 0.875rem;
 		line-height: 1.6;
 		margin: 0;

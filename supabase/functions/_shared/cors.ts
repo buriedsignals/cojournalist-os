@@ -2,7 +2,7 @@
  * CORS headers and preflight handling for Edge Functions.
  */
 
-const ALLOWED_METHODS = "GET, POST, PATCH, DELETE, OPTIONS";
+const ALLOWED_METHODS = "GET, HEAD, POST, PATCH, DELETE, OPTIONS";
 const ALLOWED_HEADERS =
   "authorization, content-type, x-service-key, x-client-info, apikey";
 const MAX_AGE = "86400";

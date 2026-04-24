@@ -48,6 +48,11 @@ export interface ExtractedUnit {
   entities?: string[];
 }
 
+export interface ExtractionResult {
+  units: ExtractedUnit[];
+  isListingPage: boolean;
+}
+
 const EXTRACTION_SCHEMA: Record<string, unknown> = {
   type: "object",
   properties: {
@@ -65,8 +70,9 @@ const EXTRACTION_SCHEMA: Record<string, unknown> = {
         required: ["statement", "type"],
       },
     },
+    isListingPage: { type: "boolean" },
   },
-  required: ["units"],
+  required: ["units", "isListingPage"],
 };
 
 /**
@@ -80,6 +86,15 @@ const EXTRACTION_SCHEMA: Record<string, unknown> = {
  */
 function systemPrompt(language: string): string {
   return `You are a journalist's research assistant. Extract atomic information units from news articles.
+
+LISTING PAGE REFUSAL — CHECK THIS FIRST:
+If the input is an overview, index, or listing page — IMMEDIATELY return { "units": [], "isListingPage": true } and stop.
+A page is a listing page when ANY of the following is true:
+  • It shows 3 or more distinct article teasers, headlines, or summaries that each link to a separate full article.
+  • It has no single coherent article body — only snippets or excerpts with "read more" / "weiterlesen" links.
+  • The URL path contains any of: /medienmitteilungen/, /pressemitteilungen/, /aktuelles/, /news/, /veranstaltungen/, /archiv/, /artikel/, /blog/, /presse/ (when used as a section index, not a single post).
+  • The page title or heading uses archive/index framing: "Press releases", "News", "Medienmitteilungen", "Alle Artikel", "Archive", etc.
+DO NOT extract units from teasers. DO NOT fabricate articles from summaries. Return isListingPage: true and stop.
 
 CRITICAL RULE - 5W1H COMPLETENESS:
 Every statement MUST be understandable without reading the original article.
@@ -137,19 +152,22 @@ export interface ExtractSourceInput {
   criteria?: string | null;
   /** Max units per article. Prod uses 3 for search-based, 8 for web pages. */
   maxUnits?: number;
-  /** Max content characters passed to Gemini. Prod: 3000 pulse / 6000 web. */
+  /** Max content characters passed to Gemini. Prod: 3000 beat / 6000 web. */
   contentLimit?: number;
+  /** Optional Gemini request timeout override for this extraction call. */
+  timeoutMs?: number;
 }
 
 /**
  * Extract atomic units from a single article.
  *
- * Returns [] on any extraction failure — callers decide whether to fail
- * the whole run. This mirrors atomic_unit_service's error handling.
+ * Returns { units: [], isListingPage: false } on any extraction failure —
+ * callers decide whether to fail the whole run. This mirrors atomic_unit_service's
+ * error handling.
  */
 export async function extractAtomicUnits(
   input: ExtractSourceInput,
-): Promise<ExtractedUnit[]> {
+): Promise<ExtractionResult> {
   const {
     title,
     content,
@@ -159,9 +177,10 @@ export async function extractAtomicUnits(
     criteria,
     maxUnits = 3,
     contentLimit = 3000,
+    timeoutMs,
   } = input;
 
-  if (!content.trim()) return [];
+  if (!content.trim()) return { units: [], isListingPage: false };
 
   let sourceDomain = "";
   try {
@@ -176,8 +195,7 @@ export async function extractAtomicUnits(
     ? `\nCRITERIA (only extract units relevant to this): ${criteria}\n`
     : "";
 
-  const userPrompt =
-    `Extract atomic information units from this article.\n\n` +
+  const userPrompt = `Extract atomic information units from this article.\n\n` +
     `CURRENT DATE: ${today}\n` +
     `ARTICLE PUBLISHED: ${publishedDate ?? "unknown"}\n` +
     `ARTICLE TITLE: ${title ?? "(no title)"}\n` +
@@ -188,13 +206,14 @@ export async function extractAtomicUnits(
     `Extract 1-${maxUnits} atomic units. If the article lacks concrete facts, return an empty list.`;
 
   try {
-    const result = await geminiExtract<{ units: ExtractedUnit[] }>(
+    const result = await geminiExtract<ExtractionResult>(
       userPrompt,
       EXTRACTION_SCHEMA,
-      { systemInstruction: systemPrompt(langName) },
+      { systemInstruction: systemPrompt(langName), timeoutMs },
     );
     const units = Array.isArray(result?.units) ? result.units : [];
-    return units
+    const isListingPage = Boolean(result?.isListingPage);
+    const filtered = units
       .filter((u) =>
         u && typeof u.statement === "string" && u.statement.trim().length > 0
       )
@@ -202,8 +221,9 @@ export async function extractAtomicUnits(
         ["fact", "event", "entity_update"].includes(u.type ?? "fact")
       )
       .slice(0, maxUnits);
+    return { units: filtered, isListingPage };
   } catch {
-    return [];
+    return { units: [], isListingPage: false };
   }
 }
 
@@ -215,10 +235,13 @@ export async function extractAtomicUnits(
  * (article:published_time) then fall back. Returns YYYY-MM-DD or null.
  */
 export function publishedDateFromScrape(
-  scrape: ScrapeResult | { metadata?: Record<string, unknown> } & Record<string, unknown>,
+  scrape:
+    | ScrapeResult
+    | { metadata?: Record<string, unknown> } & Record<string, unknown>,
 ): string | null {
-  const md = (scrape as unknown as { metadata?: Record<string, unknown> }).metadata ??
-    (scrape as Record<string, unknown>);
+  const md =
+    (scrape as unknown as { metadata?: Record<string, unknown> }).metadata ??
+      (scrape as Record<string, unknown>);
   const candidates = [
     md["article:published_time"],
     md["publishedTime"],
