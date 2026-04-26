@@ -324,9 +324,18 @@ Deno.test("renderArticleCards escapes title HTML", () => {
 
 Deno.test("buildBaseHtml uses the editorial shell instead of the legacy gradient card", () => {
   const html = renderBeatScoutHtml();
-  assertStringIncludes(html, "background: #F5EFE3");
-  assertStringIncludes(html, "background: #F9F4E9");
+  assertStringIncludes(html, 'meta name="color-scheme" content="light dark"');
+  assertStringIncludes(
+    html,
+    'meta name="supported-color-schemes" content="light dark"',
+  );
+  assertStringIncludes(html, 'bgcolor="#F6F1E8"');
+  assertStringIncludes(html, "background: #F6F1E8");
+  assertStringIncludes(html, "background: #FFFDF9");
+  assertStringIncludes(html, "background: #FFFFFF");
   assertStringIncludes(html, "font-family: 'Courier New', Courier, monospace");
+  assertStringIncludes(html, "color: #1F1A17");
+  assertStringIncludes(html, "color: #4B433B");
   assertStringIncludes(html, "border-left: 3px solid #6B3FA0");
   assert(!html.includes("linear-gradient("));
   assert(!html.includes("border-radius"));
@@ -370,6 +379,7 @@ Deno.test("Social Scout renders caution section only when removed posts exist", 
   assert(!withoutRemoved.includes(EMAIL_STRINGS.en.removed_posts));
   assertStringIncludes(withRemoved, EMAIL_STRINGS.en.removed_posts);
   assertStringIncludes(withRemoved, EMAIL_STRINGS.en.profile_label);
+  assertStringIncludes(withRemoved, "background: #F7F3EC");
 });
 
 Deno.test("Civic Digest renders in the editorial shell", () => {

@@ -171,11 +171,6 @@ function handleVideoReady() {
 
 <slot />
 
-{#if $page.url.pathname !== '/login'}
-		open={feedbackModalOpen}
-		on:close={() => (feedbackModalOpen = false)}
-	/>
-{/if}
 
 {#if !isSupabaseDeployment}
 	<OnboardingModal

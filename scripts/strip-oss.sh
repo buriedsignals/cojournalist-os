@@ -210,8 +210,20 @@ rm -f frontend/src/lib/components/modals/FeedbackModal.svelte
 sed_if_exists -i "/import BugReportButton from/d" frontend/src/routes/+layout.svelte
 sed_if_exists -i "/import FeedbackModal from/d" frontend/src/routes/+layout.svelte
 sed_if_exists -i "/let feedbackModalOpen/d" frontend/src/routes/+layout.svelte
-sed_if_exists -i "/BugReportButton/d" frontend/src/routes/+layout.svelte
-sed_if_exists -i "/FeedbackModal/d" frontend/src/routes/+layout.svelte
+python3 - <<'PY'
+from pathlib import Path
+import re
+
+p = Path("frontend/src/routes/+layout.svelte")
+text = p.read_text()
+text = re.sub(
+    r"\n\{#if \$page\.url\.pathname !== '/login'\}\n\t<BugReportButton on:open=\{\(\) => \(feedbackModalOpen = true\)\} />\n\t<FeedbackModal\n\t\topen=\{feedbackModalOpen\}\n\t\ton:close=\{\(\) => \(feedbackModalOpen = false\)\}\n\t/>\n\{/if\}\n",
+    "\n",
+    text,
+    flags=re.MULTILINE,
+)
+p.write_text(text)
+PY
 
 # Backend: strip feedback router import and mount from main.py
 sed -i '/^    feedback,$/d' backend/app/main.py

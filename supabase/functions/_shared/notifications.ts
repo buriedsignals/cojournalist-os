@@ -155,18 +155,19 @@ interface CautionSection {
 }
 
 const COLORS = {
-  bg: "#F5EFE3",
-  surface: "#EBE4D4",
-  surfaceAlt: "#F9F4E9",
+  bg: "#F6F1E8",
+  surface: "#FFFFFF",
+  surfaceAlt: "#FFFDF9",
+  surfaceMuted: "#F7F3EC",
   primary: "#6B3FA0",
-  primarySoft: "#E7DBF1",
+  primarySoft: "#FBF8FF",
   secondary: "#C77A1D",
-  secondarySoft: "#F4E7CF",
-  ink: "#201A2A",
-  inkMuted: "#6E6380",
-  inkSubtle: "#9A8FAA",
-  border: "#D9D0BE",
-  borderStrong: "#B8AC93",
+  secondarySoft: "#FFF9F1",
+  ink: "#1F1A17",
+  inkMuted: "#4B433B",
+  inkSubtle: "#5A5148",
+  border: "#D5C7B6",
+  borderStrong: "#AB9986",
   success: "#2F8F5F",
   error: "#B33E2E",
   info: "#3F5EA6",
@@ -182,7 +183,7 @@ const VARIANT_THEME: Record<
 > = {
   page: {
     accent: COLORS.info,
-    accentSoft: "#E4EAF6",
+    accentSoft: "#F7FBFF",
   },
   beat: {
     accent: COLORS.primary,
@@ -194,7 +195,7 @@ const VARIANT_THEME: Record<
   },
   social: {
     accent: COLORS.error,
-    accentSoft: "#F3E4E2",
+    accentSoft: "#FFF7F8",
   },
   digest: {
     accent: COLORS.secondary,
@@ -202,7 +203,7 @@ const VARIANT_THEME: Record<
   },
   health: {
     accent: COLORS.error,
-    accentSoft: "#F3E4E2",
+    accentSoft: "#FFF7F8",
   },
 };
 
@@ -877,10 +878,16 @@ export function buildBaseHtml(p: BaseHtmlParams): string {
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
 </head>
-<body style="margin: 0; padding: 24px 16px; background: ${COLORS.bg}; color: ${COLORS.ink}; font-family: ${FONT_BODY}; line-height: 1.6;">
-    <div style="max-width: 640px; margin: 0 auto; border: 1px solid ${COLORS.borderStrong}; background: ${COLORS.surfaceAlt};">
-        <div style="padding: 24px 24px 20px 24px; border-bottom: 1px solid ${COLORS.border}; background: ${COLORS.surfaceAlt};">
+<body bgcolor="${COLORS.bg}" style="margin: 0; padding: 0; background: ${COLORS.bg}; color: ${COLORS.ink}; font-family: ${FONT_BODY}; line-height: 1.6;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="${COLORS.bg}" style="width: 100%; background: ${COLORS.bg};">
+      <tr>
+        <td align="center" bgcolor="${COLORS.bg}" style="padding: 24px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="${COLORS.surfaceAlt}" style="width: 100%; max-width: 640px; border: 1px solid ${COLORS.borderStrong}; background: ${COLORS.surfaceAlt};">
+            <tr>
+              <td bgcolor="${COLORS.surfaceAlt}" style="padding: 24px 24px 20px 24px; border-bottom: 1px solid ${COLORS.border}; background: ${COLORS.surfaceAlt};">
             <div style="margin-bottom: 14px; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: ${accentColor};">
                 ${escapeHtml(p.eyebrowLabel)}${
     p.contextLabel
@@ -896,11 +903,13 @@ export function buildBaseHtml(p: BaseHtmlParams): string {
             <p style="margin: 10px 0 0 0; font-family: ${FONT_BODY}; font-size: 16px; color: ${COLORS.inkMuted};">
                 ${escapeHtml(p.headerSubtitle)}
             </p>
-        </div>
-        <div style="padding: 24px; background: ${COLORS.surfaceAlt};">
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor="${COLORS.surfaceAlt}" style="padding: 24px; background: ${COLORS.surfaceAlt};">
             ${metadataHtml}
             ${cueHtml}
-            <div style="margin-bottom: 20px; padding: 18px 18px 16px 18px; background: ${accentSoft}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor};">
+            <div bgcolor="${accentSoft}" style="margin-bottom: 20px; padding: 18px 18px 16px 18px; background: ${accentSoft}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor}; color: ${COLORS.ink};">
                 <div style="margin: 0 0 8px 0; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: ${accentColor};">
                     ${escapeHtml(getString("key_findings", p.language))}
                 </div>
@@ -913,8 +922,12 @@ export function buildBaseHtml(p: BaseHtmlParams): string {
             <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid ${COLORS.border}; text-align: center; font-size: 11px; color: ${COLORS.inkSubtle}; line-height: 1.5; font-family: ${FONT_BODY};">
                 ${disclaimer}
             </div>
-        </div>
-    </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
 </body>
 </html>
 `;
@@ -936,7 +949,7 @@ function renderMetadataPanels(
         }</a>`
         : escapeHtml(panel.value);
       return `
-          <div style="margin-bottom: 10px; padding: 12px 14px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border};">
+          <div style="margin-bottom: 10px; padding: 12px 14px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border}; color: ${COLORS.ink};">
             <div style="margin: 0 0 6px 0; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: ${COLORS.inkSubtle};">
               ${escapeHtml(panel.label)}
             </div>
@@ -970,7 +983,7 @@ function renderSection(
 ): string {
   const accentColor = section.accentColor ?? COLORS.primary;
   const summaryHtml = section.summary
-    ? `<div style="margin-bottom: 14px; padding: 14px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor};">${
+    ? `<div style="margin-bottom: 14px; padding: 14px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor}; color: ${COLORS.ink};">${
       markdownToHtml(section.summary, accentColor)
     }</div>`
     : "";
@@ -995,7 +1008,7 @@ function renderCautionSection(
   accentColor: string,
 ): string {
   return `
-    <div style="margin-top: 24px; padding: 16px; background: ${COLORS.surfaceAlt}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor};">
+    <div style="margin-top: 24px; padding: 16px; background: ${COLORS.surfaceMuted}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor}; color: ${COLORS.ink};">
       <div style="margin: 0 0 10px 0; font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: ${accentColor};">
         ${escapeHtml(section.title)}
       </div>
@@ -1038,7 +1051,7 @@ export function renderArticleCards(
       : "";
 
     out += `
-      <div style="margin-bottom: 12px; padding: 14px 16px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor};">
+      <div style="margin-bottom: 12px; padding: 14px 16px; background: ${COLORS.surface}; border: 1px solid ${COLORS.border}; border-left: 3px solid ${accentColor}; color: ${COLORS.ink};">
         <a href="${url}" style="color: ${COLORS.ink}; text-decoration: none; font-family: ${FONT_DISPLAY}; font-size: 22px; line-height: 1.2; font-weight: 700;">
           ${title}
         </a>
