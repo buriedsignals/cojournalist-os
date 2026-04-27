@@ -267,7 +267,7 @@
 	.scout-topic-tags {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.25rem;
+		gap: 0.375rem;
 		min-width: 0;
 		max-height: 3.1rem;
 		overflow: hidden;
@@ -277,17 +277,23 @@
 		display: inline-flex;
 		align-items: center;
 		max-width: 100%;
-		padding: 0.125rem 0.375rem;
-		border: 1px solid color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
-		background: var(--color-primary-soft);
-		color: var(--color-primary-deep);
-		font-size: 0.6875rem;
-		font-family: var(--font-mono);
-		letter-spacing: 0.04em;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: var(--color-ink-muted);
+		font-size: 0.8125rem;
+		font-family: var(--font-body);
+		letter-spacing: 0;
 		line-height: 1.25;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.scout-topic-chip + .scout-topic-chip::before {
+		content: "·";
+		margin-right: 0.375rem;
+		color: var(--color-border-strong);
 	}
 
 	.scout-meta-text {

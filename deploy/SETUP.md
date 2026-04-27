@@ -23,13 +23,7 @@ Required API keys:
 | Firecrawl | Web scraping/search | Yes |
 | Resend | Email notifications | Yes |
 | Apify | Social media scraping | Yes |
-
-Optional API keys:
-
-| Service | Purpose |
-| --- | --- |
-| MapTiler | Geocoding |
-| OpenRouter | Alternative LLM provider |
+| MapTiler | Geocoding/location autocomplete | Yes |
 
 You also need:
 - Node 22 LTS
@@ -78,14 +72,9 @@ supabase secrets set \
   RESEND_API_KEY=... \
   RESEND_FROM_EMAIL=... \
   APIFY_API_TOKEN=... \
+  PUBLIC_MAPTILER_API_KEY=... \
+  ADMIN_EMAILS=... \
   INTERNAL_SERVICE_KEY=...
-```
-
-If you use optional providers:
-
-```bash
-supabase secrets set OPENROUTER_API_KEY=...
-supabase secrets set PUBLIC_MAPTILER_API_KEY=...
 ```
 
 ### 5. Configure the frontend
@@ -105,12 +94,13 @@ FIRECRAWL_API_KEY=...
 RESEND_API_KEY=...
 RESEND_FROM_EMAIL=...
 APIFY_API_TOKEN=...
-OPENROUTER_API_KEY=
 INTERNAL_SERVICE_KEY=...
+ADMIN_EMAILS=admin@example.com
+SIGNUP_ALLOWED_DOMAINS=example.com
 PUBLIC_DEPLOYMENT_TARGET=supabase
 PUBLIC_SUPABASE_URL=...
 PUBLIC_SUPABASE_ANON_KEY=...
-PUBLIC_MAPTILER_API_KEY=
+PUBLIC_MAPTILER_API_KEY=...
 EOF
 ```
 

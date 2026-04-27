@@ -6,11 +6,11 @@ coJournalist. For day-to-day newsroom use, prefer the product skill at
 
 ## Public surfaces
 
-- App: `https://www.cojournalist.ai`
-- REST API: `https://www.cojournalist.ai/functions/v1`
-- MCP: `https://www.cojournalist.ai/mcp`
-- OpenAPI: `https://www.cojournalist.ai/functions/v1/openapi-spec`
-- Product skill: `https://www.cojournalist.ai/skills/cojournalist.md`
+For hosted SaaS, the public app is `https://www.cojournalist.ai`.
+
+For self-hosted deployments, use the newsroom's own deployed app URL and the
+Supabase/API/MCP targets generated during setup. Do not point newsroom agents at
+the hosted cojournalist.ai Supabase project.
 
 ## Hosted agent setup
 
@@ -36,7 +36,7 @@ cojo scouts list
 Self-hosted example:
 
 ```bash
-cojo config set api_url=https://<project-ref>.supabase.co
+cojo config set api_url=https://<project-ref>.supabase.co/functions/v1
 cojo config set supabase_anon_key=<SUPABASE_ANON_KEY>
 cojo config set api_key=<cj_... API key>
 cojo scouts list
@@ -78,6 +78,7 @@ Before treating a self-hosted install as ready:
 - apply all Supabase migrations
 - deploy Edge Functions
 - create the required Supabase secrets
+- confirm MapTiler is configured; location scouting depends on it
 - confirm auth mode is intentionally set for hosted or local/demo use
 - open `/setup` and verify the instructions match the target deployment
 - verify REST list endpoints return `{ "items": [...], "pagination": ... }`

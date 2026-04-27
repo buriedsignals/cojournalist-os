@@ -1,0 +1,311 @@
+import type { AgentTargetContext } from '$lib/utils/agent-targets';
+
+export type SupabaseMode = 'cloud-create' | 'cloud-existing' | 'self-hosted';
+export type FrontendProvider = 'netlify' | 'vercel' | 'cloudflare' | 'render' | 'manual';
+
+export interface SetupManifest {
+	version: 1;
+	project: {
+		name: string;
+		/** Optional during first setup; final deployment/onboarding can fill it later. */
+		app_url: string;
+	};
+	services: {
+		gemini_api_key: string;
+		firecrawl_api_key: string;
+		apify_api_token: string;
+		resend_api_key: string;
+		resend_from_email: string;
+		public_maptiler_api_key: string;
+		openrouter_api_key?: string;
+	};
+	auth: {
+		admin_email: string;
+		signup_allowed_domains: string[];
+	};
+	supabase: {
+		mode: SupabaseMode;
+		project_ref?: string;
+		project_url?: string;
+		anon_key?: string;
+		service_role_key?: string;
+		jwt_secret?: string;
+		org_id?: string;
+		region?: string;
+		db_password?: string;
+		self_hosted_postgres_password?: string;
+	};
+	frontend: {
+		provider: FrontendProvider;
+		site_name?: string;
+		/** Optional during first setup; the hosting provider may assign this after deploy. */
+		production_url: string;
+	};
+	agents: {
+		custom_mcp_url?: string;
+		install_firecrawl_skill: boolean;
+		install_supabase_skill: boolean;
+		install_render_skill: boolean;
+	};
+	options: {
+		include_fastapi_addon: boolean;
+		install_sync_workflow: boolean;
+		render_deploy_hook?: string;
+	};
+}
+
+export interface SetupValidationResult {
+	valid: boolean;
+	errors: string[];
+}
+
+const SECRET_KEYS = new Set([
+	'gemini_api_key',
+	'firecrawl_api_key',
+	'apify_api_token',
+	'resend_api_key',
+	'public_maptiler_api_key',
+	'openrouter_api_key',
+	'anon_key',
+	'service_role_key',
+	'jwt_secret',
+	'db_password',
+	'self_hosted_postgres_password',
+	'render_deploy_hook'
+]);
+
+function trimSlash(value: string): string {
+	return value.trim().replace(/\/$/, '');
+}
+
+export function normalizeDomains(raw: string | string[]): string[] {
+	const values = Array.isArray(raw) ? raw : raw.split(/[\n,]+/);
+	const seen = new Set<string>();
+	for (const item of values) {
+		const domain = item
+			.trim()
+			.toLowerCase()
+			.replace(/^@/, '')
+			.replace(/^https?:\/\//, '')
+			.replace(/\/.*$/, '');
+		if (domain && domain.includes('.') && !domain.includes('@')) seen.add(domain);
+	}
+	return Array.from(seen);
+}
+
+export function shellEscape(value: unknown): string {
+	const raw = value == null ? '' : String(value);
+	if (!raw) return "''";
+	return `'${raw.replace(/'/g, `'\\''`)}'`;
+}
+
+export function validateSetupManifest(manifest: SetupManifest): SetupValidationResult {
+	const errors: string[] = [];
+	const require = (value: unknown, label: string) => {
+		if (typeof value !== 'string' || !value.trim()) errors.push(`${label} is required.`);
+	};
+
+	require(manifest.project.name, 'Project name');
+	require(manifest.services.gemini_api_key, 'Gemini API key');
+	require(manifest.services.firecrawl_api_key, 'Firecrawl API key');
+	require(manifest.services.apify_api_token, 'Apify API token');
+	require(manifest.services.resend_api_key, 'Resend API key');
+	require(manifest.services.resend_from_email, 'Resend sender email');
+	require(manifest.services.public_maptiler_api_key, 'MapTiler API key');
+	require(manifest.auth.admin_email, 'Admin email');
+	if (!manifest.auth.admin_email.includes('@')) errors.push('Admin email must be an email address.');
+	if (manifest.auth.signup_allowed_domains.length === 0) {
+		errors.push('At least one signup domain is required.');
+	}
+
+	if (manifest.supabase.mode === 'cloud-create') {
+		require(manifest.supabase.org_id, 'Supabase organization ID');
+		require(manifest.supabase.region, 'Supabase region');
+		require(manifest.supabase.db_password, 'Supabase database password');
+	}
+	if (manifest.supabase.mode === 'cloud-existing') {
+		require(manifest.supabase.project_ref, 'Supabase project ref');
+		require(manifest.supabase.project_url, 'Supabase project URL');
+		require(manifest.supabase.anon_key, 'Supabase anon key');
+		require(manifest.supabase.service_role_key, 'Supabase service role key');
+		require(manifest.supabase.jwt_secret, 'Supabase JWT secret');
+	}
+	if (manifest.supabase.mode === 'self-hosted') {
+		require(manifest.supabase.project_url, 'Self-hosted Supabase URL');
+		require(manifest.supabase.anon_key, 'Self-hosted Supabase anon key');
+		require(manifest.supabase.service_role_key, 'Self-hosted Supabase service role key');
+		require(manifest.supabase.jwt_secret, 'Self-hosted Supabase JWT secret');
+	}
+
+	return { valid: errors.length === 0, errors };
+}
+
+export function deriveAgentTargetFromManifest(manifest: SetupManifest): AgentTargetContext {
+	const appUrl = trimSlash(
+		manifest.project.app_url || manifest.frontend.production_url || 'https://<your-frontend-domain>'
+	);
+	const supabaseUrl = trimSlash(manifest.supabase.project_url || '');
+	const customMcpUrl = manifest.agents.custom_mcp_url ? trimSlash(manifest.agents.custom_mcp_url) : '';
+	return {
+		deploymentKind: 'supabase',
+		appUrl,
+		apiBaseUrl: `${supabaseUrl || 'https://<project-ref>.supabase.co'}/functions/v1`,
+		mcpUrl: customMcpUrl || `${supabaseUrl || 'https://<project-ref>.supabase.co'}/functions/v1/mcp-server`,
+		skillUrl: `${appUrl}/skills/cojournalist.md`,
+		apiKeyCreateUrl: appUrl,
+		supabaseAnonKey: manifest.supabase.anon_key || '<SUPABASE_ANON_KEY>',
+		customMcpUrl: customMcpUrl || undefined
+	};
+}
+
+export function redactSetupManifest<T>(value: T): T {
+	if (Array.isArray(value)) return value.map((item) => redactSetupManifest(item)) as T;
+	if (!value || typeof value !== 'object') return value;
+	const out: Record<string, unknown> = {};
+	for (const [key, child] of Object.entries(value)) {
+		if (SECRET_KEYS.has(key) && typeof child === 'string' && child) {
+			out[key] = `${child.slice(0, 4)}…redacted`;
+		} else {
+			out[key] = redactSetupManifest(child);
+		}
+	}
+	return out as T;
+}
+
+export function buildAgentManifestPrompt(manifestPath = 'cojournalist-setup.json'): string {
+	return [
+		'Deploy this newsroom-owned coJournalist instance from the local setup manifest.',
+		'Do not ask me to paste secrets into chat.',
+		`Read ${manifestPath} from disk, validate that it is version 1, and run automation/setup-from-manifest.sh with that file.`,
+		'Install the upstream sync workflow by default so this fork can receive coJournalist OSS maintenance updates.',
+		'After setup, verify .github/workflows/sync-upstream.yml exists and tell the operator which GitHub secrets are still needed for automatic migrations.',
+		'Use the Supabase project URL, API base, MCP URL, and skill URL from the manifest-generated deployment only.',
+		'Do not connect CLI, MCP, or REST clients to cojournalist.ai unless the manifest explicitly says this is the hosted SaaS.'
+	].join('\n');
+}
+
+export function buildInstallScript(manifest: SetupManifest): string {
+	const manifestJson = JSON.stringify(manifest, null, 2);
+	return `#!/usr/bin/env bash
+set -euo pipefail
+
+MANIFEST_PATH="\${COJOURNALIST_SETUP_MANIFEST:-}"
+if [ -z "$MANIFEST_PATH" ]; then
+  MANIFEST_PATH="$(mktemp "\${TMPDIR:-/tmp}/cojournalist-setup.XXXXXX.json")"
+  cat > "$MANIFEST_PATH" <<'COJOURNALIST_MANIFEST_JSON'
+${manifestJson}
+COJOURNALIST_MANIFEST_JSON
+  chmod 600 "$MANIFEST_PATH"
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "git is required before setup can continue." >&2
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/automation/setup-from-manifest.sh" ]; then
+  bash "$SCRIPT_DIR/automation/setup-from-manifest.sh" "$MANIFEST_PATH"
+  exit 0
+fi
+
+WORK_DIR="\${COJOURNALIST_SETUP_WORK_DIR:-\${TMPDIR:-/tmp}/cojournalist-setup-work}"
+REPO_DIR="$WORK_DIR/cojournalist-os"
+mkdir -p "$WORK_DIR"
+if [ -d "$REPO_DIR/.git" ]; then
+  git -C "$REPO_DIR" fetch origin master
+  git -C "$REPO_DIR" checkout master
+  git -C "$REPO_DIR" pull --ff-only origin master
+else
+  git clone https://github.com/buriedsignals/cojournalist-os.git "$REPO_DIR"
+  git -C "$REPO_DIR" checkout master
+fi
+
+bash "$REPO_DIR/automation/setup-from-manifest.sh" "$MANIFEST_PATH"
+`;
+}
+
+export function buildNewsroomOnboarding(manifest: SetupManifest): string {
+	const target = deriveAgentTargetFromManifest(manifest);
+	const domains = manifest.auth.signup_allowed_domains.map((domain) => `@${domain}`).join(', ');
+	const appUrl = target.appUrl;
+	return `# coJournalist newsroom guide
+
+coJournalist watches websites, beats, social accounts, and civic pages for us. It saves possible story leads with source links.
+
+## Start here
+
+1. Open ${appUrl}
+2. Sign up with your newsroom email.
+3. Your email must end with: ${domains}
+
+If sign-up does not work, contact ${manifest.auth.admin_email}.
+
+## Make a scout
+
+Choose the scout that matches what you want to watch:
+
+- Page Scout: one page, like a school board agenda page.
+- Beat Scout: a topic or place, like housing in Riverside.
+- Social Scout: public social accounts.
+- Civic Scout: council agendas, minutes, PDFs, and meeting pages.
+
+Start small. A narrow scout is easier to trust than a broad one.
+
+## Use ChatGPT with coJournalist
+
+If you use ChatGPT in the browser, the simplest workflow is:
+
+1. Open coJournalist.
+2. Open a scout result or your inbox.
+3. Copy the source-linked notes or export from coJournalist.
+4. Paste that material into ChatGPT.
+5. Ask ChatGPT to help draft questions, organize leads, or prepare a brief.
+
+Do not paste private API keys into ChatGPT.
+
+## If your AI assistant supports tools
+
+Some assistants can connect directly to coJournalist. If yours can, open coJournalist and click Agents. That screen will show the latest setup steps for your newsroom.
+
+You can also give your assistant this prompt:
+
+\`\`\`text
+I use my newsroom's coJournalist at ${appUrl}.
+
+Please help me connect to it.
+
+First, load the coJournalist skill from:
+${target.skillUrl}
+
+Then use the newsroom's own connection details:
+- MCP: ${target.mcpUrl}
+- API: ${target.apiBaseUrl}
+
+Do not connect to cojournalist.ai.
+
+If you need an API key, tell me to open coJournalist, click Agents, open API, and create a key there. Do not ask me to paste a key into chat.
+\`\`\`
+
+## Prompts you can use in ChatGPT
+
+- "Turn these coJournalist leads into a short story memo. Keep every source link."
+- "Group these leads by theme and tell me what to verify next."
+- "Draft five interview questions based only on these notes."
+- "What is the strongest local angle in these leads?"
+- "Make a checklist of facts I need to confirm before publication."
+- "Rewrite this as a concise editor update, but keep it clear that these are unverified leads."
+
+## Editorial reminders
+
+- coJournalist gives leads, not finished facts.
+- Open the source links.
+- Verify before publishing.
+- Keep source links in drafts and briefs.
+- If two sources conflict, say so.
+
+## Need help?
+
+Contact ${manifest.auth.admin_email}.
+`;
+}

@@ -1,0 +1,74 @@
+You are Codex working in our self-hosted coJournalist repository.
+
+Goal: install upstream maintenance sync if it is missing, then do a one-time pull of all current upstream coJournalist OSS updates.
+
+Important rules:
+- Do not ask us to paste secrets into chat.
+- Do not overwrite local `.env`, `.env.production`, secrets, or deployment-specific settings.
+- Check the worktree before editing. If there are unrelated local changes, preserve them.
+- Prefer a branch and PR if this repo is connected to GitHub. Do not force-push.
+
+Repository context:
+- Upstream OSS repo: https://github.com/buriedsignals/cojournalist-os.git
+- Upstream branch: master
+- Maintenance workflow path: .github/workflows/sync-upstream.yml
+
+Please do this:
+
+1. Inspect the repository.
+   - Run `git status --short`.
+   - Run `git remote -v`.
+   - Confirm whether this is a fork/clone of coJournalist.
+
+2. Prepare upstream.
+   - If there is no `upstream` remote, add:
+     `git remote add upstream https://github.com/buriedsignals/cojournalist-os.git`
+   - Run:
+     `git fetch upstream master`
+
+3. Create a maintenance branch.
+   - Use a branch name like:
+     `cojournalist/upstream-maintenance-YYYY-MM-DD`
+
+4. Pull current upstream updates once.
+   - Merge `upstream/master` into the branch.
+   - Resolve conflicts conservatively.
+   - Never replace local secrets or deployment-specific env files with upstream defaults.
+   - If migrations changed, note them clearly.
+
+5. Install or refresh the weekly upstream sync workflow.
+   - Ensure `.github/workflows/sync-upstream.yml` exists.
+   - If the file is missing or outdated, copy the current upstream version from `automation/sync-upstream.yml`.
+   - The workflow should run weekly and support manual `workflow_dispatch`.
+
+6. Check GitHub Actions secrets for automatic maintenance.
+   - If the GitHub CLI is available, run `gh secret list`.
+   - Do not print secret values.
+   - Tell us if any of these are missing:
+     - `SUPABASE_PROJECT_REF`
+     - `SUPABASE_ACCESS_TOKEN`
+     - optional: `RENDER_DEPLOY_HOOK`
+   - If secrets are missing, ask us to set them locally with `gh secret set ...`; do not ask us to paste secret values into chat.
+
+7. Apply the current update locally if safe.
+   - If this deployment uses Supabase Cloud and the Supabase CLI is authenticated, run migrations with `supabase db push`.
+   - Deploy Edge Functions with `supabase functions deploy --all` if Supabase is linked and credentials are available.
+   - If credentials are missing, stop and give exact commands for the operator to run locally.
+
+8. Verify.
+   - Run the relevant checks available in this repo, at minimum:
+     - `bash -n automation/setup-from-manifest.sh` if present
+     - `cd frontend && npm run check` if frontend dependencies are installed
+     - `cd frontend && npm test` if frontend dependencies are installed
+     - `cd frontend && npm run build` if frontend dependencies are installed
+   - If a check cannot run because dependencies are missing, say that directly.
+
+9. Commit or prepare a PR.
+   - Commit the upstream merge and workflow install if the repo is ready.
+   - If GitHub is configured, push the branch and open a PR.
+   - Summarize:
+     - upstream commit merged
+     - whether sync workflow is installed
+     - whether migrations were applied
+     - which GitHub secrets are missing
+     - what the newsroom must do next

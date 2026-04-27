@@ -75,7 +75,15 @@ export interface Scout {
   criteria?: string | null;
   topic?: string | null;
   url?: string | null;
+  source_mode?: string | null;
+  excluded_domains?: string[];
+  priority_sources?: string[];
   platform?: string | null;
+  profile_handle?: string | null;
+  monitor_mode?: string | null;
+  track_removals?: boolean;
+  root_domain?: string | null;
+  tracked_urls?: string[];
   location?: Record<string, unknown> | null;
   project_id?: string | null;
   regularity?: string | null;
@@ -107,7 +115,15 @@ export interface CreateScoutInput {
   regularity?: "daily" | "weekly" | "monthly";
   schedule_cron?: string;
   project_id?: string;
+  source_mode?: "reliable" | "niche";
+  excluded_domains?: string[];
   priority_sources?: string[];
+  platform?: string;
+  profile_handle?: string;
+  monitor_mode?: string;
+  track_removals?: boolean;
+  root_domain?: string;
+  tracked_urls?: string[];
 }
 
 // ---------------------------------------------------------------------------

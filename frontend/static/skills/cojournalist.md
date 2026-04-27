@@ -35,10 +35,14 @@ The journalist stays responsible for verification. Your job is to help monitor, 
 coJournalist is usually exposed to agents through one of these paths:
 
 - **CLI**: the `cojo` binary on `$PATH`
-- **MCP**: remote MCP at `https://www.cojournalist.ai/mcp`
-- **REST API**: public HTTP surface documented at `https://www.cojournalist.ai/swagger`
+- **MCP**: the remote MCP URL shown in the app's Agents modal
+- **REST API**: the API base shown in the app's Agents -> API panel
 
 If both CLI and MCP are available, prefer the CLI for shell-capable agents because the commands stay visible in the transcript.
+
+Do not assume a hosted cojournalist.ai endpoint. In self-hosted deployments,
+use the newsroom's own Supabase/API/MCP targets from the Agents modal or the
+local `cojo` config.
 
 ## Core workflow
 
@@ -59,12 +63,11 @@ If both CLI and MCP are available, prefer the CLI for shell-capable agents becau
 
 ## Useful URLs
 
-- App: https://www.cojournalist.ai/login
-- Docs: https://www.cojournalist.ai/docs
-- Docs text: https://www.cojournalist.ai/docs.txt
-- Pricing: https://www.cojournalist.ai/pricing
-- FAQ: https://www.cojournalist.ai/faq
-- Setup skill: https://www.cojournalist.ai/skills/cojournalist-setup.md
+- App: open the newsroom coJournalist URL
+- Docs: `/docs` on the deployed app
+- Docs text: `/docs.txt` on the deployed app
+- FAQ: `/faq` on the deployed app
+- Setup skill: `/skills/cojournalist-setup.md` on the deployed app
 
 ## CLI and MCP parity
 

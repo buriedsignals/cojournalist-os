@@ -43,6 +43,7 @@ log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+sql_escape() { printf "%s" "$1" | sed "s/'/''/g"; }
 
 prompt_required() {
     local var_name="$1"
@@ -178,16 +179,17 @@ collect_api_keys() {
     echo ""
 
     echo "  MapTiler (geocoding/location): https://www.maptiler.com"
-    prompt_optional PUBLIC_MAPTILER_API_KEY "MapTiler API key"
-
-    echo ""
-    echo "  OpenRouter (alternative LLMs): https://openrouter.ai"
-    prompt_optional OPENROUTER_API_KEY "OpenRouter API key"
+    prompt_required PUBLIC_MAPTILER_API_KEY "MapTiler API key"
 
     echo ""
     prompt_optional RESEND_FROM_EMAIL "Notification sender email" "scouts@newsroom.org"
 
     prompt_optional LLM_MODEL "LLM model" "gemini-2.5-flash-lite"
+
+    echo ""
+    echo "  -- Signup controls --"
+    prompt_required ADMIN_EMAILS "Admin email"
+    prompt_required SIGNUP_ALLOWED_DOMAINS "Allowed signup domains (comma-separated, e.g. example.com,newsroom.org)"
 
     log_success "API keys collected"
 }
@@ -257,6 +259,25 @@ setup_supabase_managed() {
     $SUPABASE_CLI db push
     log_success "Migrations applied"
 
+    # Seed signup allowlist for the before-user-created auth hook.
+    log_info "Seeding signup allowlist..."
+    SQL="TRUNCATE TABLE public.signup_email_allowlist;
+INSERT INTO public.signup_email_allowlist (kind, value, reason)
+VALUES ('email', lower('$(sql_escape "$ADMIN_EMAILS")'), 'initial admin')
+ON CONFLICT (kind, value) DO UPDATE SET reason = excluded.reason;"
+    IFS=',' read -r -a allowed_domains <<< "$SIGNUP_ALLOWED_DOMAINS"
+    for domain in "${allowed_domains[@]}"; do
+        clean_domain="$(printf "%s" "$domain" | tr '[:upper:]' '[:lower:]' | sed 's/^@//' | xargs)"
+        if [ -n "$clean_domain" ]; then
+            SQL="${SQL}
+INSERT INTO public.signup_email_allowlist (kind, value, reason)
+VALUES ('domain', '$(sql_escape "$clean_domain")', 'newsroom signup domain')
+ON CONFLICT (kind, value) DO UPDATE SET reason = excluded.reason;"
+        fi
+    done
+    $SUPABASE_CLI db execute --sql "$SQL"
+    log_success "Signup allowlist seeded"
+
     # Deploy Edge Functions
     log_info "Deploying Edge Functions..."
     $SUPABASE_CLI functions deploy --all
@@ -268,10 +289,9 @@ setup_supabase_managed() {
         "FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}" \
         "RESEND_API_KEY=${RESEND_API_KEY}" \
         "RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}" \
-        "APIFY_API_TOKEN=${APIFY_API_TOKEN}"
-    if [ -n "${OPENROUTER_API_KEY:-}" ]; then
-        $SUPABASE_CLI secrets set "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}"
-    fi
+        "APIFY_API_TOKEN=${APIFY_API_TOKEN}" \
+        "PUBLIC_MAPTILER_API_KEY=${PUBLIC_MAPTILER_API_KEY}" \
+        "ADMIN_EMAILS=${ADMIN_EMAILS}"
     log_success "Edge Functions deployed"
 
     DEPLOY_MODE="managed"
@@ -338,7 +358,6 @@ SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
 # LLM
 GEMINI_API_KEY=${GEMINI_API_KEY}
 LLM_MODEL=${LLM_MODEL}
-OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
 
 # Web scraping
 FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
@@ -351,7 +370,11 @@ RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
 APIFY_API_TOKEN=${APIFY_API_TOKEN}
 
 # Geocoding
-PUBLIC_MAPTILER_API_KEY=${PUBLIC_MAPTILER_API_KEY:-}
+PUBLIC_MAPTILER_API_KEY=${PUBLIC_MAPTILER_API_KEY}
+
+# Signup controls
+ADMIN_EMAILS=${ADMIN_EMAILS}
+SIGNUP_ALLOWED_DOMAINS=${SIGNUP_ALLOWED_DOMAINS}
 
 # Internal
 INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY}

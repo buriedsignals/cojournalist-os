@@ -3,7 +3,6 @@
 The public OSS automation surface is now:
 - `automation/setup.sh`
 - `automation/SETUP_AGENT.md`
-- `automation/AGENT_INSTRUCTIONS.md`
 - `automation/sync-upstream.yml`
 
 These files are public and no longer use any license-gated flow.

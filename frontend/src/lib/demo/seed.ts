@@ -118,6 +118,7 @@ export const DEMO_SCOUTS: Scout[] = [
 		type: 'social',
 		is_demo: true,
 		platform: 'twitter',
+		profile_handle: 'SadiqKhan',
 		url: 'https://x.com/SadiqKhan',
 		topic: 'Climate & mobility',
 		criteria: 'low-emission zones',
@@ -138,6 +139,8 @@ export const DEMO_SCOUTS: Scout[] = [
 		is_demo: true,
 		topic: 'Housing affordability',
 		criteria: null,
+		root_domain: 'nairobiassembly.go.ke',
+		tracked_urls: ['https://nairobiassembly.go.ke/assembly-business/house-business/'],
 		url: 'https://nairobiassembly.go.ke/',
 		location: {
 			displayName: 'Nairobi, Kenya',

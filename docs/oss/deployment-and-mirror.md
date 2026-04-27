@@ -446,7 +446,7 @@ subject to the following conditions:
 3. AUTOMATION SCRIPTS
 
    The automation scripts included in the "automation/" directory
-   (setup.sh, sync-upstream.yml, AGENT_INSTRUCTIONS.md) require a valid
+   (setup.sh, sync-upstream.yml, SETUP_AGENT.md) require a valid
    license key for automated execution. Manual execution of the steps
    described in these scripts does not require a license key. The
    application itself does not require a license key for any functionality.
@@ -667,7 +667,7 @@ Before starting either path, you need API keys for external services:
 | **Firecrawl** | Web scraping (required) | [firecrawl.dev](https://www.firecrawl.dev) |
 | **Resend** | Email notifications (required) | [resend.com](https://resend.com) |
 | **Apify** | Social media scraping (required for Social Scout) | [apify.com](https://www.apify.com) |
-| **MapTiler** | Geocoding (optional, for location features) | [maptiler.com](https://www.maptiler.com) |
+| **MapTiler** | Geocoding/location scouts | [maptiler.com](https://www.maptiler.com) |
 | **OpenRouter** | Alternative LLMs (optional) | [openrouter.ai](https://openrouter.ai) |
 
 ---
@@ -724,7 +724,7 @@ supabase secrets set INTERNAL_SERVICE_KEY=your-service-key --project-ref YOUR_PR
    - `SUPABASE_JWT_SECRET`: JWT secret
    - `GEMINI_API_KEY`, `FIRECRAWL_API_KEY`, `RESEND_API_KEY`, `APIFY_API_TOKEN`
    - `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY` (for frontend)
-   - `PUBLIC_MAPTILER_API_KEY` (optional)
+   - `PUBLIC_MAPTILER_API_KEY`
 
 ### 1.5 Verify
 
@@ -815,7 +815,7 @@ export COJOURNALIST_LICENSE_KEY="cjl_your-key-here"
 bash automation/setup.sh
 ```
 
-This handles forking, API key collection, migration, deployment, and verification. See `automation/AGENT_INSTRUCTIONS.md` for AI-assisted setup.
+This handles forking, API key collection, migration, deployment, and verification. See `automation/SETUP_AGENT.md` for AI-assisted setup.
 
 ---
 

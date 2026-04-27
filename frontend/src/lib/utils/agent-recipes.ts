@@ -17,6 +17,7 @@
  */
 
 import type { AgentSlug } from "./agent-icons";
+import { HOSTED_AGENT_TARGET, type AgentTargetContext } from "./agent-targets";
 
 export type InstallPath = "cli" | "mcp";
 
@@ -67,15 +68,20 @@ export interface Recipe {
   verifyPrompt?: string;
 }
 
-export const MCP_URL = "https://www.cojournalist.ai/mcp";
 export const CLI_README_URL =
   "https://github.com/buriedsignals/cojournalist-os/blob/main/cli/README.md";
-export const SKILL_URL = "https://www.cojournalist.ai/skills/cojournalist.md";
 const CLI_DENO_INSTALL_URL =
   "https://raw.githubusercontent.com/buriedsignals/cojournalist-os/master/cli/cojo.ts";
+export const MCP_URL = HOSTED_AGENT_TARGET.mcpUrl;
+export const SKILL_URL = HOSTED_AGENT_TARGET.skillUrl;
 
-function fill(tpl: string): string {
-  return tpl.replace(/\{\{MCP_URL\}\}/g, MCP_URL);
+function fill(tpl: string, target: AgentTargetContext): string {
+  return tpl
+    .replace(/\{\{MCP_URL\}\}/g, target.mcpUrl)
+    .replace(/\{\{API_BASE_URL\}\}/g, target.apiBaseUrl)
+    .replace(/\{\{APP_URL\}\}/g, target.appUrl)
+    .replace(/\{\{SKILL_URL\}\}/g, target.skillUrl)
+    .replace(/\{\{SUPABASE_ANON_KEY\}\}/g, target.supabaseAnonKey ?? "<SUPABASE_ANON_KEY>");
 }
 
 // ----- Shared CLI recipe ----------------------------------------------------
@@ -86,7 +92,8 @@ const CLI_INSTALL_DEFAULT =
   `deno install -A -g -n cojo ${CLI_DENO_INSTALL_URL}`;
 
 const CLI_CONFIG_COMMANDS = [
-  "cojo config set api_url=https://www.cojournalist.ai/functions/v1",
+  "cojo config set api_url={{API_BASE_URL}}",
+  "{{SUPABASE_ANON_KEY_COMMAND}}",
   "cojo config set api_key=<paste cj_... key from the API panel>",
   "cojo --version && cojo scouts list",
 ];
@@ -293,7 +300,7 @@ export interface AgentRecipes {
 }
 
 /** Resolve recipes + default path for an agent. */
-export function getAgentRecipes(slug: AgentSlug): AgentRecipes {
+export function getAgentRecipes(slug: AgentSlug, target: AgentTargetContext = HOSTED_AGENT_TARGET): AgentRecipes {
   const hasCli = CLI_CAPABLE.includes(slug);
   const hasMcp = !MCP_ONLY.includes(slug) ? true : true; // every agent has some MCP recipe
   // "Other" gets both CLI + MCP so generic users can pick.
@@ -304,10 +311,10 @@ export function getAgentRecipes(slug: AgentSlug): AgentRecipes {
 
   if (includeCli) {
     paths.push("cli");
-    recipes.cli = fillRecipe(sharedCliRecipe);
+    recipes.cli = fillRecipe(sharedCliRecipe, target);
   }
   paths.push("mcp");
-  recipes.mcp = fillRecipe(mcpRecipes[slug]);
+  recipes.mcp = fillRecipe(mcpRecipes[slug], target);
 
   const defaultPath: InstallPath = includeCli && !MCP_ONLY.includes(slug)
     ? "cli"
@@ -315,11 +322,22 @@ export function getAgentRecipes(slug: AgentSlug): AgentRecipes {
   return { paths, default: defaultPath, recipes };
 }
 
-function fillRecipe(r: Recipe): Recipe {
+function fillRecipe(r: Recipe, target: AgentTargetContext): Recipe {
+  const configCommands = r.configCommands
+    ?.map((command) =>
+      command === "{{SUPABASE_ANON_KEY_COMMAND}}"
+        ? target.deploymentKind === "supabase"
+          ? `cojo config set supabase_anon_key=${target.supabaseAnonKey || "<SUPABASE_ANON_KEY>"}`
+          : null
+        : fill(command, target),
+    )
+    .filter((command): command is string => Boolean(command));
+
   return {
     ...r,
-    command: r.command ? fill(r.command) : undefined,
-    configSnippet: r.configSnippet ? fill(r.configSnippet) : undefined,
+    command: r.command ? fill(r.command, target) : undefined,
+    configCommands,
+    configSnippet: r.configSnippet ? fill(r.configSnippet, target) : undefined,
   };
 }
 
@@ -327,8 +345,8 @@ function fillRecipe(r: Recipe): Recipe {
  * Legacy single-recipe accessor. Returns the recipe for the agent’s default
  * path. Kept for any consumer that hasn’t yet switched to getAgentRecipes.
  */
-export function getRecipe(slug: AgentSlug): Recipe {
-  const { default: defaultPath, recipes } = getAgentRecipes(slug);
+export function getRecipe(slug: AgentSlug, target: AgentTargetContext = HOSTED_AGENT_TARGET): Recipe {
+  const { default: defaultPath, recipes } = getAgentRecipes(slug, target);
   return recipes[defaultPath] ?? mcpRecipes[slug];
 }
 
@@ -370,15 +388,19 @@ const CLI_INSTALL_LINE = `deno install -A -g -n cojo ${CLI_DENO_INSTALL_URL}`;
 export function getSetupPrompt(
   slug: AgentSlug,
   path: InstallPath = "cli",
+  target: AgentTargetContext = HOSTED_AGENT_TARGET,
 ): string {
   const location = SKILL_LOCATIONS[slug] ?? SKILL_LOCATIONS.other;
+  const selfHostedNote = target.deploymentKind === "supabase"
+    ? ` This is a self-hosted newsroom deployment; use only ${target.appUrl}, ${target.apiBaseUrl}, and ${target.mcpUrl}. Do not connect to cojournalist.ai.`
+    : "";
 
   if (path === "mcp") {
     return [
-      `Set me up with coJournalist. Do this in order, narrating each step:`,
+      `Set me up with coJournalist.${selfHostedNote} Do this in order, narrating each step:`,
       ``,
-      `1. Fetch ${SKILL_URL} and save it to ${location} so it auto-loads in future sessions. This is the product skill — it tells you how to drive coJournalist.`,
-      `2. Configure the remote MCP server at ${MCP_URL}. If a config file edit is needed, show me the exact file path and diff before saving.`,
+      `1. Fetch ${target.skillUrl} and save it to ${location} so it auto-loads in future sessions. This is the product skill — it tells you how to drive coJournalist.`,
+      `2. Configure the remote MCP server at ${target.mcpUrl}. If a config file edit is needed, show me the exact file path and diff before saving.`,
       `3. The MCP server uses OAuth — when the connector prompts me to sign in, I'll approve it in the browser. Do not ask me for a JWT or API key; the OAuth flow handles auth.`,
       `4. Verify the connection by listing my scouts. If the tool isn't available yet, tell me to reload the chat.`,
       `5. Summarise what coJournalist lets you do for me and suggest one concrete thing you'd use it for based on my current work.`,
@@ -386,13 +408,16 @@ export function getSetupPrompt(
   }
 
   return [
-    `Set me up with coJournalist via the cojo CLI. Do this in order, narrating each step:`,
+    `Set me up with coJournalist via the cojo CLI.${selfHostedNote} Do this in order, narrating each step:`,
     ``,
-    `1. Fetch ${SKILL_URL} and save it to ${location} so it auto-loads in future sessions. This is the product skill — it tells you how to drive coJournalist.`,
+    `1. Fetch ${target.skillUrl} and save it to ${location} so it auto-loads in future sessions. This is the product skill — it tells you how to drive coJournalist.`,
     `2. Install the cojo CLI by running: ${CLI_INSTALL_LINE}`,
     `   (Requires Deno 2.x. If Deno is missing, install it first from https://deno.com/.)`,
-    `3. Tell me to generate an API key at https://www.cojournalist.ai → Agents → API → Create key (it's shown once). Do NOT ask me to paste the key into this chat — credentials in a transcript leak into logs and screenshots. Instead, have me run these two commands in my own terminal so the key never enters the conversation:`,
-    `     cojo config set api_url=https://www.cojournalist.ai/functions/v1`,
+    `3. Tell me to generate an API key at ${target.apiKeyCreateUrl} → Agents → API → Create key (it's shown once). Do NOT ask me to paste the key into this chat — credentials in a transcript leak into logs and screenshots. Instead, have me run these commands in my own terminal so the key never enters the conversation:`,
+    `     cojo config set api_url=${target.apiBaseUrl}`,
+    ...(target.deploymentKind === "supabase"
+      ? [`     cojo config set supabase_anon_key=${target.supabaseAnonKey || "<SUPABASE_ANON_KEY>"}`]
+      : []),
     `     cojo config set api_key=cj_...   # I replace cj_... with the real key locally`,
     `4. After I confirm I've done that, verify by running: cojo --version && cojo scouts list — if it returns my scouts, we're connected. The CLI reads the key from ~/.cojournalist/config.json, so you never see it.`,
     `5. From now on, use the cojo CLI to create scouts, list findings, and verify units on my behalf. Don't ask me to open the web UI when you can do it via the CLI.`,
@@ -404,8 +429,9 @@ export function getSetupPrompt(
 export function getSkillPrompt(
   slug: AgentSlug,
   path: InstallPath = "cli",
+  target: AgentTargetContext = HOSTED_AGENT_TARGET,
 ): string {
-  return getSetupPrompt(slug, path);
+  return getSetupPrompt(slug, path, target);
 }
 
 /** @deprecated Use getSetupPrompt(agent, path) — kept for backwards compatibility. */

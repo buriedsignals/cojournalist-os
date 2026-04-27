@@ -91,7 +91,7 @@ PUBLIC_MUCKROCK_ENABLED=false
 PUBLIC_MUCKROCK_BROKER_URL=http://localhost:5173/api/auth/login
 PUBLIC_MUCKROCK_POST_LOGIN_REDIRECT=http://localhost:5173/auth/callback
 PUBLIC_LOCAL_DEMO_MODE=false
-PUBLIC_MAPTILER_API_KEY=xxx         # optional (geocoding)
+PUBLIC_MAPTILER_API_KEY=xxx         # required (geocoding/location scouts)
 ```
 
 ### Pre-Commit Checks (Frontend)

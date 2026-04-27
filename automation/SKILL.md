@@ -47,8 +47,10 @@ The user needs:
 
 - **Supabase account** — managed cloud at supabase.com, or self-hosted via
   Docker.
-- **API keys** for Gemini, Firecrawl, Resend, and Apify (all required).
-  Optional: MapTiler (geocoding), OpenRouter (alternative LLM provider).
+- **API keys** for Gemini, Firecrawl, Resend, Apify, and MapTiler (all
+  required).
+- **Signup controls** — one admin email and the newsroom email domains allowed
+  to create accounts. Setup seeds a Supabase before-user-created Auth hook.
 - **Verified Resend sender domain** — scouts can't send notifications without
   it.
 - **Hosting target** for the frontend — Render, Cloudflare Pages, Vercel, or
@@ -64,8 +66,10 @@ The user needs:
    continuing.
 3. **Clone / fork** — the repo is public, clone via
    `gh repo fork buriedsignals/cojournalist-os --clone` or plain `git clone`.
-4. **Collect API keys** — ask for each key interactively; explain what each
-   service does. Do not skip the Resend domain verification step.
+4. **Collect setup values** — prefer the `/setup` generator or
+   `cojournalist-setup.json` manifest so secrets stay out of chat. Explain what
+   each service does. Do not skip MapTiler or the Resend domain verification
+   step.
 5. **Provision Supabase** — managed or self-hosted Docker. Run migrations
    (`supabase db push`) and deploy all Edge Functions
    (`supabase functions deploy --all`).
@@ -85,8 +89,11 @@ The user needs:
 - **Ask before spending money.** Supabase Pro, Render paid tiers, and the
   scout pipelines (Civic = 20 credits/run in hosted mode; real API cost
   self-hosted) all incur charges. Surface this before provisioning.
+- **Don't put secrets in chat.** Use the generated manifest or local shell
+  prompts. Agents should read `cojournalist-setup.json` from disk and run
+  `automation/setup-from-manifest.sh`.
 - **Don't assume defaults.** Prompt the user for every decision and secret —
-  regions, tier selection, domain names, sender address. No silent choices.
+  regions, tier selection, signup domains, sender address. No silent choices.
 - **One step at a time.** Complete each step, summarise what was done, then
   ask the user to confirm before the next step. The user must be able to
   audit the work as it happens.
@@ -103,9 +110,9 @@ The user needs:
 | Path | Purpose |
 |---|---|
 | `automation/SETUP_AGENT.md` | Full step-by-step reference — read first |
-| `automation/setup.sh` | Non-interactive bootstrap script |
+| `automation/setup-from-manifest.sh` | Manifest-driven bootstrap script |
+| `automation/setup.sh` | Legacy interactive bootstrap script |
 | `automation/sync-upstream.yml` | GitHub Action for upstream sync |
-| `automation/AGENT_INSTRUCTIONS.md` | Older terse version of the flow |
 | `deploy/SETUP.md` | Deployment-specific reference |
 | `supabase/` | Migrations + Edge Functions the skill will deploy |
 | `frontend/` | SvelteKit app — requires Node 22 for `npm ci` + `npm run build` |

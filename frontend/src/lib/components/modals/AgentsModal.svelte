@@ -7,9 +7,9 @@
 	import {
 		getAgentRecipes,
 		getSkillPrompt,
-		SKILL_URL,
 		type InstallPath
 	} from '$lib/utils/agent-recipes';
+	import { resolveAgentTargetContext } from '$lib/utils/agent-targets';
 	import type { AgentSlug } from '$lib/utils/agent-icons';
 
 	export let open = false;
@@ -23,14 +23,21 @@
 	let view: 'agents' | 'api' = 'agents';
 	let skillCopied = false;
 	let path: InstallPath = 'cli';
+	$: agentTarget = resolveAgentTargetContext({
+		deploymentTarget: import.meta.env.PUBLIC_DEPLOYMENT_TARGET,
+		supabaseUrl: import.meta.env.PUBLIC_SUPABASE_URL,
+		supabaseAnonKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+		origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+		hostname: typeof window !== 'undefined' ? window.location.hostname : undefined
+	});
 
-	$: agentRecipes = getAgentRecipes(agent);
+	$: agentRecipes = getAgentRecipes(agent, agentTarget);
 	$: availablePaths = agentRecipes.paths;
 	// Snap path to an available one whenever the agent changes.
 	$: if (!availablePaths.includes(path)) path = agentRecipes.default;
 	$: recipe = agentRecipes.recipes[path] ?? agentRecipes.recipes[agentRecipes.default]!;
 	// Prompt adapts to both the agent (skill save location) and path (CLI vs MCP instructions).
-	$: skillPrompt = getSkillPrompt(agent, path);
+	$: skillPrompt = getSkillPrompt(agent, path, agentTarget);
 
 	const dispatch = createEventDispatcher<{ close: void }>();
 
@@ -225,7 +232,7 @@
 						<div class="skill-actions">
 							<a
 								class="skill-action"
-								href={SKILL_URL}
+								href={agentTarget.skillUrl}
 								download="cojournalist-skill.md"
 								target="_blank"
 								rel="noopener"

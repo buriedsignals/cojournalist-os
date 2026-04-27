@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { MapPin, Tag, Calendar, Play, Trash2, ArrowLeft, X, Check } from 'lucide-svelte';
+	import { MapPin, Tag, Calendar, Play, Trash2, ArrowLeft, X, Check, Globe, AtSign } from 'lucide-svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import DemoBadge from '$lib/components/ui/DemoBadge.svelte';
-	import { getScoutTypeDisplay } from '$lib/utils/scouts';
+	import { getScoutTypeDisplay, normalizeScoutType, truncateUrl } from '$lib/utils/scouts';
 	import type { Scout } from '$lib/types/workspace';
 
 	export let scout: Scout;
@@ -22,6 +22,7 @@
 	}>();
 
 	$: cfg = getScoutTypeDisplay(scout.type);
+	$: normalizedType = normalizeScoutType(scout.type);
 
 	function locationDisplay(loc: unknown): string | null {
 		if (!loc || typeof loc !== 'object') return null;
@@ -33,6 +34,68 @@
 	$: locDisplay = locationDisplay(scout.location);
 	$: topicTags = (scout.topic || '').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 3);
 	$: descriptionText = scout.description || scout.criteria || null;
+	$: trackedUrls = Array.isArray(scout.tracked_urls)
+		? scout.tracked_urls.filter((url): url is string => typeof url === 'string' && url.length > 0)
+		: [];
+	$: targetDisplay = (() => {
+		if (normalizedType === 'web' && scout.url) {
+			return {
+				kind: 'url' as const,
+				label: 'Target URL',
+				value: truncateUrl(scout.url, 84),
+				title: scout.url,
+				extra: null
+			};
+		}
+
+		if (normalizedType === 'civic') {
+			const primaryUrl = trackedUrls[0] ?? scout.url ?? null;
+			if (primaryUrl) {
+				return {
+					kind: 'url' as const,
+					label: trackedUrls.length > 1 ? 'Target URLs' : 'Target URL',
+					value: truncateUrl(primaryUrl, 84),
+					title: trackedUrls.length > 1 ? trackedUrls.join('\n') : primaryUrl,
+					extra: trackedUrls.length > 1 ? `${trackedUrls.length} URLs total` : scout.root_domain ?? null
+				};
+			}
+			if (scout.root_domain) {
+				return {
+					kind: 'url' as const,
+					label: 'Target domain',
+					value: scout.root_domain,
+					title: scout.root_domain,
+					extra: null
+				};
+			}
+		}
+
+		if (normalizedType === 'social') {
+			const handle = scout.profile_handle
+				? scout.profile_handle.replace(/^@/, '')
+				: null;
+			if (handle) {
+				return {
+					kind: 'profile' as const,
+					label: 'Target profile',
+					value: `@${handle}`,
+					title: scout.url ?? `@${handle}`,
+					extra: scout.platform ?? null
+				};
+			}
+			if (scout.url) {
+				return {
+					kind: 'profile' as const,
+					label: 'Target profile',
+					value: truncateUrl(scout.url, 84),
+					title: scout.url,
+					extra: scout.platform ?? null
+				};
+			}
+		}
+
+		return null;
+	})();
 
 	function timeSince(iso: string | null | undefined): string | null {
 		if (!iso) return null;
@@ -162,6 +225,23 @@
 			{/if}
 		</div>
 
+		{#if targetDisplay}
+			<div class="focus-target" title={targetDisplay.title}>
+				<span class="focus-target-icon">
+					{#if targetDisplay.kind === 'profile'}
+						<AtSign size={13} />
+					{:else}
+						<Globe size={13} />
+					{/if}
+				</span>
+				<span class="focus-target-label">{targetDisplay.label}</span>
+				<span class="focus-target-value">{targetDisplay.value}</span>
+				{#if targetDisplay.extra}
+					<span class="focus-target-extra">{targetDisplay.extra}</span>
+				{/if}
+			</div>
+		{/if}
+
 		{#if descriptionText}
 			<p class="focus-description">{descriptionText}</p>
 		{/if}
@@ -279,17 +359,23 @@
 	.focus-topic-tags {
 		display: inline-flex;
 		flex-wrap: wrap;
-		gap: 0.25rem;
+		gap: 0.375rem;
 	}
 
 	.focus-topic-chip {
 		display: inline-flex;
 		align-items: center;
-		padding: 0.125rem 0.375rem;
-		border: 1px solid color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
-		background: var(--color-primary-soft);
-		color: var(--color-primary-deep);
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: var(--color-ink-muted);
 		line-height: 1.25;
+	}
+
+	.focus-topic-chip + .focus-topic-chip::before {
+		content: "·";
+		margin-right: 0.375rem;
+		color: var(--color-border-strong);
 	}
 
 	.focus-sep { color: var(--color-border-strong); }
@@ -302,6 +388,53 @@
 		font-size: 0.9375rem;
 		font-weight: 300;
 		line-height: 1.55;
+	}
+
+	.focus-target {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		max-width: 76rem;
+		margin-top: 0.75rem;
+		padding: 0.5rem 0;
+		border-top: 1px solid var(--color-border);
+		border-bottom: 1px solid var(--color-border);
+		color: var(--color-ink-muted);
+		font-family: var(--font-body);
+		font-size: 0.875rem;
+		min-width: 0;
+	}
+
+	.focus-target-icon {
+		display: inline-flex;
+		align-items: center;
+		color: var(--color-ink-muted);
+		flex: 0 0 auto;
+	}
+
+	.focus-target-label {
+		flex: 0 0 auto;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--color-ink-subtle);
+	}
+
+	.focus-target-value {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		color: var(--color-ink);
+		font-weight: 400;
+	}
+
+	.focus-target-extra {
+		flex: 0 0 auto;
+		color: var(--color-ink-subtle);
+		font-size: 0.8125rem;
 	}
 
 	.summary-strip {

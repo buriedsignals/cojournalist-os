@@ -36,7 +36,7 @@ subject to the following conditions:
 3. AUTOMATION SCRIPTS
 
    The automation scripts included in the "automation/" directory
-   (setup.sh, sync-upstream.yml, AGENT_INSTRUCTIONS.md) require a valid
+   (setup.sh, sync-upstream.yml, SETUP_AGENT.md) require a valid
    license key for automated execution. Manual execution of the steps
    described in these scripts does not require a license key. The
    application itself does not require a license key for any functionality.

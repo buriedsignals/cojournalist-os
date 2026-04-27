@@ -32,13 +32,11 @@ services:
       - key: SUPABASE_JWT_SECRET
         sync: false
 
-      # LLM — Gemini models use direct API, others route to OpenRouter
+      # LLM
       - key: GEMINI_API_KEY
         sync: false
       - key: LLM_MODEL
         value: gemini-2.5-flash-lite
-      - key: OPENROUTER_API_KEY
-        sync: false  # optional — only needed for non-Gemini models
 
       # Web scraping
       - key: FIRECRAWL_API_KEY
@@ -52,6 +50,16 @@ services:
 
       # Social media scraping
       - key: APIFY_API_TOKEN
+        sync: false
+
+      # Admin/signup controls
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: SIGNUP_ALLOWED_DOMAINS
+        sync: false
+
+      # Geocoding
+      - key: PUBLIC_MAPTILER_API_KEY
         sync: false
 
       # Internal service key for optional FastAPI integration

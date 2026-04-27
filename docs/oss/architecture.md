@@ -56,7 +56,6 @@ A GitHub Action on the dev repo filters and pushes to the public mirror:
 | Deploy configs (render.yaml, SETUP.md) | No (license-gated via API) |
 | Automation scripts (setup.sh, SETUP_AGENT.md) | No (license-gated via API) |
 | Automation scripts (sync-upstream.yml) | No (license-gated via API) |
-| Agent instructions (AGENT_INSTRUCTIONS.md) | Yes |
 | All scout types (Page, Smart, Social, Civic) | Yes |
 | Export + CMS integration | Yes |
 | v1 API + API key management | Yes |
@@ -148,7 +147,7 @@ cojournalist/
 ├── automation/                  # Automation scripts (included in OSS repo, license-gated)
 │   ├── setup.sh                 # One-time bootstrap (license-gated)
 │   ├── sync-upstream.yml        # GitHub Action for auto-updates (license-gated)
-│   └── AGENT_INSTRUCTIONS.md    # Prompt for Claude Code / Codex
+│   └── SETUP_AGENT.md           # Prompt for Claude Code / Codex
 ├── .github/workflows/
 │   ├── ci.yml                   # Existing CI
 │   └── mirror-oss.yml           # Auto-push to OSS repo
@@ -935,7 +934,7 @@ The full license key design is documented in `docs/architecture/license-key-infr
 ### Pricing Model
 
 Annual license (pricing TBD). Includes:
-- Automated setup via `setup.sh` and `AGENT_INSTRUCTIONS.md`
+- Automated setup via `setup.sh` and `SETUP_AGENT.md`
 - Weekly auto-sync with upstream via `sync-upstream.yml` GitHub Action
 - License key validation keeps the auto-update pipeline active
 
@@ -961,7 +960,7 @@ The `automation/` directory in the public repo contains the paid value: scripts 
 automation/
 ├── setup.sh                    # One-time bootstrap (license-gated)
 ├── sync-upstream.yml            # GitHub Action for auto-updates (license-gated)
-└── AGENT_INSTRUCTIONS.md        # Prompt for Claude Code / Codex
+└── SETUP_AGENT.md               # Prompt for Claude Code / Codex
 ```
 
 ### setup.sh
@@ -988,7 +987,7 @@ GitHub Action installed in the customer's fork. Validates license key weekly, th
 If license key is expired or revoked: sync stops, customer keeps their code at the last version.
 If license server is unreachable: sync proceeds with warning (fail open).
 
-### AGENT_INSTRUCTIONS.md
+### SETUP_AGENT.md
 
 A prompt designed for AI coding agents (Claude Code, Codex, etc.). Contains step-by-step instructions that the agent follows:
 - Fork repo, add critical configuration
@@ -1102,7 +1101,7 @@ Build the license-gated automation in the `automation/` directory.
 
 1. Build `setup.sh` with license key validation + full bootstrap flow
 2. Build `sync-upstream.yml` GitHub Action with license validation + auto-merge + migration detection
-3. Write `AGENT_INSTRUCTIONS.md` prompt for AI coding agents
+3. Write `SETUP_AGENT.md` prompt for AI coding agents
 4. Test end-to-end: license key -> setup.sh -> deployed instance -> sync receives updates
 5. Verify: expired key stops sync, unreachable server fails open
 

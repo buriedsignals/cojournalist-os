@@ -20,10 +20,9 @@ Collect these before you start:
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `APIFY_API_TOKEN`
-
-Optional:
 - `PUBLIC_MAPTILER_API_KEY`
-- `OPENROUTER_API_KEY`
+- `ADMIN_EMAILS`
+- `SIGNUP_ALLOWED_DOMAINS`
 
 Supabase:
 - `SUPABASE_URL`
@@ -70,16 +69,29 @@ supabase secrets set \
   RESEND_API_KEY=... \
   RESEND_FROM_EMAIL=... \
   APIFY_API_TOKEN=... \
+  PUBLIC_MAPTILER_API_KEY=... \
+  ADMIN_EMAILS=... \
   INTERNAL_SERVICE_KEY=...
 ```
 
-6. Write the project `.env` with the Supabase and frontend values:
+6. Seed the signup allowlist created by the migrations:
+
+```sql
+TRUNCATE TABLE public.signup_email_allowlist;
+INSERT INTO public.signup_email_allowlist (kind, value, reason)
+VALUES
+  ('email', lower('<ADMIN_EMAIL>'), 'initial admin'),
+  ('domain', lower('<ALLOWED_DOMAIN>'), 'newsroom signup domain');
+```
+
+7. Write the project `.env` with the Supabase and frontend values:
 - `DEPLOYMENT_TARGET=supabase`
 - `PUBLIC_DEPLOYMENT_TARGET=supabase`
 - `PUBLIC_SUPABASE_URL=<SUPABASE_URL>`
 - `PUBLIC_SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>`
+- `PUBLIC_MAPTILER_API_KEY=<PUBLIC_MAPTILER_API_KEY>`
 
-7. Build and deploy the frontend:
+8. Build and deploy the frontend:
 
 ```bash
 cd frontend
@@ -87,7 +99,23 @@ npm ci
 npm run build
 ```
 
-8. If the user wants the optional Python API add-on, deploy `backend/` separately or use `deploy/render/render.yaml`.
+9. If the user wants the optional Python API add-on, deploy `backend/` separately or use `deploy/render/render.yaml`.
+
+10. Install the upstream sync workflow by default:
+
+```bash
+mkdir -p .github/workflows
+cp automation/sync-upstream.yml .github/workflows/sync-upstream.yml
+git add .github/workflows/sync-upstream.yml
+git commit -m "ci: install sync-upstream GitHub Action"
+git push origin master
+```
+
+Tell the operator to set these GitHub secrets so future maintenance can run
+without manual intervention:
+- `SUPABASE_PROJECT_REF`
+- `SUPABASE_ACCESS_TOKEN`
+- optional: `RENDER_DEPLOY_HOOK`
 
 ## Guardrails
 
@@ -95,7 +123,9 @@ npm run build
 - Do not assume same-origin `/api` is required.
 - Do not use any license-key flow; the setup is public.
 - Do not use `main` for the public OSS repo. Use `master`.
-- If you install the sync workflow, push it to `origin master`.
+- Install the sync workflow by default and push it to `origin master`.
+- Do not ask the user to paste secrets into AI chat. Prefer the generated
+  `cojournalist-setup.json` manifest and `automation/setup-from-manifest.sh`.
 
 ## Verification
 
