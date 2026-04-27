@@ -54,11 +54,13 @@ export async function requireUser(req: Request): Promise<AuthedUser> {
  *  agent API keys validated via the validate_api_key RPC. Use this on
  *  read-only public routes that agents (CLI, MCP, third-party) need. */
 export async function requireUserOrApiKey(req: Request): Promise<AuthedUser> {
+  const forwardedApiKey = req.headers.get("x-cojo-api-key") ??
+    req.headers.get("X-Cojo-Api-Key");
   const header = req.headers.get("authorization") ?? req.headers.get("Authorization");
   if (!header || !header.toLowerCase().startsWith("bearer ")) {
-    throw new AuthError("missing bearer token");
+    if (!forwardedApiKey) throw new AuthError("missing bearer token");
   }
-  const token = header.slice(7).trim();
+  const token = forwardedApiKey?.trim() || header?.slice(7).trim() || "";
   if (!token) throw new AuthError("empty bearer token");
 
   if (token.startsWith("cj_")) {

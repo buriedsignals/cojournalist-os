@@ -55,7 +55,13 @@ async function forward(
     Authorization: `Bearer ${token}`,
   };
   const anon = Deno.env.get("SUPABASE_ANON_KEY");
-  if (anon) headers["apikey"] = anon;
+  if (anon) {
+    headers["apikey"] = anon;
+    if (token.startsWith("cj_")) {
+      headers["Authorization"] = `Bearer ${anon}`;
+      headers["x-cojo-api-key"] = token;
+    }
+  }
   let body: BodyInit | undefined;
   if (init.body !== undefined) {
     headers["Content-Type"] = "application/json";
@@ -589,7 +595,10 @@ export async function handleRpc(req: Request): Promise<Response> {
   try {
     user = await requireUserOrApiKey(req);
     const header = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
-    token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+    const forwardedApiKey = req.headers.get("x-cojo-api-key") ??
+      req.headers.get("X-Cojo-Api-Key") ?? "";
+    token = forwardedApiKey.trim() ||
+      (header.startsWith("Bearer ") ? header.slice(7).trim() : "");
     if (!token) {
       return rpcErr(body.id, { code: -32001, message: "missing bearer token" });
     }

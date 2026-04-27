@@ -5,10 +5,13 @@ This covers the public contract advertised on cojournalist.ai:
 
   - /functions/v1/* forwards to the Supabase Edge Function gateway
   - /mcp* forwards to the mcp-server Edge Function
-  - Authorization is preserved
+  - JWT Authorization is preserved
+  - cj_ API keys are forwarded through X-Cojo-Api-Key with anon JWT auth
   - apikey is injected from config when the caller does not send one
   - hop-by-hop headers are stripped
 """
+
+from __future__ import annotations
 
 from unittest.mock import patch
 
@@ -56,7 +59,7 @@ class _FakeClient:
         return self._response
 
 
-def test_functions_proxy_forwards_path_query_and_auth(monkeypatch):
+def test_functions_proxy_forwards_path_query_and_jwt_auth(monkeypatch):
     monkeypatch.setattr(public_edge_proxy.settings, "supabase_url", "https://proj.supabase.co")
     monkeypatch.setattr(public_edge_proxy.settings, "supabase_anon_key", "anon-from-settings")
     fake = _FakeClient(_FakeResp(200, b'{"ok":true}'))
@@ -66,7 +69,7 @@ def test_functions_proxy_forwards_path_query_and_auth(monkeypatch):
         res = client.get(
             "/functions/v1/openapi-spec?format=json",
             headers={
-                "authorization": "Bearer cj_demo",
+                "authorization": "Bearer jwt.demo.token",
                 "host": "www.cojournalist.ai",
             },
         )
@@ -77,11 +80,30 @@ def test_functions_proxy_forwards_path_query_and_auth(monkeypatch):
     call = fake.calls[0]
     assert call["method"] == "GET"
     assert call["url"] == "https://proj.supabase.co/functions/v1/openapi-spec?format=json"
-    assert call["headers"]["authorization"] == "Bearer cj_demo"
+    assert call["headers"]["authorization"] == "Bearer jwt.demo.token"
     assert call["headers"]["apikey"] == "anon-from-settings"
     forwarded = {k.lower(): v for k, v in call["headers"].items()}
     assert "host" not in forwarded
     assert "content-length" not in forwarded
+
+
+def test_functions_proxy_moves_cj_key_out_of_authorization(monkeypatch):
+    monkeypatch.setattr(public_edge_proxy.settings, "supabase_url", "https://proj.supabase.co")
+    monkeypatch.setattr(public_edge_proxy.settings, "supabase_anon_key", "anon-from-settings")
+    fake = _FakeClient(_FakeResp(200, b'{"ok":true}'))
+
+    with patch("app.routers.public_edge_proxy.httpx.AsyncClient", return_value=fake):
+        client = _mount()
+        res = client.get(
+            "/functions/v1/scouts",
+            headers={"authorization": "Bearer cj_demo"},
+        )
+
+    assert res.status_code == 200
+    headers = {k.lower(): v for k, v in fake.calls[0]["headers"].items()}
+    assert headers["authorization"] == "Bearer anon-from-settings"
+    assert headers["x-cojo-api-key"] == "cj_demo"
+    assert headers["apikey"] == "anon-from-settings"
 
 
 def test_functions_proxy_preserves_caller_apikey(monkeypatch):
@@ -101,58 +123,54 @@ def test_functions_proxy_preserves_caller_apikey(monkeypatch):
     assert fake.calls[0]["headers"]["apikey"] == "caller-apikey"
 
 
-def test_mcp_proxy_maps_to_mcp_server_path(monkeypatch):
+def test_mcp_proxy_serves_authorization_metadata_without_upstream(monkeypatch):
     monkeypatch.setattr(public_edge_proxy.settings, "supabase_url", "https://proj.supabase.co")
     monkeypatch.setattr(public_edge_proxy.settings, "supabase_anon_key", "anon-from-settings")
-    fake = _FakeClient(
-        _FakeResp(
-            200,
-            b'{"issuer":"https://proj.supabase.co/functions/v1/mcp-server"}',
-            {"content-type": "application/json", "cache-control": "max-age=300"},
-        ),
-    )
+    fake = _FakeClient(_FakeResp(500, b"should-not-be-called"))
 
     with patch("app.routers.public_edge_proxy.httpx.AsyncClient", return_value=fake):
         client = _mount()
-        res = client.get("/mcp/.well-known/oauth-authorization-server")
+        res = client.get(
+            "/mcp/.well-known/oauth-authorization-server",
+            headers={
+                "host": "www.cojournalist.ai",
+                "x-forwarded-proto": "https",
+            },
+        )
 
     assert res.status_code == 200
-    assert res.json()["issuer"] == "http://testserver/mcp"
-    assert res.json()["authorization_endpoint"] == "http://testserver/mcp/authorize"
-    assert res.json()["token_endpoint"] == "http://testserver/mcp/token"
-    assert res.json()["registration_endpoint"] == "http://testserver/mcp/register"
-    assert fake.calls[0]["url"] == (
-        "https://proj.supabase.co/functions/v1/mcp-server/.well-known/oauth-authorization-server"
-    )
-    assert res.headers["cache-control"] == "max-age=300"
+    assert res.json()["issuer"] == "https://www.cojournalist.ai/mcp"
+    assert res.json()["authorization_endpoint"] == "https://www.cojournalist.ai/mcp/authorize"
+    assert res.json()["token_endpoint"] == "https://www.cojournalist.ai/mcp/token"
+    assert res.json()["registration_endpoint"] == "https://www.cojournalist.ai/mcp/register"
+    assert fake.calls == []
+    assert res.headers["cache-control"] == "public, max-age=300"
 
 
-def test_mcp_proxy_rewrites_protected_resource_metadata(monkeypatch):
+def test_mcp_proxy_serves_protected_resource_metadata_without_upstream(monkeypatch):
     monkeypatch.setattr(public_edge_proxy.settings, "supabase_url", "https://proj.supabase.co")
     monkeypatch.setattr(public_edge_proxy.settings, "supabase_anon_key", "anon-from-settings")
-    fake = _FakeClient(
-        _FakeResp(
-            200,
-            b'{"resource":"https://proj.supabase.co/functions/v1/mcp-server","authorization_servers":["https://proj.supabase.co/functions/v1/mcp-server"]}',
-            {"content-type": "application/json", "cache-control": "max-age=300"},
-        ),
-    )
+    fake = _FakeClient(_FakeResp(500, b"should-not-be-called"))
 
     with patch("app.routers.public_edge_proxy.httpx.AsyncClient", return_value=fake):
         client = _mount()
-        res = client.get("/mcp/.well-known/oauth-protected-resource")
+        res = client.get(
+            "/.well-known/oauth-protected-resource",
+            headers={
+                "host": "www.cojournalist.ai",
+                "x-forwarded-proto": "https",
+            },
+        )
 
     assert res.status_code == 200
-    assert res.json()["resource"] == "http://testserver/mcp"
-    assert res.json()["authorization_servers"] == ["http://testserver/mcp"]
+    assert res.json()["resource"] == "https://www.cojournalist.ai/mcp"
+    assert res.json()["authorization_servers"] == ["https://www.cojournalist.ai/mcp"]
     assert res.json()["bearer_methods_supported"] == ["header"]
     assert res.json()["scopes_supported"] == ["mcp"]
     assert res.json()["resource_documentation"] == (
         "https://www.cojournalist.ai/skills/cojournalist.md"
     )
-    assert fake.calls[0]["url"] == (
-        "https://proj.supabase.co/functions/v1/mcp-server/.well-known/oauth-protected-resource"
-    )
+    assert fake.calls == []
 
 
 def test_proxy_returns_sterile_502_on_upstream_error(monkeypatch):

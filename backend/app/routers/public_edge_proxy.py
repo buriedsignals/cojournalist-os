@@ -14,6 +14,9 @@ avoids sending users to raw project URLs for normal hosted usage.
 Security model:
   - Upstream host is fixed from SUPABASE_URL and validated at startup/lazy use.
   - Authorization is forwarded verbatim.
+  - cj_ API keys are moved to X-Cojo-Api-Key and Authorization is replaced
+    with the anon JWT before forwarding to Supabase, so Kong does not reject
+    the non-JWT bearer before the Edge Function can validate it.
   - apikey is forwarded when provided, otherwise populated from
     SUPABASE_ANON_KEY for hosted same-origin calls.
   - Hop-by-hop headers are stripped.
@@ -115,6 +118,12 @@ def _forward_headers(request: Request) -> dict[str, str]:
         for key, value in request.headers.items()
         if key.lower() not in _STRIP_HEADERS
     }
+    auth_key = next((key for key in headers if key.lower() == "authorization"), None)
+    if auth_key and headers[auth_key].lower().startswith("bearer cj_"):
+        token = headers[auth_key].split(None, 1)[1].strip()
+        headers["x-cojo-api-key"] = token
+        if settings.supabase_anon_key:
+            headers[auth_key] = f"Bearer {settings.supabase_anon_key}"
     if "apikey" not in {key.lower() for key in headers} and settings.supabase_anon_key:
         headers["apikey"] = settings.supabase_anon_key
     return headers
@@ -134,7 +143,51 @@ def _response_headers(upstream: httpx.Response) -> dict[str, str]:
 
 
 def _public_mcp_base(request: Request) -> str:
-    return str(request.url.replace(path="/mcp", query="", fragment="")).rstrip("/")
+    proto = (
+        request.headers.get("x-forwarded-proto")
+        or request.url.scheme
+        or "https"
+    ).split(",")[0].strip()
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("host")
+        or request.url.netloc
+    ).split(",")[0].strip()
+    return f"{proto}://{host}/mcp".rstrip("/")
+
+
+def _mcp_authorization_metadata(request: Request) -> JSONResponse:
+    public_base = _public_mcp_base(request)
+    return JSONResponse(
+        {
+            "issuer": public_base,
+            "authorization_endpoint": f"{public_base}/authorize",
+            "token_endpoint": f"{public_base}/token",
+            "registration_endpoint": f"{public_base}/register",
+            "response_types_supported": ["code"],
+            "grant_types_supported": ["authorization_code", "refresh_token"],
+            "code_challenge_methods_supported": ["S256"],
+            "token_endpoint_auth_methods_supported": ["none", "client_secret_post"],
+            "scopes_supported": ["mcp"],
+        },
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+def _mcp_protected_resource_metadata(request: Request) -> JSONResponse:
+    public_base = _public_mcp_base(request)
+    return JSONResponse(
+        {
+            "resource": public_base,
+            "authorization_servers": [public_base],
+            "bearer_methods_supported": ["header"],
+            "scopes_supported": ["mcp"],
+            "resource_documentation": (
+                "https://www.cojournalist.ai/skills/cojournalist.md"
+            ),
+        },
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 def _rewrite_mcp_metadata(
@@ -215,6 +268,24 @@ async def proxy_edge_functions(path: str, request: Request) -> Response:
 
 
 @router.api_route(
+    "/.well-known/oauth-authorization-server",
+    methods=["GET", "HEAD"],
+    include_in_schema=False,
+)
+async def proxy_root_mcp_authorization_metadata(request: Request) -> Response:
+    return _mcp_authorization_metadata(request)
+
+
+@router.api_route(
+    "/.well-known/oauth-protected-resource",
+    methods=["GET", "HEAD"],
+    include_in_schema=False,
+)
+async def proxy_root_mcp_protected_resource_metadata(request: Request) -> Response:
+    return _mcp_protected_resource_metadata(request)
+
+
+@router.api_route(
     "/mcp",
     methods=["GET", "POST", "OPTIONS", "HEAD"],
     include_in_schema=False,
@@ -230,6 +301,12 @@ async def proxy_mcp_root(request: Request) -> Response:
     include_in_schema=False,
 )
 async def proxy_mcp_path(path: str, request: Request) -> Response:
+    normalized = "/" + path.strip("/")
+    if normalized == "/.well-known/oauth-authorization-server":
+        return _mcp_authorization_metadata(request)
+    if normalized == "/.well-known/oauth-protected-resource":
+        return _mcp_protected_resource_metadata(request)
+
     upstream_url = _upstream_url("functions/v1/mcp-server", path, request.url.query)
     body = await request.body()
     try:
