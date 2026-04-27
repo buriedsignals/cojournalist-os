@@ -89,6 +89,27 @@ Backlog of work intentionally left out of recent PRs (#99 hardening / #101 combi
 
 ---
 
+## 8. `SPAStaticFiles` — unregistered `/api/*` returns 500 instead of 404
+
+- **What**: `backend/app/main.py::SPAStaticFiles.get_response` does `if path.startswith("api/"): raise RuntimeError("Not a static file")` for any `/api/*` path that isn't matched by a FastAPI router. The RuntimeError bubbles to `global_exception_handler` and becomes `HTTP 500 {"error":"Internal server error"}`. A client hitting an unregistered API path sees a 500 where a 404 is the correct shape.
+- **Impact L · Risk L · Cost L** — 2-line change + 1 unit test. 10 minutes.
+- **Where**: `backend/app/main.py` inside `class SPAStaticFiles(StaticFiles)` — the early `if path.startswith("api/"):` branch.
+- **Fix**: replace `raise RuntimeError("Not a static file")` with:
+  ```python
+  return Response(status_code=404, headers=_NO_STORE_HEADERS)
+  ```
+  (Imports `_NO_STORE_HEADERS` is already in the same module.)
+- **Verification**:
+  ```bash
+  curl -sI https://www.cojournalist.ai/api/bogus-does-not-exist | head -2
+  # expect post-fix: HTTP/2 404 (currently: HTTP/2 500)
+  curl -sI https://www.cojournalist.ai/api/auth/has-users | head -2
+  # expect post-fix on SaaS: HTTP/2 404 (gate removes the route; currently 500 because of same bug)
+  ```
+- **Deferred because**: security-intent of D3 (no unauthenticated information disclosure from `/api/auth/has-users`) is already satisfied — the endpoint returns `{"error":"Internal server error"}` not `{"has_users": true}`. Fixing is purely about surfacing correct HTTP semantics so clients can distinguish "not found" from "server crash." Low urgency; ship in its own small PR alongside other L·L·L items.
+
+---
+
 ## Principle
 
 If the entry says "impact L · risk L · cost L", ship it opportunistically. If it says risk M or H, ship it in its own PR with explicit verification. Never bundle an H-risk cleanup with a feature.
