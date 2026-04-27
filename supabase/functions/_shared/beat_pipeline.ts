@@ -26,6 +26,7 @@ import { logEvent } from "./log.ts";
 import { cosineSimilarity } from "./dedup.ts";
 import { buildBeatLocationMatcher } from "./beat_location.ts";
 import { buildBeatCriteriaRule } from "./beat_criteria.ts";
+import { compressContext, logCompressionStats } from "./taco_compress.ts";
 
 export type BeatCategory = "news" | "government" | "analysis";
 export type BeatSourceMode = "reliable" | "niche";
@@ -673,9 +674,11 @@ export async function aiFilterResults(
   const candidates = filtered.slice(0, 60);
   if (candidates.length === 0) return [];
 
-  const articlesBlock = candidates
+  const rawArticlesBlock = candidates
     .map((h, i) => `${i}. ${h.title ?? "No title"}\n   ${(h.description ?? "").slice(0, 150)}\n   URL: ${h.url}`)
     .join("\n");
+  const { text: articlesBlock, stats: filterStats } = compressContext(rawArticlesBlock);
+  logCompressionStats("beat-pipeline-filter", undefined, filterStats);
   const location = opts.cityName && opts.countryName
     ? `${opts.cityName}, ${opts.countryName}`
     : opts.cityName || opts.countryName || "";
@@ -732,9 +735,11 @@ export async function generateBeatSummary(
 ): Promise<string> {
   if (hits.length === 0) return "";
   const top = hits.slice(0, 6);
-  const block = top
+  const rawBlock = top
     .map((h, i) => `${i + 1}. ${h.title ?? "Untitled"}\n   URL: ${h.url}\n   ${(h.description ?? "").slice(0, 150)}`)
     .join("\n");
+  const { text: block, stats: summaryStats } = compressContext(rawBlock);
+  logCompressionStats("beat-pipeline-summary", undefined, summaryStats);
   const categoryLabel = opts.category === "government"
     ? "government and municipal"
     : opts.category === "analysis"

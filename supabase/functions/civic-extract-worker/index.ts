@@ -28,6 +28,7 @@ import {
   geminiExtract,
 } from "../_shared/gemini.ts";
 import { languageName } from "../_shared/atomic_extract.ts";
+import { compressContext, logCompressionStats } from "../_shared/taco_compress.ts";
 import { sendCivicAlert } from "../_shared/notifications.ts";
 import {
   deriveSourceDomain,
@@ -278,7 +279,9 @@ async function processItem(
   //    civic pipeline. Criteria is passed as filter data so Gemini only
   //    surfaces promises relevant to the scout's beat, and the system
   //    instruction forces the scout's preferred_language in the output.)
-  const promptText = markdown.slice(0, PROMPT_CONTENT_MAX);
+  const { text: compressedMarkdown, stats: civicStats } = compressContext(markdown);
+  logCompressionStats("civic-extract-worker", undefined, civicStats);
+  const promptText = compressedMarkdown.slice(0, PROMPT_CONTENT_MAX);
   const langCode = (scout.preferred_language as string | null) ?? "en";
   const langName = languageName(langCode);
   const criteriaBlock = scout.criteria && String(scout.criteria).trim()

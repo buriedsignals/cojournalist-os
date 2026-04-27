@@ -1,6 +1,7 @@
 import { discoverCivicDocumentsFromTrackedPages } from "./civic_links.ts";
 import { firecrawlScrape } from "./firecrawl.ts";
 import { geminiExtract } from "./gemini.ts";
+import { compressContext } from "./taco_compress.ts";
 
 const PREVIEW_MARKDOWN_MAX = 15_000;
 
@@ -77,7 +78,7 @@ export async function previewCivicTrackedUrls(
       continue;
     }
 
-    const markdown = (scraped.markdown ?? "").slice(0, PREVIEW_MARKDOWN_MAX);
+    const { text: markdown } = compressContext((scraped.markdown ?? "").slice(0, PREVIEW_MARKDOWN_MAX));
     if (!markdown.trim()) continue;
 
     const prompt = buildPreviewPrompt(markdown, documentUrl, criteria);

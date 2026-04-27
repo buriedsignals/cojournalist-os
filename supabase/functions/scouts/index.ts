@@ -45,6 +45,7 @@ import {
   firecrawlScrape,
 } from "../_shared/firecrawl.ts";
 import { geminiExtract } from "../_shared/gemini.ts";
+import { compressContext } from "../_shared/taco_compress.ts";
 import { ensureWebBaseline } from "../_shared/web_scout_baseline.ts";
 import templates from "../scout-templates/templates.json" with { type: "json" };
 
@@ -1078,7 +1079,8 @@ async function testScout(
   }
   const provider = await probePromise;
 
-  const markdown = (scraped.markdown ?? "").slice(0, TEST_MARKDOWN_MAX);
+  const rawMarkdown = (scraped.markdown ?? "").slice(0, TEST_MARKDOWN_MAX);
+  const { text: markdown } = compressContext(rawMarkdown);
 
   if (!markdown.trim()) {
     return jsonOk({

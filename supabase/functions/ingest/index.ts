@@ -32,6 +32,7 @@ import {
   geminiEmbed,
   geminiExtract,
 } from "../_shared/gemini.ts";
+import { compressContext, logCompressionStats } from "../_shared/taco_compress.ts";
 import {
   type CanonicalUnitType,
   deriveSourceDomain,
@@ -275,8 +276,10 @@ async function runPipeline(
   if (capErr) throw new Error(capErr.message);
   const rawCaptureId = capture.id as string;
 
-  // 4. Extract units via Gemini.
-  const promptText = truncated.slice(0, PROMPT_CONTENT_MAX);
+  // 4. Extract units via Gemini (TACO-compressed).
+  const { text: compressedForPrompt, stats: ingestStats } = compressContext(truncated);
+  logCompressionStats("ingest", undefined, ingestStats);
+  const promptText = compressedForPrompt.slice(0, PROMPT_CONTENT_MAX);
   const prompt =
     "Extract up to 15 discrete factual statements from the following text. " +
     "For each, give a one-sentence `statement`, a `type` (fact|event|entity_update), " +
