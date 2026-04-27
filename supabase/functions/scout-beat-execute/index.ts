@@ -69,6 +69,7 @@ import { parseBeatLocation } from "../_shared/beat_location.ts";
 const InputSchema = z.object({
   scout_id: z.string().uuid(),
   run_id: z.string().uuid().optional(),
+  baseline_only: z.boolean().optional(),
 });
 
 const MAX_SOURCES = 20;
@@ -111,10 +112,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       400,
     );
   }
-  const { scout_id, run_id } = parsed.data;
+  const { scout_id, run_id, baseline_only } = parsed.data;
 
   try {
-    return await execute(scout_id, run_id);
+    return await execute(scout_id, run_id, baseline_only === true);
   } catch (e) {
     logEvent({
       level: "error",
@@ -129,7 +130,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 // ---------------------------------------------------------------------------
 
-async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
+async function execute(
+  scoutId: string,
+  runIdIn?: string,
+  baselineOnly = false,
+): Promise<Response> {
   const db = getServiceClient();
 
   // 1. Load scout
@@ -150,24 +155,44 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
     .slice(0, MAX_SOURCES);
 
-  // 2. Decrement credits before running the discovery pipeline.
-  try {
-    await decrementOrThrow(db, {
-      userId: scout.user_id,
-      cost: CREDIT_COSTS.beat,
-      scoutId: scout.id,
-      scoutType: "beat",
-      operation: "beat",
-    });
-  } catch (e) {
-    if (e instanceof InsufficientCreditsError) {
-      return insufficientCreditsResponse(e.required, e.current);
-    }
-    throw e;
+  // 2. Resolve / create scout_runs row before any charge so missing baselines
+  //    fail visibly without spending credits.
+  const runId = await resolveRun(db, scout, runIdIn);
+  let chargedCredits = false;
+
+  if (!baselineOnly && !scout.baseline_established_at) {
+    const msg =
+      "beat scout has no baseline; recreate or reschedule the scout so creation can establish one before Run Now";
+    await db
+      .from("scout_runs")
+      .update({
+        status: "error",
+        error_message: msg,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", runId);
+    throw new ValidationError(msg);
   }
 
-  // 3. Resolve / create scout_runs row
-  const runId = await resolveRun(db, scout, runIdIn);
+  // 3. Decrement credits before running the discovery pipeline. Baseline-only
+  //    creation runs are setup work, not user-triggered monitoring runs.
+  if (!baselineOnly) {
+    try {
+      await decrementOrThrow(db, {
+        userId: scout.user_id,
+        cost: CREDIT_COSTS.beat,
+        scoutId: scout.id,
+        scoutType: "beat",
+        operation: "beat",
+      });
+      chargedCredits = true;
+    } catch (e) {
+      if (e instanceof InsufficientCreditsError) {
+        return insufficientCreditsResponse(e.required, e.current);
+      }
+      throw e;
+    }
+  }
 
   try {
     // --- Stage 0: prepare pipeline inputs ---
@@ -251,6 +276,13 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     if (finalUrls.length === 0) {
       // Empty pipeline outcome (no discovered URLs) — record a no-op success
       // and refund the pre-charge (matches legacy source behaviour).
+      if (baselineOnly) {
+        const { error: baselineErr } = await db
+          .from("scouts")
+          .update({ baseline_established_at: new Date().toISOString() })
+          .eq("id", scoutId);
+        if (baselineErr) throw new Error(baselineErr.message);
+      }
       await db
         .from("scout_runs")
         .update({
@@ -262,13 +294,15 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
           completed_at: new Date().toISOString(),
         })
         .eq("id", runId);
-      await refundCredits(db, {
-        userId: scout.user_id as string,
-        cost: CREDIT_COSTS.beat,
-        scoutId,
-        scoutType: "beat",
-        operation: "beat",
-      });
+      if (chargedCredits) {
+        await refundCredits(db, {
+          userId: scout.user_id as string,
+          cost: CREDIT_COSTS.beat,
+          scoutId,
+          scoutType: "beat",
+          operation: "beat",
+        });
+      }
       return jsonOk({
         status: "ok",
         run_id: runId,
@@ -276,7 +310,10 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         sources_failed: 0,
         articles_count: 0,
         merged_existing_count: 0,
-        note: "beat pipeline produced zero sources for this query",
+        note: baselineOnly
+          ? "beat baseline initialized with zero discovered sources"
+          : "beat pipeline produced zero sources for this query",
+        baseline_initialized: baselineOnly,
       });
     }
 
@@ -320,7 +357,6 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
 
     // Keep a lookup so per-URL gov vs news partitioning survives the scrape step.
     const govUrlSet = new Set(govBeatHits.map((h) => h.url));
-    const succeededUrlSet = new Set(succeeded.map((s) => s.source_url));
 
     // 5. Persist raw_captures for each successful scrape.
     const rawCaptureIds: string[] = [];
@@ -364,6 +400,8 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     const newsStatements: string[] = [];
     const govStatements: string[] = [];
     const runEmbeddings: number[][] = [];
+    const baselineUnitIds = new Set<string>();
+    const surfacedArticles = new Map<string, Article & { category: "news" | "government" }>();
     const factCheckConfig = loadFactCheckConfig();
 
     for (let i = 0; i < succeeded.length; i++) {
@@ -472,6 +510,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
             rawCaptureId: captureId,
             metadata: {
               category: govUrlSet.has(src.source_url) ? "government" : "news",
+              ...(baselineOnly ? { baseline: true } : {}),
             },
             factChecked: fcResult.fact_checked,
             confidenceScore: fcResult.confidence_score,
@@ -481,6 +520,18 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
 
           if (result.createdCanonical) {
             insertedCount += 1;
+            if (baselineOnly) baselineUnitIds.add(result.unitId);
+            if (!surfacedArticles.has(src.source_url)) {
+              surfacedArticles.set(src.source_url, {
+                title: src.title ?? src.source_url,
+                url: src.source_url,
+                summary: "",
+                source: safeDomain(src.source_url) ?? "",
+                category: govUrlSet.has(src.source_url)
+                  ? "government"
+                  : "news",
+              });
+            }
             if (insertedStatements.length < 10) {
               insertedStatements.push(u.statement);
             }
@@ -509,7 +560,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     const noSurfaceReason = insertedCount === 0 && mergedExistingCount === 0
       ? "No usable information units were extracted from successfully scraped sources."
       : null;
-    if (noSurfaceReason) {
+    if (noSurfaceReason && chargedCredits) {
       await refundCredits(db, {
         userId: scout.user_id as string,
         cost: CREDIT_COSTS.beat,
@@ -519,16 +570,35 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       });
     }
 
+    if (baselineOnly) {
+      if (baselineUnitIds.size > 0) {
+        const { error: hideErr } = await db
+          .from("information_units")
+          .update({
+            deleted_at: new Date().toISOString(),
+            deleted_by: scout.user_id,
+            deletion_reason: "baseline",
+          })
+          .in("id", [...baselineUnitIds]);
+        if (hideErr) throw new Error(hideErr.message);
+      }
+      const { error: baselineErr } = await db
+        .from("scouts")
+        .update({ baseline_established_at: new Date().toISOString() })
+        .eq("id", scoutId);
+      if (baselineErr) throw new Error(baselineErr.message);
+    }
+
     // 9. Mark run success + reset failures.
     await db
       .from("scout_runs")
       .update({
         status: "success",
         scraper_status: true,
-        criteria_status: !noSurfaceReason,
-        articles_count: insertedCount,
-        merged_existing_count: mergedExistingCount,
-        error_message: noSurfaceReason,
+        criteria_status: baselineOnly ? false : !noSurfaceReason,
+        articles_count: baselineOnly ? 0 : insertedCount,
+        merged_existing_count: baselineOnly ? 0 : mergedExistingCount,
+        error_message: baselineOnly ? null : noSurfaceReason,
         completed_at: new Date().toISOString(),
       })
       .eq("id", runId);
@@ -553,41 +623,35 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       scout_id: scoutId,
       run_id: runId,
       sources_scraped: succeeded.length,
-      articles_count: insertedCount,
-      merged_existing_count: mergedExistingCount,
+      articles_count: baselineOnly ? 0 : insertedCount,
+      merged_existing_count: baselineOnly ? 0 : mergedExistingCount,
       ...(abstainedCount > 0 ? { abstained_count: abstainedCount } : {}),
+      ...(baselineOnly ? { baseline_only: true } : {}),
     });
 
     // Notify user when new, non-duplicate units landed. Build separate article
     // cards for news vs government (legacy behaviour), with LLM-composed
     // summaries per section rather than raw statement bullets.
-    if (insertedCount > 0 && insertedStatements.length > 0) {
+    if (!baselineOnly && insertedCount > 0 && insertedStatements.length > 0) {
       try {
-        const newsScrapes = succeeded.filter((s) =>
-          !govUrlSet.has(s.source_url)
-        );
-        const govScrapes = succeeded.filter((s) => govUrlSet.has(s.source_url));
-        const newsArticles: Article[] = newsScrapes.slice(0, 5).map((s) => ({
-          title: s.title ?? s.source_url,
-          url: s.source_url,
-          summary: "",
-          source: safeDomain(s.source_url) ?? "",
-        }));
-        const govArticles: Article[] = govScrapes.slice(0, 5).map((s) => ({
-          title: s.title ?? s.source_url,
-          url: s.source_url,
-          summary: "",
-          source: safeDomain(s.source_url) ?? "",
-        }));
+        const newsArticles: Article[] = [...surfacedArticles.values()]
+          .filter((article) => article.category === "news")
+          .slice(0, 5)
+          .map(({ category: _category, ...article }) => article);
+        const govArticles: Article[] = [...surfacedArticles.values()]
+          .filter((article) => article.category === "government")
+          .slice(0, 5)
+          .map(({ category: _category, ...article }) => article);
 
         // Prefer LLM-composed summaries when pipeline produced hits; fall back
         // to bulleted statement list for the manual-priority-sources path.
         const emailLang = (preferredLanguage ?? "en").toLowerCase();
+        const surfacedUrls = new Set(surfacedArticles.keys());
         const successfulNewsHits = newsBeatHits.filter((h) =>
-          succeededUrlSet.has(h.url)
+          surfacedUrls.has(h.url)
         );
         const successfulGovHits = govBeatHits.filter((h) =>
-          succeededUrlSet.has(h.url)
+          surfacedUrls.has(h.url)
         );
         const summary = successfulNewsHits.length > 0
           ? await generateBeatSummary(successfulNewsHits, {
@@ -614,15 +678,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
           topic,
           summary: summary ||
             insertedStatements.slice(0, 5).map((s) => `- ${s}`).join("\n"),
-          articles: newsArticles.length > 0 ? newsArticles : newsScrapes
-            .concat(govScrapes)
-            .slice(0, 5)
-            .map((s) => ({
-              title: s.title ?? s.source_url,
-              url: s.source_url,
-              summary: "",
-              source: safeDomain(s.source_url) ?? "",
-            })),
+          articles: newsArticles.length > 0 ? newsArticles : govArticles,
           govArticles: govArticles.length > 0 ? govArticles : undefined,
           govSummary: govSummary || undefined,
         });
@@ -643,9 +699,10 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       run_id: runId,
       sources_scraped: succeeded.length,
       sources_failed: failures.length,
-      articles_count: insertedCount,
-      merged_existing_count: mergedExistingCount,
-      no_surface_reason: noSurfaceReason,
+      articles_count: baselineOnly ? 0 : insertedCount,
+      merged_existing_count: baselineOnly ? 0 : mergedExistingCount,
+      no_surface_reason: baselineOnly ? null : noSurfaceReason,
+      baseline_initialized: baselineOnly,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -658,21 +715,25 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       })
       .eq("id", runId);
 
-    await incrementAndMaybeNotify(db, {
-      scoutId,
-      userId: scout.user_id as string,
-      scoutName: (scout.name as string | null) ?? "Beat Scout",
-      scoutType: "beat",
-      language: scout.preferred_language as string | null,
-    });
-    // Refund the 7-credit pre-charge — the run produced no billable output.
-    await refundCredits(db, {
-      userId: scout.user_id as string,
-      cost: CREDIT_COSTS.beat,
-      scoutId,
-      scoutType: "beat",
-      operation: "beat",
-    });
+    if (!baselineOnly) {
+      await incrementAndMaybeNotify(db, {
+        scoutId,
+        userId: scout.user_id as string,
+        scoutName: (scout.name as string | null) ?? "Beat Scout",
+        scoutType: "beat",
+        language: scout.preferred_language as string | null,
+      });
+    }
+    if (chargedCredits) {
+      // Refund the 7-credit pre-charge — the run produced no billable output.
+      await refundCredits(db, {
+        userId: scout.user_id as string,
+        cost: CREDIT_COSTS.beat,
+        scoutId,
+        scoutType: "beat",
+        operation: "beat",
+      });
+    }
     throw e;
   }
 }

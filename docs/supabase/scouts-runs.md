@@ -25,13 +25,14 @@ One row per user-configured monitor. Type-discriminated: many columns only apply
 | `user_id` | UUID → `auth.users(id)` ON DELETE CASCADE | |
 | `project_id` | UUID → `projects(id)` | Set to default "Inbox" if not specified (backfill 00013) |
 | `name` | TEXT NOT NULL | UNIQUE (user_id, name) |
+| `description` | TEXT | Optional human/agent context shown on scout cards. Filtering rules belong in `criteria` |
 | `type` | TEXT CHECK IN ('web','beat','social','civic') | |
 | `criteria` | TEXT | Prompt-style filter; web requires it to extract, civic/beat use it for relevance |
 | `preferred_language` | TEXT DEFAULT 'en' | |
 | `regularity` | TEXT CHECK IN ('daily','weekly','monthly') | |
 | `schedule_cron` | TEXT | e.g. `0 9 * * *`; NOT NULL when `is_active=TRUE` |
 | `schedule_timezone` | TEXT DEFAULT 'UTC' | |
-| `topic` | TEXT | free-text topic (beat) |
+| `topic` | TEXT | 1-3 short comma-separated tags for organization and UI filtering. Required when `location` is absent |
 | `url` | TEXT | web |
 | `provider` | TEXT CHECK IN ('firecrawl','firecrawl_plain') | web |
 | `source_mode` | TEXT CHECK IN ('reliable','niche') | beat |

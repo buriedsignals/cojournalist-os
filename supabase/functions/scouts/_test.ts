@@ -48,6 +48,8 @@ Deno.test("scouts: create + get + list + patch + delete round-trip", async () =>
         name: "Test Scout",
         type: "web",
         url: "https://example.com",
+        topic: "council, agenda",
+        description: "Watch the council agenda page.",
       }),
     });
     assertEquals(createRes.status, 201);
@@ -56,6 +58,8 @@ Deno.test("scouts: create + get + list + patch + delete round-trip", async () =>
     assertMatch(created.id, UUID_RE);
     assertEquals(created.name, "Test Scout");
     assertEquals(created.type, "web");
+    assertEquals(created.topic, "council, agenda");
+    assertEquals(created.description, "Watch the council agenda page.");
     assertEquals(created.url, "https://example.com");
     assertEquals(created.is_active, false); // no schedule_cron -> inactive
     assertEquals(created.last_run, null);
@@ -126,6 +130,7 @@ Deno.test("scouts: POST /:id/run returns 202 with run_id UUID", async () => {
         name: "Runnable Scout",
         type: "web",
         url: "https://example.com",
+        topic: "run test",
       }),
     });
     assertEquals(createRes.status, 201);
@@ -223,6 +228,7 @@ Deno.test("scouts: social fields persist and seed post snapshot baseline", async
         monitor_mode: "criteria",
         track_removals: true,
         criteria: "housing and displacement",
+        topic: "housing, social",
         baseline_posts: [
           {
             id: "post-1",
@@ -268,6 +274,7 @@ Deno.test("scouts: civic fields persist and seed initial promises", async () => 
         root_domain: "https://city.example.gov/",
         tracked_urls: ["https://city.example.gov/council/agendas"],
         criteria: "housing",
+        topic: "housing, council",
         initial_promises: [
           {
             promise_text: "Build 100 affordable homes",
@@ -285,7 +292,9 @@ Deno.test("scouts: civic fields persist and seed initial promises", async () => 
     const created = await createRes.json();
     assertEquals(created.type, "civic");
     assertEquals(created.root_domain, "city.example.gov");
-    assertEquals(created.tracked_urls, ["https://city.example.gov/council/agendas"]);
+    assertEquals(created.tracked_urls, [
+      "https://city.example.gov/council/agendas",
+    ]);
 
     const { data: promises, error } = await svc()
       .from("promises")
@@ -302,9 +311,7 @@ Deno.test("scouts: civic fields persist and seed initial promises", async () => 
 });
 
 const runDispatchConfigured = Deno.env.get("COJO_SCOUT_RUN_E2E") === "1";
-const scoutRunE2eTest = runDispatchConfigured
-  ? Deno.test
-  : Deno.test.ignore;
+const scoutRunE2eTest = runDispatchConfigured ? Deno.test : Deno.test.ignore;
 
 scoutRunE2eTest(
   "scouts: POST /:id/run eventually leaves queued/running when local dispatch is configured",
@@ -318,6 +325,7 @@ scoutRunE2eTest(
           name: "Runnable Scout E2E",
           type: "web",
           url: "https://example.com",
+          topic: "run test",
         }),
       });
       assertEquals(createRes.status, 201);
@@ -389,6 +397,47 @@ Deno.test("scouts: 400 on invalid scout type", async () => {
     });
     assertEquals(res.status, 400);
     await res.body?.cancel();
+  } finally {
+    await user.cleanup();
+  }
+});
+
+Deno.test("scouts: create requires topic tags or location", async () => {
+  const user = await createTestUser();
+  try {
+    const res = await fetch(functionUrl("scouts"), {
+      method: "POST",
+      headers: headers(user.token),
+      body: JSON.stringify({
+        name: "Unscoped Scout",
+        type: "web",
+        url: "https://example.com",
+      }),
+    });
+    assertEquals(res.status, 400);
+    const body = await res.json();
+    assertMatch(body.error, /topic/i);
+  } finally {
+    await user.cleanup();
+  }
+});
+
+Deno.test("scouts: topic tags are short and limited", async () => {
+  const user = await createTestUser();
+  try {
+    const res = await fetch(functionUrl("scouts"), {
+      method: "POST",
+      headers: headers(user.token),
+      body: JSON.stringify({
+        name: "Too Many Tags",
+        type: "web",
+        url: "https://example.com",
+        topic: "one, two, three, four",
+      }),
+    });
+    assertEquals(res.status, 400);
+    const body = await res.json();
+    assertMatch(body.error, /at most 3/i);
   } finally {
     await user.cleanup();
   }

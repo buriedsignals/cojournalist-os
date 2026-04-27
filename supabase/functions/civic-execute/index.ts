@@ -134,7 +134,25 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     );
   }
 
-  // 2. Decrement credits before the Firecrawl/Gemini work. Matches the
+  // 2. Resolve / create scout_runs row before any charge so a missing baseline
+  //    can be recorded as an error without spending user credits.
+  const runId = await resolveRun(db, scout, runIdIn);
+
+  if (!scout.baseline_established_at) {
+    const msg =
+      "civic scout has no baseline; recreate or reschedule the scout so creation can establish one before Run Now";
+    await db
+      .from("scout_runs")
+      .update({
+        status: "error",
+        error_message: msg,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", runId);
+    throw new ValidationError(msg);
+  }
+
+  // 3. Decrement credits before the Firecrawl/Gemini work. Matches the
   //    legacy civic_discover price (10) and offsets a capped cost envelope
   //    (≤20 tracked_urls Firecrawl scrapes + ≤2 PDF parses + ≤2 Gemini
   //    extractions per run). Refunded on error paths via refundCredits.
@@ -152,9 +170,6 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     }
     throw e;
   }
-
-  // 3. Resolve / create scout_runs row.
-  const runId = await resolveRun(db, scout, runIdIn);
 
   try {
     // URLs already considered "seen" for this scout: (a) already successfully

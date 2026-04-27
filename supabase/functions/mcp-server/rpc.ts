@@ -130,15 +130,26 @@ const TOOLS: ToolDef[] = [
   {
     name: "create_scout",
     description:
-      "Create a new scout. Required: name, type (web|beat|social|civic). Web scouts require url. Beat scouts should pass criteria/topic and optionally location/source_mode/priority_sources. Civic scouts require root_domain and tracked_urls. Social scouts require platform and profile_handle. Scheduling: pass `schedule_cron` OR `regularity` + `time` (+ `day_number` for weekly/monthly).",
+      "Create a new scout. Required: name, type (web|beat|social|civic), and either location or topic. Topic is 1-3 short comma-separated tags for organization, not long instructions. Put long human context in description and filtering/notification rules in criteria. Web scouts require url. Beat scouts should pass criteria and optionally location/source_mode/priority_sources. Civic scouts require root_domain and tracked_urls. Social scouts require platform and profile_handle. Scheduling: pass `schedule_cron` OR `regularity` + `time` (+ `day_number` for weekly/monthly). Scheduled creation establishes the baseline immediately for every scout type; Run Now compares against that baseline and never creates the first baseline.",
     inputSchema: {
       type: "object",
       required: ["name", "type"],
       properties: {
         name: { type: "string", minLength: 1, maxLength: 200 },
         type: { type: "string", enum: ["web", "beat", "social", "civic"] },
+        description: {
+          type: "string",
+          maxLength: 2000,
+          description:
+            "Optional human-readable context shown on scout cards. Do not use for filtering; use criteria for filtering.",
+        },
         criteria: { type: "string", maxLength: 4000 },
-        topic: { type: "string", maxLength: 200 },
+        topic: {
+          type: "string",
+          maxLength: 200,
+          description:
+            "Required when location is omitted. Use 1-3 short comma-separated tags, e.g. 'housing, council, budget'. Do not put long descriptions here.",
+        },
         url: { type: "string", format: "uri" },
         location: {
           type: "object",
@@ -248,15 +259,19 @@ const TOOLS: ToolDef[] = [
   {
     name: "update_scout",
     description:
-      "Patch an existing scout (name, schedule, criteria, is_active). All fields optional; only sent keys change.",
+      "Patch an existing scout. All fields optional; only sent keys change. Keep topic as 1-3 short comma-separated tags; put longer context in description and filtering/notification rules in criteria. A scout must retain either location or topic.",
     inputSchema: {
       type: "object",
       required: ["id"],
       properties: {
         id: { type: "string", format: "uuid" },
         name: { type: "string", minLength: 1, maxLength: 200 },
+        description: { type: "string", maxLength: 2000 },
         criteria: { type: "string" },
-        topic: { type: "string" },
+        topic: {
+          type: "string",
+          description: "1-3 short comma-separated tags, not long criteria.",
+        },
         url: { type: "string", format: "uri" },
         regularity: { type: "string", enum: ["daily", "weekly", "monthly"] },
         schedule_cron: { type: "string" },

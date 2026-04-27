@@ -6,7 +6,7 @@ AI-curated digest with multi-language search and fact-level deduplication.
 
 ## Overview
 
-The beat pipeline surfaces niche sources, community blogs, and underreported stories. It supports location-only, criteria-only, or combined location+criteria scoping. Always sends notifications when executed on schedule.
+The beat pipeline surfaces niche sources, community blogs, and underreported stories. It supports location-only, criteria-only, or combined location+criteria scoping. Scheduled creation runs a baseline-only pass first: current findings are deduped and hidden from the inbox, the scout gets `baseline_established_at`, and later Run Now/cron executions notify only on new material.
 
 **Beat Scout modes:**
 - **Geography-scoped Beat Scout** — requires a location, optionally accepts criteria. Often used with **niche** sources.
@@ -14,7 +14,7 @@ The beat pipeline surfaces niche sources, community blogs, and underreported sto
 
 Both flows expose a source mode toggle so users can switch between niche and reliable. The backend pipeline is identical; only the default parameters differ.
 
-**`topic` vs `criteria`:** The `criteria` field is the search driver (keywords, topic, or specific criteria passed to the query generator). The `topic` field is an organizational tag set in the Schedule modal, used only for info unit tagging -- it does not drive search. `BeatSearchRequest` has no `topic` field. `BeatExecuteRequest` has both: if `criteria` is empty but `topic` is set, `topic` is copied to `criteria` for backward compatibility with old SCRAPER# records.
+**`topic` vs `criteria` vs `description`:** The `criteria` field is the search/filter driver (keywords, inclusion/exclusion rules, thresholds, and notification requirements). The `topic` field is only for organization and UI filtering: store 1-3 short comma-separated tags such as `housing, council, budget`, not a sentence. The optional `description` field is human/agent context shown on scout cards. Every scout must have either a location or topic tags so it can be scoped and browsed. `BeatSearchRequest` has no `topic` field. `BeatExecuteRequest` has both: if `criteria` is empty but `topic` is set, `topic` is copied to `criteria` for backward compatibility with old SCRAPER# records.
 
 ## Execution Pipeline
 

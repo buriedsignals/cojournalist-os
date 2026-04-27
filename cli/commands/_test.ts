@@ -410,6 +410,10 @@ Deno.test("scouts add — forwards civic, schedule, and source-discovery fields"
         "civic",
         "--criteria",
         "housing votes",
+        "--topic",
+        "housing, council",
+        "--description",
+        "Watch council housing decisions.",
         "--root-domain",
         "example.gov",
         "--tracked-urls",
@@ -433,6 +437,8 @@ Deno.test("scouts add — forwards civic, schedule, and source-discovery fields"
     assertEquals(body.name, "Council housing");
     assertEquals(body.type, "civic");
     assertEquals(body.criteria, "housing votes");
+    assertEquals(body.topic, "housing, council");
+    assertEquals(body.description, "Watch council housing decisions.");
     assertEquals(body.root_domain, "example.gov");
     assertEquals(body.tracked_urls, [
       "https://example.gov/minutes",

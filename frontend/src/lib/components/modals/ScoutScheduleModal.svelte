@@ -188,6 +188,13 @@
 			return;
 		}
 
+		const hasTopic = !!topicInput.trim();
+		const hasLocation = !!(selectedLocation || location);
+		if (!hasTopic && !hasLocation) {
+			errorMessage = 'Add at least one topic tag or location before scheduling.';
+			return;
+		}
+
 		// Validation for pulse: need location or criteria
 		if (scoutType === 'pulse' && !location && !criteria) {
 			errorMessage = m.scheduleSearch_locationOrTopicRequired();

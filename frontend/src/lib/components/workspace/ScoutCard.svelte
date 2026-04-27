@@ -33,6 +33,8 @@
 	}
 
 	$: locDisplay = locationDisplay(scout.location);
+	$: topicTags = (scout.topic || '').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 3);
+	$: descriptionText = scout.description || scout.criteria || null;
 
 	function timeSince(iso: string | null | undefined): string | null {
 		if (!iso) return null;
@@ -169,15 +171,19 @@
 				<span class="scout-meta-text">{locDisplay}</span>
 			</div>
 		{/if}
-		{#if scout.topic}
-			<div class="scout-meta-item">
+		{#if topicTags.length}
+			<div class="scout-meta-item scout-topic-item">
 				<Tag size={14} />
-				<span class="scout-meta-text scout-meta-text-topic" title={scout.topic}>{scout.topic}</span>
+				<span class="scout-topic-tags" title={scout.topic || ''}>
+					{#each topicTags as tag}
+						<span class="scout-topic-chip">{tag}</span>
+					{/each}
+				</span>
 			</div>
 		{/if}
-		{#if scout.criteria}
+		{#if descriptionText}
 			<div class="scout-meta-item scout-description-item">
-				<span class="scout-meta-text scout-meta-text-description" title={scout.criteria}>{scout.criteria}</span>
+				<span class="scout-meta-text scout-meta-text-description" title={descriptionText}>{descriptionText}</span>
 			</div>
 		{/if}
 		{#if normalizedType === 'web' && scout.url}
@@ -254,21 +260,45 @@
 		display: block;
 	}
 
+	.scout-topic-item {
+		align-items: flex-start;
+	}
+
+	.scout-topic-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.25rem;
+		min-width: 0;
+		max-height: 3.1rem;
+		overflow: hidden;
+	}
+
+	.scout-topic-chip {
+		display: inline-flex;
+		align-items: center;
+		max-width: 100%;
+		padding: 0.125rem 0.375rem;
+		border: 1px solid color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
+		background: var(--color-primary-soft);
+		color: var(--color-primary-deep);
+		font-size: 0.6875rem;
+		font-family: var(--font-mono);
+		letter-spacing: 0.04em;
+		line-height: 1.25;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	.scout-meta-text {
 		min-width: 0;
 		overflow: hidden;
 	}
 
-	.scout-meta-text-topic,
 	.scout-meta-text-description {
 		display: -webkit-box;
 		-webkit-box-orient: vertical;
 		text-overflow: ellipsis;
-	}
-
-	.scout-meta-text-topic {
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
 	}
 
 	.scout-meta-text-description {

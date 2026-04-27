@@ -14,7 +14,8 @@ function usage(): void {
       "",
       "  list",
       "  add --name <name> --type <web|beat|social|civic> [--url <url>]",
-      "                   [--criteria <text>] [--topic <text>] [--project <id>]",
+      "                   [--topic <tag,tag>] [--description <text>]",
+      "                   [--criteria <text>] [--project <id>]",
       "                   [--cron <expr>] [--regularity daily|weekly|monthly]",
       "                   [--time HH:MM] [--day N]",
       "                   [--location-json <json>] [--source-mode reliable|niche]",
@@ -22,8 +23,12 @@ function usage(): void {
       "                   [--root-domain <domain>] [--tracked-urls <url,url>]",
       "                   [--platform instagram|x|facebook|tiktok] [--handle <handle>]",
       "                   [--monitor-mode summarize|criteria] [--track-removals true|false]",
-      "  update <id> [--name <name>] [--criteria <text>] [--url <url>]",
-      "              [--cron <expr>] [--active true|false] [--root-domain <domain>]",
+      "",
+      "  Topic tags are short comma-separated labels, not long criteria. Use 1-3.",
+      "",
+      "  update <id> [--name <name>] [--topic <tag,tag>] [--description <text>]",
+      "              [--criteria <text>] [--url <url>] [--cron <expr>]",
+      "              [--active true|false] [--root-domain <domain>]",
       "              [--tracked-urls <url,url>]",
       "  show <id>",
       "  run <id>",
@@ -91,6 +96,26 @@ function listFlag(
   return items.length ? items : undefined;
 }
 
+function topicFlag(
+  flags: Record<string, string | boolean>,
+): string | undefined {
+  const tags = listFlag(flags, "topic");
+  if (!tags) return undefined;
+  if (tags.length > 3) {
+    console.error("--topic accepts at most 3 comma-separated tags");
+    Deno.exit(1);
+  }
+  for (const tag of tags) {
+    if (tag.length > 50) {
+      console.error(
+        "--topic tags must be 50 characters or less; use --description or --criteria for longer context",
+      );
+      Deno.exit(1);
+    }
+  }
+  return tags.join(", ");
+}
+
 function jsonObjectFlag(
   flags: Record<string, string | boolean>,
   key: string,
@@ -149,7 +174,8 @@ export async function run(argv: string[]): Promise<void> {
       };
       const url = stringFlag(flags, "url");
       const criteria = stringFlag(flags, "criteria");
-      const topic = stringFlag(flags, "topic");
+      const topic = topicFlag(flags);
+      const description = stringFlag(flags, "description");
       const project = stringFlag(flags, "project");
       const cron = stringFlag(flags, "cron");
       const regularity = stringFlag(flags, "regularity");
@@ -168,6 +194,7 @@ export async function run(argv: string[]): Promise<void> {
       if (url) body.url = url;
       if (criteria) body.criteria = criteria;
       if (topic) body.topic = topic;
+      if (description) body.description = description;
       if (project) body.project_id = project;
       if (cron) body.schedule_cron = cron;
       if (regularity) body.regularity = regularity;
@@ -193,6 +220,12 @@ export async function run(argv: string[]): Promise<void> {
         console.error("social scouts require --platform and --handle");
         Deno.exit(1);
       }
+      if (!topic && !location) {
+        console.error(
+          "scouts require --topic with 1-3 short tags or --location-json",
+        );
+        Deno.exit(1);
+      }
 
       const created = await apiFetch<Scout>("/functions/v1/scouts", {
         method: "POST",
@@ -215,14 +248,18 @@ export async function run(argv: string[]): Promise<void> {
       const id = positional[0];
       if (!id) {
         console.error(
-          "Usage: cojo scouts update <id> [--name ...] [--criteria ...] [--url ...] [--cron ...] [--active true|false]",
+          "Usage: cojo scouts update <id> [--name ...] [--topic ...] [--description ...] [--criteria ...] [--url ...] [--cron ...] [--active true|false]",
         );
         Deno.exit(1);
       }
       const patch: Record<string, unknown> = {};
       if (typeof flags.name === "string") patch.name = flags.name;
       if (typeof flags.criteria === "string") patch.criteria = flags.criteria;
-      if (typeof flags.topic === "string") patch.topic = flags.topic;
+      const topic = topicFlag(flags);
+      if (topic) patch.topic = topic;
+      if (typeof flags.description === "string") {
+        patch.description = flags.description;
+      }
       if (typeof flags.url === "string") patch.url = flags.url;
       if (typeof flags.cron === "string") patch.schedule_cron = flags.cron;
       if (typeof flags.regularity === "string") {

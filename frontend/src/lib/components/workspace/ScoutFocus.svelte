@@ -31,6 +31,8 @@
 	}
 
 	$: locDisplay = locationDisplay(scout.location);
+	$: topicTags = (scout.topic || '').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 3);
+	$: descriptionText = scout.description || scout.criteria || null;
 
 	function timeSince(iso: string | null | undefined): string | null {
 		if (!iso) return null;
@@ -139,10 +141,14 @@
 				</span>
 				<span class="focus-sep">·</span>
 			{/if}
-			{#if scout.criteria}
+			{#if topicTags.length}
 				<span class="focus-meta-item">
 					<Tag size={12} />
-					{scout.criteria}
+					<span class="focus-topic-tags" title={scout.topic || ''}>
+						{#each topicTags as tag}
+							<span class="focus-topic-chip">{tag}</span>
+						{/each}
+					</span>
 				</span>
 				<span class="focus-sep">·</span>
 			{/if}
@@ -155,6 +161,10 @@
 				<span class="scout-shell-schedule">{scheduleLabel}</span>
 			{/if}
 		</div>
+
+		{#if descriptionText}
+			<p class="focus-description">{descriptionText}</p>
+		{/if}
 
 		{#if scout.last_run?.started_at}
 			<div class="summary-strip">
@@ -266,7 +276,33 @@
 		gap: 0.25rem;
 	}
 
+	.focus-topic-tags {
+		display: inline-flex;
+		flex-wrap: wrap;
+		gap: 0.25rem;
+	}
+
+	.focus-topic-chip {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.125rem 0.375rem;
+		border: 1px solid color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
+		background: var(--color-primary-soft);
+		color: var(--color-primary-deep);
+		line-height: 1.25;
+	}
+
 	.focus-sep { color: var(--color-border-strong); }
+
+	.focus-description {
+		max-width: 76rem;
+		margin: 0.75rem 0 0;
+		color: var(--color-ink-muted);
+		font-family: var(--font-body);
+		font-size: 0.9375rem;
+		font-weight: 300;
+		line-height: 1.55;
+	}
 
 	.summary-strip {
 		margin-top: 0.875rem;

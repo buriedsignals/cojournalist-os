@@ -24,7 +24,11 @@ import {
   getCallerClient,
   requireUserOrApiKey,
 } from "../_shared/auth.ts";
-import { getServiceClient } from "../_shared/supabase.ts";
+import {
+  getServiceClient,
+  getServiceRoleKey,
+  getSupabaseUrl,
+} from "../_shared/supabase.ts";
 import {
   jsonError,
   jsonFromError,
@@ -47,6 +51,10 @@ import {
 import { geminiExtract } from "../_shared/gemini.ts";
 import { compressContext } from "../_shared/taco_compress.ts";
 import { ensureWebBaseline } from "../_shared/web_scout_baseline.ts";
+import {
+  formatSocialBaselinePosts,
+  scanSocialBaseline,
+} from "../_shared/social_baseline.ts";
 import templates from "../scout-templates/templates.json" with { type: "json" };
 
 interface ScoutTemplate {
@@ -83,6 +91,26 @@ const TimeStr = z.string().regex(/^\d{1,2}:\d{2}$/);
 const SocialPlatform = z.enum(["instagram", "x", "facebook", "tiktok"]);
 const SocialMonitorMode = z.enum(["summarize", "criteria"]);
 const BaselinePostSchema = z.record(z.unknown());
+const TopicSchema = z.string().max(200).superRefine((value, ctx) => {
+  const tags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
+  if (tags.length === 0) return;
+  if (tags.length > 3) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "use at most 3 comma-separated topic tags",
+    });
+  }
+  for (const tag of tags) {
+    if (tag.length > 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "each topic tag must be 50 characters or less; put longer context in description or criteria",
+      });
+      return;
+    }
+  }
+});
 const InitialPromiseSchema = z.object({
   promise_text: z.string().min(1).max(4000),
   context: z.string().max(8000).default(""),
@@ -97,8 +125,9 @@ const CreateSchema = z
   .object({
     name: z.string().min(1).max(200),
     type: ScoutType,
+    description: z.string().max(2000).optional(),
     criteria: z.string().max(4000).optional(),
-    topic: z.string().max(200).optional(),
+    topic: TopicSchema.optional(),
     url: z.string().url().max(2000).optional(),
     location: z.record(z.unknown()).optional(),
     source_mode: z.enum(["reliable", "niche"]).optional(),
@@ -145,6 +174,14 @@ const CreateSchema = z
         });
       }
     }
+    if (!v.topic?.trim() && !v.location) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["topic"],
+        message:
+          "required when location is not provided; use 1-3 short comma-separated tags",
+      });
+    }
     if (v.type === "civic") {
       if (!v.root_domain?.trim()) {
         ctx.addIssue({
@@ -176,8 +213,9 @@ const UpdateSchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
     type: ScoutType.optional(),
+    description: z.string().max(2000).nullable().optional(),
     criteria: z.string().max(4000).nullable().optional(),
-    topic: z.string().max(200).nullable().optional(),
+    topic: TopicSchema.nullable().optional(),
     url: z.string().url().max(2000).nullable().optional(),
     location: z.record(z.unknown()).nullable().optional(),
     source_mode: z.enum(["reliable", "niche"]).nullable().optional(),
@@ -361,11 +399,38 @@ function normalizeScoutBody(raw: unknown): unknown {
       .replace(/^https?:\/\//i, "")
       .replace(/\/+$/, "");
   }
+  if (typeof out.topic === "string") {
+    out.topic = out.topic
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+  if (typeof out.description === "string") {
+    out.description = out.description.trim();
+  }
   return out;
 }
 
+function validateTopicAndScope(payload: Record<string, unknown>): void {
+  const topic = typeof payload.topic === "string" ? payload.topic : "";
+  if (topic) {
+    const topicResult = TopicSchema.safeParse(topic);
+    if (!topicResult.success) {
+      throw new ValidationError(
+        topicResult.error.issues.map((i) => i.message).join("; "),
+      );
+    }
+  }
+  if (!topic.trim() && !payload.location) {
+    throw new ValidationError(
+      "scouts require either location or 1-3 short topic tags",
+    );
+  }
+}
+
 function needsScheduledBaseline(scout: BaselineableScout): boolean {
-  return scout.type === "web" || scout.type === "civic";
+  return ["web", "beat", "social", "civic"].includes(scout.type);
 }
 
 function normalizeTrackedUrls(value: unknown): string[] {
@@ -428,8 +493,50 @@ async function ensureScheduledBaseline(
     await ensureWebBaseline(svc, scout);
     return;
   }
+  if (scout.type === "social") {
+    if (!scout.platform || !scout.profile_handle) {
+      throw new ValidationError(
+        "social scouts require platform and profile_handle before scheduling",
+      );
+    }
+    await ensureSocialBaseline(
+      svc,
+      scout.id,
+      scout.user_id,
+      scout.platform,
+      scout.profile_handle,
+    );
+    return;
+  }
+  if (scout.type === "beat") {
+    await establishBeatBaseline(scout.id);
+    return;
+  }
   await establishCivicBaseline(scout);
   await stampBaseline(svc, scout.id);
+}
+
+async function establishBeatBaseline(scoutId: string): Promise<void> {
+  const res = await fetch(
+    `${getSupabaseUrl().replace(/\/$/, "")}/functions/v1/scout-beat-execute`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${getServiceRoleKey()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ scout_id: scoutId, baseline_only: true }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `unable to establish beat baseline: ${res.status} ${text}`.slice(
+        0,
+        1000,
+      ),
+    );
+  }
 }
 
 async function seedSocialBaseline(
@@ -440,17 +547,68 @@ async function seedSocialBaseline(
   handle: string,
   posts: Array<Record<string, unknown>>,
 ): Promise<void> {
-  if (posts.length === 0) return;
+  const normalizedPosts = posts
+    .map((post) => {
+      const id = typeof post.id === "string" && post.id.trim()
+        ? post.id.trim()
+        : typeof post.post_id === "string" && post.post_id.trim()
+        ? post.post_id.trim()
+        : typeof post.url === "string" && post.url.trim()
+        ? post.url.trim()
+        : null;
+      return id ? { ...post, id, post_id: id } : null;
+    })
+    .filter((post): post is Record<string, unknown> & {
+      id: string;
+      post_id: string;
+    } => Boolean(post));
+  if (posts.length > 0 && normalizedPosts.length === 0) {
+    throw new ValidationError(
+      "baseline_posts must include id, post_id, or url for each post",
+    );
+  }
   const { error } = await svc.from("post_snapshots").upsert({
     scout_id: scoutId,
     user_id: userId,
     platform,
     handle,
-    post_count: posts.length,
-    posts,
+    post_count: normalizedPosts.length,
+    posts: normalizedPosts,
     updated_at: new Date().toISOString(),
   }, { onConflict: "scout_id" });
   if (error) throw new Error(error.message);
+  await stampBaseline(svc, scoutId);
+}
+
+async function ensureSocialBaseline(
+  svc: ReturnType<typeof getServiceClient>,
+  scoutId: string,
+  userId: string,
+  platform: z.infer<typeof SocialPlatform>,
+  handle: string,
+  baselinePosts?: Array<Record<string, unknown>>,
+): Promise<void> {
+  if (Array.isArray(baselinePosts) && baselinePosts.length > 0) {
+    await seedSocialBaseline(
+      svc,
+      scoutId,
+      userId,
+      platform,
+      handle,
+      baselinePosts,
+    );
+    return;
+  }
+
+  const scan = await scanSocialBaseline(platform, handle);
+  await seedSocialBaseline(
+    svc,
+    scoutId,
+    userId,
+    platform,
+    handle,
+    formatSocialBaselinePosts(scan.posts),
+  );
 }
 
 async function seedInitialPromises(
@@ -531,14 +689,8 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
         : data.tracked_urls,
     };
     try {
-      if (
-        data.type === "social" &&
-        data.platform &&
-        data.profile_handle &&
-        Array.isArray(baseline_posts) &&
-        baseline_posts.length > 0
-      ) {
-        await seedSocialBaseline(
+      if (data.type === "social" && data.platform && data.profile_handle) {
+        await ensureSocialBaseline(
           svc,
           data.id,
           user.id,
@@ -546,6 +698,7 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
           data.profile_handle,
           baseline_posts,
         );
+        baselineScout.baseline_established_at = new Date().toISOString();
       }
       if (
         data.type === "civic" && Array.isArray(initial_promises) &&
@@ -683,7 +836,14 @@ async function updateScout(
   const nextScout = { ...current, ...parsed.data } as BaselineableScout & {
     schedule_cron?: string | null;
     is_active?: boolean | null;
+    topic?: string | null;
+    location?: Record<string, unknown> | null;
   };
+  if (!nextScout.topic?.trim() && !nextScout.location) {
+    throw new ValidationError(
+      "scouts require either location or 1-3 short topic tags",
+    );
+  }
   const willBeActive = nextScout.is_active === true;
   const willHaveSchedule = typeof nextScout.schedule_cron === "string" &&
     nextScout.schedule_cron.length > 0;
@@ -961,16 +1121,26 @@ async function createScoutFromTemplate(
     ...tpl.defaults,
     ...normalisedFields,
     name,
+    description: normalisedFields.description ?? tpl.description,
     type: tpl.type,
     user_id: user.id,
     is_active: false,
   };
+  const normalizedInsertRow = normalizeScoutBody(insertRow) as Record<
+    string,
+    unknown
+  >;
+  validateTopicAndScope(normalizedInsertRow);
   if (project_id !== undefined) insertRow.project_id = project_id;
 
   const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("scouts")
-    .insert(insertRow)
+    .insert(
+      project_id !== undefined
+        ? { ...normalizedInsertRow, project_id }
+        : normalizedInsertRow,
+    )
     .select("*")
     .single();
 
@@ -1011,6 +1181,8 @@ interface BaselineableScout {
   type: "web" | "beat" | "social" | "civic";
   url?: string | null;
   provider?: string | null;
+  platform?: z.infer<typeof SocialPlatform> | null;
+  profile_handle?: string | null;
   tracked_urls?: unknown;
   baseline_established_at?: string | null;
 }

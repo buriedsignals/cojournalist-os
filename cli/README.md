@@ -73,10 +73,10 @@ cojo config show
 
 `apiFetch` picks the first credential found, in this order:
 
-1. `api_key` — sent as `Authorization: Bearer cj_…`. When
-   `supabase_anon_key` is configured, it is also sent as the `apikey:` header.
-   Hosted and raw Supabase Edge Functions can reject bearer tokens before the
-   function sees the request without that header.
+1. `api_key` — sent as `Authorization: Bearer cj_…`. When `supabase_anon_key` is
+   configured, it is also sent as the `apikey:` header. Hosted and raw Supabase
+   Edge Functions can reject bearer tokens before the function sees the request
+   without that header.
 2. `auth_token` — sent as `Authorization: Bearer <jwt>`. Use this only for
    legacy SaaS sessions.
 
@@ -94,13 +94,16 @@ cojo projects add --name "City Hall Watch" --visibility private
 
 # Scouts
 cojo scouts list
-cojo scouts add --name "Council agenda" --type web --url https://example.gov
+cojo scouts add --name "Council agenda" --type web --url https://example.gov \
+  --topic "council, agenda"
 cojo scouts add --name "Housing minutes" --type civic \
   --root-domain example.gov \
   --tracked-urls https://example.gov/minutes,https://example.gov/agendas \
+  --topic "housing, council" \
+  --description "Monthly council-minutes monitor for housing policy." \
   --criteria "housing policy votes" --regularity monthly --time 08:00 --day 1
 cojo scouts add --name "Local climate beat" --type beat \
-  --topic "climate adaptation" \
+  --topic "climate, adaptation" \
   --criteria "local policy decisions with budget or timeline impacts" \
   --location-json '{"displayName":"Bergen, Norway","latitude":60.39,"longitude":5.32}' \
   --source-mode niche --priority-sources examplelocal.no
@@ -121,6 +124,15 @@ cojo units search --query "zoning variance" --mode hybrid --project <id>
 cojo units mark-used <id> --url https://example.com/story
 cojo units delete <id>
 ```
+
+Topic tags are for organization and UI filtering. Use 1-3 short comma-separated
+tags, not long instructions. Put human context in `--description` and filtering
+or notification rules in `--criteria`. A scout must have either topic tags or a
+location.
+
+When you create a scheduled scout (`--cron` or `--regularity` + `--time`), the
+server establishes the initial baseline before scheduling it. `cojo scouts run`
+compares against that baseline and will not create the first baseline itself.
 
 Run `cojo <command> --help` for subcommand-specific usage.
 

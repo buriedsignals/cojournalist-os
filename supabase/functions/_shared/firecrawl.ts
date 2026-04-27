@@ -20,6 +20,7 @@ export interface ScrapeResult {
   html?: string;
   rawHtml?: string;
   title?: string;
+  requested_url?: string;
   source_url: string;
   fetched_at: string;
 }
@@ -91,12 +92,20 @@ export async function firecrawlScrape(
   }
   const bodyJson = await res.json();
   const d = bodyJson?.data ?? {};
+  const metadata = d.metadata ?? {};
+  const sourceUrl =
+    typeof metadata.sourceURL === "string" && metadata.sourceURL.trim()
+      ? metadata.sourceURL
+      : typeof metadata.url === "string" && metadata.url.trim()
+      ? metadata.url
+      : url;
   return {
     markdown: d.markdown ?? "",
     html: d.html,
     rawHtml: d.rawHtml ?? null,
     title: d.metadata?.title,
-    source_url: url,
+    requested_url: url,
+    source_url: sourceUrl,
     fetched_at: new Date().toISOString(),
   };
 }

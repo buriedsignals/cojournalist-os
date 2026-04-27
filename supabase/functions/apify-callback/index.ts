@@ -90,11 +90,21 @@ interface ExtractedUnit {
 
 interface ApifyPost {
   id?: string;
+  post_id?: string;
   url?: string;
   caption?: string;
   text?: string;
   fullText?: string;
   [k: string]: unknown;
+}
+
+function postIdentity(post: ApifyPost | Record<string, unknown>): string | null {
+  const p = post as Record<string, unknown>;
+  for (const key of ["id", "post_id", "shortCode", "postId", "url"]) {
+    const value = p[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -457,7 +467,8 @@ async function processSucceededRun(
   const previousPosts: ApifyPost[] = [];
   if (snapshot && Array.isArray(snapshot.posts)) {
     for (const p of snapshot.posts as ApifyPost[]) {
-      if (p && typeof p.id === "string") previousIds.add(p.id);
+      const id = p ? postIdentity(p) : null;
+      if (id) previousIds.add(id);
       if (p && typeof p === "object") previousPosts.push(p);
     }
   }
@@ -483,7 +494,10 @@ async function processSucceededRun(
       Math.max(1, Math.floor(previousPosts.length * 0.2));
   const removedPosts = actorLikelyOk
     ? previousPosts.filter(
-      (p) => typeof p.id === "string" && !currentIds.has(p.id),
+      (p) => {
+        const id = postIdentity(p);
+        return Boolean(id && !currentIds.has(id));
+      },
     )
     : [];
 

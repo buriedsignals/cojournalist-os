@@ -267,6 +267,7 @@ export interface ScoutResponse {
   id: string;
   name: string;
   type: string;
+  description: string | null;
   criteria: string | null;
   topic: string | null;
   url: string | null;
@@ -298,6 +299,7 @@ interface RawScoutRow {
   id: string;
   name?: string | null;
   type?: string | null;
+  description?: string | null;
   criteria?: string | null;
   topic?: string | null;
   url?: string | null;
@@ -335,6 +337,7 @@ export async function shapeScoutResponse(
     id: row.id,
     name: row.name ?? "",
     type: row.type ?? "",
+    description: row.description ?? null,
     criteria: row.criteria ?? null,
     topic: row.topic ?? null,
     url: row.url ?? null,

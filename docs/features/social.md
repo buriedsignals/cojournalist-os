@@ -81,7 +81,7 @@ The baseline stored in `POSTS#` contains post IDs only (no embeddings). Each exe
 - **New posts** — IDs present in current scrape but absent from previous snapshot (`identify_new_posts`)
 - **Removed posts** — IDs present in previous snapshot but absent from current scrape (`identify_removed_posts`, only when `track_removals` is enabled)
 
-Both the test and execute endpoints fetch the same `max_items` (20) so the baseline covers the same window as execution. This prevents false "new" detections on the first scheduled run.
+Scheduled creation establishes this baseline server-side for UI, API, CLI, and MCP callers. The UI scan can pass preview baseline posts as an optimization, but non-UI agents only need `platform` and `profile_handle`; the create endpoint performs the baseline scrape before scheduling. Run Now refuses to execute a social scout with no saved baseline instead of treating existing posts as new.
 
 ### Layer 2: Criteria Matching (on-the-fly embeddings)
 

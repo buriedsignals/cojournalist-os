@@ -60,7 +60,6 @@ import {
 } from "../_shared/credits.ts";
 import { sendPageScoutAlert } from "../_shared/notifications.ts";
 import { incrementAndMaybeNotify } from "../_shared/scout_failures.ts";
-import { maybeInitializeMissingWebBaselineRun } from "../_shared/web_scout_baseline.ts";
 
 const SUBPAGE_FETCH_CAP = 10;
 const FIRECRAWL_STAGGER_MS = 2000;
@@ -151,18 +150,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let chargedCredits = false;
 
   try {
-    const baselineInit = await maybeInitializeMissingWebBaselineRun(
-      svc,
-      scout,
-      run_id,
-    );
-    if (baselineInit) {
-      return jsonOk({
-        status: "ok",
-        change: baselineInit.change_status,
-        articles_count: baselineInit.articles_count,
-        merged_existing_count: baselineInit.merged_existing_count,
-      });
+    if (!scout.baseline_established_at) {
+      const msg =
+        "page scout has no baseline; recreate or reschedule the scout so creation can establish one before Run Now";
+      await svc
+        .from("scout_runs")
+        .update({
+          status: "error",
+          error_message: msg,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", run_id);
+      throw new ValidationError(msg);
     }
 
     // 3. Decrement credits before any billable work.
@@ -407,28 +406,18 @@ async function runPipeline(
     rawHtml,
   };
 
-  // 4. Insert raw_capture for the scraped content.
+  // 4. Insert raw_capture for the scraped index content. Phase B subpages get
+  // their own capture rows so units can trace back to the exact article URL.
   const contentHash = await sha256Hex(markdown);
   const sourceDomain = deriveSourceDomain(scout.url);
-
-  const { data: capture, error: capErr } = await svc
-    .from("raw_captures")
-    .insert({
-      user_id: scout.user_id,
-      scout_id: scout.id,
-      scout_run_id: runId,
-      source_url: scout.url,
-      source_domain: sourceDomain,
-      content_md: markdown,
-      content_sha256: contentHash,
-      token_count: Math.ceil(markdown.length / 4),
-      captured_at: new Date().toISOString(),
-      expires_at: rawCaptureExpiresAt(),
-    })
-    .select("id")
-    .single();
-  if (capErr) throw new Error(capErr.message);
-  const rawCaptureId = capture.id as string;
+  const rawCaptureId = await insertRawCapture(svc, {
+    scout,
+    runId,
+    sourceUrl: scout.url,
+    sourceDomain,
+    markdown,
+    contentHash,
+  });
 
   // 5. Extract units and insert non-dupes.
   // Always run extraction; criteria narrows focus when set.
@@ -488,8 +477,6 @@ async function runPipeline(
         scout,
         runId,
         scrape.rawHtml,
-        sourceDomain,
-        rawCaptureId,
         Date.now() + PHASE_B_TOTAL_BUDGET_MS,
       );
       inserted += subpageResult.totalInserted;
@@ -641,8 +628,6 @@ async function runPhaseB(
   scout: ScoutRow,
   runId: string,
   rawHtml: string,
-  sourceDomain: string | null,
-  rawCaptureId: string,
   deadlineMs: number,
 ): Promise<{
   linksFound: number;
@@ -718,11 +703,13 @@ async function runPhaseB(
         failed++;
         continue;
       }
+      const subSourceUrl = subScrape.source_url || subUrl;
+      const subSourceDomain = deriveSourceDomain(subSourceUrl);
 
       const subExtracted = await extractAtomicUnits({
         title: subScrape.title ?? null,
         content: subScrape.markdown,
-        sourceUrl: subUrl,
+        sourceUrl: subSourceUrl,
         publishedDate: null,
         language: scout.preferred_language ?? "en",
         criteria: scout.criteria ?? null,
@@ -744,19 +731,28 @@ async function runPhaseB(
       }
 
       const subContentHash = await sha256Hex(subScrape.markdown);
+      const subRawCaptureId = await insertRawCapture(svc, {
+        scout,
+        runId,
+        sourceUrl: subSourceUrl,
+        sourceDomain: subSourceDomain,
+        markdown: subScrape.markdown,
+        contentHash: subContentHash,
+      });
       const result = await insertExtractedUnits(
         svc,
         subExtracted.units,
         scout,
         runId,
-        rawCaptureId,
-        subUrl,
+        subRawCaptureId,
+        subSourceUrl,
         subScrape.title ?? null,
-        sourceDomain,
+        subSourceDomain,
         subContentHash,
         {
           phase: "subpage",
           parent_source_url: scout.url,
+          requested_url: subUrl,
         },
       );
       totalInserted += result.insertedCount;
@@ -796,6 +792,37 @@ async function runPhaseB(
     firstMatchedUrl,
     firstMatchedTitle,
   };
+}
+
+async function insertRawCapture(
+  svc: SupabaseClient,
+  input: {
+    scout: ScoutRow;
+    runId: string;
+    sourceUrl: string;
+    sourceDomain: string | null;
+    markdown: string;
+    contentHash: string;
+  },
+): Promise<string> {
+  const { data: capture, error } = await svc
+    .from("raw_captures")
+    .insert({
+      user_id: input.scout.user_id,
+      scout_id: input.scout.id,
+      scout_run_id: input.runId,
+      source_url: input.sourceUrl,
+      source_domain: input.sourceDomain,
+      content_md: input.markdown,
+      content_sha256: input.contentHash,
+      token_count: Math.ceil(input.markdown.length / 4),
+      captured_at: new Date().toISOString(),
+      expires_at: rawCaptureExpiresAt(),
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return capture.id as string;
 }
 
 /**

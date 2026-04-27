@@ -130,26 +130,7 @@ async function startApifyRun(
   const actorId = APIFY_ACTORS[platform];
   if (!actorId) throw new ValidationError(`unknown platform: ${platform}`);
 
-  // 2. Decrement credits before spending any money on Apify.
-  try {
-    const cost = getSocialMonitoringCost(platform);
-    const operation = SOCIAL_MONITORING_KEYS[platform] ??
-      "social_monitoring_instagram";
-    await decrementOrThrow(svc, {
-      userId: scout.user_id,
-      cost,
-      scoutId,
-      scoutType: "social",
-      operation,
-    });
-  } catch (e) {
-    if (e instanceof InsufficientCreditsError) {
-      return insufficientCreditsResponse(e.required, e.current);
-    }
-    throw e;
-  }
-
-  // 3a. Reuse the scout_runs row the dispatcher (execute-scout / trigger_scout_run
+  // 2a. Reuse the scout_runs row the dispatcher (execute-scout / trigger_scout_run
   //     pg_cron) already created. Only create one here for standalone callers
   //     (manual tests). Previous code *always* inserted, leaving the dispatcher's
   //     row stuck at status=running forever — one orphan per scheduled run.
@@ -169,6 +150,46 @@ async function startApifyRun(
       .single();
     if (runErr) throw new Error(runErr.message);
     runId = runRow.id as string;
+  }
+
+  const { data: snapshot, error: snapshotErr } = await svc
+    .from("post_snapshots")
+    .select("id, post_count")
+    .eq("scout_id", scoutId)
+    .maybeSingle();
+  if (snapshotErr) throw new Error(snapshotErr.message);
+  if (!snapshot) {
+    const detail =
+      "social scout has no baseline snapshot; recreate or reschedule the scout so creation can establish one before Run Now";
+    await svc
+      .from("scout_runs")
+      .update({
+        status: "error",
+        error_message: detail,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", runId);
+    throw new ValidationError(detail);
+  }
+
+  // 2b. Decrement credits before spending money on Apify, after baseline
+  //     presence is confirmed so Run Now never bootstraps the first baseline.
+  try {
+    const cost = getSocialMonitoringCost(platform);
+    const operation = SOCIAL_MONITORING_KEYS[platform] ??
+      "social_monitoring_instagram";
+    await decrementOrThrow(svc, {
+      userId: scout.user_id,
+      cost,
+      scoutId,
+      scoutType: "social",
+      operation,
+    });
+  } catch (e) {
+    if (e instanceof InsufficientCreditsError) {
+      return insufficientCreditsResponse(e.required, e.current);
+    }
+    throw e;
   }
 
   // 3b. Insert apify_run_queue row (pending), linking to the run.

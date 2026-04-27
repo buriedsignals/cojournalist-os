@@ -5,6 +5,7 @@
     "type": "civic",
     "description": "Track a city council's meeting minutes page for new agendas and resolutions.",
     "defaults": {
+      "topic": "civic, council",
       "criteria": "Track new resolutions, ordinances, and votes.",
       "regularity": "weekly",
       "schedule_cron": "0 9 * * 1"
@@ -25,6 +26,7 @@
     "type": "civic",
     "description": "Follow a county commission for board decisions, budget votes, and land-use rulings.",
     "defaults": {
+      "topic": "civic, county",
       "criteria": "Surface budget votes, zoning rulings, and contract awards.",
       "regularity": "weekly",
       "schedule_cron": "0 10 * * 2"
@@ -46,6 +48,7 @@
     "type": "civic",
     "description": "Monitor a state legislature page for new bills, committee votes, and floor actions.",
     "defaults": {
+      "topic": "civic, legislature",
       "criteria": "Track new bills, committee reports, and recorded votes.",
       "regularity": "daily",
       "schedule_cron": "0 8 * * *"
@@ -66,6 +69,7 @@
     "type": "civic",
     "description": "Track a regulator's docket or filings page for new filings, rulings, and enforcement actions.",
     "defaults": {
+      "topic": "civic, regulation",
       "criteria": "Surface new filings, orders, and enforcement actions.",
       "regularity": "daily",
       "schedule_cron": "0 12 * * *"
@@ -87,6 +91,7 @@
     "type": "civic",
     "description": "Monitor a court's public calendar for upcoming hearings and filings.",
     "defaults": {
+      "topic": "civic, courts",
       "criteria": "Track upcoming hearings, motions, and rulings.",
       "regularity": "daily",
       "schedule_cron": "30 7 * * *"
@@ -107,6 +112,7 @@
     "type": "web",
     "description": "Watch an organisation's press release page and alert when new items matching a topic appear.",
     "defaults": {
+      "topic": "press releases",
       "regularity": "daily",
       "schedule_cron": "0 9 * * *"
     },
@@ -126,6 +132,7 @@
     "type": "web",
     "description": "Watch a company's newsroom or investor page for announcements matching your criteria.",
     "defaults": {
+      "topic": "company news",
       "regularity": "daily",
       "schedule_cron": "0 11 * * *"
     },
@@ -145,6 +152,7 @@
     "type": "beat",
     "description": "Beat search focused on housing news in a given city, prioritising trusted local sources.",
     "defaults": {
+      "topic": "housing, local news",
       "regularity": "daily",
       "schedule_cron": "0 8 * * *",
       "criteria": "Evictions, zoning decisions, affordable housing funding, rent changes."
@@ -166,6 +174,7 @@
     "type": "beat",
     "description": "Beat search focused on K-12 and higher-ed policy changes in a given region.",
     "defaults": {
+      "topic": "education, policy",
       "regularity": "daily",
       "schedule_cron": "15 9 * * *",
       "criteria": "School board decisions, funding changes, curriculum debates, university policy."
@@ -187,6 +196,7 @@
     "type": "social",
     "description": "Monitor an Instagram profile for new posts and alert when content matches criteria.",
     "defaults": {
+      "topic": "social, Instagram",
       "regularity": "daily",
       "schedule_cron": "0 14 * * *"
     },

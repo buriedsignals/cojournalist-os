@@ -71,6 +71,7 @@ export interface Scout {
   name: string;
   type: string;
   is_demo?: boolean;
+  description?: string | null;
   criteria?: string | null;
   topic?: string | null;
   url?: string | null;
@@ -98,7 +99,9 @@ export interface Scout {
 export interface CreateScoutInput {
   name: string;
   type: ScoutType;
+  description?: string;
   criteria?: string;
+  topic?: string;
   url?: string;
   location?: Record<string, unknown>;
   regularity?: "daily" | "weekly" | "monthly";

@@ -201,6 +201,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const previewPosts: Array<{ id: string; text: string; timestamp: string }> =
       [];
     const postsData: Array<{
+      id: string;
       post_id: string;
       caption_truncated: string;
       image_url: string | null;
@@ -215,6 +216,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         timestamp: p.timestamp,
       });
       postsData.push({
+        id: p.id,
         post_id: p.id,
         caption_truncated: (p.text ?? "").slice(0, CAPTION_TRUNCATED_MAX),
         image_url: p.imageUrl ?? null,

@@ -117,12 +117,14 @@ Some websites fail Firecrawl's `changeTracking` format (ERR_TIMED_OUT) but work 
 | Mode | Baseline | Notifications | Credits |
 |------|----------|---------------|---------|
 | **Preview** (Test button) | `content_hash` computed; `firecrawl` baseline confirmed via double-probe | Never sent | Not charged |
-| **Scheduled** (Lambda) | Uses baseline from test step | Sent if criteria match | Charged |
-| **Run Now** (Manual) | Uses baseline from test step | Sent if criteria match | Charged |
+| **Scheduled** | Server establishes baseline at scout creation/scheduling | Sent if criteria match on later changes | Charged on runs |
+| **Run Now** (Manual) | Uses the saved creation-time baseline; never bootstraps a missing baseline | Sent if criteria match | Charged |
 
 ## Schedule-Time Baseline
 
-When the user clicks "Schedule Scout", the `content_hash` from the test run is stored as an EXEC# baseline immediately — no background re-scrape needed. This gives `firecrawl_plain` URLs their hash baseline at schedule time, and `firecrawl` URLs already have their changeTracking baseline confirmed by the double-probe during test.
+When the user schedules a Page Scout, the server establishes the baseline before the schedule is enabled. For `firecrawl` scouts this verifies the changeTracking tag with a double-probe; for `firecrawl_plain` scouts this stores the current page hash in `raw_captures`. Run Now does not create the first baseline, because that would make the first manual run look like a successful no-op while silently changing future alerts.
+
+If a listing/index page changes and Phase B follows matching subpages, the configured scout URL remains the index URL, but each extracted unit and its raw capture are attributed to the exact article/subpage URL that produced the fact.
 
 ## Database Records
 
