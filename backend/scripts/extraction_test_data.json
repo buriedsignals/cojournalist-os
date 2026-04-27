@@ -1,0 +1,1022 @@
+[
+  {
+    "id": "en-housing-01",
+    "title": "Bozeman City Commission approves 200-unit housing development",
+    "content": "The Bozeman City Commission voted 4-1 on Tuesday to approve a 200-unit mixed-use housing development on North 7th Avenue. Commissioner Jane Lopez cast the sole dissenting vote, citing concerns about traffic congestion. The $45 million project by Gallatin Valley Development LLC will include 60 affordable units priced below area median income thresholds. Construction is expected to begin in June 2026 with completion targeted for late 2027. The development will include ground-floor retail space and a public plaza. Mayor Chris Mehl praised the project as 'a significant step toward addressing our housing crisis.'",
+    "source_url": "https://www.bozemandailychronicle.com/news/housing-development-approved",
+    "published_date": "2026-03-15",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Bozeman City Commission", "Jane Lopez"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-water-02",
+    "title": "Gallatin Valley water rights dispute heads to court",
+    "content": "A group of 12 ranchers in the Gallatin Valley filed suit against the City of Bozeman on March 13 over a water allocation plan they say threatens their irrigation rights. The lawsuit, filed in Gallatin County District Court, challenges the city's 2025 Water Master Plan, which would divert an additional 2,000 acre-feet annually from the East Gallatin River to serve new residential developments. Lead plaintiff Robert Anderson, whose family has farmed the valley since 1892, called the plan 'a death sentence for agriculture in this valley.' The city's water director, Sarah Chen, responded that the plan includes mitigation measures and was developed over two years of public comment.",
+    "source_url": "https://montanafreepress.org/2026/03/13/gallatin-water-dispute",
+    "published_date": "2026-03-13",
+    "language": "en",
+    "criteria": "water rights and agriculture",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Gallatin Valley", "Robert Anderson"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-childcare-03",
+    "title": "Local nonprofit launches affordable childcare program",
+    "content": "Thrive Community Hub opened its doors Monday to 50 families in Bozeman with a new subsidized childcare program. The program, funded by a $1.2 million grant from the Montana Department of Health and Human Services, offers full-day care at 40% below market rates. Executive Director Maria Gonzalez said the waitlist already has 200 families. 'The childcare crisis in Bozeman is real — parents are choosing between careers and caring for their children,' Gonzalez said. The facility at 215 East Main Street serves children ages 6 weeks to 5 years. The program prioritizes single-parent households and families earning below 200% of the federal poverty level.",
+    "source_url": "https://www.kbzk.com/news/local/childcare-program-launch",
+    "published_date": "2026-03-14",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Thrive Community Hub", "Maria Gonzalez"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-bikelane-04",
+    "title": "New bike lane project begins on Main Street",
+    "content": "Construction began this week on a $2.3 million protected bike lane project along Main Street in Bozeman, connecting downtown to the Montana State University campus. The 2.1-mile corridor will feature physical barriers separating cyclists from vehicle traffic, a first for the city. The project, funded 80% by a federal RAISE grant and 20% by city transportation funds, is expected to be completed by October 2026. City Transportation Director Mark Finley said the project aims to reduce the 23% increase in bicycle-vehicle collisions recorded over the past three years. Temporary lane closures will affect eastbound Main Street traffic through August.",
+    "source_url": "https://www.bozeman.net/departments/transportation/bike-lanes",
+    "published_date": "2026-03-11",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Bozeman", "Montana State University"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-robotics-05",
+    "title": "Bozeman High School robotics team wins state championship",
+    "content": "The Bozeman High School robotics team, the Hawks, won the Montana FIRST Robotics state championship on Saturday, defeating 32 teams from across the state. The team's robot, dubbed 'Talon,' scored highest in the autonomous navigation challenge and earned the Innovation Award for its custom vision system. Team captain Emily Wright, a junior, credited months of weekend practice sessions. Coach David Park said the team will represent Montana at the FIRST Robotics national competition in Houston on April 17-20. The team has launched a GoFundMe campaign seeking $15,000 to cover travel costs for the 18-member squad.",
+    "source_url": "https://www.bozemandailychronicle.com/news/robotics-championship",
+    "published_date": "2026-03-13",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Bozeman High School", "Emily Wright"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-property-tax-06",
+    "title": "Montana Legislature debates property tax reform",
+    "content": "A bipartisan coalition in the Montana Legislature introduced HB 412 on Friday, proposing to cap annual property tax increases at 3% for primary residences. The bill's lead sponsor, Rep. Tom Garcia (R-Billings), said rising property values have pushed tax bills up 40% in some Gallatin County neighborhoods over the past two years. The Montana Association of Counties opposes the bill, warning it could reduce county revenue by an estimated $180 million annually and force cuts to schools and emergency services. Governor Pat Williams has not taken a position but called for 'a solution that balances homeowner relief with essential services.' The bill is scheduled for committee hearing on March 22.",
+    "source_url": "https://www.ap.org/montana/property-tax-reform",
+    "published_date": "2026-03-15",
+    "language": "en",
+    "criteria": "property tax",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Montana Legislature", "Tom Garcia"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-ski-07",
+    "title": "Bridger Bowl announces early season closure due to low snowfall",
+    "content": "Bridger Bowl ski area announced Tuesday it will close for the season on March 22, two weeks earlier than planned, due to below-average snowfall. The resort recorded just 187 inches of snow this season compared to the 30-year average of 350 inches. General Manager Brian Wheeler said the early closure will affect about 45 seasonal employees. The resort will offer prorated season pass refunds for passes purchased after January 1. Bridger Bowl is a nonprofit community ski area governed by a board of directors elected by season pass holders. The resort has operated since 1955.",
+    "source_url": "https://www.bozemanmagazine.com/bridger-bowl-closing",
+    "published_date": "2026-03-12",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Bridger Bowl", "Brian Wheeler"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-schaffhausen-01",
+    "title": "Stadtrat Schaffhausen genehmigt neues Quartierzentrum am Rheinufer",
+    "content": "Der Stadtrat von Schaffhausen hat am Montag den Bau eines neuen Quartierzentrums am Rheinufer genehmigt. Das Projekt mit einem Budget von 12,5 Millionen Franken umfasst einen Gemeinschaftsraum, eine Bibliotheksfiliale und ein Café. Die Bauarbeiten sollen im September 2026 beginnen und bis Herbst 2028 abgeschlossen sein. Stadträtin Barbara Müller betonte, das Zentrum werde 'ein wichtiger Treffpunkt für das gesamte Quartier.' Der Entwurf stammt vom Architekturbüro Herzog & Partner aus Zürich, das sich in einem Wettbewerb gegen 14 andere Büros durchgesetzt hat. Anwohner hatten sich in einer Petition mit 850 Unterschriften für das Projekt ausgesprochen.",
+    "source_url": "https://www.schaffhauser-nachrichten.ch/region/quartierzentrum-rheinufer",
+    "published_date": "2026-03-14",
+    "language": "de",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Schaffhausen", "Barbara Müller"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-schaffhausen-02",
+    "title": "Munotverein plant Sanierung der historischen Festungsmauern",
+    "content": "Der Munotverein Schaffhausen hat angekündigt, die historischen Festungsmauern des Munot in einer zweijährigen Sanierung zu restaurieren. Die Kosten werden auf 3,8 Millionen Franken geschätzt, wovon der Kanton 60% übernimmt. Vereinspräsident Thomas Keller erklärte, mehrere Abschnitte der 450 Jahre alten Mauern zeigten Frostschäden und müssten dringend stabilisiert werden. Die Arbeiten beginnen im April 2026 und sollen etappenweise durchgeführt werden, damit der Munot für Besucher zugänglich bleibt. Der Munot ist das Wahrzeichen von Schaffhausen und zieht jährlich über 100'000 Besucher an.",
+    "source_url": "https://www.schaffhauser-nachrichten.ch/region/munot-sanierung",
+    "published_date": "2026-03-10",
+    "language": "de",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Munotverein", "Thomas Keller"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-schaffhausen-03",
+    "title": "Verkehrskonzept: Schaffhausen plant autofreie Altstadt bis 2028",
+    "content": "Die Stadt Schaffhausen hat ein neues Verkehrskonzept vorgestellt, das die Altstadt bis 2028 weitgehend autofrei machen soll. Stadtpräsident Peter Neukomm präsentierte den Plan am Dienstag im Grossen Stadtrat. Vorgesehen sind eine Erweiterung der Fussgängerzone, neue Veloparkplätze und ein Shuttlebus-System. Die Kosten für die erste Etappe belaufen sich auf 5,2 Millionen Franken. Der TCS Schaffhausen kritisierte den Plan als 'wirtschaftsfeindlich' und warnte vor Umsatzeinbussen im Detailhandel. Eine Volksabstimmung ist für November 2026 geplant. Laut einer Umfrage der Stadtverwaltung befürworten 58% der Einwohner das Konzept.",
+    "source_url": "https://www.schaffhauser-nachrichten.ch/region/autofreie-altstadt",
+    "published_date": "2026-03-12",
+    "language": "de",
+    "criteria": "Verkehrspolitik",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Schaffhausen", "Peter Neukomm"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-schaffhausen-04",
+    "title": "Schaffhauser Unternehmen gewinnt Swiss Innovation Award",
+    "content": "Das Schaffhauser Medizintechnik-Unternehmen NovaTech AG hat den Swiss Innovation Award 2026 in der Kategorie 'Life Sciences' gewonnen. Die Auszeichnung würdigt die Entwicklung eines neuartigen Sensors zur Früherkennung von Sepsis, der die Diagnosezeit von 24 Stunden auf unter 90 Minuten verkürzt. CEO Dr. Anna Schmid nahm den Preis an der Preisverleihung in Bern entgegen. NovaTech beschäftigt 85 Mitarbeitende am Standort Schaffhausen und plant, die Belegschaft bis Ende 2026 auf 120 zu erweitern. Das Produkt befindet sich derzeit in der klinischen Erprobung am Kantonsspital Schaffhausen.",
+    "source_url": "https://www.handelszeitung.ch/unternehmen/novatech-innovation-award",
+    "published_date": "2026-03-08",
+    "language": "de",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["NovaTech AG", "Anna Schmid"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-schaffhausen-05",
+    "title": "Hochwasserschutz: Kanton investiert 18 Millionen in Rheinufer",
+    "content": "Der Kanton Schaffhausen investiert 18 Millionen Franken in den Hochwasserschutz entlang des Rheins. Regierungsrat Martin Kessler stellte das Projekt am Mittwoch vor. Die Massnahmen umfassen die Erhöhung der Ufermauern um bis zu 80 Zentimeter auf einer Strecke von 2,3 Kilometern sowie den Bau von drei neuen Rückhaltebecken. Der Plan reagiert auf die Hochwasserereignisse von 2024, bei denen Schäden in Höhe von 4,5 Millionen Franken entstanden. Die Arbeiten sollen in drei Phasen bis 2029 abgeschlossen werden. Der Bund übernimmt 45% der Kosten im Rahmen des nationalen Hochwasserschutzprogramms.",
+    "source_url": "https://www.schaffhauser-nachrichten.ch/kanton/hochwasserschutz-rhein",
+    "published_date": "2026-03-11",
+    "language": "de",
+    "criteria": "Hochwasser und Klimaanpassung",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Kanton Schaffhausen", "Martin Kessler"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "fr-lyon-01",
+    "title": "Lyon inaugure sa première ligne de tramway fluvial sur le Rhône",
+    "content": "La Métropole de Lyon a inauguré mercredi la première ligne de tramway fluvial reliant le quartier de Confluence au campus de la Doua en 35 minutes. Le service, baptisé 'RhônExpress Urbain,' comprend six navettes électriques d'une capacité de 80 passagers chacune. Le projet a coûté 42 millions d'euros, financé à 60% par la Métropole et 40% par la Région Auvergne-Rhône-Alpes. Le président de la Métropole Bruno Bernard a déclaré que cette ligne devrait transporter 8 000 passagers par jour d'ici 2027. Cinq arrêts sont prévus, dont Bellecour, Cité Internationale et Tonkin. Le service fonctionnera de 6h30 à 22h00, avec une fréquence de 12 minutes en heure de pointe.",
+    "source_url": "https://www.lyonmag.com/article/tramway-fluvial-inauguration",
+    "published_date": "2026-03-13",
+    "language": "fr",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Lyon", "Bruno Bernard"],
+      "expected_language": "fr",
+      "has_date": true
+    }
+  },
+  {
+    "id": "fr-lyon-02",
+    "title": "Nouvelle politique vélo : Lyon va installer 10 000 arceaux supplémentaires",
+    "content": "La Ville de Lyon a annoncé lundi un plan d'investissement de 8,5 millions d'euros pour installer 10 000 arceaux à vélos supplémentaires d'ici fin 2027. L'adjointe aux mobilités Valerie Fourneyron a précisé que les arrondissements les plus concernés seront le 1er, le 3e et le 7e. Le plan prévoit également 200 abris vélos sécurisés et 50 stations de réparation en libre-service. Lyon compte actuellement 35 000 arceaux pour une population de 520 000 habitants, soit un ratio que la mairie juge insuffisant face à la hausse de 45% de la pratique cycliste depuis 2020. L'association Pignon sur Rue a salué l'annonce tout en demandant un calendrier plus ambitieux.",
+    "source_url": "https://www.lyoncapitale.fr/actualite/plan-velo-arceaux",
+    "published_date": "2026-03-10",
+    "language": "fr",
+    "criteria": "politique cyclable",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Lyon", "Valerie Fourneyron"],
+      "expected_language": "fr",
+      "has_date": true
+    }
+  },
+  {
+    "id": "fr-lyon-03",
+    "title": "Le marché de la Part-Dieu menacé de fermeture temporaire pour travaux",
+    "content": "Le marché couvert de la Part-Dieu, institution lyonnaise depuis 1971, fermera ses portes du 1er septembre au 15 décembre 2026 pour des travaux de mise aux normes estimés à 6,3 millions d'euros. Les 55 commerçants du marché seront temporairement relogés dans des structures modulaires installées sur le parvis de la gare. Le président de l'association des commerçants, Philippe Durand, s'est dit 'inquiet des pertes de chiffre d'affaires' mais reconnaît la nécessité des travaux. Les halles Paul Bocuse, autre marché emblématique du quartier, ne sont pas concernées par ces travaux. La Métropole promet une campagne de communication pour diriger les clients vers les emplacements provisoires.",
+    "source_url": "https://www.leprogres.fr/lyon/marche-part-dieu-travaux",
+    "published_date": "2026-03-14",
+    "language": "fr",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Part-Dieu", "Philippe Durand"],
+      "expected_language": "fr",
+      "has_date": true
+    }
+  },
+  {
+    "id": "fr-lyon-04",
+    "title": "Lyon : le nouveau plan local d'urbanisme approuvé après deux ans de concertation",
+    "content": "Le Conseil de la Métropole de Lyon a adopté vendredi le nouveau Plan Local d'Urbanisme et de l'Habitat (PLU-H), après plus de deux ans de concertation publique. Le document fixe les règles de construction pour les 59 communes de la métropole jusqu'en 2035. Parmi les mesures phares : limitation de la hauteur des immeubles à R+6 dans les quartiers résidentiels, obligation de 30% de logements sociaux dans tout nouveau programme de plus de 20 logements, et protection renforcée de 1 200 hectares d'espaces verts. L'opposition (LR) a voté contre, dénonçant des contraintes excessives pour les promoteurs. Le PLU-H entrera en vigueur le 1er juillet 2026.",
+    "source_url": "https://www.lyonmag.com/article/plu-h-adoption",
+    "published_date": "2026-03-15",
+    "language": "fr",
+    "criteria": "urbanisme et logement",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Métropole de Lyon"],
+      "expected_language": "fr",
+      "has_date": true
+    }
+  },
+  {
+    "id": "es-madrid-01",
+    "title": "Madrid aprueba la creación de 15 nuevas zonas de bajas emisiones",
+    "content": "El Ayuntamiento de Madrid aprobó el jueves la creación de 15 nuevas zonas de bajas emisiones que entrarán en vigor en enero de 2027. La concejala de Medio Ambiente, Lucia Fernández, explicó que las restricciones afectarán a vehículos sin etiqueta ambiental de la DGT. Las zonas incluyen los barrios de Chamberí, Salamanca, Retiro, Arganzuela y Usera. Se estima que la medida reducirá las emisiones de NO2 en un 25% en las áreas afectadas. La Confederación de Comerciantes de Madrid expresó preocupación por el impacto en el comercio local. El plan contempla la instalación de 3.000 nuevos puntos de carga para vehículos eléctricos y una ampliación de la red de autobuses lanzadera.",
+    "source_url": "https://www.elmundo.es/madrid/zonas-bajas-emisiones",
+    "published_date": "2026-03-14",
+    "language": "es",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Madrid", "Lucia Fernández"],
+      "expected_language": "es",
+      "has_date": true
+    }
+  },
+  {
+    "id": "es-madrid-02",
+    "title": "El Museo del Prado registra récord de visitantes en febrero",
+    "content": "El Museo del Prado alcanzó un récord histórico de 412.000 visitantes en febrero de 2026, superando en un 18% la cifra del mismo mes del año anterior. La directora del museo, Carmen Sánchez, atribuyó el éxito a la exposición temporal 'Velázquez y sus contemporáneos,' que ha atraído a más de 180.000 personas desde su apertura en enero. El 42% de los visitantes procedían del extranjero, con Francia, Estados Unidos y Alemania como principales mercados emisores. El museo ha anunciado una inversión de 12 millones de euros para ampliar las salas de exposiciones temporales, con obras previstas para 2027.",
+    "source_url": "https://www.elpais.com/cultura/museo-prado-record",
+    "published_date": "2026-03-08",
+    "language": "es",
+    "criteria": "cultura y turismo",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Museo del Prado", "Carmen Sánchez"],
+      "expected_language": "es",
+      "has_date": true
+    }
+  },
+  {
+    "id": "no-oslo-01",
+    "title": "Oslo kommune investerer 500 millioner i nytt badeland",
+    "content": "Oslo bystyre vedtok onsdag å investere 500 millioner kroner i et nytt badeland på Tøyen. Anlegget skal ha 50-meters basseng, stupetårn, og et eget familieområde. Byrådsleder Rina Mariann Hansen sa at prosjektet vil gi østkanten et etterlengtet svømmetilbud. Byggestart er planlagt til våren 2027, med åpning i 2029. Arkitektkontoret Snøhetta har designet bygningen, som skal ha et markant bølgeformet tak. Opposisjonen i bystyret stemte for prosjektet, men kritiserte kostnadsrammen som 'urealistisk lav' basert på erfaringer fra andre store kommunale byggeprosjekter.",
+    "source_url": "https://www.aftenposten.no/oslo/badeland-toyen",
+    "published_date": "2026-03-12",
+    "language": "no",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Oslo", "Rina Mariann Hansen"],
+      "expected_language": "no",
+      "has_date": true
+    }
+  },
+  {
+    "id": "no-oslo-02",
+    "title": "Ny T-banelinje til Fornebu åpner i 2027",
+    "content": "Ruter og Sporveien kunngjorde torsdag at den nye T-banelinjen til Fornebu vil åpne for passasjerer 15. mars 2027, etter flere års forsinkelser. Linjen strekker seg fra Majorstuen via Skøyen til Fornebu med seks nye stasjoner. Prosjektet har en total kostnad på 19,6 milliarder kroner, 3,2 milliarder over opprinnelig budsjett. Administrerende direktør i Sporveien, Cato Hellesjø, sa at linjen vil redusere biltrafikken inn til Oslo sentrum med anslagsvis 12.000 bilturer daglig. Byggearbeidene sysselsetter for tiden 2.400 personer.",
+    "source_url": "https://www.nrk.no/oslo/fornebubanen-apning",
+    "published_date": "2026-03-13",
+    "language": "no",
+    "criteria": "transport og infrastruktur",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Fornebu", "Sporveien"],
+      "expected_language": "no",
+      "has_date": true
+    }
+  },
+  {
+    "id": "it-roma-01",
+    "title": "Roma approva il piano per 50 km di nuove piste ciclabili",
+    "content": "La Giunta Capitolina ha approvato martedì un piano da 35 milioni di euro per la realizzazione di 50 km di nuove piste ciclabili entro il 2028. L'assessore alla Mobilità, Marco Pellegrini, ha spiegato che i percorsi collegheranno le principali stazioni della metropolitana ai quartieri residenziali. Il progetto prevede anche 2.000 nuovi stalli per biciclette e 30 stazioni di bike sharing. Legambiente ha definito il piano 'un passo nella giusta direzione' ma ha chiesto tempi più rapidi. I lavori per il primo lotto, che collegherà Termini a San Giovanni, inizieranno a giugno 2026.",
+    "source_url": "https://www.romatoday.it/politica/piste-ciclabili-piano",
+    "published_date": "2026-03-11",
+    "language": "it",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Roma", "Marco Pellegrini"],
+      "expected_language": "it",
+      "has_date": true
+    }
+  },
+  {
+    "id": "nl-amsterdam-01",
+    "title": "Amsterdam verbiedt vakantieverhuur in drie wijken per 2027",
+    "content": "Het college van burgemeester en wethouders van Amsterdam heeft besloten vakantieverhuur via platforms als Airbnb volledig te verbieden in de wijken Centrum, De Pijp en Jordaan vanaf 1 januari 2027. Wethouder Wonen Reinier van Dantzig zei dat de maatregel nodig is om de woningnood aan te pakken. In de drie wijken staan naar schatting 4.200 woningen geregistreerd voor vakantieverhuur. Airbnb Nederland noemde het verbod 'disproportioneel' en kondigde juridische stappen aan. De gemeente verwacht dat de maatregel jaarlijks 1.500 woningen terugbrengt op de reguliere huurmarkt. Overtreders riskeren boetes tot 21.750 euro.",
+    "source_url": "https://www.parool.nl/amsterdam/vakantieverhuur-verbod",
+    "published_date": "2026-03-14",
+    "language": "nl",
+    "criteria": "woningbeleid",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Amsterdam", "Reinier van Dantzig"],
+      "expected_language": "nl",
+      "has_date": true
+    }
+  },
+  {
+    "id": "sv-stockholm-01",
+    "title": "Stockholm satsar 200 miljoner på nya parker i ytterstaden",
+    "content": "Stockholms stad presenterade på tisdagen en satsning på 200 miljoner kronor för att anlägga 12 nya parker i ytterstaden. Stadsbyggnadsborgarrådet Lars Eriksson sa att stadsdelarna Rinkeby-Kista, Skärholmen och Farsta prioriteras. Projektet inkluderar lekplatser, utegym och planteringar av 5 000 nya träd. Byggstart planeras till hösten 2026 med slutförande 2028. Miljöpartiet välkomnade satsningen men efterlyste mer pengar till grönytor i innerstaden. Enligt en undersökning av Stockholms universitet har tillgången till grönområden minskat med 15% i ytterstaden sedan 2015.",
+    "source_url": "https://www.dn.se/stockholm/nya-parker-ytterstaden",
+    "published_date": "2026-03-12",
+    "language": "sv",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Stockholm", "Lars Eriksson"],
+      "expected_language": "sv",
+      "has_date": true
+    }
+  },
+  {
+    "id": "da-copenhagen-01",
+    "title": "København åbner ny svømmefacilitet i havnen",
+    "content": "Københavns Kommune indviede fredag en ny svømmefacilitet i Sydhavnen med plads til 500 badegæster. Anlægget har kostet 85 millioner kroner og omfatter et 50-meter bassin, et varmtvandsbassin og en sauna med udsigt over havnen. Kultur- og fritidsborgmester Mia Nyegaard sagde, at faciliteterne vil dække et stort behov i det hurtigt voksende kvarter. Byggeriet tog to år og blev forsinket seks måneder på grund af forsyningsproblemer. Svømmehallen åbner for offentligheden den 1. april med gratis adgang den første uge.",
+    "source_url": "https://www.politiken.dk/kobenhavn/svommefacilitet-sydhavnen",
+    "published_date": "2026-03-15",
+    "language": "da",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["København", "Mia Nyegaard"],
+      "expected_language": "da",
+      "has_date": true
+    }
+  },
+  {
+    "id": "fi-helsinki-01",
+    "title": "Helsinki investoi 150 miljoonaa euroa uuteen kulttuurikeskukseen",
+    "content": "Helsingin kaupunginvaltuusto hyväksyi keskiviikkona 150 miljoonan euron investoinnin uuteen kulttuurikeskukseen Kalasatamaan. Keskus yhdistää kirjaston, teatterin ja taidegallerian saman katon alle. Pormestari Juhana Vartiainen totesi, että hanke on 'merkittävin kulttuuripanostus vuosikymmeneen.' Arkkitehtitoimisto ALA on suunnitellut rakennuksen, jonka julkisivu muistuttaa aaltoilevaa merenrantaa. Rakentaminen alkaa syksyllä 2026, ja keskuksen odotetaan avautuvan vuonna 2029. Vihreät äänestivät hanketta vastaan vedoten budjettirajoitteisiin.",
+    "source_url": "https://www.hs.fi/kaupunki/kulttuurikeskus-kalasatama",
+    "published_date": "2026-03-13",
+    "language": "fi",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Helsinki", "Juhana Vartiainen"],
+      "expected_language": "fi",
+      "has_date": true
+    }
+  },
+  {
+    "id": "pl-warsaw-01",
+    "title": "Warszawa uruchamia nową linię tramwajową na Wilanów",
+    "content": "Zarząd Transportu Miejskiego w Warszawie ogłosił w poniedziałek uruchomienie nowej linii tramwajowej łączącej centrum miasta z Wilanowem. Linia o długości 8,5 km będzie obsługiwana przez 15 nowoczesnych tramwajów Hyundai Rotem. Koszt inwestycji wyniósł 1,2 miliarda złotych, z czego 650 milionów pochodziło z funduszy unijnych. Prezydent Warszawy Rafał Trzaskowski powiedział, że linia skróci czas dojazdu z Wilanowa do centrum z 45 do 22 minut. Budowa trwała trzy lata i wymagała przebudowy skrzyżowań na ulicach Sobieskiego i Belwederskiej. Pierwszych pasażerów linia przyjmie 1 kwietnia 2026.",
+    "source_url": "https://www.warszawa.pl/transport/tramwaj-wilanow",
+    "published_date": "2026-03-11",
+    "language": "pl",
+    "criteria": "transport publiczny",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Warszawa", "Rafał Trzaskowski"],
+      "expected_language": "pl",
+      "has_date": true
+    }
+  },
+  {
+    "id": "pt-lisbon-01",
+    "title": "Lisboa aprova construção de 3.000 habitações a preços acessíveis",
+    "content": "A Câmara Municipal de Lisboa aprovou na quarta-feira a construção de 3.000 habitações a preços acessíveis nos bairros de Marvila, Beato e Lumiar. O investimento total é de 420 milhões de euros, dos quais 180 milhões provêm do Plano de Recuperação e Resiliência. O presidente da câmara, Carlos Moedas, afirmou que as rendas serão limitadas a 500 euros por mês para famílias com rendimentos até ao 3.º escalão do IRS. A construção começará em setembro de 2026, com as primeiras entregas previstas para 2028. A Associação dos Inquilinos de Lisboa elogiou a iniciativa mas alertou que a cidade precisa de pelo menos 25.000 habitações adicionais.",
+    "source_url": "https://www.publico.pt/lisboa/habitacao-acessivel",
+    "published_date": "2026-03-12",
+    "language": "pt",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Lisboa", "Carlos Moedas"],
+      "expected_language": "pt",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-listing-01",
+    "title": "Latest News - Bozeman Daily Chronicle",
+    "content": "## Latest Headlines\n\n### City Commission approves housing development\nThe commission voted 4-1 to approve a new project... [Read more →](/news/housing)\n\n### Water rights dispute escalates\nRanchers file suit against city water plan... [Read more →](/news/water)\n\n### Robotics team wins state title\nBozeman High advances to nationals... [Read more →](/news/robotics)\n\n### New bike lanes coming to Main Street\n$2.3M project breaks ground this week... [Read more →](/news/bikes)\n\n### Bridger Bowl closing early\nBelow-average snowfall forces early closure... [Read more →](/news/skiing)\n\n### Nonprofit launches childcare program\nThrive Community Hub opens subsidized care... [Read more →](/news/childcare)",
+    "source_url": "https://www.bozemandailychronicle.com/news/",
+    "published_date": null,
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": true,
+      "min_units": 0,
+      "max_units": 0,
+      "must_contain_entities": [],
+      "expected_language": "en",
+      "has_date": false
+    }
+  },
+  {
+    "id": "de-listing-01",
+    "title": "Medienmitteilungen - Stadt Schaffhausen",
+    "content": "# Medienmitteilungen\n\n**15.03.2026** — Stadtrat genehmigt Quartierzentrum am Rheinufer\nDer Stadtrat hat den Bau eines neuen Quartierzentrums genehmigt... [Weiterlesen](/medienmitteilungen/quartierzentrum)\n\n**12.03.2026** — Neues Verkehrskonzept für die Altstadt vorgestellt\nStadtpräsident Peter Neukomm präsentierte den Plan... [Weiterlesen](/medienmitteilungen/verkehr)\n\n**10.03.2026** — Munotsanierung: Kanton übernimmt 60% der Kosten\nDie historischen Festungsmauern werden restauriert... [Weiterlesen](/medienmitteilungen/munot)\n\n**08.03.2026** — Schaffhauser Unternehmen gewinnt Innovation Award\nNovaTech AG erhält Swiss Innovation Award... [Weiterlesen](/medienmitteilungen/novatech)",
+    "source_url": "https://www.stadt-schaffhausen.ch/medienmitteilungen/",
+    "published_date": null,
+    "language": "de",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": true,
+      "min_units": 0,
+      "max_units": 0,
+      "must_contain_entities": [],
+      "expected_language": "de",
+      "has_date": false
+    }
+  },
+  {
+    "id": "fr-listing-01",
+    "title": "Actualités - Lyon Métropole",
+    "content": "# Toute l'actualité de la Métropole de Lyon\n\n**13 mars 2026** — Inauguration du tramway fluvial sur le Rhône\nLa Métropole inaugure la première ligne... [Lire la suite](/actualites/tramway-fluvial)\n\n**10 mars 2026** — Plan vélo : 10 000 arceaux supplémentaires\nUn investissement de 8,5 millions d'euros... [Lire la suite](/actualites/plan-velo)\n\n**15 mars 2026** — Adoption du nouveau PLU-H\nLe Conseil de la Métropole a adopté... [Lire la suite](/actualites/plu-h)\n\n**14 mars 2026** — Travaux au marché de la Part-Dieu\nFermeture temporaire de septembre à décembre... [Lire la suite](/actualites/marche-part-dieu)",
+    "source_url": "https://www.grandlyon.com/actualites/",
+    "published_date": null,
+    "language": "fr",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": true,
+      "min_units": 0,
+      "max_units": 0,
+      "must_contain_entities": [],
+      "expected_language": "fr",
+      "has_date": false
+    }
+  },
+  {
+    "id": "en-nodate-01",
+    "title": "Community garden program expanding in Bozeman",
+    "content": "The Gallatin Valley Community Gardens program is expanding with three new garden plots in underserved neighborhoods. Program coordinator Lisa Park said demand for garden space has tripled since the pandemic. The new plots, located in northeast Bozeman near the Story Mill Community Park, offer 120 individual garden beds at $25 per season. Master gardeners from Montana State University's extension program will provide free workshops on organic gardening techniques. Applications open next month, with priority given to residents within a half-mile radius of each site. The program currently serves 380 gardeners across seven locations.",
+    "source_url": "https://www.bozemandailychronicle.com/community/gardens-expanding",
+    "published_date": null,
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Gallatin Valley Community Gardens", "Lisa Park"],
+      "expected_language": "en",
+      "has_date": false
+    }
+  },
+  {
+    "id": "en-environment-01",
+    "title": "Gallatin River trout populations declining as water temperatures rise",
+    "content": "A study by the Montana Department of Fish, Wildlife & Parks found that native cutthroat trout populations in the Gallatin River have declined 32% since 2018 due to rising water temperatures. Lead researcher Dr. James Morrison said summer water temperatures regularly exceeded 70°F in 2025, a threshold that causes stress in cold-water fish species. The study, published in the journal Northwest Science, recommends expanding riparian buffer zones and reducing agricultural runoff. Gallatin County commissioners are reviewing the findings ahead of a public hearing on water management policy scheduled for April 5. Fishing outfitters in the region report a noticeable decline in catch rates, affecting the estimated $45 million annual fishing tourism economy.",
+    "source_url": "https://www.yale.edu/environment360/gallatin-trout-decline",
+    "published_date": "2026-03-08",
+    "language": "en",
+    "criteria": "climate and environment",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Gallatin River", "James Morrison"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-business-01",
+    "title": "Tech startup Oracle Health opens Bozeman office, plans to hire 75",
+    "content": "Oracle Health, a subsidiary of Oracle Corporation, announced Tuesday it will open a regional office in Bozeman's Cannery District, creating 75 jobs over the next 18 months. The office will focus on health informatics and data analytics. VP of Regional Operations Jennifer Walsh said Bozeman was chosen for its 'proximity to Montana State University's computer science talent and quality of life.' Starting salaries range from $65,000 to $120,000. The 12,000-square-foot office at 1500 Rouse Avenue is expected to open in July. Governor Pat Williams praised the announcement, noting Montana's tech sector has grown 28% since 2022. Oracle Health currently operates offices in Austin, Kansas City, and Burlington.",
+    "source_url": "https://www.bozemandailychronicle.com/business/oracle-health-bozeman",
+    "published_date": "2026-03-14",
+    "language": "en",
+    "criteria": "business and economy",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Oracle Health", "Jennifer Walsh"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-crime-01",
+    "title": "Bozeman police arrest suspect in downtown vandalism spree",
+    "content": "Bozeman Police Department officers arrested 34-year-old Marcus Reed on Wednesday in connection with a series of vandalism incidents in the downtown area over the past week. Police say Reed caused an estimated $18,000 in damage to storefronts along Main Street, including broken windows at four businesses. Chief Steve Crawford said Reed was identified through surveillance camera footage and arrested without incident at his residence on South Grand Avenue. Reed faces four counts of criminal mischief and one count of trespassing. He is being held at the Gallatin County Detention Center on $10,000 bond. The affected business owners said insurance will cover most of the damage.",
+    "source_url": "https://www.kbzk.com/news/crime/downtown-vandalism-arrest",
+    "published_date": "2026-03-13",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Marcus Reed", "Steve Crawford"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-education-01",
+    "title": "Montana State University receives $8M federal grant for rural healthcare research",
+    "content": "Montana State University announced Friday a $8.2 million grant from the National Institutes of Health to establish a Center for Rural Healthcare Innovation. The five-year grant will fund research into telemedicine delivery, rural mental health intervention, and emergency response in remote communities. Center Director Dr. Patricia Novak said the program will partner with 12 rural hospitals across Montana. The grant creates 15 full-time research positions and supports 20 graduate fellowships. MSU President Waded Cruzado called it 'a testament to our mission of serving Montana's rural communities.' The center will be housed in the Norm Asbjornson College of Engineering.",
+    "source_url": "https://www.montana.edu/news/rural-healthcare-grant",
+    "published_date": "2026-03-15",
+    "language": "en",
+    "criteria": "healthcare and education",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Montana State University", "Patricia Novak"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-tourism-filter-01",
+    "title": "10 Best Restaurants in Bozeman, Montana for 2026",
+    "content": "Planning a trip to Big Sky Country? Here are the 10 best restaurants you must visit in Bozeman, Montana this year!\n\n1. **The Emerson Grill** — Italian-American classics in a historic schoolhouse. Try the elk bolognese.\n2. **Blackbird Kitchen** — Farm-to-table dining with stunning mountain views.\n3. **Montana Ale Works** — Craft beers and hearty pub fare in a renovated railroad warehouse.\n4. **Plonk Wine Bar** — Sophisticated wine list and small plates.\n5. **Dave's Sushi** — Surprisingly excellent sushi in the Rockies.\n\nBozeman's food scene has exploded in recent years, driven by an influx of remote workers and outdoor enthusiasts. Whether you're looking for fine dining or casual eats, this mountain town delivers.",
+    "source_url": "https://www.tripadvisor.com/best-restaurants-bozeman-2026",
+    "published_date": "2026-03-10",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 0,
+      "max_units": 1,
+      "must_contain_entities": [],
+      "expected_language": "en",
+      "has_date": false
+    }
+  },
+  {
+    "id": "en-short-01",
+    "title": "Fire crews respond to blaze at Bozeman warehouse",
+    "content": "Bozeman Fire Department responded to a structure fire at a commercial warehouse on East Griffin Drive early Thursday morning. The fire was contained within two hours with no injuries reported. The cause is under investigation.",
+    "source_url": "https://www.kbzk.com/news/fire-warehouse",
+    "published_date": "2026-03-14",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 2,
+      "must_contain_entities": ["Bozeman Fire Department"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-opinion-filter-01",
+    "title": "Opinion: Bozeman needs to rethink its growth strategy",
+    "content": "As a lifelong Bozeman resident, I've watched this town transform from a quiet college community into a bustling destination. But the current pace of growth is unsustainable. Traffic on North 19th has become unbearable. Housing prices have doubled in five years. Our schools are overcrowded. The City Commission seems content to approve every development that comes before them without considering the cumulative impact on infrastructure and quality of life. We need a comprehensive growth management plan that prioritizes the needs of existing residents over developer profits. The upcoming comprehensive plan update is our chance to get this right.",
+    "source_url": "https://www.bozemandailychronicle.com/opinion/growth-strategy",
+    "published_date": "2026-03-12",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 0,
+      "max_units": 1,
+      "must_contain_entities": [],
+      "expected_language": "en",
+      "has_date": false
+    }
+  },
+  {
+    "id": "en-council-01",
+    "title": "Gallatin County Commission approves $3.2M emergency services upgrade",
+    "content": "The Gallatin County Commission voted unanimously on Monday to approve a $3.2 million upgrade to the county's emergency communications system. The project will replace aging radio infrastructure with a digital P25 system compatible with federal and state emergency networks. Commission Chair Scott MacFarlane said the current system has dead zones covering 15% of the county, primarily in canyon areas south of Bozeman. The upgrade will add four new repeater towers and modernize dispatch center equipment. Funding comes from the county's capital improvement fund ($2.1M) and a FEMA Homeland Security grant ($1.1M). Installation is expected to take 14 months starting in May 2026.",
+    "source_url": "https://www.gallatincomt.gov/news/emergency-communications",
+    "published_date": "2026-03-10",
+    "language": "en",
+    "criteria": "government and emergency services",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Gallatin County Commission", "Scott MacFarlane"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-education-01",
+    "title": "Pädagogische Hochschule Schaffhausen führt neuen Studiengang ein",
+    "content": "Die Pädagogische Hochschule Schaffhausen (PHSH) startet im Herbstsemester 2026 einen neuen Bachelor-Studiengang in Medienpädagogik. Rektorin Prof. Dr. Katharina Bremer erklärte, der Studiengang reagiere auf den wachsenden Bedarf an Lehrkräften mit digitalen Kompetenzen. Das dreijährige Programm umfasst Praktika an Schaffhauser Volksschulen und eine Kooperation mit der ETH Zürich im Bereich künstliche Intelligenz im Unterricht. 40 Studienplätze stehen zur Verfügung. Die Anmeldefrist endet am 30. April. Der Kanton Schaffhausen unterstützt den neuen Studiengang mit einer Anschubfinanzierung von 800'000 Franken über drei Jahre.",
+    "source_url": "https://www.phsh.ch/aktuelles/neuer-studiengang",
+    "published_date": "2026-03-09",
+    "language": "de",
+    "criteria": "Bildung",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["PHSH", "Katharina Bremer"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-energy-01",
+    "title": "Schaffhausen plant grösstes Solarkraftwerk der Nordostschweiz",
+    "content": "Die Elektrizitätswerke des Kantons Schaffhausen (EKS) planen den Bau des grössten Solarkraftwerks der Nordostschweiz auf dem Gelände des ehemaligen SIG-Industrieareals. Die Anlage mit einer Leistung von 12 Megawatt Peak soll Strom für 3'500 Haushalte produzieren. Geschäftsführer Daniel Büchi bezifferte die Investitionskosten auf 15 Millionen Franken. Der Baubeginn ist für Frühjahr 2027 vorgesehen. Die Anlage wird auf Dächern und als Agri-Photovoltaik auf angrenzenden Feldern installiert. Die Bevölkerung kann sich über Solaranleihen mit Beträgen ab 1'000 Franken am Projekt beteiligen.",
+    "source_url": "https://www.schaffhauser-nachrichten.ch/wirtschaft/solarkraftwerk-eks",
+    "published_date": "2026-03-08",
+    "language": "de",
+    "criteria": "Energie und Nachhaltigkeit",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["EKS", "Daniel Büchi"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "fr-culture-01",
+    "title": "Le festival Nuits de Fourvière dévoile sa programmation 2026",
+    "content": "Le festival Nuits de Fourvière a dévoilé jeudi sa programmation pour l'édition 2026, qui se tiendra du 1er juin au 31 juillet dans les théâtres romains de Lyon. La directrice artistique Sophie Martin a annoncé 68 spectacles dont 12 créations originales. Les têtes d'affiche incluent un concert de Stromae, une pièce de Thomas Ostermeier et une création chorégraphique d'Angelin Preljocaj. Le budget de l'édition s'élève à 8,2 millions d'euros. L'an dernier, le festival avait accueilli 132 000 spectateurs avec un taux de remplissage de 92%. Les billets seront mis en vente le 15 avril sur le site du festival.",
+    "source_url": "https://www.nuitsdefourviere.com/actualites/programmation-2026",
+    "published_date": "2026-03-13",
+    "language": "fr",
+    "criteria": "culture et spectacles",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Nuits de Fourvière", "Sophie Martin"],
+      "expected_language": "fr",
+      "has_date": true
+    }
+  },
+  {
+    "id": "fr-health-01",
+    "title": "Les Hospices Civils de Lyon recrutent 500 soignants pour l'été",
+    "content": "Les Hospices Civils de Lyon (HCL), premier employeur de la région avec 24 000 salariés, lancent une campagne de recrutement de 500 soignants pour la période estivale. Le directeur général Philippe Gauthier a précisé que les postes concernent principalement des infirmiers (280), des aides-soignants (150) et des agents de service hospitalier (70). Les contrats proposés vont de un à trois mois. Face aux difficultés de recrutement, les HCL offrent une prime d'engagement de 1 500 euros et un logement en résidence. L'an dernier, seuls 380 des 520 postes ouverts avaient été pourvus, entraînant la fermeture temporaire de 80 lits.",
+    "source_url": "https://www.lyoncapitale.fr/sante/hcl-recrutement-ete",
+    "published_date": "2026-03-11",
+    "language": "fr",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Hospices Civils de Lyon", "Philippe Gauthier"],
+      "expected_language": "fr",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-agriculture-01",
+    "title": "Gallatin Valley farmers report worst drought conditions in a decade",
+    "content": "Farmers across the Gallatin Valley are reporting the driest spring in at least ten years, with soil moisture levels 40% below the 30-year average. The Gallatin Conservation District's quarterly report, released Wednesday, shows that only 2.1 inches of precipitation fell between January and March, compared to the historical average of 4.8 inches. District conservationist Amy Wright warned that wheat and barley crops could see yield reductions of 25-35% without significant April rainfall. The USDA Farm Service Agency has opened disaster assistance applications for affected producers. Twelve farms in the Belgrade area have already applied. Irrigation water from the Gallatin River is expected to be restricted starting May 1 under drought contingency protocols.",
+    "source_url": "https://montanafreepress.org/2026/03/drought-gallatin-valley",
+    "published_date": "2026-03-13",
+    "language": "en",
+    "criteria": "agriculture and drought",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Gallatin Valley", "Amy Wright"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-arts-01",
+    "title": "Emerson Cultural Center announces $2M renovation plan",
+    "content": "The Emerson Center for the Arts & Culture in Bozeman announced Monday a $2 million renovation plan to upgrade its historic building and expand gallery space. Executive Director Lori Eggert said the project will add 3,000 square feet of exhibition space and modernize the 116-year-old former school building's HVAC system. Architectural firm ThinkOne of Bozeman will lead the design. The renovation is funded through a combination of private donations ($1.2M), a Montana Arts Council grant ($500K), and a city historic preservation fund contribution ($300K). Construction will begin in January 2027, with the center remaining open during renovations through a phased approach.",
+    "source_url": "https://www.bozemandailychronicle.com/arts/emerson-renovation",
+    "published_date": "2026-03-10",
+    "language": "en",
+    "criteria": "arts and culture",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Emerson Center", "Lori Eggert"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-health-01",
+    "title": "Bozeman Health opens new urgent care clinic on West Babcock",
+    "content": "Bozeman Health opened a new urgent care clinic on West Babcock Street on Monday, the health system's third such facility in the Gallatin Valley. The 8,500-square-foot clinic offers walk-in services for non-emergency conditions from 8 a.m. to 8 p.m. daily. CEO John Hill said the $4.5 million facility was built in response to a 35% increase in emergency department visits over the past two years, many for conditions better suited to urgent care. The clinic is staffed by four physicians and six nurse practitioners. Wait times are expected to average 20-30 minutes. Bozeman Health, a nonprofit health system, operates Bozeman Health Deaconess Hospital and two other urgent care locations.",
+    "source_url": "https://www.bozemanhealth.org/news/urgent-care-babcock",
+    "published_date": "2026-03-10",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Bozeman Health", "John Hill"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-empty-01",
+    "title": "Page Not Found",
+    "content": "404 - The page you are looking for does not exist. Please check the URL or return to the homepage.",
+    "source_url": "https://www.example.com/404",
+    "published_date": null,
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 0,
+      "max_units": 0,
+      "must_contain_entities": [],
+      "expected_language": "en",
+      "has_date": false
+    }
+  },
+  {
+    "id": "en-pressrelease-01",
+    "title": "City of Bozeman announces summer road construction schedule",
+    "content": "The City of Bozeman Department of Public Works today released its 2026 summer road construction schedule. The following projects will begin on or after May 15:\n\n- North 19th Avenue resurfacing from Oak Street to Durston Road ($1.8M)\n- South 3rd Avenue water main replacement from College Street to Garfield Street ($950K)\n- Kagy Boulevard intersection improvements at South Church Avenue ($1.2M)\n- West Main Street ADA ramp upgrades from 8th Avenue to 15th Avenue ($400K)\n\nResidents can expect lane closures and traffic delays in affected areas. Detailed project timelines and detour maps are available at bozeman.net/construction. The city's transportation hotline (406-582-2900) will provide real-time updates during construction periods. Total summer construction budget: $4.35 million.",
+    "source_url": "https://www.bozeman.net/departments/public-works/road-construction",
+    "published_date": "2026-03-15",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Bozeman"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-culture-01",
+    "title": "Schaffhauser Jazzfestival feiert 40-jähriges Jubiläum",
+    "content": "Das Schaffhauser Jazzfestival feiert dieses Jahr sein 40-jähriges Jubiläum mit einem erweiterten Programm vom 22. bis 25. Mai. Festivalleiter Beat Weber hat 28 Konzerte an acht Spielorten angekündigt, darunter erstmals das Rheinufer als Open-Air-Bühne. Internationale Headliner sind die US-Saxophonistin Lakecia Benjamin und der norwegische Pianist Bugge Wesseltoft. Das Festival, das jährlich rund 8'000 Besucher anzieht, erhält zum Jubiläum einen Sonderbeitrag von 50'000 Franken von der Ernst Göhner Stiftung. Karten sind ab dem 1. April im Vorverkauf erhältlich.",
+    "source_url": "https://www.schaffhauser-nachrichten.ch/kultur/jazzfestival-jubilaeum",
+    "published_date": "2026-03-14",
+    "language": "de",
+    "criteria": "Kultur und Veranstaltungen",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Schaffhauser Jazzfestival", "Beat Weber"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-sports-01",
+    "title": "MSU Bobcats basketball advances to NCAA tournament",
+    "content": "The Montana State Bobcats men's basketball team earned an at-large bid to the NCAA tournament on Sunday, the program's first tournament appearance since 2022. Head Coach Danny Sprinkle's squad finished 24-9 overall and 15-3 in Big Sky Conference play. The Bobcats, seeded 14th in the South Region, will face 3-seed Duke in the first round on March 21 in Charlotte. Guard RJ Coil, the Big Sky Player of the Year averaging 18.2 points per game, said the team is 'ready to make some noise.' The university is organizing watch parties at the Brick Breeden Fieldhouse and downtown restaurants. Athletic Director Leon Costello projected a $500,000 revenue boost from the tournament run.",
+    "source_url": "https://www.msubobcats.com/news/ncaa-tournament-bid",
+    "published_date": "2026-03-15",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Montana State Bobcats", "Danny Sprinkle"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-realstate-01",
+    "title": "Bozeman median home price drops 5% in February, first decline in 3 years",
+    "content": "The median home sale price in Bozeman fell to $625,000 in February 2026, a 5.3% decline from the same month last year and the first year-over-year drop since February 2023, according to data from the Gallatin Association of Realtors. Total sales volume was 89 homes, down 12% from February 2025. Association president Derek Nelson attributed the decline to rising mortgage rates, which hit 7.8% for a 30-year fixed in February. However, Nelson noted that inventory remains tight at 2.1 months of supply, well below the 6-month benchmark for a balanced market. The most affected segment was homes priced above $800,000, which saw a 15% price decline. Homes under $500,000 — the most affordable tier — actually increased 3% in price.",
+    "source_url": "https://www.bozemandailychronicle.com/real-estate/median-price-drop",
+    "published_date": "2026-03-08",
+    "language": "en",
+    "criteria": "housing market",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Bozeman", "Derek Nelson"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-transit-01",
+    "title": "Streamline bus service adds weekend routes for first time",
+    "content": "Streamline, Bozeman's public transit system, will launch weekend bus service for the first time starting April 1, fulfilling a long-requested expansion. The Saturday service will run from 8 a.m. to 8 p.m. on three routes connecting downtown, the university, and major commercial areas. The $280,000 annual cost is funded by a combination of federal transit grants and a new transit improvement district approved by voters in November 2025. Streamline Executive Director Brian Sprenger said weekend service is the top request in every rider survey. The agency expects 400-600 riders per Saturday initially, growing to 1,000 within a year. Streamline currently serves about 3,200 riders per weekday across six routes.",
+    "source_url": "https://www.streamlinebus.com/news/weekend-service",
+    "published_date": "2026-03-12",
+    "language": "en",
+    "criteria": "public transit",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Streamline", "Brian Sprenger"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-sport-01",
+    "title": "FC Schaffhausen steigt in die Super League auf",
+    "content": "Der FC Schaffhausen hat am Samstag den Aufstieg in die Super League besiegelt. Mit einem 3:1-Sieg gegen den FC Thun sicherte sich das Team von Trainer Murat Yakin den ersten Platz in der Challenge League. Topskorer Luca Zuffi erzielte zwei Tore und wurde zum Spieler des Tages gewählt. 7'200 Zuschauer feierten im ausverkauften Breite-Stadion. Präsident Stephan Keller kündigte Investitionen von 2 Millionen Franken in die Mannschaft an, um in der höchsten Spielklasse konkurrenzfähig zu sein. Der letzte Aufenthalt des FC Schaffhausen in der Super League datiert aus der Saison 2014/15.",
+    "source_url": "https://www.schaffhauser-nachrichten.ch/sport/fc-aufstieg",
+    "published_date": "2026-03-15",
+    "language": "de",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["FC Schaffhausen", "Murat Yakin"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-weather-01",
+    "title": "Late-season blizzard dumps 18 inches on Bozeman, closes schools",
+    "content": "A late-season blizzard dropped 18 inches of snow on Bozeman and surrounding areas between Monday night and Wednesday morning, closing schools for two days and causing widespread power outages. NorthWestern Energy reported 4,200 customers without power at peak, with most service restored by Wednesday evening. The Bozeman School District canceled classes Monday and Tuesday. Montana DOT closed Interstate 90 between Bozeman and Livingston for 14 hours due to zero-visibility conditions. The National Weather Service office in Great Falls said the storm was the heaviest March snowfall since 2019. Despite travel disruptions, Bridger Bowl ski area celebrated the snowfall, which added to their below-average season total.",
+    "source_url": "https://www.kbzk.com/weather/blizzard-bozeman",
+    "published_date": "2026-03-12",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Bozeman", "NorthWestern Energy"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-listing-news-01",
+    "title": "This Week in Montana - March 15, 2026",
+    "content": "# This Week in Montana\n\nHere's what happened across the Treasure State this week:\n\n## Bozeman\n- City Commission approves 200-unit housing development [Read more](/bozeman/housing)\n- New bike lane project breaks ground on Main Street [Read more](/bozeman/bikes)\n\n## Helena\n- Legislature debates property tax reform bill [Read more](/helena/taxes)\n- New veterans memorial dedication ceremony [Read more](/helena/memorial)\n\n## Missoula\n- University of Montana enrollment up 8% [Read more](/missoula/enrollment)\n- Community food bank opens second location [Read more](/missoula/foodbank)\n\n## Great Falls\n- Air Force base expansion creates 200 jobs [Read more](/greatfalls/jobs)\n- Downtown revitalization project advances [Read more](/greatfalls/downtown)",
+    "source_url": "https://www.montananewsbureau.com/weekly-roundup/march-15",
+    "published_date": "2026-03-15",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": true,
+      "min_units": 0,
+      "max_units": 0,
+      "must_contain_entities": [],
+      "expected_language": "en",
+      "has_date": false
+    }
+  },
+  {
+    "id": "en-long-01",
+    "title": "Comprehensive analysis: How Bozeman's population boom is reshaping city services",
+    "content": "Bozeman's population grew 35% between 2015 and 2025, from 43,000 to 58,000 residents, making it one of the fastest-growing cities in the Mountain West. This growth has strained virtually every city service, from water and sewer infrastructure to parks and emergency response.\n\nThe fire department added its fourth station in 2024 at a cost of $8.5 million, but Fire Chief Josh Waldo says response times in the northwest quadrant still average 7.2 minutes, above the national standard of 6 minutes. The department is requesting funding for a fifth station in the city's 2027 capital improvement plan.\n\nWater infrastructure is the most pressing concern. The city's wastewater treatment plant, built in 2008 for a projected population of 50,000, is operating at 92% capacity. Water and Sewer Director Helen Park presented a $65 million expansion plan to the City Commission in February, which would increase capacity to serve 75,000 residents through 2040.\n\nParks and recreation services have also felt the squeeze. The city's park-to-resident ratio has fallen from 15 acres per 1,000 residents in 2015 to 11 acres per 1,000 today, below the National Recreation and Park Association's recommended minimum of 10 acres. Parks Director Tom Mitchell is proposing $12 million in park acquisitions over the next five years.\n\nHousing remains the most visible challenge. The median home price climbed from $315,000 in 2018 to $625,000 in 2026. City planner Rachel Torres says the gap between housing supply and demand remains at approximately 2,500 units. The recently approved 200-unit development on North 7th is one of 14 major projects in the pipeline, totaling 3,200 units if all are built.\n\nThe school district, meanwhile, has seen enrollment grow 22% since 2018 to 8,400 students. Superintendent Greg Malinowski presented a facilities plan to the school board last month projecting the need for two new elementary schools and one middle school by 2030, at an estimated cost of $85 million. A bond measure is expected on the November 2026 ballot.",
+    "source_url": "https://montanafreepress.org/2026/03/bozeman-growth-analysis",
+    "published_date": "2026-03-14",
+    "language": "en",
+    "criteria": "growth and infrastructure",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 2,
+      "max_units": 3,
+      "must_contain_entities": ["Bozeman"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-crosslang-01",
+    "title": "Swiss chocolatier Läderach opens first U.S. store in Bozeman",
+    "content": "Swiss premium chocolatier Läderach has opened its first U.S. retail location in downtown Bozeman at 27 East Main Street, marking the company's entry into the American market. CEO Johannes Läderach said Montana was chosen for its 'Swiss-like appreciation for quality and craftsmanship.' The 1,200-square-foot store employs eight people and offers Läderach's signature fresh chocolate tablets, truffles, and seasonal confections. The grand opening on Saturday drew a line around the block. The company, headquartered in Ennenda, Switzerland, operates 120 stores in 15 countries and reported annual revenue of CHF 180 million in 2025. A second U.S. location is planned for Portland, Oregon in fall 2026.",
+    "source_url": "https://www.bozemandailychronicle.com/business/laderach-opening",
+    "published_date": "2026-03-15",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Läderach", "Johannes Läderach"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "de-health-01",
+    "title": "Kantonsspital Schaffhausen eröffnet neues Zentrum für Altersmedizin",
+    "content": "Das Kantonsspital Schaffhausen hat am Montag ein neues Zentrum für Altersmedizin mit 45 Betten eröffnet. Chefarzt Dr. Michael Brenner sagte, das Zentrum biete spezialisierte Behandlung für geriatrische Patienten, einschliesslich Sturzprävention, Demenzdiagnostik und Rehabilitationsprogramme. Der Kanton investierte 8,5 Millionen Franken in den Neubau, der an das bestehende Spitalgebäude anschliesst. Pro Jahr sollen rund 1'200 Patienten behandelt werden. Gesundheitsdirektorin Cornelia Stamm Hurter betonte, angesichts der Überalterung im Kanton — bis 2035 wird jeder vierte Einwohner über 65 sein — sei das Zentrum 'dringend nötig.'",
+    "source_url": "https://www.schaffhauser-nachrichten.ch/gesundheit/altersmedizin-zentrum",
+    "published_date": "2026-03-10",
+    "language": "de",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Kantonsspital Schaffhausen", "Michael Brenner"],
+      "expected_language": "de",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-nonprofit-01",
+    "title": "HRDC raises $1.8M in annual giving campaign, beating goal",
+    "content": "The Human Resource Development Council of District IX (HRDC) exceeded its annual giving campaign goal by raising $1.8 million, 20% above the $1.5 million target. Executive Director Heather Grenier announced the results at the organization's annual dinner on Thursday. The funds will support HRDC's warming center, food bank, housing assistance, and employment programs serving Gallatin and Park counties. Major donors included the Gilhousen Foundation ($250K), First Security Bank ($100K), and 342 individual contributors. HRDC served 12,400 individuals in 2025, a 15% increase from the prior year. The warming center alone provided 28,000 overnight stays during the winter season.",
+    "source_url": "https://www.bozemandailychronicle.com/community/hrdc-campaign",
+    "published_date": "2026-03-14",
+    "language": "en",
+    "criteria": null,
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["HRDC", "Heather Grenier"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  },
+  {
+    "id": "en-airport-01",
+    "title": "Bozeman Yellowstone International Airport sets passenger record in 2025",
+    "content": "Bozeman Yellowstone International Airport handled 2.1 million passengers in 2025, a new record that surpassed Billings as Montana's busiest airport for the third consecutive year. Airport Director Brian Sprague attributed the growth to five new nonstop routes launched in 2025, including service to San Francisco (United), Denver (Southwest), and Minneapolis (Sun Country). The airport is currently undergoing a $45 million terminal expansion, adding six gates and a new concessions hall, expected to be complete by December 2026. Sprague projected 2.4 million passengers in 2026. The airport also handles significant cargo volume, with FedEx and UPS operations growing 18% year-over-year.",
+    "source_url": "https://www.bozemanairport.com/news/passenger-record-2025",
+    "published_date": "2026-03-08",
+    "language": "en",
+    "criteria": "transportation",
+    "expected": {
+      "is_listing_page": false,
+      "min_units": 1,
+      "max_units": 3,
+      "must_contain_entities": ["Bozeman Yellowstone International Airport", "Brian Sprague"],
+      "expected_language": "en",
+      "has_date": true
+    }
+  }
+]
