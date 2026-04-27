@@ -1,9 +1,5 @@
 // cojo config — manage ~/.cojournalist/config.json
-import {
-  configPath,
-  readConfigFile,
-  writeConfigFile,
-} from "../lib/client.ts";
+import { configPath, readConfigFile, writeConfigFile } from "../lib/client.ts";
 
 const VALID_KEYS = [
   "api_url",
@@ -26,8 +22,8 @@ function usage(): void {
       "  api_url              Base URL for the cojo API (hosted broker or direct Supabase EF)",
       "  auth_token           Bearer JWT (legacy SaaS / cookieless session)",
       "  api_key              cj_… API key — preferred over auth_token when set",
-      "  supabase_anon_key    Supabase anon key — required as `apikey:` header when",
-      "                       talking to Supabase Edge Functions with an api_key",
+      "  supabase_anon_key    Supabase anon key — sent as `apikey:` header when",
+      "                       talking to hosted or direct Edge Functions",
       "",
       `Config file: ${configPath()}`,
     ].join("\n"),

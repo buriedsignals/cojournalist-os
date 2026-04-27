@@ -103,10 +103,10 @@ it for FastAPI.
 Two credentials are accepted:
 
 - `api_key` (preferred) — `cj_…` key generated in the app at /api →
-  Agents → API. Sent as `Authorization: Bearer cj_…`. When `api_url`
-  contains `supabase.co`, `supabase_anon_key` is **also** required and
-  sent as the `apikey:` header — Supabase Edge Functions reject bearer
-  tokens without it.
+  Agents → API. Sent as `Authorization: Bearer cj_…`. When talking to
+  hosted or raw Edge Functions, `supabase_anon_key` is **also** required
+  and sent as the `apikey:` header — the front door can reject bearer
+  tokens before the function sees them without it.
 - `auth_token` (legacy) — Supabase JWT pasted from browser devtools.
   Sent as `Authorization: Bearer <jwt>`. Used only for legacy SaaS
   sessions.

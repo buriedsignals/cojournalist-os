@@ -7,7 +7,7 @@ export interface Config {
   // (Agents → API → Create key). Format: cj_<base62>.
   api_key?: string;
   // Required by Supabase Edge Functions when sending a non-anon Bearer token.
-  // Set alongside api_key when api_url points at a *.supabase.co URL.
+  // Set alongside api_key when api_url points at hosted or raw Edge Functions.
   supabase_anon_key?: string;
 }
 
@@ -60,18 +60,20 @@ export function loadConfig(): ResolvedConfig {
       "No credential set. Generate an API key at https://www.cojournalist.ai → Agents → API → Create key, then:\n" +
         "  cojo config set api_key=cj_xxx\n" +
         "  cojo config set api_url=https://www.cojournalist.ai/functions/v1\n" +
-        "  If you talk to a raw Supabase project URL instead, also set:\n" +
+        "  For hosted or raw Edge Functions, also set:\n" +
         "  cojo config set supabase_anon_key=<SUPABASE_ANON_KEY>",
     );
   }
-  // Warn (don't fail) if api_key is set against a Supabase URL without anon key —
-  // requests will return 401 from Supabase's auth layer otherwise.
+  // Warn (don't fail) if api_key is set against Edge Functions without anon key
+  // — Kong/Supabase can reject before the function validates the cj_ key.
   if (
-    cfg.api_key && cfg.api_url.includes("supabase.co") &&
+    cfg.api_key &&
+    (cfg.api_url.includes("supabase.co") ||
+      cfg.api_url.includes("/functions/v1")) &&
     !cfg.supabase_anon_key
   ) {
     console.error(
-      "[warning] api_key set without supabase_anon_key. Supabase EFs require " +
+      "[warning] api_key set without supabase_anon_key. Edge Functions require " +
         "an `apikey:` header. Run: cojo config set supabase_anon_key=<anon key>",
     );
   }
@@ -99,12 +101,12 @@ export async function apiFetch<T = unknown>(
     resolvePath(path, cfg.api_url)
   }`;
   const headers = new Headers(init.headers);
-  // api_key wins over auth_token. Supabase EFs additionally need an `apikey:`
-  // header populated with the project's anon key — without it the auth layer
-  // refuses the request before it ever hits the function code.
+  // api_key wins over auth_token. Edge Function front doors additionally need
+  // an `apikey:` header populated with the project's anon key — without it the
+  // auth layer can refuse the request before it ever hits the function code.
   const bearer = cfg.api_key ?? cfg.auth_token!;
   headers.set("Authorization", `Bearer ${bearer}`);
-  if (cfg.supabase_anon_key && cfg.api_url.includes("supabase.co")) {
+  if (cfg.supabase_anon_key) {
     headers.set("apikey", cfg.supabase_anon_key);
   }
   if (!headers.has("Content-Type") && init.body) {

@@ -57,6 +57,7 @@ or a legacy `auth_token` JWT.
 # Hosted coJournalist — recommended
 cojo config set api_url=https://www.cojournalist.ai/functions/v1
 cojo config set api_key=cj_xxxxxxxxxxxxxxxxxx
+cojo config set supabase_anon_key=<SUPABASE_ANON_KEY>
 
 # Self-hosted Supabase Edge Functions
 cojo config set api_url=https://<project-ref>.supabase.co
@@ -72,10 +73,10 @@ cojo config show
 
 `apiFetch` picks the first credential found, in this order:
 
-1. `api_key` — sent as `Authorization: Bearer cj_…`. When `api_url` points at
-   the hosted broker, that is sufficient. When `api_url` contains `supabase.co`,
-   `supabase_anon_key` is also sent as the `apikey:` header (Supabase Edge
-   Functions reject bearer tokens without it).
+1. `api_key` — sent as `Authorization: Bearer cj_…`. When
+   `supabase_anon_key` is configured, it is also sent as the `apikey:` header.
+   Hosted and raw Supabase Edge Functions can reject bearer tokens before the
+   function sees the request without that header.
 2. `auth_token` — sent as `Authorization: Bearer <jwt>`. Use this only for
    legacy SaaS sessions.
 

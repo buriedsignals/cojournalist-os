@@ -256,6 +256,52 @@ Deno.test("apiFetch — uses api_key over auth_token, sends apikey header for Su
   });
 });
 
+Deno.test("apiFetch — sends apikey header for hosted Edge Functions when configured", async () => {
+  await withTempHome(async () => {
+    writeConfigFile({
+      api_url: "https://www.cojournalist.ai/functions/v1",
+      api_key: "cj_preferred",
+      supabase_anon_key: "anon_test_key",
+    });
+
+    let observed:
+      | { url: string; auth: string | null; apikey: string | null }
+      | null = null;
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      const headers = new Headers(init?.headers);
+      observed = {
+        url,
+        auth: headers.get("Authorization"),
+        apikey: headers.get("apikey"),
+      };
+      return Promise.resolve(
+        new Response("{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    }) as typeof fetch;
+
+    try {
+      await apiFetch("/functions/v1/units?limit=1");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+
+    assert(observed !== null, "fetch was not called");
+    const obs = observed as unknown as {
+      url: string;
+      auth: string;
+      apikey: string;
+    };
+    assertStringIncludes(obs.url, "www.cojournalist.ai/functions/v1/units");
+    assertEquals(obs.auth, "Bearer cj_preferred");
+    assertEquals(obs.apikey, "anon_test_key");
+  });
+});
+
 Deno.test("apiFetch — falls back to auth_token when api_key absent, omits apikey header for non-Supabase", async () => {
   await withTempHome(async () => {
     writeConfigFile({
