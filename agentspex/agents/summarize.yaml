@@ -1,0 +1,124 @@
+# AgentSPEX — Summarize Beat-Agent
+#
+# Takes collected information units from monitor runs and produces
+# structured summaries for editorial use. Can output bullet briefs,
+# timeline narratives, or exportable article drafts.
+#
+# Usage: provide a scout ID or a set of information units. The agent
+# retrieves the content, generates a summary, and optionally exports
+# to the journalist's preferred format.
+
+apiVersion: agentspex/v1
+kind: AgentWorkflow
+
+metadata:
+  name: summarize
+  description: >
+    Summarize collected findings into editorial-ready briefs.
+    Produces bullet summaries, timelines, or draft articles from
+    information units gathered by monitor agents.
+  type: summarize
+  version: "0.1.0"
+  author: coJournalist
+  tags:
+    - feed
+    - export
+
+spec:
+  inputs:
+    - name: scout_id
+      type: uuid
+      required: false
+      description: Scout whose collected units should be summarized
+
+    - name: unit_ids
+      type: list
+      required: false
+      description: Specific information unit IDs to summarize
+
+    - name: format
+      type: string
+      required: false
+      default: bullets
+      description: "Output format: 'bullets', 'timeline', 'narrative', or 'draft'"
+
+    - name: max_items
+      type: integer
+      required: false
+      default: 20
+      description: Maximum number of units to include in the summary
+
+    - name: date_range_days
+      type: integer
+      required: false
+      default: 7
+      description: How many days of history to include
+
+  steps:
+    - id: fetch_units
+      tool: internal/forward_ef
+      description: Retrieve information units from storage
+      params:
+        function: units
+        path: /search
+        scout_id: "{{ context.scout_id }}"
+        limit: "{{ context.max_items }}"
+
+    - id: cluster_themes
+      tool: llm/analyze
+      description: Group units by theme and identify key storylines
+      params:
+        input: "{{ steps.fetch_units.output }}"
+        model: gemini-2.5-flash-lite
+        prompt_template: >
+          Cluster these information units by theme. Identify the top
+          storylines and note contradictions or developments across
+          sources. Return structured JSON with theme labels and the
+          units assigned to each.
+      timeout_seconds: 90
+
+    - id: generate_summary
+      tool: llm/summarize
+      description: Produce the summary in the requested format
+      params:
+        input: "{{ steps.cluster_themes.output }}"
+        format: "{{ context.format }}"
+        model: gemini-2.5-flash-lite
+        prompt_template: >
+          Using the themed clusters, produce a {{ context.format }}
+          summary suitable for a journalist. Be factual, cite sources,
+          and highlight what is new versus previously reported.
+          If format is 'draft', write in inverted-pyramid style.
+      timeout_seconds: 120
+
+    - id: export
+      tool: internal/forward_ef
+      description: Store the generated summary as an exportable artifact
+      condition: "{{ steps.generate_summary.output }}"
+      params:
+        function: entities
+        path: /export
+        content: "{{ steps.generate_summary.output }}"
+        format: "{{ context.format }}"
+
+  mcp:
+    servers:
+      - name: gemini
+        uri: mcp://generativelanguage.googleapis.com/v1
+        auth_env: GEMINI_API_KEY
+        capabilities:
+          - generate
+          - embed
+
+  outputs:
+    - name: summary
+      type: string
+      from: "{{ steps.generate_summary.output }}"
+
+    - name: themes
+      type: list
+      from: "{{ steps.cluster_themes.output }}"
+
+    - name: export_id
+      type: string
+      from: "{{ steps.export.output }}"

@@ -1,0 +1,110 @@
+# AgentSPEX — Monitor Beat-Agent
+#
+# Monitors news sources for content matching a journalist's beat criteria.
+# Maps to the existing coJournalist "beat" scout type (Location Scout and
+# Beat Scout) and "web" scout type (Page Scout).
+#
+# Usage: define sources, criteria, and optional location. The agent searches,
+# filters by relevance, deduplicates against history, and notifies.
+
+apiVersion: agentspex/v1
+kind: AgentWorkflow
+
+metadata:
+  name: monitor
+  description: >
+    Monitor news sources for new content matching beat criteria.
+    Supports location-scoped and topic-only monitoring.
+  type: monitor
+  version: "0.1.0"
+  author: coJournalist
+  tags:
+    - beat
+    - web
+
+spec:
+  inputs:
+    - name: criteria
+      type: string
+      required: false
+      description: Topic or beat criteria to monitor (e.g. "housing policy changes")
+
+    - name: location
+      type: geo
+      required: false
+      description: Geographic scope for source discovery
+
+    - name: url
+      type: url
+      required: false
+      description: Specific URL to monitor for changes (Page Scout mode)
+
+    - name: source_mode
+      type: string
+      required: false
+      default: reliable
+      description: "Source discovery mode: 'reliable' (established outlets) or 'niche' (local blogs, community sites)"
+
+  steps:
+    - id: discover_sources
+      tool: firecrawl/search
+      description: Search for relevant content across news sources
+      params:
+        query: "{{ context.criteria }}"
+        location: "{{ context.location }}"
+        source_mode: "{{ context.source_mode }}"
+      timeout_seconds: 120
+
+    - id: analyze_relevance
+      tool: llm/analyze
+      description: Filter results by relevance to beat criteria
+      params:
+        input: "{{ steps.discover_sources.output }}"
+        criteria: "{{ context.criteria }}"
+        model: gemini-2.5-flash-lite
+        prompt_template: >
+          You are a journalist's assistant. Evaluate each article for
+          relevance to the beat criteria. Return only articles that are
+          directly relevant and contain new, newsworthy information.
+      timeout_seconds: 60
+
+    - id: deduplicate
+      tool: internal/dedup
+      description: Remove articles already seen in previous runs
+      params:
+        items: "{{ steps.analyze_relevance.output }}"
+        scout_id: "{{ context.scout_id }}"
+
+    - id: notify
+      tool: internal/notify
+      description: Send notification with new findings
+      condition: "{{ steps.deduplicate.output }}"
+      params:
+        results: "{{ steps.deduplicate.output }}"
+        channel: email
+        template: scout_results
+
+  mcp:
+    servers:
+      - name: firecrawl
+        uri: mcp://firecrawl.dev/v1
+        auth_env: FIRECRAWL_API_KEY
+        capabilities:
+          - search
+          - scrape
+          - changeTracking
+
+      - name: resend
+        uri: mcp://resend.com/v1
+        auth_env: RESEND_API_KEY
+        capabilities:
+          - send_email
+
+  outputs:
+    - name: results
+      type: list
+      from: "{{ steps.deduplicate.output }}"
+
+    - name: notification_sent
+      type: boolean
+      from: "{{ steps.notify.output }}"
