@@ -14,9 +14,17 @@ function usage(): void {
       "",
       "  list",
       "  add --name <name> --type <web|beat|social|civic> [--url <url>]",
-      "                   [--criteria <text>] [--project <id>] [--cron <expr>]",
+      "                   [--criteria <text>] [--topic <text>] [--project <id>]",
+      "                   [--cron <expr>] [--regularity daily|weekly|monthly]",
+      "                   [--time HH:MM] [--day N]",
+      "                   [--location-json <json>] [--source-mode reliable|niche]",
+      "                   [--priority-sources <domain,domain>]",
+      "                   [--root-domain <domain>] [--tracked-urls <url,url>]",
+      "                   [--platform instagram|x|facebook|tiktok] [--handle <handle>]",
+      "                   [--monitor-mode summarize|criteria] [--track-removals true|false]",
       "  update <id> [--name <name>] [--criteria <text>] [--url <url>]",
-      "              [--cron <expr>] [--active true|false]",
+      "              [--cron <expr>] [--active true|false] [--root-domain <domain>]",
+      "              [--tracked-urls <url,url>]",
       "  show <id>",
       "  run <id>",
       "  pause <id>",
@@ -35,6 +43,71 @@ interface Scout {
 }
 
 const VALID_TYPES = ["web", "beat", "social", "civic"];
+
+function stringFlag(
+  flags: Record<string, string | boolean>,
+  key: string,
+): string | undefined {
+  const value = flags[key];
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function numberFlag(
+  flags: Record<string, string | boolean>,
+  key: string,
+): number | undefined {
+  const value = stringFlag(flags, key);
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) {
+    console.error(`--${key} must be a number`);
+    Deno.exit(1);
+  }
+  return parsed;
+}
+
+function boolFlag(
+  flags: Record<string, string | boolean>,
+  key: string,
+): boolean | undefined {
+  const value = flags[key];
+  if (value === undefined) return undefined;
+  if (value === true || value === "true") return true;
+  if (value === false || value === "false") return false;
+  console.error(`--${key} must be true or false`);
+  Deno.exit(1);
+}
+
+function listFlag(
+  flags: Record<string, string | boolean>,
+  key: string,
+): string[] | undefined {
+  const value = stringFlag(flags, key);
+  if (!value) return undefined;
+  const items = value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return items.length ? items : undefined;
+}
+
+function jsonObjectFlag(
+  flags: Record<string, string | boolean>,
+  key: string,
+): Record<string, unknown> | undefined {
+  const value = stringFlag(flags, key);
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // fall through to error
+  }
+  console.error(`--${key} must be a JSON object`);
+  Deno.exit(1);
+}
 
 export async function run(argv: string[]): Promise<void> {
   const [sub, ...rest] = argv;
@@ -74,10 +147,52 @@ export async function run(argv: string[]): Promise<void> {
         name: flags.name,
         type: flags.type,
       };
-      if (typeof flags.url === "string") body.url = flags.url;
-      if (typeof flags.criteria === "string") body.criteria = flags.criteria;
-      if (typeof flags.project === "string") body.project_id = flags.project;
-      if (typeof flags.cron === "string") body.schedule_cron = flags.cron;
+      const url = stringFlag(flags, "url");
+      const criteria = stringFlag(flags, "criteria");
+      const topic = stringFlag(flags, "topic");
+      const project = stringFlag(flags, "project");
+      const cron = stringFlag(flags, "cron");
+      const regularity = stringFlag(flags, "regularity");
+      const time = stringFlag(flags, "time");
+      const sourceMode = stringFlag(flags, "source-mode");
+      const rootDomain = stringFlag(flags, "root-domain");
+      const platform = stringFlag(flags, "platform");
+      const handle = stringFlag(flags, "handle");
+      const monitorMode = stringFlag(flags, "monitor-mode");
+      const location = jsonObjectFlag(flags, "location-json");
+      const prioritySources = listFlag(flags, "priority-sources");
+      const trackedUrls = listFlag(flags, "tracked-urls");
+      const day = numberFlag(flags, "day");
+      const trackRemovals = boolFlag(flags, "track-removals");
+
+      if (url) body.url = url;
+      if (criteria) body.criteria = criteria;
+      if (topic) body.topic = topic;
+      if (project) body.project_id = project;
+      if (cron) body.schedule_cron = cron;
+      if (regularity) body.regularity = regularity;
+      if (time) body.time = time;
+      if (day !== undefined) body.day_number = day;
+      if (location) body.location = location;
+      if (sourceMode) body.source_mode = sourceMode;
+      if (prioritySources) body.priority_sources = prioritySources;
+      if (rootDomain) body.root_domain = rootDomain;
+      if (trackedUrls) body.tracked_urls = trackedUrls;
+      if (platform) body.platform = platform;
+      if (handle) body.profile_handle = handle;
+      if (monitorMode) body.monitor_mode = monitorMode;
+      if (trackRemovals !== undefined) body.track_removals = trackRemovals;
+
+      if (flags.type === "civic" && (!rootDomain || !trackedUrls?.length)) {
+        console.error(
+          "civic scouts require --root-domain and --tracked-urls",
+        );
+        Deno.exit(1);
+      }
+      if (flags.type === "social" && (!platform || !handle)) {
+        console.error("social scouts require --platform and --handle");
+        Deno.exit(1);
+      }
 
       const created = await apiFetch<Scout>("/functions/v1/scouts", {
         method: "POST",
@@ -107,8 +222,27 @@ export async function run(argv: string[]): Promise<void> {
       const patch: Record<string, unknown> = {};
       if (typeof flags.name === "string") patch.name = flags.name;
       if (typeof flags.criteria === "string") patch.criteria = flags.criteria;
+      if (typeof flags.topic === "string") patch.topic = flags.topic;
       if (typeof flags.url === "string") patch.url = flags.url;
       if (typeof flags.cron === "string") patch.schedule_cron = flags.cron;
+      if (typeof flags.regularity === "string") {
+        patch.regularity = flags.regularity;
+      }
+      if (typeof flags.time === "string") patch.time = flags.time;
+      const day = numberFlag(flags, "day");
+      if (day !== undefined) patch.day_number = day;
+      if (typeof flags["source-mode"] === "string") {
+        patch.source_mode = flags["source-mode"];
+      }
+      if (typeof flags["root-domain"] === "string") {
+        patch.root_domain = flags["root-domain"];
+      }
+      const trackedUrls = listFlag(flags, "tracked-urls");
+      if (trackedUrls) patch.tracked_urls = trackedUrls;
+      const prioritySources = listFlag(flags, "priority-sources");
+      if (prioritySources) patch.priority_sources = prioritySources;
+      const location = jsonObjectFlag(flags, "location-json");
+      if (location) patch.location = location;
       if (flags.active === "true" || flags.active === true) {
         patch.is_active = true;
       }

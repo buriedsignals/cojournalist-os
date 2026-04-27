@@ -28,7 +28,10 @@ import {
   geminiExtract,
 } from "../_shared/gemini.ts";
 import { languageName } from "../_shared/atomic_extract.ts";
-import { compressContext, logCompressionStats } from "../_shared/taco_compress.ts";
+import {
+  compressContext,
+  logCompressionStats,
+} from "../_shared/taco_compress.ts";
 import { sendCivicAlert } from "../_shared/notifications.ts";
 import {
   deriveSourceDomain,
@@ -64,8 +67,13 @@ const EXTRACTION_SCHEMA: Record<string, unknown> = {
             enum: ["high", "medium", "low"],
             nullable: true,
           },
+          criteria_match: {
+            type: "boolean",
+            description:
+              "True only if this promise satisfies every explicit criterion; when no criteria is provided, true.",
+          },
         },
-        required: ["promise_text"],
+        required: ["promise_text", "criteria_match"],
       },
     },
   },
@@ -78,6 +86,7 @@ interface ExtractedPromise {
   meeting_date?: string | null;
   due_date?: string | null;
   date_confidence?: "high" | "medium" | "low" | null;
+  criteria_match?: boolean | null;
 }
 
 interface QueueRow {
@@ -279,13 +288,17 @@ async function processItem(
   //    civic pipeline. Criteria is passed as filter data so Gemini only
   //    surfaces promises relevant to the scout's beat, and the system
   //    instruction forces the scout's preferred_language in the output.)
-  const { text: compressedMarkdown, stats: civicStats } = compressContext(markdown);
+  const { text: compressedMarkdown, stats: civicStats } = compressContext(
+    markdown,
+  );
   logCompressionStats("civic-extract-worker", undefined, civicStats);
   const promptText = compressedMarkdown.slice(0, PROMPT_CONTENT_MAX);
   const langCode = (scout.preferred_language as string | null) ?? "en";
   const langName = languageName(langCode);
   const criteriaBlock = scout.criteria && String(scout.criteria).trim()
-    ? `\nCRITERIA (only extract promises relevant to this): ${scout.criteria}\n`
+    ? `\nCRITERIA HARD FILTER: ${scout.criteria}
+Only return promises that satisfy EVERY explicit criterion. If a commitment, vote, or discussion only partially matches, do not return it.
+Set criteria_match=false for any promise that fails or only partially satisfies the criteria.\n`
     : "";
 
   const systemInstruction =
@@ -297,7 +310,8 @@ async function processItem(
     `3. NO speculation — only explicit commitments with document evidence.\n` +
     `4. Quote surrounding text as \`context\` to preserve evidence.\n` +
     `5. Write ALL promise_text in ${langName}, regardless of source language.\n` +
-    `6. If no concrete commitments, return an empty list.\n\n` +
+    `6. If no concrete commitments, return an empty list.\n` +
+    `7. Set criteria_match=true when no criteria are provided.\n\n` +
     `DATE EXTRACTION (fields: due_date, date_confidence):\n` +
     `- due_date: ISO date (YYYY-MM-DD) when the commitment is expected to be fulfilled.\n` +
     `  * Specific date stated → use it (high).\n` +
@@ -321,9 +335,10 @@ async function processItem(
     EXTRACTION_SCHEMA,
     { systemInstruction },
   );
-  const extracted = Array.isArray(extraction?.promises)
-    ? extraction.promises
-    : [];
+  const extracted =
+    (Array.isArray(extraction?.promises) ? extraction.promises : []).filter((
+      p,
+    ) => !scout.criteria?.trim() || p.criteria_match !== false);
 
   // 5. Insert each promise. Drop promises whose due_date is already in the past
   //    — the digest query surfaces future-due commitments; legacy civic

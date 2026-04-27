@@ -17,6 +17,8 @@ import {
   writeConfigFile,
 } from "../lib/client.ts";
 import { VERSION } from "../lib/version.ts";
+import { run as runIngest } from "./ingest.ts";
+import { run as runScouts } from "./scouts.ts";
 
 async function withTempHome(
   fn: () => void | Promise<void>,
@@ -373,5 +375,136 @@ Deno.test("apiFetch — surfaces non-2xx as a thrown Error", async () => {
     } finally {
       globalThis.fetch = origFetch;
     }
+  });
+});
+
+Deno.test("scouts add — forwards civic, schedule, and source-discovery fields", async () => {
+  await withTempHome(async () => {
+    writeConfigFile({
+      api_url: "https://www.cojournalist.ai/functions/v1",
+      api_key: "cj_test",
+      supabase_anon_key: "anon",
+    });
+
+    let observedBody: Record<string, unknown> | null = null;
+    const origFetch = globalThis.fetch;
+    const origLog = console.log;
+    globalThis.fetch =
+      ((_input: string | URL | Request, init?: RequestInit) => {
+        observedBody = JSON.parse(String(init?.body ?? "{}"));
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: "scout_1" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }) as typeof fetch;
+    console.log = () => {};
+
+    try {
+      await runScouts([
+        "add",
+        "--name",
+        "Council housing",
+        "--type",
+        "civic",
+        "--criteria",
+        "housing votes",
+        "--root-domain",
+        "example.gov",
+        "--tracked-urls",
+        "https://example.gov/minutes,https://example.gov/agendas",
+        "--regularity",
+        "monthly",
+        "--time",
+        "08:00",
+        "--day",
+        "1",
+        "--priority-sources",
+        "minutes.example.gov,agenda.example.gov",
+      ]);
+    } finally {
+      globalThis.fetch = origFetch;
+      console.log = origLog;
+    }
+
+    assert(observedBody !== null, "fetch was not called");
+    const body = observedBody as Record<string, unknown>;
+    assertEquals(body.name, "Council housing");
+    assertEquals(body.type, "civic");
+    assertEquals(body.criteria, "housing votes");
+    assertEquals(body.root_domain, "example.gov");
+    assertEquals(body.tracked_urls, [
+      "https://example.gov/minutes",
+      "https://example.gov/agendas",
+    ]);
+    assertEquals(body.regularity, "monthly");
+    assertEquals(body.time, "08:00");
+    assertEquals(body.day_number, 1);
+    assertEquals(body.priority_sources, [
+      "minutes.example.gov",
+      "agenda.example.gov",
+    ]);
+  });
+});
+
+Deno.test("ingest text — sends API-compatible text field", async () => {
+  await withTempHome(async () => {
+    writeConfigFile({
+      api_url: "https://www.cojournalist.ai/functions/v1",
+      api_key: "cj_test",
+      supabase_anon_key: "anon",
+    });
+
+    const file = await Deno.makeTempFile({
+      prefix: "cojo-ingest-",
+      suffix: ".txt",
+    });
+    await Deno.writeTextFile(
+      file,
+      "The city council approved a housing plan on 2026-04-27 with a documented implementation timeline.",
+    );
+
+    let observedBody: Record<string, unknown> | null = null;
+    const origFetch = globalThis.fetch;
+    const origLog = console.log;
+    globalThis.fetch =
+      ((_input: string | URL | Request, init?: RequestInit) => {
+        observedBody = JSON.parse(String(init?.body ?? "{}"));
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ ingest_id: "ingest_1", units: [] }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+      }) as typeof fetch;
+    console.log = () => {};
+
+    try {
+      await runIngest([
+        "text",
+        "--title",
+        "Council note",
+        "--criteria",
+        "housing plan",
+        "--file",
+        file,
+      ]);
+    } finally {
+      globalThis.fetch = origFetch;
+      console.log = origLog;
+      await Deno.remove(file);
+    }
+
+    assert(observedBody !== null, "fetch was not called");
+    const body = observedBody as Record<string, unknown>;
+    assertEquals(body.kind, "text");
+    assertEquals(body.title, "Council note");
+    assertEquals(body.criteria, "housing plan");
+    assertEquals(typeof body.text, "string");
+    assertEquals("content" in body, false);
   });
 });

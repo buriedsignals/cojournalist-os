@@ -32,7 +32,10 @@ import {
   geminiEmbed,
   geminiExtract,
 } from "../_shared/gemini.ts";
-import { compressContext, logCompressionStats } from "../_shared/taco_compress.ts";
+import {
+  compressContext,
+  logCompressionStats,
+} from "../_shared/taco_compress.ts";
 import {
   type CanonicalUnitType,
   deriveSourceDomain,
@@ -84,8 +87,13 @@ const EXTRACTION_SCHEMA: Record<string, unknown> = {
           context_excerpt: { type: "string" },
           occurred_at: { type: "string", nullable: true },
           entities: { type: "array", items: { type: "string" } },
+          criteria_match: {
+            type: "boolean",
+            description:
+              "True only if this unit satisfies every explicit criterion; when no criteria is provided, true.",
+          },
         },
-        required: ["statement", "type"],
+        required: ["statement", "type", "criteria_match"],
       },
     },
   },
@@ -98,6 +106,7 @@ interface ExtractedUnit {
   context_excerpt?: string;
   occurred_at?: string | null;
   entities?: string[];
+  criteria_match?: boolean | null;
 }
 
 const RAW_CONTENT_MAX = 100_000;
@@ -277,16 +286,27 @@ async function runPipeline(
   const rawCaptureId = capture.id as string;
 
   // 4. Extract units via Gemini (TACO-compressed).
-  const { text: compressedForPrompt, stats: ingestStats } = compressContext(truncated);
+  const { text: compressedForPrompt, stats: ingestStats } = compressContext(
+    truncated,
+  );
   logCompressionStats("ingest", undefined, ingestStats);
   const promptText = compressedForPrompt.slice(0, PROMPT_CONTENT_MAX);
+  const criteriaBlock = input.criteria?.trim()
+    ? `\nCRITERIA HARD FILTER: ${input.criteria}
+Only return units that satisfy EVERY explicit criterion. If a fact only partially matches, return no unit for it.
+For numeric, date, place, topic, source, role, status, threshold, inclusion, and exclusion criteria, exact requirements and limits are mandatory. Missing evidence is not a match.
+Set criteria_match=false for any unit that fails or only partially satisfies the criteria.\n`
+    : "";
   const prompt =
     "Extract up to 15 discrete factual statements from the following text. " +
     "For each, give a one-sentence `statement`, a `type` (fact|event|entity_update), " +
     "a `context_excerpt` (a short quoted snippet surrounding the statement), and " +
     "`occurred_at` as a date in ISO 8601 if one is stated (null otherwise), and " +
     "`entities` as a list of the named people, organizations, places, or policies mentioned. " +
-    "Return JSON matching the provided schema.\n\nTEXT:\n" +
+    "Set `criteria_match` to true when no criteria are provided. " +
+    "Return JSON matching the provided schema.\n" +
+    criteriaBlock +
+    "\nTEXT:\n" +
     promptText;
 
   const extraction = await geminiExtract<{ units: ExtractedUnit[] }>(
@@ -299,6 +319,7 @@ async function runPipeline(
   const inserted: Array<{ id: string; statement: string }> = [];
   for (const u of extracted) {
     if (!u || typeof u.statement !== "string" || !u.statement.trim()) continue;
+    if (input.criteria?.trim() && u.criteria_match === false) continue;
     if (!["fact", "event", "entity_update"].includes(u.type)) continue;
 
     const embedding = await geminiEmbed(u.statement, "RETRIEVAL_DOCUMENT", {

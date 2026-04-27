@@ -75,7 +75,7 @@ export async function run(argv: string[]): Promise<void> {
     const body: Record<string, unknown> = {
       kind: "text",
       title: flags.title,
-      content,
+      text: content,
     };
     if (typeof flags.criteria === "string") body.criteria = flags.criteria;
     if (typeof flags.project === "string") body.project_id = flags.project;

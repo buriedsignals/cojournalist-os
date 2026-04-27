@@ -20,7 +20,7 @@
  * the advertised contract.
  */
 
-import { requireUserOrApiKey, AuthedUser } from "../_shared/auth.ts";
+import { AuthedUser, requireUserOrApiKey } from "../_shared/auth.ts";
 import { logEvent } from "../_shared/log.ts";
 
 const PROTOCOL_VERSION = "2024-11-05";
@@ -72,13 +72,18 @@ async function forward(
   const res = await fetch(url.toString(), { method, headers, body });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`${fn} ${method} ${path} → ${res.status} ${text.slice(0, 400)}`);
+    throw new Error(
+      `${fn} ${method} ${path} → ${res.status} ${text.slice(0, 400)}`,
+    );
   }
   if (init.accept === "text/markdown") return text;
   return text ? JSON.parse(text) : null;
 }
 
-function q(args: Record<string, unknown>, keys: string[]): Record<string, string> {
+function q(
+  args: Record<string, unknown>,
+  keys: string[],
+): Record<string, string> {
   const out: Record<string, string> = {};
   for (const k of keys) {
     const v = args[k];
@@ -96,14 +101,19 @@ interface ToolDef {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  handler: (user: AuthedUser, token: string, args: Record<string, unknown>) => Promise<unknown>;
+  handler: (
+    user: AuthedUser,
+    token: string,
+    args: Record<string, unknown>,
+  ) => Promise<unknown>;
 }
 
 const TOOLS: ToolDef[] = [
   // ---------- Scouts ----------
   {
     name: "list_scouts",
-    description: "List all scouts owned by the caller (id, name, type, schedule, is_active).",
+    description:
+      "List all scouts owned by the caller (id, name, type, schedule, is_active).",
     inputSchema: {
       type: "object",
       properties: {
@@ -113,12 +123,14 @@ const TOOLS: ToolDef[] = [
       },
     },
     handler: (_u, token, args) =>
-      forward(token, "GET", "scouts", "", { query: q(args, ["limit", "offset", "type"]) }),
+      forward(token, "GET", "scouts", "", {
+        query: q(args, ["limit", "offset", "type"]),
+      }),
   },
   {
     name: "create_scout",
     description:
-      "Create a new scout. Required: name, type (web|beat|social|civic). For web, pass url. For beat, pass location and/or criteria+topic. Scheduling: pass `schedule_cron` OR `regularity` + `time` (+ `day_number` for weekly/monthly).",
+      "Create a new scout. Required: name, type (web|beat|social|civic). Web scouts require url. Beat scouts should pass criteria/topic and optionally location/source_mode/priority_sources. Civic scouts require root_domain and tracked_urls. Social scouts require platform and profile_handle. Scheduling: pass `schedule_cron` OR `regularity` + `time` (+ `day_number` for weekly/monthly).",
     inputSchema: {
       type: "object",
       required: ["name", "type"],
@@ -131,7 +143,8 @@ const TOOLS: ToolDef[] = [
         location: {
           type: "object",
           additionalProperties: true,
-          description: "GeocodedLocation: { displayName, latitude, longitude, ... }",
+          description:
+            "GeocodedLocation: { displayName, latitude, longitude, ... }",
         },
         regularity: { type: "string", enum: ["daily", "weekly", "monthly"] },
         schedule_cron: { type: "string", maxLength: 200 },
@@ -139,10 +152,87 @@ const TOOLS: ToolDef[] = [
         time: { type: "string", pattern: "^\\d{1,2}:\\d{2}$" },
         provider: { type: "string" },
         project_id: { type: "string", format: "uuid" },
-        priority_sources: { type: "array", items: { type: "string" } },
+        source_mode: {
+          type: "string",
+          enum: ["reliable", "niche"],
+          description:
+            "Beat/location source discovery preference. Use reliable for established outlets, niche for local/community sources.",
+        },
+        excluded_domains: {
+          type: "array",
+          items: { type: "string" },
+          description: "Domains to exclude from beat/web discovery.",
+        },
+        priority_sources: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Domains or source names the scout should prioritize, e.g. ['city.gov', 'localpaper.example'].",
+        },
+        platform: {
+          type: "string",
+          enum: ["instagram", "x", "facebook", "tiktok"],
+          description: "Required for social scouts.",
+        },
+        profile_handle: {
+          type: "string",
+          description:
+            "Required for social scouts. Account handle or profile identifier.",
+        },
+        monitor_mode: {
+          type: "string",
+          enum: ["summarize", "criteria"],
+          description:
+            "Social scout mode. Use criteria when only matching posts should create units.",
+        },
+        track_removals: {
+          type: "boolean",
+          description: "For social scouts, also report removed posts.",
+        },
+        root_domain: {
+          type: "string",
+          description:
+            "Required for civic scouts. Root municipal domain, e.g. 'example.gov'.",
+        },
+        tracked_urls: {
+          type: "array",
+          items: { type: "string", format: "uri" },
+          minItems: 1,
+          maxItems: 20,
+          description:
+            "Required for civic scouts. Official meeting-note, agenda, minutes, or document index URLs to monitor.",
+        },
+        initial_promises: {
+          type: "array",
+          description:
+            "Optional civic seed promises already extracted by the caller.",
+          items: {
+            type: "object",
+            required: [
+              "promise_text",
+              "source_url",
+              "source_date",
+              "date_confidence",
+              "criteria_match",
+            ],
+            properties: {
+              promise_text: { type: "string" },
+              context: { type: "string" },
+              source_url: { type: "string", format: "uri" },
+              source_date: { type: "string", format: "date" },
+              due_date: { type: "string", format: "date" },
+              date_confidence: {
+                type: "string",
+                enum: ["high", "medium", "low"],
+              },
+              criteria_match: { type: "boolean" },
+            },
+          },
+        },
       },
     },
-    handler: (_u, token, args) => forward(token, "POST", "scouts", "", { body: args }),
+    handler: (_u, token, args) =>
+      forward(token, "POST", "scouts", "", { body: args }),
   },
   {
     name: "get_scout",
@@ -152,7 +242,8 @@ const TOOLS: ToolDef[] = [
       required: ["id"],
       properties: { id: { type: "string", format: "uuid" } },
     },
-    handler: (_u, token, args) => forward(token, "GET", "scouts", `/${String(args.id)}`),
+    handler: (_u, token, args) =>
+      forward(token, "GET", "scouts", `/${String(args.id)}`),
   },
   {
     name: "update_scout",
@@ -173,16 +264,34 @@ const TOOLS: ToolDef[] = [
         time: { type: "string", pattern: "^\\d{1,2}:\\d{2}$" },
         is_active: { type: "boolean" },
         project_id: { type: "string", format: "uuid" },
+        location: {
+          type: "object",
+          additionalProperties: true,
+          description:
+            "GeocodedLocation: { displayName, latitude, longitude, ... }",
+        },
+        source_mode: { type: "string", enum: ["reliable", "niche"] },
+        excluded_domains: { type: "array", items: { type: "string" } },
+        priority_sources: { type: "array", items: { type: "string" } },
+        root_domain: { type: "string" },
+        tracked_urls: {
+          type: "array",
+          items: { type: "string", format: "uri" },
+          maxItems: 20,
+        },
       },
     },
     handler: (_u, token, args) => {
       const { id, ...patch } = args;
-      return forward(token, "PATCH", "scouts", `/${String(id)}`, { body: patch });
+      return forward(token, "PATCH", "scouts", `/${String(id)}`, {
+        body: patch,
+      });
     },
   },
   {
     name: "run_scout",
-    description: "Trigger an on-demand scout run. Spends credits. Returns 202 + run_id.",
+    description:
+      "Trigger an on-demand scout run. Spends credits. Returns 202 + run_id.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -193,25 +302,31 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "pause_scout",
-    description: "Pause a scout: set is_active=false and unschedule its cron job.",
+    description:
+      "Pause a scout: set is_active=false and unschedule its cron job.",
     inputSchema: {
       type: "object",
       required: ["id"],
       properties: { id: { type: "string", format: "uuid" } },
     },
     handler: (_u, token, args) =>
-      forward(token, "POST", "scouts", `/${String(args.id)}/pause`, { body: {} }),
+      forward(token, "POST", "scouts", `/${String(args.id)}/pause`, {
+        body: {},
+      }),
   },
   {
     name: "resume_scout",
-    description: "Resume a paused scout: set is_active=true and re-schedule its cron job.",
+    description:
+      "Resume a paused scout: set is_active=true and re-schedule its cron job.",
     inputSchema: {
       type: "object",
       required: ["id"],
       properties: { id: { type: "string", format: "uuid" } },
     },
     handler: (_u, token, args) =>
-      forward(token, "POST", "scouts", `/${String(args.id)}/resume`, { body: {} }),
+      forward(token, "POST", "scouts", `/${String(args.id)}/resume`, {
+        body: {},
+      }),
   },
   {
     name: "delete_scout",
@@ -221,7 +336,8 @@ const TOOLS: ToolDef[] = [
       required: ["id"],
       properties: { id: { type: "string", format: "uuid" } },
     },
-    handler: (_u, token, args) => forward(token, "DELETE", "scouts", `/${String(args.id)}`),
+    handler: (_u, token, args) =>
+      forward(token, "DELETE", "scouts", `/${String(args.id)}`),
   },
 
   // ---------- Units ----------
@@ -272,7 +388,8 @@ const TOOLS: ToolDef[] = [
         limit: { type: "integer", minimum: 1, maximum: 100 },
       },
     },
-    handler: (_u, token, args) => forward(token, "POST", "units", "/search", { body: args }),
+    handler: (_u, token, args) =>
+      forward(token, "POST", "units", "/search", { body: args }),
   },
   {
     name: "get_unit",
@@ -282,7 +399,8 @@ const TOOLS: ToolDef[] = [
       required: ["id"],
       properties: { id: { type: "string", format: "uuid" } },
     },
-    handler: (_u, token, args) => forward(token, "GET", "units", `/${String(args.id)}`),
+    handler: (_u, token, args) =>
+      forward(token, "GET", "units", `/${String(args.id)}`),
   },
   {
     name: "verify_unit",
@@ -313,7 +431,11 @@ const TOOLS: ToolDef[] = [
       required: ["id"],
       properties: {
         id: { type: "string", format: "uuid" },
-        verification_notes: { type: "string", maxLength: 4000, description: "Reason for rejection" },
+        verification_notes: {
+          type: "string",
+          maxLength: 4000,
+          description: "Reason for rejection",
+        },
         verified_by: { type: "string", maxLength: 200 },
       },
     },
@@ -352,7 +474,8 @@ const TOOLS: ToolDef[] = [
       required: ["id"],
       properties: { id: { type: "string", format: "uuid" } },
     },
-    handler: (_u, token, args) => forward(token, "DELETE", "units", `/${String(args.id)}`),
+    handler: (_u, token, args) =>
+      forward(token, "DELETE", "units", `/${String(args.id)}`),
   },
 
   // ---------- Projects ----------
@@ -367,22 +490,30 @@ const TOOLS: ToolDef[] = [
       },
     },
     handler: (_u, token, args) =>
-      forward(token, "GET", "projects", "", { query: q(args, ["limit", "offset"]) }),
+      forward(token, "GET", "projects", "", {
+        query: q(args, ["limit", "offset"]),
+      }),
   },
   {
     name: "create_project",
-    description: "Create a new investigation project (a workspace for grouping scouts + units).",
+    description:
+      "Create a new investigation project (a workspace for grouping scouts + units).",
     inputSchema: {
       type: "object",
       required: ["name"],
       properties: {
         name: { type: "string", minLength: 1, maxLength: 120 },
         description: { type: "string", maxLength: 2000 },
-        visibility: { type: "string", enum: ["private", "team"], default: "private" },
+        visibility: {
+          type: "string",
+          enum: ["private", "team"],
+          default: "private",
+        },
         tags: { type: "array", items: { type: "string" }, maxItems: 30 },
       },
     },
-    handler: (_u, token, args) => forward(token, "POST", "projects", "", { body: args }),
+    handler: (_u, token, args) =>
+      forward(token, "POST", "projects", "", { body: args }),
   },
   {
     name: "get_project",
@@ -392,7 +523,8 @@ const TOOLS: ToolDef[] = [
       required: ["id"],
       properties: { id: { type: "string", format: "uuid" } },
     },
-    handler: (_u, token, args) => forward(token, "GET", "projects", `/${String(args.id)}`),
+    handler: (_u, token, args) =>
+      forward(token, "GET", "projects", `/${String(args.id)}`),
   },
   {
     name: "update_project",
@@ -410,7 +542,9 @@ const TOOLS: ToolDef[] = [
     },
     handler: (_u, token, args) => {
       const { id, ...patch } = args;
-      return forward(token, "PATCH", "projects", `/${String(id)}`, { body: patch });
+      return forward(token, "PATCH", "projects", `/${String(id)}`, {
+        body: patch,
+      });
     },
   },
   {
@@ -421,7 +555,8 @@ const TOOLS: ToolDef[] = [
       required: ["id"],
       properties: { id: { type: "string", format: "uuid" } },
     },
-    handler: (_u, token, args) => forward(token, "DELETE", "projects", `/${String(args.id)}`),
+    handler: (_u, token, args) =>
+      forward(token, "DELETE", "projects", `/${String(args.id)}`),
   },
 
   // ---------- Ingest ----------
@@ -434,21 +569,30 @@ const TOOLS: ToolDef[] = [
       required: ["kind"],
       properties: {
         kind: { type: "string", enum: ["url", "text"] },
-        url: { type: "string", format: "uri", description: "Required when kind=url" },
+        url: {
+          type: "string",
+          format: "uri",
+          description: "Required when kind=url",
+        },
         text: { type: "string", description: "Required when kind=text" },
         title: { type: "string" },
-        criteria: { type: "string", description: "Optional extraction criteria" },
+        criteria: {
+          type: "string",
+          description: "Optional extraction criteria",
+        },
         notes: { type: "string" },
         project_id: { type: "string", format: "uuid" },
       },
     },
-    handler: (_u, token, args) => forward(token, "POST", "ingest", "", { body: args }),
+    handler: (_u, token, args) =>
+      forward(token, "POST", "ingest", "", { body: args }),
   },
 
   // ---------- Reflections ----------
   {
     name: "list_reflections",
-    description: "List editorial reflections (agent-written synthesized summaries) owned by the caller.",
+    description:
+      "List editorial reflections (agent-written synthesized summaries) owned by the caller.",
     inputSchema: {
       type: "object",
       properties: {
@@ -457,7 +601,9 @@ const TOOLS: ToolDef[] = [
       },
     },
     handler: (_u, token, args) =>
-      forward(token, "GET", "reflections", "", { query: q(args, ["limit", "offset"]) }),
+      forward(token, "GET", "reflections", "", {
+        query: q(args, ["limit", "offset"]),
+      }),
   },
   {
     name: "create_reflection",
@@ -470,11 +616,15 @@ const TOOLS: ToolDef[] = [
         scope_description: { type: "string", minLength: 1 },
         content: { type: "string", minLength: 1 },
         unit_ids: { type: "array", items: { type: "string", format: "uuid" } },
-        entity_ids: { type: "array", items: { type: "string", format: "uuid" } },
+        entity_ids: {
+          type: "array",
+          items: { type: "string", format: "uuid" },
+        },
         scout_ids: { type: "array", items: { type: "string", format: "uuid" } },
       },
     },
-    handler: (_u, token, args) => forward(token, "POST", "reflections", "", { body: args }),
+    handler: (_u, token, args) =>
+      forward(token, "POST", "reflections", "", { body: args }),
   },
   {
     name: "search_reflections",
@@ -499,14 +649,19 @@ const TOOLS: ToolDef[] = [
     inputSchema: {
       type: "object",
       properties: {
-        search: { type: "string", description: "Substring match on canonical_name" },
+        search: {
+          type: "string",
+          description: "Substring match on canonical_name",
+        },
         type: { type: "string", enum: ["person", "org", "place", "policy"] },
         limit: { type: "integer", minimum: 1, maximum: 200 },
         offset: { type: "integer", minimum: 0 },
       },
     },
     handler: (_u, token, args) =>
-      forward(token, "GET", "entities", "", { query: q(args, ["search", "type", "limit", "offset"]) }),
+      forward(token, "GET", "entities", "", {
+        query: q(args, ["search", "type", "limit", "offset"]),
+      }),
   },
   {
     name: "merge_entities",
@@ -524,7 +679,8 @@ const TOOLS: ToolDef[] = [
         },
       },
     },
-    handler: (_u, token, args) => forward(token, "POST", "entities", "/merge", { body: args }),
+    handler: (_u, token, args) =>
+      forward(token, "POST", "entities", "/merge", { body: args }),
   },
 ];
 
@@ -548,17 +704,27 @@ interface JsonRpcErrorBody {
 }
 
 function rpcOk(id: unknown, result: unknown): Response {
-  return new Response(JSON.stringify({ jsonrpc: "2.0", id: id ?? null, result }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ jsonrpc: "2.0", id: id ?? null, result }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 }
 
-function rpcErr(id: unknown, err: JsonRpcErrorBody, httpStatus = 200): Response {
-  return new Response(JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: err }), {
-    status: httpStatus,
-    headers: { "Content-Type": "application/json" },
-  });
+function rpcErr(
+  id: unknown,
+  err: JsonRpcErrorBody,
+  httpStatus = 200,
+): Response {
+  return new Response(
+    JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: err }),
+    {
+      status: httpStatus,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 }
 
 async function readRpcBody(req: Request): Promise<JsonRpcRequest | null> {
@@ -594,7 +760,8 @@ export async function handleRpc(req: Request): Promise<Response> {
   let token: string;
   try {
     user = await requireUserOrApiKey(req);
-    const header = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
+    const header = req.headers.get("authorization") ??
+      req.headers.get("Authorization") ?? "";
     const forwardedApiKey = req.headers.get("x-cojo-api-key") ??
       req.headers.get("X-Cojo-Api-Key") ?? "";
     token = forwardedApiKey.trim() ||
@@ -622,10 +789,14 @@ export async function handleRpc(req: Request): Promise<Response> {
   if (body.method === "tools/call") {
     const params = body.params ?? {};
     const name = typeof params.name === "string" ? params.name : "";
-    const args = (params.arguments as Record<string, unknown> | undefined) ?? {};
+    const args = (params.arguments as Record<string, unknown> | undefined) ??
+      {};
     const tool = TOOL_BY_NAME.get(name);
     if (!tool) {
-      return rpcErr(body.id, { code: -32602, message: `unknown tool: ${name}` });
+      return rpcErr(body.id, {
+        code: -32602,
+        message: `unknown tool: ${name}`,
+      });
     }
     try {
       const result = await tool.handler(user, token, args);
@@ -643,11 +814,17 @@ export async function handleRpc(req: Request): Promise<Response> {
         msg: `${name}: ${e instanceof Error ? e.message : String(e)}`,
       });
       return rpcOk(body.id, {
-        content: [{ type: "text", text: e instanceof Error ? e.message : String(e) }],
+        content: [{
+          type: "text",
+          text: e instanceof Error ? e.message : String(e),
+        }],
         isError: true,
       });
     }
   }
 
-  return rpcErr(body.id, { code: -32601, message: `Method not found: ${body.method}` });
+  return rpcErr(body.id, {
+    code: -32601,
+    message: `Method not found: ${body.method}`,
+  });
 }

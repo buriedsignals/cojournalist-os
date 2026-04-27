@@ -166,19 +166,18 @@
 		{#if locDisplay}
 			<div class="scout-meta-item">
 				<MapPin size={14} />
-				<span>{locDisplay}</span>
+				<span class="scout-meta-text">{locDisplay}</span>
 			</div>
 		{/if}
 		{#if scout.topic}
 			<div class="scout-meta-item">
 				<Tag size={14} />
-				<span>{scout.topic}</span>
+				<span class="scout-meta-text scout-meta-text-topic" title={scout.topic}>{scout.topic}</span>
 			</div>
 		{/if}
 		{#if scout.criteria}
-			<div class="scout-meta-item">
-				<Tag size={14} />
-				<span>{scout.criteria}</span>
+			<div class="scout-meta-item scout-description-item">
+				<span class="scout-meta-text scout-meta-text-description" title={scout.criteria}>{scout.criteria}</span>
 			</div>
 		{/if}
 		{#if normalizedType === 'web' && scout.url}
@@ -239,15 +238,47 @@
 
 	.scout-meta-item {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		gap: 0.5rem;
 		font-size: 0.8125rem;
 		font-weight: 300;
 		color: var(--color-ink-muted);
 	}
 
+	.scout-meta-item :global(svg) {
+		flex: 0 0 auto;
+		margin-top: 0.125rem;
+	}
+
+	.scout-description-item {
+		display: block;
+	}
+
+	.scout-meta-text {
+		min-width: 0;
+		overflow: hidden;
+	}
+
+	.scout-meta-text-topic,
+	.scout-meta-text-description {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		text-overflow: ellipsis;
+	}
+
+	.scout-meta-text-topic {
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+
+	.scout-meta-text-description {
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+	}
+
 	.scout-url {
 		color: var(--color-primary);
+		align-items: center;
 	}
 
 	.scout-url-text {

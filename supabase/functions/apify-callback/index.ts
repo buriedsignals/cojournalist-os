@@ -68,8 +68,13 @@ const EXTRACTION_SCHEMA: Record<string, unknown> = {
           statement: { type: "string" },
           type: { type: "string", enum: ["fact", "event", "entity_update"] },
           context_excerpt: { type: "string" },
+          criteria_match: {
+            type: "boolean",
+            description:
+              "True only if this unit satisfies every explicit criterion.",
+          },
         },
-        required: ["statement", "type"],
+        required: ["statement", "type", "criteria_match"],
       },
     },
   },
@@ -80,6 +85,7 @@ interface ExtractedUnit {
   statement: string;
   type: "fact" | "event" | "entity_update";
   context_excerpt?: string;
+  criteria_match?: boolean | null;
 }
 
 interface ApifyPost {
@@ -548,7 +554,9 @@ async function processSucceededRun(
     try {
       const prompt =
         "Extract factual statements from the social-media post below that match " +
-        `the following criteria: "${scout.criteria}". ` +
+        `the following criteria HARD FILTER: "${scout.criteria}". ` +
+        "Only return units that satisfy EVERY explicit criterion; if a post or statement only partially matches, return no unit for it. " +
+        "Set criteria_match=false for any unit that fails or only partially satisfies the criteria. " +
         "For each match, give a one-sentence `statement`, a `type` " +
         "(fact|event|entity_update), and a short `context_excerpt`. " +
         "If no statement matches, return an empty array.\n\nPOST:\n" + text;
@@ -572,6 +580,7 @@ async function processSucceededRun(
       if (!u || typeof u.statement !== "string" || !u.statement.trim()) {
         continue;
       }
+      if (u.criteria_match === false) continue;
       if (!["fact", "event", "entity_update"].includes(u.type)) continue;
       try {
         const inserted = await insertUnit(svc, scout, queueRow, u, post);

@@ -2,6 +2,11 @@
 // cojo — coJournalist v2 CLI
 // Entry point: dispatches subcommands to commands/<name>.ts
 
+import * as config from "./commands/config.ts";
+import * as ingest from "./commands/ingest.ts";
+import * as projects from "./commands/projects.ts";
+import * as scouts from "./commands/scouts.ts";
+import * as units from "./commands/units.ts";
 import { VERSION } from "./lib/version.ts";
 
 const SUBCOMMANDS = [
@@ -13,6 +18,17 @@ const SUBCOMMANDS = [
 ] as const;
 
 type Subcommand = typeof SUBCOMMANDS[number];
+
+const COMMANDS: Record<
+  Subcommand,
+  { run: (argv: string[]) => void | Promise<void> }
+> = {
+  config,
+  projects,
+  scouts,
+  units,
+  ingest,
+};
 
 function printUsage(): void {
   const lines = [
@@ -53,8 +69,7 @@ async function main(): Promise<void> {
   }
 
   try {
-    const mod = await import(`./commands/${cmd}.ts`);
-    await mod.run(rest);
+    await COMMANDS[cmd as Subcommand].run(rest);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`Error: ${msg}`);

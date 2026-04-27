@@ -95,6 +95,15 @@ cojo projects add --name "City Hall Watch" --visibility private
 # Scouts
 cojo scouts list
 cojo scouts add --name "Council agenda" --type web --url https://example.gov
+cojo scouts add --name "Housing minutes" --type civic \
+  --root-domain example.gov \
+  --tracked-urls https://example.gov/minutes,https://example.gov/agendas \
+  --criteria "housing policy votes" --regularity monthly --time 08:00 --day 1
+cojo scouts add --name "Local climate beat" --type beat \
+  --topic "climate adaptation" \
+  --criteria "local policy decisions with budget or timeline impacts" \
+  --location-json '{"displayName":"Bergen, Norway","latitude":60.39,"longitude":5.32}' \
+  --source-mode niche --priority-sources examplelocal.no
 cojo scouts run <id>
 
 # Information units
