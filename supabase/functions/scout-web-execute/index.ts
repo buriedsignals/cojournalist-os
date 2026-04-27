@@ -65,6 +65,7 @@ const PHASE_B_TOTAL_BUDGET_MS = 35_000;
 const SUBPAGE_SCRAPE_TIMEOUT_MS = 12_000;
 const SUBPAGE_SCRAPE_ABORT_AFTER_MS = 15_000;
 const SUBPAGE_EXTRACTION_TIMEOUT_MS = 12_000;
+const RAW_CAPTURE_TTL_DAYS = 30;
 
 const InputSchema = z.object({
   scout_id: z.string().uuid(),
@@ -73,6 +74,10 @@ const InputSchema = z.object({
 });
 
 const PROMPT_CONTENT_MAX = 12_000;
+
+function rawCaptureExpiresAt(days = RAW_CAPTURE_TTL_DAYS): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
 
 Deno.serve(async (req: Request): Promise<Response> => {
   const cors = handleCors(req);
@@ -412,6 +417,7 @@ async function runPipeline(
       content_sha256: contentHash,
       token_count: Math.ceil(markdown.length / 4),
       captured_at: new Date().toISOString(),
+      expires_at: rawCaptureExpiresAt(),
     })
     .select("id")
     .single();
@@ -439,6 +445,8 @@ async function runPipeline(
   let inserted = 0;
   let mergedExisting = 0;
   const insertedStatements: string[] = [];
+  let matchedUrl: string | null = null;
+  let matchedTitle: string | null = null;
 
   // Hard gate: listing pages yield no Phase A units — full articles come via Phase B.
   const phaseA = await insertExtractedUnits(
@@ -459,6 +467,10 @@ async function runPipeline(
   inserted += phaseA.insertedCount;
   mergedExisting += phaseA.mergedExistingCount;
   insertedStatements.push(...phaseA.insertedStatements.slice(0, 3));
+  if (phaseA.firstMatchedUrl) {
+    matchedUrl = phaseA.firstMatchedUrl;
+    matchedTitle = phaseA.firstMatchedTitle ?? null;
+  }
 
   // =========================================================================
   // Phase B — follow listing subpages
@@ -479,6 +491,10 @@ async function runPipeline(
       for (const statement of subpageResult.insertedStatements) {
         if (insertedStatements.length >= 3) break;
         insertedStatements.push(statement);
+      }
+      if (!matchedUrl && subpageResult.firstMatchedUrl) {
+        matchedUrl = subpageResult.firstMatchedUrl;
+        matchedTitle = subpageResult.firstMatchedTitle ?? null;
       }
       logEvent({
         level: "info",
@@ -519,8 +535,8 @@ async function runPipeline(
     merged_existing_count: mergedExisting,
     criteria_ran: hasCriteria,
     summary: summary || undefined,
-    matchedUrl: inserted > 0 ? scout.url : null,
-    matchedTitle: inserted > 0 ? (scrape.title ?? null) : null,
+    matchedUrl,
+    matchedTitle,
   };
 }
 
@@ -566,12 +582,13 @@ function extractLinksFromHtml(
   const seenUrls = new Set<string>();
   const links: [string, string][] = [];
 
-  const regex = /<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/gs;
+  const regex =
+    /<a\b[^>]*\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(html)) !== null) {
-    let href = match[1].trim();
-    const anchorText = match[2].replace(/<[^>]+>/g, "").trim();
+    let href = (match[1] ?? match[2] ?? match[3] ?? "").trim();
+    const anchorText = (match[4] ?? "").replace(/<[^>]+>/g, "").trim();
 
     // Skip non-HTTP schemes
     if (
@@ -631,6 +648,8 @@ async function runPhaseB(
   totalInserted: number;
   totalMergedExisting: number;
   insertedStatements: string[];
+  firstMatchedUrl: string | null;
+  firstMatchedTitle: string | null;
 }> {
   // 1. Extract links
   const links = extractLinksFromHtml(rawHtml, scout.url);
@@ -652,7 +671,12 @@ async function runPhaseB(
   const fresh = filtered.filter((url) => {
     const normalized = normalizeSourceUrl(url);
     return normalized ? !seen.has(normalized) : true;
-  }).slice(0, SUBPAGE_FETCH_CAP);
+  });
+  const previouslySeen = filtered.filter((url) => {
+    const normalized = normalizeSourceUrl(url);
+    return normalized ? seen.has(normalized) : false;
+  });
+  const processable = [...fresh, ...previouslySeen].slice(0, SUBPAGE_FETCH_CAP);
 
   let totalInserted = 0;
   let totalMergedExisting = 0;
@@ -660,8 +684,10 @@ async function runPhaseB(
   let nestedListings = 0;
   let failed = 0;
   const insertedStatements: string[] = [];
+  let firstMatchedUrl: string | null = null;
+  let firstMatchedTitle: string | null = null;
 
-  for (let i = 0; i < fresh.length; i++) {
+  for (let i = 0; i < processable.length; i++) {
     if (Date.now() >= deadlineMs) {
       logEvent({
         level: "info",
@@ -669,11 +695,11 @@ async function runPhaseB(
         event: "phase_b_budget_exhausted",
         scout_id: scout.id,
         processed,
-        remaining: fresh.length - i,
+        remaining: processable.length - i,
       });
       break;
     }
-    const subUrl = fresh[i];
+    const subUrl = processable[i];
     if (i > 0) await new Promise((r) => setTimeout(r, FIRECRAWL_STAGGER_MS));
 
     try {
@@ -729,6 +755,10 @@ async function runPhaseB(
       );
       totalInserted += result.insertedCount;
       totalMergedExisting += result.mergedExistingCount;
+      if (!firstMatchedUrl && result.firstMatchedUrl) {
+        firstMatchedUrl = result.firstMatchedUrl;
+        firstMatchedTitle = result.firstMatchedTitle ?? null;
+      }
       for (const statement of result.insertedStatements) {
         if (insertedStatements.length >= 3) break;
         insertedStatements.push(statement);
@@ -757,6 +787,8 @@ async function runPhaseB(
     totalInserted,
     totalMergedExisting,
     insertedStatements,
+    firstMatchedUrl,
+    firstMatchedTitle,
   };
 }
 
@@ -786,15 +818,25 @@ async function insertExtractedUnits(
   insertedCount: number;
   mergedExistingCount: number;
   insertedStatements: string[];
+  firstMatchedUrl: string | null;
+  firstMatchedTitle: string | null;
 }> {
   if (units.length === 0) {
-    return { insertedCount: 0, mergedExistingCount: 0, insertedStatements: [] };
+    return {
+      insertedCount: 0,
+      mergedExistingCount: 0,
+      insertedStatements: [],
+      firstMatchedUrl: null,
+      firstMatchedTitle: null,
+    };
   }
 
   const runEmbeddings: number[][] = [];
   let inserted = 0;
   let mergedExisting = 0;
   const insertedStatements: string[] = [];
+  let firstMatchedUrl: string | null = null;
+  let firstMatchedTitle: string | null = null;
 
   for (const u of units) {
     if (!u || typeof u.statement !== "string" || !u.statement.trim()) continue;
@@ -836,6 +878,10 @@ async function insertExtractedUnits(
     if (result.createdCanonical) {
       inserted += 1;
       if (insertedStatements.length < 3) insertedStatements.push(u.statement);
+      if (!firstMatchedUrl) {
+        firstMatchedUrl = sourceUrl;
+        firstMatchedTitle = sourceTitle;
+      }
     } else if (result.mergedExisting && result.occurrenceCreated) {
       mergedExisting += 1;
     }
@@ -844,6 +890,8 @@ async function insertExtractedUnits(
     insertedCount: inserted,
     mergedExistingCount: mergedExisting,
     insertedStatements,
+    firstMatchedUrl,
+    firstMatchedTitle,
   };
 }
 

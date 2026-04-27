@@ -22,7 +22,11 @@ import { AuthError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
 import { normalizeDate } from "../_shared/date_utils.ts";
 import { firecrawlScrape } from "../_shared/firecrawl.ts";
-import { EMBEDDING_MODEL_TAG, geminiEmbed, geminiExtract } from "../_shared/gemini.ts";
+import {
+  EMBEDDING_MODEL_TAG,
+  geminiEmbed,
+  geminiExtract,
+} from "../_shared/gemini.ts";
 import { languageName } from "../_shared/atomic_extract.ts";
 import { sendCivicAlert } from "../_shared/notifications.ts";
 import {
@@ -163,6 +167,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", queueId);
+      await markLinkedRunFailedIfSettled(svc, claimed, msg);
     } catch (markErr) {
       logEvent({
         level: "error",
@@ -185,6 +190,33 @@ Deno.serve(async (req: Request): Promise<Response> => {
 });
 
 // ---------------------------------------------------------------------------
+
+async function markLinkedRunFailedIfSettled(
+  svc: SupabaseClient,
+  row: QueueRow,
+  message: string,
+): Promise<void> {
+  if (!row.scout_run_id) return;
+
+  const { data: activeRows, error: activeErr } = await svc
+    .from("civic_extraction_queue")
+    .select("id")
+    .eq("scout_run_id", row.scout_run_id)
+    .in("status", ["pending", "processing"])
+    .limit(1);
+  if (activeErr) throw new Error(activeErr.message);
+  if ((activeRows ?? []).length > 0) return;
+
+  const { error: runErr } = await svc
+    .from("scout_runs")
+    .update({
+      status: "error",
+      error_message: message.slice(0, ERROR_MAX),
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", row.scout_run_id);
+  if (runErr) throw new Error(runErr.message);
+}
 
 interface ProcessResult {
   raw_capture_id: string;

@@ -1,33 +1,16 @@
 # cojo — coJournalist v2 CLI
 
-Command-line tool for coJournalist v2. Speaks the REST API using a JWT bearer
-token. No external dependencies: the release binary ships as a single signed,
-notarized executable per platform.
+Command-line tool for coJournalist v2. Speaks the REST API using a `cj_...` API
+key or legacy JWT bearer token.
 
 ## Install
 
-### From a release binary (recommended)
+### From source via Deno (recommended until public release assets exist)
 
-Single-line install — no auth required. Binaries are code-signed and
-notarized by Apple on macOS (no Gatekeeper warning), and Linux binaries
-are statically linked.
+Requires [Deno](https://deno.com) v2.x on `$PATH`.
 
 ```bash
-# macOS (Apple Silicon)
-curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-darwin-arm64 \
-  | sudo tee /usr/local/bin/cojo > /dev/null && sudo chmod +x /usr/local/bin/cojo
-
-# macOS (Intel)
-curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-darwin-x86_64 \
-  | sudo tee /usr/local/bin/cojo > /dev/null && sudo chmod +x /usr/local/bin/cojo
-
-# Linux (x86_64)
-curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-linux-x86_64 \
-  | sudo tee /usr/local/bin/cojo > /dev/null && sudo chmod +x /usr/local/bin/cojo
-
-# Linux (arm64)
-curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-linux-arm64 \
-  | sudo tee /usr/local/bin/cojo > /dev/null && sudo chmod +x /usr/local/bin/cojo
+deno install -A -g -n cojo https://raw.githubusercontent.com/buriedsignals/cojournalist-os/master/cli/cojo.ts
 ```
 
 Verify install:
@@ -36,15 +19,9 @@ Verify install:
 cojo --version
 ```
 
-> **macOS binary not on the latest release?** Apple's notary service has been
-> intermittently stuck on our release window. The Linux binaries always
-> publish; the macOS binaries sometimes attach later when Apple unsticks.
-> If the `curl` command above returns a 404, use the "From source" block
-> below until a macOS binary appears on the release page.
+### Build a local binary
 
-### From source (macOS fallback — no signing required)
-
-Needs [Deno](https://deno.com) v2.x installed (`brew install deno`).
+If you want a self-contained executable instead of a Deno shim:
 
 ```bash
 git clone https://github.com/buriedsignals/cojournalist-os.git
@@ -52,8 +29,6 @@ cd cojournalist-os/cli
 deno task compile-mac-arm        # or compile-mac-x86 on Intel
 sudo mv dist/cojo-darwin-arm64 /usr/local/bin/cojo
 sudo chmod +x /usr/local/bin/cojo
-# Gatekeeper will block unsigned binaries — strip the quarantine attr:
-sudo xattr -d com.apple.quarantine /usr/local/bin/cojo
 ```
 
 Verify:
@@ -62,43 +37,21 @@ Verify:
 cojo --version
 ```
 
-### Verify the checksum (optional)
+### Release binaries
 
-Each binary ships with a matching `.sha256` file:
-
-```bash
-# macOS (Apple Silicon) example — adjust for your platform
-curl -fsSL -O https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-darwin-arm64.sha256
-shasum -a 256 -c cojo-darwin-arm64.sha256   # macOS
-# or: sha256sum -c cojo-darwin-arm64.sha256  # Linux
-```
-
-### Manual download
-
-Grab any release directly from
-<https://github.com/buriedsignals/cojournalist-os/releases>.
+Release binaries will appear at
+<https://github.com/buriedsignals/cojournalist-os/releases> once the public
+mirror starts publishing signed assets.
 
 ### Homebrew
 
 Coming soon.
 
-### From source (Deno)
-
-Requires Deno 2.x on `$PATH`.
-
-```bash
-git clone https://github.com/buriedsignals/cojournalist-os.git
-cd cojournalist-os/cli
-deno install -A -g -n cojo cojo.ts         # installs to ~/.deno/bin
-# or build a self-contained binary for your machine:
-deno task compile-mac-arm                   # or -mac-x86 / -linux-arm / -linux-x86
-```
-
 ## Configure
 
-Config lives at `~/.cojournalist/config.json`. Set an api_url and **either**
-an `api_key` (preferred — generated in the app at /api → Agents → API → Create
-key) or a legacy `auth_token` JWT.
+Config lives at `~/.cojournalist/config.json`. Set an api_url and **either** an
+`api_key` (preferred — generated in the app at /api → Agents → API → Create key)
+or a legacy `auth_token` JWT.
 
 ```bash
 # Hosted coJournalist — recommended
@@ -119,16 +72,15 @@ cojo config show
 
 `apiFetch` picks the first credential found, in this order:
 
-1. `api_key` — sent as `Authorization: Bearer cj_…`. When `api_url`
-   points at the hosted broker, that is sufficient. When `api_url`
-   contains `supabase.co`, `supabase_anon_key` is also sent as the
-   `apikey:` header (Supabase Edge Functions reject bearer tokens
-   without it).
-2. `auth_token` — sent as `Authorization: Bearer <jwt>`. Use this only
-   for legacy SaaS sessions.
+1. `api_key` — sent as `Authorization: Bearer cj_…`. When `api_url` points at
+   the hosted broker, that is sufficient. When `api_url` contains `supabase.co`,
+   `supabase_anon_key` is also sent as the `apikey:` header (Supabase Edge
+   Functions reject bearer tokens without it).
+2. `auth_token` — sent as `Authorization: Bearer <jwt>`. Use this only for
+   legacy SaaS sessions.
 
-If both are set, `api_key` wins. If neither is set, every command exits
-with a setup hint.
+If both are set, `api_key` wins. If neither is set, every command exits with a
+setup hint.
 
 No OAuth flow in the CLI — tokens are pasted manually.
 

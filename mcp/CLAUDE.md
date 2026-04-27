@@ -56,7 +56,8 @@ Identical pattern to the CLI (see `cli/CLAUDE.md`):
      Developer cert used for `cojo`
    - Release published on `buriedsignals/cojournalist-os` (public OSS
      mirror) with 4 binaries + 4 sha256 files, via `OSS_RELEASE_PAT`.
-5. Smoke test: `curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mcp-darwin-arm64 -o /tmp/cojo-mcp && chmod +x /tmp/cojo-mcp && /tmp/cojo-mcp --version`.
+5. Smoke test after public assets exist: `curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mcp-darwin-arm64 -o /tmp/cojo-mcp && chmod +x /tmp/cojo-mcp && /tmp/cojo-mcp --version`.
+   Until then, smoke test a source build from `mcp/`: `deno task compile-mac-arm && ./dist/cojo-mcp-darwin-arm64 --version`.
 
 ## Tag naming
 

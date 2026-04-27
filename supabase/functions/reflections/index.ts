@@ -12,8 +12,12 @@
 
 import { z } from "https://esm.sh/zod@3";
 import { handleCors } from "../_shared/cors.ts";
-import { requireUser, AuthedUser } from "../_shared/auth.ts";
-import { getServiceClient, getUserClient } from "../_shared/supabase.ts";
+import {
+  AuthedUser,
+  getCallerClient,
+  requireUserOrApiKey,
+} from "../_shared/auth.ts";
+import { getServiceClient } from "../_shared/supabase.ts";
 import {
   jsonError,
   jsonFromError,
@@ -50,7 +54,7 @@ Deno.serve(async (req): Promise<Response> => {
 
   let user: AuthedUser;
   try {
-    user = await requireUser(req);
+    user = await requireUserOrApiKey(req);
   } catch (e) {
     return jsonFromError(e);
   }
@@ -92,19 +96,26 @@ Deno.serve(async (req): Promise<Response> => {
 
 // ---------------------------------------------------------------------------
 
-async function listReflections(req: Request, user: AuthedUser): Promise<Response> {
+async function listReflections(
+  req: Request,
+  user: AuthedUser,
+): Promise<Response> {
   const url = new URL(req.url);
-  const offset = Math.max(0, parseInt(url.searchParams.get("offset") ?? "0", 10));
+  const offset = Math.max(
+    0,
+    parseInt(url.searchParams.get("offset") ?? "0", 10),
+  );
   const limit = Math.min(
     100,
     Math.max(1, parseInt(url.searchParams.get("limit") ?? "50", 10)),
   );
   const projectId = url.searchParams.get("project_id");
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   let query = db
     .from("reflections")
     .select("*", { count: "exact" })
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -117,7 +128,10 @@ async function listReflections(req: Request, user: AuthedUser): Promise<Response
   return jsonPaginated(data ?? [], count ?? 0, offset, limit);
 }
 
-async function createReflection(req: Request, user: AuthedUser): Promise<Response> {
+async function createReflection(
+  req: Request,
+  user: AuthedUser,
+): Promise<Response> {
   let body: unknown;
   try {
     body = await req.json();
@@ -126,7 +140,9 @@ async function createReflection(req: Request, user: AuthedUser): Promise<Respons
   }
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.issues.map((i) => i.message).join("; "));
+    throw new ValidationError(
+      parsed.error.issues.map((i) => i.message).join("; "),
+    );
   }
 
   const row: Record<string, unknown> = {
@@ -147,7 +163,10 @@ async function createReflection(req: Request, user: AuthedUser): Promise<Respons
   // stored (semantic search simply skips rows with NULL embedding).
   if (Deno.env.get("GEMINI_API_KEY")) {
     try {
-      const embedding = await geminiEmbed(parsed.data.content, "RETRIEVAL_DOCUMENT");
+      const embedding = await geminiEmbed(
+        parsed.data.content,
+        "RETRIEVAL_DOCUMENT",
+      );
       row.embedding = embedding;
       row.embedding_model = EMBEDDING_MODEL_TAG;
     } catch (e) {
@@ -169,7 +188,7 @@ async function createReflection(req: Request, user: AuthedUser): Promise<Respons
     });
   }
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("reflections")
     .insert(row)
@@ -189,18 +208,22 @@ async function createReflection(req: Request, user: AuthedUser): Promise<Respons
 }
 
 async function getReflection(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("reflections")
     .select("*")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new NotFoundError("reflection");
   return jsonOk(data);
 }
 
-async function searchReflections(req: Request, user: AuthedUser): Promise<Response> {
+async function searchReflections(
+  req: Request,
+  user: AuthedUser,
+): Promise<Response> {
   let body: unknown;
   try {
     body = await req.json();
@@ -209,10 +232,15 @@ async function searchReflections(req: Request, user: AuthedUser): Promise<Respon
   }
   const parsed = SearchSchema.safeParse(body);
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.issues.map((i) => i.message).join("; "));
+    throw new ValidationError(
+      parsed.error.issues.map((i) => i.message).join("; "),
+    );
   }
 
-  const embedding = await geminiEmbed(parsed.data.query_text, "RETRIEVAL_QUERY");
+  const embedding = await geminiEmbed(
+    parsed.data.query_text,
+    "RETRIEVAL_QUERY",
+  );
 
   const svc = getServiceClient();
   const { data, error } = await svc.rpc("semantic_search_reflections", {
@@ -226,12 +254,16 @@ async function searchReflections(req: Request, user: AuthedUser): Promise<Respon
   return jsonOk({ items: data ?? [] });
 }
 
-async function deleteReflection(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
+async function deleteReflection(
+  user: AuthedUser,
+  id: string,
+): Promise<Response> {
+  const { db } = getCallerClient(user);
   const { error, count } = await db
     .from("reflections")
     .delete({ count: "exact" })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw new Error(error.message);
   if (!count) throw new NotFoundError("reflection");
   return new Response(null, {

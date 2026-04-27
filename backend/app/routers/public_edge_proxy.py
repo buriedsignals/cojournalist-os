@@ -23,11 +23,13 @@ from __future__ import annotations
 
 import logging
 import os
+import json
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from app.config import settings
 
@@ -131,6 +133,53 @@ def _response_headers(upstream: httpx.Response) -> dict[str, str]:
     return headers
 
 
+def _public_mcp_base(request: Request) -> str:
+    return str(request.url.replace(path="/mcp", query="", fragment="")).rstrip("/")
+
+
+def _rewrite_mcp_metadata(
+    request: Request,
+    path: str,
+    upstream: httpx.Response,
+) -> Response | None:
+    if upstream.status_code != 200:
+        return None
+    normalized = "/" + path.strip("/")
+    if normalized not in {
+        "/.well-known/oauth-authorization-server",
+        "/.well-known/oauth-protected-resource",
+    }:
+        return None
+    content_type = upstream.headers.get("content-type", "")
+    if "json" not in content_type.lower():
+        return None
+    try:
+        body: dict[str, Any] = json.loads(upstream.content.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return None
+
+    public_base = _public_mcp_base(request)
+    if normalized.endswith("oauth-authorization-server"):
+        body["issuer"] = public_base
+        body["authorization_endpoint"] = f"{public_base}/authorize"
+        body["token_endpoint"] = f"{public_base}/token"
+        body["registration_endpoint"] = f"{public_base}/register"
+    else:
+        body["resource"] = public_base
+        body["authorization_servers"] = [public_base]
+        body.setdefault("bearer_methods_supported", ["header"])
+        body.setdefault("scopes_supported", ["mcp"])
+        body["resource_documentation"] = (
+            "https://www.cojournalist.ai/skills/cojournalist.md"
+        )
+
+    return JSONResponse(
+        body,
+        status_code=upstream.status_code,
+        headers=_response_headers(upstream),
+    )
+
+
 async def _proxy(request: Request, upstream_url: str) -> Response:
     body = await request.body()
     try:
@@ -182,4 +231,27 @@ async def proxy_mcp_root(request: Request) -> Response:
 )
 async def proxy_mcp_path(path: str, request: Request) -> Response:
     upstream_url = _upstream_url("functions/v1/mcp-server", path, request.url.query)
-    return await _proxy(request, upstream_url)
+    body = await request.body()
+    try:
+        async with httpx.AsyncClient(
+            timeout=_TIMEOUT,
+            follow_redirects=False,
+        ) as client:
+            upstream = await client.request(
+                request.method,
+                upstream_url,
+                content=body or None,
+                headers=_forward_headers(request),
+            )
+    except httpx.HTTPError:
+        logger.exception("public_edge_proxy upstream unreachable: %s", upstream_url)
+        raise HTTPException(status_code=502, detail="Upstream unavailable")
+
+    rewritten = _rewrite_mcp_metadata(request, path, upstream)
+    if rewritten is not None:
+        return rewritten
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        headers=_response_headers(upstream),
+    )

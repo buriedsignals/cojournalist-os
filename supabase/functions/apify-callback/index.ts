@@ -32,7 +32,11 @@ import {
   ValidationError,
 } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
-import { EMBEDDING_MODEL_TAG, geminiEmbed, geminiExtract } from "../_shared/gemini.ts";
+import {
+  EMBEDDING_MODEL_TAG,
+  geminiEmbed,
+  geminiExtract,
+} from "../_shared/gemini.ts";
 import type { CanonicalUnitType } from "../_shared/unit_dedup.ts";
 import {
   RemovedPostSummary,
@@ -216,7 +220,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Notify on new posts. Never throws.
     if (
-      result.units_extracted > 0 &&
+      (result.units_extracted > 0 ||
+        (result.scout_row?.track_removals &&
+          (result.removed_posts?.length ?? 0) > 0)) &&
       queueRow.scout_run_id &&
       result.scout_row
     ) {
@@ -278,6 +284,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
         })
         .eq("id", queueRow.scout_run_id);
     }
+    if (queueRow.user_id && queueRow.platform) {
+      const op = SOCIAL_MONITORING_KEYS[queueRow.platform] ??
+        "social_monitoring_instagram";
+      await refundCredits(svc, {
+        userId: queueRow.user_id,
+        cost: getSocialMonitoringCost(queueRow.platform),
+        scoutId: queueRow.scout_id ?? null,
+        scoutType: "social",
+        operation: op,
+      });
+    }
 
     logEvent({
       level: "error",
@@ -306,9 +323,14 @@ async function notifySocial(
     const text = String(p.caption ?? p.text ?? p.fullText ?? "").slice(0, 150);
     return `- ${text}`;
   });
-  const summary = `${newPosts.length} new ${
-    newPosts.length === 1 ? "post" : "posts"
-  } from @${handle}:\n${summaryPosts.join("\n")}`;
+  const removalCount = scout.track_removals ? removedPosts.length : 0;
+  const summary = newPosts.length > 0
+    ? `${newPosts.length} new ${
+      newPosts.length === 1 ? "post" : "posts"
+    } from @${handle}:\n${summaryPosts.join("\n")}`
+    : `${removalCount} ${
+      removalCount === 1 ? "post was" : "posts were"
+    } removed from @${handle}.`;
 
   const mapped: SocialPostSummary[] = newPosts.slice(0, 5).map((p) => ({
     author: handle,
@@ -483,6 +505,16 @@ async function processSucceededRun(
   for (const post of capped) {
     const text = String(post.caption ?? post.text ?? post.fullText ?? "");
     if (text.length < POST_TEXT_MIN) continue;
+    if (!isUsablePostUrl(post.url)) {
+      logEvent({
+        level: "warn",
+        fn: "apify-callback",
+        event: "post_without_url_skipped",
+        scout_id: scout.id,
+        post_id: typeof post.id === "string" ? post.id : null,
+      });
+      continue;
+    }
 
     const useCriteria = scout.monitor_mode === "criteria" && scout.criteria;
 
@@ -594,7 +626,10 @@ async function insertUnit(
 }> {
   const userId = scout.user_id ?? queueRow.user_id;
   const platform = scout.platform ?? queueRow.platform;
-  const sourceUrl = typeof post.url === "string" ? post.url : "";
+  if (!isUsablePostUrl(post.url)) {
+    throw new ValidationError("social post missing usable URL");
+  }
+  const sourceUrl = post.url.trim();
   const content = String(post.caption ?? post.text ?? post.fullText ?? "");
   const extractedAt = new Date().toISOString();
 
@@ -642,4 +677,16 @@ async function insertUnit(
       post_id: typeof post.id === "string" ? post.id : null,
     },
   });
+}
+
+function isUsablePostUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
 }

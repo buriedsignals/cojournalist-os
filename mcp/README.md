@@ -13,43 +13,10 @@ this bridge — they connect directly.
 
 ## Install
 
-### From a release binary (recommended)
+### From source
 
-```bash
-# macOS (Apple Silicon)
-curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mcp-darwin-arm64 \
-  | sudo tee /usr/local/bin/cojo-mcp > /dev/null && sudo chmod +x /usr/local/bin/cojo-mcp
-
-# macOS (Intel)
-curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mcp-darwin-x86_64 \
-  | sudo tee /usr/local/bin/cojo-mcp > /dev/null && sudo chmod +x /usr/local/bin/cojo-mcp
-
-# Linux (x86_64)
-curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mcp-linux-x86_64 \
-  | sudo tee /usr/local/bin/cojo-mcp > /dev/null && sudo chmod +x /usr/local/bin/cojo-mcp
-
-# Linux (arm64)
-curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mcp-linux-arm64 \
-  | sudo tee /usr/local/bin/cojo-mcp > /dev/null && sudo chmod +x /usr/local/bin/cojo-mcp
-```
-
-Verify:
-
-```bash
-cojo-mcp --version
-```
-
-macOS binaries are codesigned + notarized by Apple. Linux binaries are
-statically linked; verify with the published `.sha256` sibling if you'd
-like.
-
-> **macOS binary not on the latest release?** Apple's notary service has been
-> intermittently stuck. If the `curl` above returns 404 for Darwin, use the
-> from-source block below.
-
-### From source (macOS fallback — no signing required)
-
-Needs [Deno](https://deno.com) v2.x (`brew install deno`).
+Needs [Deno](https://deno.com) v2.x (`brew install deno`). Release binaries are
+planned, but do not use `releases/latest/download` until public assets exist.
 
 ```bash
 git clone https://github.com/buriedsignals/cojournalist-os.git
@@ -69,7 +36,11 @@ Reuse the cojo CLI's config file at `~/.cojournalist/config.json`. If
 you don't have the CLI, write it yourself.
 
 ```bash
-cojo config set api_url=https://gfmdziplticfoakhrfpt.supabase.co
+cojo config set api_url=https://www.cojournalist.ai
+cojo config set api_key=cj_<your api key>
+
+# Raw Supabase/self-hosted example:
+cojo config set api_url=https://<project-ref>.supabase.co
 cojo config set supabase_anon_key=<public anon key>
 cojo config set api_key=cj_<your api key>
 ```
@@ -82,8 +53,9 @@ Or override per-launch with env vars:
 | `COJOURNALIST_API_KEY` | — | yes |
 | `COJOURNALIST_SUPABASE_ANON_KEY` | — | yes, when `api_url` is a Supabase host |
 
-Generate a `cj_…` API key at [cojournalist.ai](https://www.cojournalist.ai)
-→ Agents → API → Create key.
+Generate a `cj_…` API key from the Agents → API panel in the instance you are
+connecting to. Hosted users use [cojournalist.ai](https://www.cojournalist.ai);
+self-hosted users use their own deployed frontend.
 
 ## Wire it into Claude Desktop
 
@@ -110,7 +82,7 @@ Claude profiles), pass credentials via env instead:
     "cojournalist": {
       "command": "cojo-mcp",
       "env": {
-        "COJOURNALIST_API_URL": "https://gfmdziplticfoakhrfpt.supabase.co",
+        "COJOURNALIST_API_URL": "https://<project-ref>.supabase.co",
         "COJOURNALIST_API_KEY": "cj_...",
         "COJOURNALIST_SUPABASE_ANON_KEY": "..."
       }

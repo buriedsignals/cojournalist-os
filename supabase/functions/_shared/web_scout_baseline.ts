@@ -25,6 +25,15 @@ const DEFAULT_DEPS: WebBaselineDeps = {
   now: () => new Date().toISOString(),
 };
 
+const RAW_CAPTURE_TTL_DAYS = 30;
+
+function rawCaptureExpiresAt(nowIso: string): string {
+  const start = Date.parse(nowIso);
+  const base = Number.isNaN(start) ? Date.now() : start;
+  return new Date(base + RAW_CAPTURE_TTL_DAYS * 24 * 60 * 60 * 1000)
+    .toISOString();
+}
+
 async function stampBaseline(
   svc: SupabaseClient,
   scoutId: string,
@@ -54,7 +63,9 @@ export async function establishWebBaseline(
     const scrape = await deps.firecrawlScrape(scout.url);
     const markdown = scrape.markdown?.trim() ?? "";
     if (!markdown) {
-      throw new ValidationError("unable to establish page baseline from empty content");
+      throw new ValidationError(
+        "unable to establish page baseline from empty content",
+      );
     }
     const { error } = await svc.from("raw_captures").insert({
       user_id: scout.user_id,
@@ -65,6 +76,7 @@ export async function establishWebBaseline(
       content_sha256: await sha256Hex(scrape.markdown),
       token_count: Math.ceil(scrape.markdown.length / 4),
       captured_at: deps.now(),
+      expires_at: rawCaptureExpiresAt(deps.now()),
     });
     if (error) throw new Error(error.message);
     await stampBaseline(svc, scout.id, { provider: "firecrawl_plain" }, deps);
@@ -83,7 +95,9 @@ export async function establishWebBaseline(
   const scrape = await deps.firecrawlScrape(scout.url);
   const markdown = scrape.markdown?.trim() ?? "";
   if (!markdown) {
-    throw new ValidationError("unable to establish page baseline from empty content");
+    throw new ValidationError(
+      "unable to establish page baseline from empty content",
+    );
   }
   const { error } = await svc.from("raw_captures").insert({
     user_id: scout.user_id,
@@ -94,6 +108,7 @@ export async function establishWebBaseline(
     content_sha256: await sha256Hex(scrape.markdown),
     token_count: Math.ceil(scrape.markdown.length / 4),
     captured_at: deps.now(),
+    expires_at: rawCaptureExpiresAt(deps.now()),
   });
   if (error) throw new Error(error.message);
   await stampBaseline(svc, scout.id, { provider }, deps);

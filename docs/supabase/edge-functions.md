@@ -213,8 +213,10 @@ CRUD over `projects` + `project_members`. Default "Inbox" project is protected f
 
 ## MCP / API
 
-### `mcp-server` — `/.well-known/*`, `/register`, `/authorize`, `/token`, `/mcp/*`
-OAuth 2.0 + PKCE flow + MCP protocol endpoints. See [mcp-oauth.md](./mcp-oauth.md).
+### `mcp-server` — `/.well-known/*`, `/register`, `/authorize`, `/token`, JSON-RPC root
+OAuth 2.0 + PKCE flow + MCP protocol endpoint. Hosted production proxies this
+function at `/mcp`; raw Supabase installs use
+`/functions/v1/mcp-server`. See [mcp-oauth.md](./mcp-oauth.md).
 
 ### `openapi-spec` — `/openapi-spec`
 Public (no auth). Returns JSON OpenAPI 3.0 spec for the coJournalist API (scouts/units/projects endpoints). Generated from hand-maintained `spec.json`.
@@ -254,7 +256,7 @@ Legacy placeholder; the default `/` routing target. Returns a health-check respo
 | X-Service-Key | `X-Service-Key: <INTERNAL_SERVICE_KEY>` | Exact-match compare | Function-to-function (legacy but still in use) |
 | MuckRock HMAC | signed body | SHA-256(timestamp+type+uuids, MUCKROCK_CLIENT_SECRET) | `billing-webhook` only |
 | Apify internal key | `x-internal-key: <INTERNAL_SERVICE_KEY>` | Exact-match compare | `apify-callback` only |
-| API key | `Authorization: Bearer cojo_<key>` | DB lookup | MCP tool endpoints |
+| API key | `Authorization: Bearer cj_<key>` | DB lookup | Agent-facing REST and MCP endpoints |
 | None (public) | — | — | `openapi-spec`, `/.well-known/*`, `main` |
 
 ## Deployment

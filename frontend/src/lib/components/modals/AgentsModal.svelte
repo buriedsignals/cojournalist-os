@@ -205,8 +205,8 @@
 								<code>{path === 'cli' ? 'cojo CLI' : 'remote MCP server'}</code>, and verify the connection —
 								all in one shot.
 								{#if path === 'cli'}
-									The agent will ask you for a <code>cj_…</code> API key — click
-									<strong>API</strong> above to create one.
+									The prompt tells the agent to have you save a <code>cj_…</code> API key locally —
+									click <strong>API</strong> above to create one.
 								{:else}
 									Auth is handled by OAuth when your connector prompts you to sign in — no token to paste.
 								{/if}

@@ -13,6 +13,7 @@ import {
   printTable,
   readConfigFile,
   resolvePath,
+  unwrapItems,
   writeConfigFile,
 } from "../lib/client.ts";
 import { VERSION } from "../lib/version.ts";
@@ -119,13 +120,23 @@ Deno.test("printTable — empty rows prints (no rows)", () => {
   assertEquals(lines, ["(no rows)"]);
 });
 
-Deno.test("resolvePath — Supabase URL keeps /functions/v1/ prefix", () => {
-  const api = "https://gfmdziplticfoakhrfpt.supabase.co/functions/v1";
-  assertEquals(resolvePath("/functions/v1/scouts", api), "/functions/v1/scouts");
+Deno.test("resolvePath — bare Supabase URL keeps /functions/v1/ prefix", () => {
+  const api = "https://gfmdziplticfoakhrfpt.supabase.co";
+  assertEquals(
+    resolvePath("/functions/v1/scouts", api),
+    "/functions/v1/scouts",
+  );
   assertEquals(
     resolvePath("/functions/v1/units/abc?verified=true", api),
     "/functions/v1/units/abc?verified=true",
   );
+});
+
+Deno.test("resolvePath — base URL with /functions/v1 strips duplicate prefix", () => {
+  const hosted = "https://www.cojournalist.ai/functions/v1";
+  const supabase = "https://gfmdziplticfoakhrfpt.supabase.co/functions/v1";
+  assertEquals(resolvePath("/functions/v1/scouts", hosted), "/scouts");
+  assertEquals(resolvePath("/functions/v1/scouts", supabase), "/scouts");
 });
 
 Deno.test("resolvePath — FastAPI URL strips /functions/v1/ prefix", () => {
@@ -147,6 +158,19 @@ Deno.test("resolvePath — leaves non-/functions/v1 paths alone on both backends
   assertEquals(resolvePath("/health", supa), "/health");
   assertEquals(resolvePath("/health", fastapi), "/health");
   assertEquals(resolvePath("health", fastapi), "/health");
+});
+
+Deno.test("unwrapItems — accepts Edge items envelopes and legacy data envelopes", () => {
+  assertEquals(unwrapItems<{ id: string }>([{ id: "array" }]), [{
+    id: "array",
+  }]);
+  assertEquals(unwrapItems<{ id: string }>({ items: [{ id: "items" }] }), [{
+    id: "items",
+  }]);
+  assertEquals(unwrapItems<{ id: string }>({ data: [{ id: "data" }] }), [{
+    id: "data",
+  }]);
+  assertEquals(unwrapItems<{ id: string }>({ ok: true }), []);
 });
 
 Deno.test("VERSION — exports a non-empty string", () => {
@@ -194,7 +218,9 @@ Deno.test("apiFetch — uses api_key over auth_token, sends apikey header for Su
       supabase_anon_key: "anon_test_key",
     });
 
-    let observed: { url: string; auth: string | null; apikey: string | null } | null = null;
+    let observed:
+      | { url: string; auth: string | null; apikey: string | null }
+      | null = null;
     const origFetch = globalThis.fetch;
     globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
       const url = input instanceof Request ? input.url : String(input);
@@ -204,7 +230,12 @@ Deno.test("apiFetch — uses api_key over auth_token, sends apikey header for Su
         auth: headers.get("Authorization"),
         apikey: headers.get("apikey"),
       };
-      return Promise.resolve(new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }));
+      return Promise.resolve(
+        new Response("{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
     }) as typeof fetch;
 
     try {
@@ -214,7 +245,11 @@ Deno.test("apiFetch — uses api_key over auth_token, sends apikey header for Su
     }
 
     assert(observed !== null, "fetch was not called");
-    const obs = observed as unknown as { url: string; auth: string; apikey: string };
+    const obs = observed as unknown as {
+      url: string;
+      auth: string;
+      apikey: string;
+    };
     assertStringIncludes(obs.url, "x.supabase.co/functions/v1/units");
     assertEquals(obs.auth, "Bearer cj_preferred");
     assertEquals(obs.apikey, "anon_test_key");
@@ -228,7 +263,9 @@ Deno.test("apiFetch — falls back to auth_token when api_key absent, omits apik
       auth_token: "cj_legacy",
     });
 
-    let observed: { url: string; auth: string | null; apikey: string | null } | null = null;
+    let observed:
+      | { url: string; auth: string | null; apikey: string | null }
+      | null = null;
     const origFetch = globalThis.fetch;
     globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
       const url = input instanceof Request ? input.url : String(input);
@@ -238,7 +275,12 @@ Deno.test("apiFetch — falls back to auth_token when api_key absent, omits apik
         auth: headers.get("Authorization"),
         apikey: headers.get("apikey"),
       };
-      return Promise.resolve(new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }));
+      return Promise.resolve(
+        new Response("{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
     }) as typeof fetch;
 
     try {
@@ -248,7 +290,11 @@ Deno.test("apiFetch — falls back to auth_token when api_key absent, omits apik
     }
 
     assert(observed !== null);
-    const obs = observed as unknown as { url: string; auth: string; apikey: string | null };
+    const obs = observed as unknown as {
+      url: string;
+      auth: string;
+      apikey: string | null;
+    };
     assertStringIncludes(obs.url, "www.cojournalist.ai/api/units");
     assertEquals(obs.auth, "Bearer cj_legacy");
     assertEquals(obs.apikey, null);
@@ -265,10 +311,12 @@ Deno.test("apiFetch — surfaces non-2xx as a thrown Error", async () => {
 
     const origFetch = globalThis.fetch;
     globalThis.fetch = (() =>
-      Promise.resolve(new Response(JSON.stringify({ error: "nope" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }))) as typeof fetch;
+      Promise.resolve(
+        new Response(JSON.stringify({ error: "nope" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )) as typeof fetch;
 
     try {
       await assertRejects(

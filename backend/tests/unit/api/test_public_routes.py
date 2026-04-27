@@ -34,6 +34,25 @@ def test_public_skill_markdown_file_is_served_directly(monkeypatch, tmp_path):
     assert "# coJournalist skill" in res.text
 
 
+def test_public_setup_skill_markdown_file_is_served_directly(monkeypatch, tmp_path):
+    _write(tmp_path / "skills/cojournalist-setup.md", "# setup skill\n")
+    monkeypatch.setattr(main, "FRONTEND_DIST", tmp_path)
+
+    res = TestClient(app).get("/skills/cojournalist-setup.md")
+
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/markdown")
+    assert "# setup skill" in res.text
+
+
+def test_canonical_skill_files_exist_in_static_tree():
+    static = Path(__file__).resolve().parents[4] / "frontend" / "static"
+
+    assert (static / "skills" / "cojournalist.md").is_file()
+    assert (static / "skills" / "cojournalist-setup.md").is_file()
+    assert (static / "skill.md").is_file()
+
+
 def test_public_legacy_skill_serves_root_skill_file(monkeypatch, tmp_path):
     _write(tmp_path / "skill.md", "# legacy skill\n")
     monkeypatch.setattr(main, "FRONTEND_DIST", tmp_path)

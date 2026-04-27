@@ -1,5 +1,11 @@
 // cojo scouts — manage scouts
-import { apiFetch, parseArgs, printJSON, printTable } from "../lib/client.ts";
+import {
+  apiFetch,
+  parseArgs,
+  printJSON,
+  printTable,
+  unwrapItems,
+} from "../lib/client.ts";
 
 function usage(): void {
   console.log(
@@ -46,7 +52,7 @@ export async function run(argv: string[]): Promise<void> {
       const data = await apiFetch<Scout[] | { data: Scout[] }>(
         "/functions/v1/scouts",
       );
-      const rows = Array.isArray(data) ? data : (data.data ?? []);
+      const rows = unwrapItems<Scout>(data);
       printTable(
         rows as unknown as Record<string, unknown>[],
         ["id", "name", "type", "is_active", "consecutive_failures"],
@@ -71,7 +77,7 @@ export async function run(argv: string[]): Promise<void> {
       if (typeof flags.url === "string") body.url = flags.url;
       if (typeof flags.criteria === "string") body.criteria = flags.criteria;
       if (typeof flags.project === "string") body.project_id = flags.project;
-      if (typeof flags.cron === "string") body.cron = flags.cron;
+      if (typeof flags.cron === "string") body.schedule_cron = flags.cron;
 
       const created = await apiFetch<Scout>("/functions/v1/scouts", {
         method: "POST",
@@ -93,7 +99,9 @@ export async function run(argv: string[]): Promise<void> {
     case "update": {
       const id = positional[0];
       if (!id) {
-        console.error("Usage: cojo scouts update <id> [--name ...] [--criteria ...] [--url ...] [--cron ...] [--active true|false]");
+        console.error(
+          "Usage: cojo scouts update <id> [--name ...] [--criteria ...] [--url ...] [--cron ...] [--active true|false]",
+        );
         Deno.exit(1);
       }
       const patch: Record<string, unknown> = {};
@@ -101,10 +109,16 @@ export async function run(argv: string[]): Promise<void> {
       if (typeof flags.criteria === "string") patch.criteria = flags.criteria;
       if (typeof flags.url === "string") patch.url = flags.url;
       if (typeof flags.cron === "string") patch.schedule_cron = flags.cron;
-      if (flags.active === "true" || flags.active === true) patch.is_active = true;
-      if (flags.active === "false" || flags.active === false) patch.is_active = false;
+      if (flags.active === "true" || flags.active === true) {
+        patch.is_active = true;
+      }
+      if (flags.active === "false" || flags.active === false) {
+        patch.is_active = false;
+      }
       if (Object.keys(patch).length === 0) {
-        console.error("Pass at least one field to update (--name, --criteria, --url, --cron, --active)");
+        console.error(
+          "Pass at least one field to update (--name, --criteria, --url, --cron, --active)",
+        );
         Deno.exit(1);
       }
       const updated = await apiFetch<Scout>(`/functions/v1/scouts/${id}`, {

@@ -11,15 +11,22 @@
 
 import { z } from "https://esm.sh/zod@3";
 import { handleCors } from "../_shared/cors.ts";
-import { requireUser, AuthedUser } from "../_shared/auth.ts";
-import { getUserClient } from "../_shared/supabase.ts";
+import {
+  AuthedUser,
+  getCallerClient,
+  requireUserOrApiKey,
+} from "../_shared/auth.ts";
 import {
   jsonError,
   jsonFromError,
   jsonOk,
   jsonPaginated,
 } from "../_shared/responses.ts";
-import { ConflictError, NotFoundError, ValidationError } from "../_shared/errors.ts";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
 
 const CreateSchema = z.object({
@@ -42,7 +49,7 @@ Deno.serve(async (req): Promise<Response> => {
 
   let user: AuthedUser;
   try {
-    user = await requireUser(req);
+    user = await requireUserOrApiKey(req);
   } catch (e) {
     return jsonFromError(e);
   }
@@ -87,13 +94,20 @@ Deno.serve(async (req): Promise<Response> => {
 
 async function listProjects(req: Request, user: AuthedUser): Promise<Response> {
   const url = new URL(req.url);
-  const offset = Math.max(0, parseInt(url.searchParams.get("offset") ?? "0", 10));
-  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") ?? "50", 10)));
+  const offset = Math.max(
+    0,
+    parseInt(url.searchParams.get("offset") ?? "0", 10),
+  );
+  const limit = Math.min(
+    100,
+    Math.max(1, parseInt(url.searchParams.get("limit") ?? "50", 10)),
+  );
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, count, error } = await db
     .from("projects")
     .select("*", { count: "exact" })
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -101,7 +115,10 @@ async function listProjects(req: Request, user: AuthedUser): Promise<Response> {
   return jsonPaginated(data ?? [], count ?? 0, offset, limit);
 }
 
-async function createProject(req: Request, user: AuthedUser): Promise<Response> {
+async function createProject(
+  req: Request,
+  user: AuthedUser,
+): Promise<Response> {
   let body: unknown;
   try {
     body = await req.json();
@@ -110,10 +127,12 @@ async function createProject(req: Request, user: AuthedUser): Promise<Response> 
   }
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.issues.map((i) => i.message).join("; "));
+    throw new ValidationError(
+      parsed.error.issues.map((i) => i.message).join("; "),
+    );
   }
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("projects")
     .insert({ ...parsed.data, user_id: user.id })
@@ -121,7 +140,9 @@ async function createProject(req: Request, user: AuthedUser): Promise<Response> 
     .single();
 
   if (error) {
-    if (error.code === "23505") throw new ConflictError("project name already exists");
+    if (error.code === "23505") {
+      throw new ConflictError("project name already exists");
+    }
     throw new Error(error.message);
   }
 
@@ -136,8 +157,11 @@ async function createProject(req: Request, user: AuthedUser): Promise<Response> 
 }
 
 async function getProject(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
-  const { data, error } = await db.from("projects").select("*").eq("id", id).maybeSingle();
+  const { db } = getCallerClient(user);
+  const { data, error } = await db.from("projects").select("*").eq("id", id).eq(
+    "user_id",
+    user.id,
+  ).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new NotFoundError("project");
   return jsonOk(data);
@@ -156,22 +180,27 @@ async function updateProject(
   }
   const parsed = UpdateSchema.safeParse(body);
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.issues.map((i) => i.message).join("; "));
+    throw new ValidationError(
+      parsed.error.issues.map((i) => i.message).join("; "),
+    );
   }
   if (Object.keys(parsed.data).length === 0) {
     throw new ValidationError("no updatable fields provided");
   }
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("projects")
     .update(parsed.data)
     .eq("id", id)
+    .eq("user_id", user.id)
     .select("*")
     .maybeSingle();
 
   if (error) {
-    if (error.code === "23505") throw new ConflictError("project name already exists");
+    if (error.code === "23505") {
+      throw new ConflictError("project name already exists");
+    }
     throw new Error(error.message);
   }
   if (!data) throw new NotFoundError("project");
@@ -179,12 +208,16 @@ async function updateProject(
 }
 
 async function deleteProject(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { error, count } = await db
     .from("projects")
     .delete({ count: "exact" })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw new Error(error.message);
   if (!count) throw new NotFoundError("project");
-  return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*" } });
+  return new Response(null, {
+    status: 204,
+    headers: { "Access-Control-Allow-Origin": "*" },
+  });
 }

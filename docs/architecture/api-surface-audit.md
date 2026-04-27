@@ -36,7 +36,7 @@ Auth: Bearer JWT (Supabase auth) **or** Bearer `cj_…` API key plus
 | `ingest` | Manual unit ingest from URL/text | Live |
 | `main` | Health/heartbeat | Live |
 | `manage-schedule` | Cron management for scouts | Live |
-| `mcp-server` | (Scaffolding only — explicit out of scope this session) | Stub |
+| `mcp-server` | Remote MCP JSON-RPC + OAuth discovery/PKCE + API-key auth | Live |
 | `newsletter-subscribe` | Resend newsletter subscribe | Live |
 | `notifications-benchmark` | Internal benchmark for notification latency | Live |
 | `openapi-spec` | Serves the `/api/v1` OpenAPI JSON | Live |
@@ -165,8 +165,9 @@ ls supabase/functions/
 
 1. **Orphaned-service cleanup** — sweep the services listed above and any
    schemas/utils they pull in. Best done with the `/cleanup` skill.
-2. **MCP server** — `supabase/functions/mcp-server/` is scaffolding; the
-   real implementation is tracked separately.
+2. **MCP live smoke** — after each deploy, verify hosted `/mcp`, OAuth
+   metadata, protected-resource metadata, `initialize`, and `tools/list`
+   against the public URL agents are given.
 3. **Documentation refresh** — `docs/architecture/fastapi-endpoints.md`
    and `cli/CLAUDE.md` need to mention the EF surface as primary.
    Tracked in PR D of this cutover-finish series.

@@ -9,21 +9,29 @@
  *     body: { kind: "url"|"text", url?, text?, title?, criteria?, notes?, project_id? }
  *     -> 201 { ingest_id, raw_capture_id, units: [{id, statement}] }
  *
- * Auth: requireUser. All inserts go through the user-scoped client so RLS
- * enforces ownership. Failures mark the ingests row status=error with the
- * truncated error message.
+ * Auth: Supabase JWT or cj_ API key. API-key callers use the service client
+ * with explicit user_id filters. Failures mark the ingests row status=error
+ * with the truncated error message.
  */
 
 import { z } from "https://esm.sh/zod@3";
 import { handleCors } from "../_shared/cors.ts";
-import { AuthedUser, requireUser } from "../_shared/auth.ts";
-import { getUserClient, SupabaseClient } from "../_shared/supabase.ts";
+import {
+  AuthedUser,
+  getCallerClient,
+  requireUserOrApiKey,
+} from "../_shared/auth.ts";
+import { SupabaseClient } from "../_shared/supabase.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { ValidationError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
 import { normalizeDate } from "../_shared/date_utils.ts";
 import { firecrawlScrape } from "../_shared/firecrawl.ts";
-import { EMBEDDING_MODEL_TAG, geminiEmbed, geminiExtract } from "../_shared/gemini.ts";
+import {
+  EMBEDDING_MODEL_TAG,
+  geminiEmbed,
+  geminiExtract,
+} from "../_shared/gemini.ts";
 import {
   type CanonicalUnitType,
   deriveSourceDomain,
@@ -100,7 +108,7 @@ Deno.serve(async (req): Promise<Response> => {
 
   let user: AuthedUser;
   try {
-    user = await requireUser(req);
+    user = await requireUserOrApiKey(req);
   } catch (e) {
     return jsonFromError(e);
   }
@@ -143,7 +151,7 @@ async function handleIngest(req: Request, user: AuthedUser): Promise<Response> {
   }
   const input = parsed.data;
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
 
   // 1. Create ingests row (status=processing).
   const { data: ingest, error: insErr } = await db
@@ -170,7 +178,8 @@ async function handleIngest(req: Request, user: AuthedUser): Promise<Response> {
     await db
       .from("ingests")
       .update({ status: "success", completed_at: new Date().toISOString() })
-      .eq("id", ingestId);
+      .eq("id", ingestId)
+      .eq("user_id", user.id);
 
     logEvent({
       level: "info",
@@ -199,7 +208,8 @@ async function handleIngest(req: Request, user: AuthedUser): Promise<Response> {
         error_message: msg.slice(0, 2000),
         completed_at: new Date().toISOString(),
       })
-      .eq("id", ingestId);
+      .eq("id", ingestId)
+      .eq("user_id", user.id);
 
     logEvent({
       level: "error",

@@ -188,16 +188,18 @@ async function startApifyRun(
   if (qErr) throw new Error(qErr.message);
   const queueId = queueRow.id as string;
 
-  // 3. If APIFY_API_TOKEN isn't configured, mark the row and return 202
-  //    so the reconcile cron can time it out later.
+  // 3. If APIFY_API_TOKEN isn't configured, fail/refund immediately. Leaving
+  //    the queue pending hides an operator misconfiguration and charges users
+  //    for work that can never start.
   const apifyToken = Deno.env.get("APIFY_API_TOKEN") ?? "";
   if (!apifyToken) {
-    await svc
-      .from("apify_run_queue")
-      .update({
-        last_error: "APIFY_API_TOKEN not configured",
-      })
-      .eq("id", queueId);
+    const detail = "APIFY_API_TOKEN not configured";
+    await markQueueFailed(svc, queueId, detail, {
+      userId: scout.user_id as string,
+      scoutId,
+      platform,
+      runId,
+    });
     logEvent({
       level: "warn",
       fn: "social-kickoff",
@@ -205,10 +207,7 @@ async function startApifyRun(
       scout_id: scoutId,
       queue_id: queueId,
     });
-    return jsonOk(
-      { status: "started", queue_id: queueId, apify_run_id: null },
-      202,
-    );
+    return jsonError(detail, 503, "apify_not_configured");
   }
 
   // 4. Start the actor run. Per Apify API v2, ad-hoc run webhooks must be
@@ -261,6 +260,7 @@ async function startApifyRun(
       userId: scout.user_id as string,
       scoutId,
       platform,
+      runId,
     });
     logEvent({
       level: "error",
@@ -280,6 +280,7 @@ async function startApifyRun(
       userId: scout.user_id as string,
       scoutId,
       platform,
+      runId,
     });
     logEvent({
       level: "error",
@@ -303,6 +304,7 @@ async function startApifyRun(
       userId: scout.user_id as string,
       scoutId,
       platform,
+      runId,
     });
     return jsonError("apify response missing data.id", 502, "apify_failed");
   }
@@ -387,6 +389,7 @@ async function markQueueFailed(
     userId: string;
     scoutId: string;
     platform: string;
+    runId?: string;
   },
 ): Promise<void> {
   try {
@@ -406,6 +409,28 @@ async function markQueueFailed(
       queue_id: queueId,
       msg: e instanceof Error ? e.message : String(e),
     });
+  }
+
+  if (refund?.runId) {
+    try {
+      await svc
+        .from("scout_runs")
+        .update({
+          status: "error",
+          error_message: detail.slice(0, ERROR_MAX),
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", refund.runId);
+    } catch (e) {
+      logEvent({
+        level: "error",
+        fn: "social-kickoff",
+        event: "mark_run_failed_failed",
+        queue_id: queueId,
+        run_id: refund.runId,
+        msg: e instanceof Error ? e.message : String(e),
+      });
+    }
   }
 
   // Refund the pre-charge — Apify never ran to completion, so the user

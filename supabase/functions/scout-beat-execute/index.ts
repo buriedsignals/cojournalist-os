@@ -67,11 +67,16 @@ const InputSchema = z.object({
 
 const MAX_SOURCES = 20;
 const CONCURRENCY = 5;
+const RAW_CAPTURE_TTL_DAYS = 30;
 const DISCOVERY_SOURCE_LIMITS: Record<BeatScope, number> = {
   location: 4,
   topic: 6,
   combined: 8,
 };
+
+function rawCaptureExpiresAt(days = RAW_CAPTURE_TTL_DAYS): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
 
 Deno.serve(async (req: Request): Promise<Response> => {
   const cors = handleCors(req);
@@ -231,7 +236,10 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       finalUrls = [
         ...newsBeatHits.map((h) => h.url),
         ...govBeatHits.map((h) => h.url),
-      ].filter((u, i, arr) => u && arr.indexOf(u) === i).slice(0, maxDiscoveredSources);
+      ].filter((u, i, arr) => u && arr.indexOf(u) === i).slice(
+        0,
+        maxDiscoveredSources,
+      );
     }
 
     if (finalUrls.length === 0) {
@@ -306,6 +314,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
 
     // Keep a lookup so per-URL gov vs news partitioning survives the scrape step.
     const govUrlSet = new Set(govBeatHits.map((h) => h.url));
+    const succeededUrlSet = new Set(succeeded.map((s) => s.source_url));
 
     // 5. Persist raw_captures for each successful scrape.
     const rawCaptureIds: string[] = [];
@@ -325,6 +334,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
           content_sha256: hash,
           token_count: Math.ceil(md.length / 4),
           captured_at: s.fetched_at,
+          expires_at: rawCaptureExpiresAt(),
         })
         .select("id")
         .single();
@@ -459,15 +469,29 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       }
     }
 
+    const noSurfaceReason = insertedCount === 0 && mergedExistingCount === 0
+      ? "No usable information units were extracted from successfully scraped sources."
+      : null;
+    if (noSurfaceReason) {
+      await refundCredits(db, {
+        userId: scout.user_id as string,
+        cost: CREDIT_COSTS.beat,
+        scoutId,
+        scoutType: "beat",
+        operation: "beat",
+      });
+    }
+
     // 9. Mark run success + reset failures.
     await db
       .from("scout_runs")
       .update({
         status: "success",
         scraper_status: true,
-        criteria_status: true,
+        criteria_status: !noSurfaceReason,
         articles_count: insertedCount,
         merged_existing_count: mergedExistingCount,
+        error_message: noSurfaceReason,
         completed_at: new Date().toISOString(),
       })
       .eq("id", runId);
@@ -521,15 +545,21 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         // Prefer LLM-composed summaries when pipeline produced hits; fall back
         // to bulleted statement list for the manual-priority-sources path.
         const emailLang = (preferredLanguage ?? "en").toLowerCase();
-        const summary = newsBeatHits.length > 0
-          ? await generateBeatSummary(newsBeatHits, {
+        const successfulNewsHits = newsBeatHits.filter((h) =>
+          succeededUrlSet.has(h.url)
+        );
+        const successfulGovHits = govBeatHits.filter((h) =>
+          succeededUrlSet.has(h.url)
+        );
+        const summary = successfulNewsHits.length > 0
+          ? await generateBeatSummary(successfulNewsHits, {
             city: cityName,
             language: emailLang,
             category: "news",
           })
           : newsStatements.slice(0, 5).map((s) => `- ${s}`).join("\n");
-        const govSummary = govBeatHits.length > 0
-          ? await generateBeatSummary(govBeatHits, {
+        const govSummary = successfulGovHits.length > 0
+          ? await generateBeatSummary(successfulGovHits, {
             city: cityName,
             language: emailLang,
             category: "government",
@@ -577,6 +607,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       sources_failed: failures.length,
       articles_count: insertedCount,
       merged_existing_count: mergedExistingCount,
+      no_surface_reason: noSurfaceReason,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

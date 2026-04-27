@@ -561,16 +561,12 @@ curl "https://www.cojournalist.ai/functions/v1/units?verified=false&limit=20" \\
 
 					<SharpCodeBlock
 						ariaLabel="Copy CLI install"
-						copyValue={`curl -L https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mac \\
-  -o /usr/local/bin/cojo
-chmod +x /usr/local/bin/cojo
+						copyValue={`deno install -A -g -n cojo https://raw.githubusercontent.com/buriedsignals/cojournalist-os/master/cli/cojo.ts
 cojo config set api_url=https://www.cojournalist.ai/functions/v1
 cojo config set api_key=<cj_... API key>
 cojo scouts list`}
-						code={`# Install (macOS)
-curl -L https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-mac \\
-  -o /usr/local/bin/cojo
-chmod +x /usr/local/bin/cojo
+						code={`# Install (requires Deno 2.x)
+deno install -A -g -n cojo https://raw.githubusercontent.com/buriedsignals/cojournalist-os/master/cli/cojo.ts
 
 # Configure (generate a cj_... API key in the app: Agents → API → Create key)
 cojo config set api_url=https://www.cojournalist.ai/functions/v1

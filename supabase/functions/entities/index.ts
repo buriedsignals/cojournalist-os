@@ -12,15 +12,23 @@
 
 import { z } from "https://esm.sh/zod@3";
 import { handleCors } from "../_shared/cors.ts";
-import { requireUser, AuthedUser } from "../_shared/auth.ts";
-import { getServiceClient, getUserClient } from "../_shared/supabase.ts";
+import {
+  AuthedUser,
+  getCallerClient,
+  requireUserOrApiKey,
+} from "../_shared/auth.ts";
+import { getServiceClient } from "../_shared/supabase.ts";
 import {
   jsonError,
   jsonFromError,
   jsonOk,
   jsonPaginated,
 } from "../_shared/responses.ts";
-import { ConflictError, NotFoundError, ValidationError } from "../_shared/errors.ts";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
 
 const ENTITY_TYPES = [
@@ -51,7 +59,7 @@ Deno.serve(async (req): Promise<Response> => {
 
   let user: AuthedUser;
   try {
-    user = await requireUser(req);
+    user = await requireUserOrApiKey(req);
   } catch (e) {
     return jsonFromError(e);
   }
@@ -93,15 +101,22 @@ Deno.serve(async (req): Promise<Response> => {
 
 async function listEntities(req: Request, user: AuthedUser): Promise<Response> {
   const url = new URL(req.url);
-  const offset = Math.max(0, parseInt(url.searchParams.get("offset") ?? "0", 10));
-  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") ?? "50", 10)));
+  const offset = Math.max(
+    0,
+    parseInt(url.searchParams.get("offset") ?? "0", 10),
+  );
+  const limit = Math.min(
+    100,
+    Math.max(1, parseInt(url.searchParams.get("limit") ?? "50", 10)),
+  );
   const type = url.searchParams.get("type");
   const search = url.searchParams.get("search");
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   let q = db
     .from("entities")
     .select("*", { count: "exact" })
+    .eq("user_id", user.id)
     .order("mention_count", { ascending: false })
     .order("canonical_name", { ascending: true })
     .range(offset, offset + limit - 1);
@@ -132,10 +147,12 @@ async function createEntity(req: Request, user: AuthedUser): Promise<Response> {
   }
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.issues.map((i) => i.message).join("; "));
+    throw new ValidationError(
+      parsed.error.issues.map((i) => i.message).join("; "),
+    );
   }
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("entities")
     .insert({
@@ -150,7 +167,9 @@ async function createEntity(req: Request, user: AuthedUser): Promise<Response> {
 
   if (error) {
     if (error.code === "23505") {
-      throw new ConflictError("entity with this canonical_name + type already exists");
+      throw new ConflictError(
+        "entity with this canonical_name + type already exists",
+      );
     }
     throw new Error(error.message);
   }
@@ -166,11 +185,12 @@ async function createEntity(req: Request, user: AuthedUser): Promise<Response> {
 }
 
 async function getEntity(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data: entity, error } = await db
     .from("entities")
     .select("*")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!entity) throw new NotFoundError("entity");
@@ -184,7 +204,10 @@ async function getEntity(user: AuthedUser, id: string): Promise<Response> {
   return jsonOk({ ...entity, mentions: mentions ?? [] });
 }
 
-async function mergeEntities(req: Request, user: AuthedUser): Promise<Response> {
+async function mergeEntities(
+  req: Request,
+  user: AuthedUser,
+): Promise<Response> {
   let body: unknown;
   try {
     body = await req.json();
@@ -193,7 +216,9 @@ async function mergeEntities(req: Request, user: AuthedUser): Promise<Response> 
   }
   const parsed = MergeSchema.safeParse(body);
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.issues.map((i) => i.message).join("; "));
+    throw new ValidationError(
+      parsed.error.issues.map((i) => i.message).join("; "),
+    );
   }
 
   const svc = getServiceClient();

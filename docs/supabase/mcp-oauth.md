@@ -80,9 +80,16 @@ Single Edge Function implements the full OAuth 2.0 flow:
 | `/authorize` | GET | Opens a grant-approval page; after user approval, stores a row in `mcp_oauth_codes` and 302s to `redirect_uri?code=...&state=...`. |
 | `/token` | POST | Exchanges `code` + `code_verifier` (PKCE) for the wrapped `supabase_access_token`. Returns `{ access_token, token_type: 'bearer', expires_in, scope }`. One-shot — marks `used_at`. |
 
-### Actual MCP endpoints (not part of OAuth)
+### Actual MCP endpoint (not part of OAuth)
 
-The same `mcp-server` Edge Function also serves MCP protocol endpoints at `/mcp/*` — these are authenticated via the Bearer token from `/token`.
+The same `mcp-server` Edge Function also serves MCP JSON-RPC over HTTP POST at
+the function root. In hosted production, FastAPI proxies this as
+`https://www.cojournalist.ai/mcp`. In a raw Supabase install, clients connect to
+`https://<project-ref>.supabase.co/functions/v1/mcp-server`.
+
+MCP traffic is authenticated by either the OAuth Bearer token from `/token` or a
+`cj_...` API key. Raw Supabase URLs also require the `apikey` header with the
+project anon key.
 
 ## Data flow
 
@@ -106,8 +113,9 @@ The same `mcp-server` Edge Function also serves MCP protocol endpoints at `/mcp/
          ← { access_token: <supabase JWT>, token_type: 'bearer', expires_in: 3600, scope }
 
 4. MCP traffic
-   Client → GET /mcp/... with Authorization: Bearer <supabase JWT>
-   mcp-server → requireUser(jwt) → user-scoped client → tool calls
+   Client → POST /mcp with Authorization: Bearer <supabase JWT or cj_... key>
+   Hosted proxy → /functions/v1/mcp-server
+   mcp-server → requireUserOrApiKey(...) → user-scoped client → tool calls
 ```
 
 ## Invariants
@@ -117,6 +125,16 @@ The same `mcp-server` Edge Function also serves MCP protocol endpoints at `/mcp/
 3. **`supabase_access_token` is handed back verbatim** — no JWT re-signing. The MCP client receives the same token a browser would, with the same claims and expiry.
 4. **`redirect_uri` must exact-match** a value in `mcp_oauth_clients.redirect_uris[]`. No wildcards.
 5. **Codes are never readable via RLS** — no policy grants SELECT to any authenticated role. Only the Edge Function (service-role) touches the table.
+
+## Public URL invariant
+
+OAuth metadata must advertise the same MCP URL the client connects to. Hosted
+production uses `https://www.cojournalist.ai/mcp`; raw Supabase installs use the
+function URL unless they add their own proxy. If a self-hosted install proxies
+MCP behind `https://newsroom.example/mcp`, set `MCP_SERVER_BASE_URL` to that
+exact URL so `issuer`, `authorization_endpoint`, `token_endpoint`,
+`registration_endpoint`, `resource`, and `authorization_servers` stay
+consistent.
 
 ## Operations
 

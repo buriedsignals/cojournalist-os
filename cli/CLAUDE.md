@@ -59,7 +59,8 @@ gh run cancel <run-id>
    - Release published on the PUBLIC mirror
      (`buriedsignals/cojournalist-os`) with 4 binaries + 4 sha256 files,
      via `OSS_RELEASE_PAT`. Anyone can `curl` the assets without auth.
-5. Smoke test: `curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-darwin-arm64 -o /tmp/cojo && chmod +x /tmp/cojo && /tmp/cojo --version`.
+5. Smoke test after public assets exist: `curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-darwin-arm64 -o /tmp/cojo && chmod +x /tmp/cojo && /tmp/cojo --version`.
+   Until then, smoke test the source install: `deno install -A -g -n cojo https://raw.githubusercontent.com/buriedsignals/cojournalist-os/master/cli/cojo.ts && cojo --version`.
 
 ## Tag naming
 

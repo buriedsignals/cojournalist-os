@@ -9,6 +9,7 @@
  * Routes (after Kong strips `/mcp-server/` from the path):
  *
  *   GET  /.well-known/oauth-authorization-server  -> RFC 8414 metadata
+ *   GET  /.well-known/oauth-protected-resource    -> RFC 9728 metadata
  *   POST /register                                -> RFC 7591 dynamic reg
  *   GET  /authorize                               -> login bootstrap
  *   GET  /authorize-callback                      -> broker return path
@@ -23,9 +24,13 @@
 
 import { handleCors } from "../_shared/cors.ts";
 import { logEvent } from "../_shared/log.ts";
-import { metadataHandler } from "./oauth/metadata.ts";
+import { metadataHandler, protectedResourceHandler } from "./oauth/metadata.ts";
 import { registerHandler } from "./oauth/register.ts";
-import { authorize, commitCallback, renderCallbackPage } from "./oauth/authorize.ts";
+import {
+  authorize,
+  commitCallback,
+  renderCallbackPage,
+} from "./oauth/authorize.ts";
 import { tokenHandler } from "./oauth/token.ts";
 import { oauthError } from "./oauth/errors.ts";
 import { handleRpc } from "./rpc.ts";
@@ -33,7 +38,10 @@ import { handleRpc } from "./rpc.ts";
 function stripPrefix(pathname: string): string {
   // Kong may keep the function name in the path ("/mcp-server/x") or strip
   // it ("/x"); handle both. Also collapse trailing slashes.
-  const stripped = pathname.replace(/^\/+mcp-server(\/|$)/, "/").replace(/\/+$/, "");
+  const stripped = pathname.replace(/^\/+mcp-server(\/|$)/, "/").replace(
+    /\/+$/,
+    "",
+  );
   return stripped === "" ? "/" : stripped;
 }
 
@@ -49,6 +57,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // RFC 8414 metadata
     if (path === "/.well-known/oauth-authorization-server" && isRead) {
       return metadataHandler(req);
+    }
+    // RFC 9728 protected resource metadata
+    if (path === "/.well-known/oauth-protected-resource" && isRead) {
+      return protectedResourceHandler(req);
     }
     // RFC 7591 dynamic client registration
     if (path === "/register" && req.method === "POST") {
@@ -74,7 +86,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return await handleRpc(req);
     }
 
-    return oauthError("invalid_request", `no route for ${req.method} ${path}`, 404);
+    return oauthError(
+      "invalid_request",
+      `no route for ${req.method} ${path}`,
+      404,
+    );
   } catch (e) {
     logEvent({
       level: "error",

@@ -16,7 +16,21 @@
 		{ title: 'Adds the optional API add-on', desc: 'Deploys FastAPI only if your newsroom wants the legacy/internal /api/v1 surface' }
 	];
 
-	const agentPrompt = `Clone https://github.com/buriedsignals/cojournalist-os, check out master, and read automation/SETUP_AGENT.md. Deploy coJournalist as a Supabase-first OSS install: Supabase Auth, Supabase Postgres, Supabase Edge Functions, and a static frontend. Ask me for each API key, Supabase credential, and hosting choice as you go. Only deploy the optional FastAPI add-on if I explicitly want the legacy/internal /api/v1 surface.`;
+	const agentPrompt = `Clone https://github.com/buriedsignals/cojournalist-os, check out master, and read automation/SETUP_AGENT.md. Deploy coJournalist as a Supabase-first OSS install: Supabase Auth, Supabase Postgres, Supabase Edge Functions, and a static frontend. Ask me for each API key, Supabase credential, and hosting choice as you go. After deployment, configure the CLI and MCP to use my own Supabase project or public proxy URL, not the hosted cojournalist.ai endpoints. Only deploy the optional FastAPI add-on if I explicitly want the legacy/internal /api/v1 surface.`;
+
+	const selfHostedAgentConfig = `# CLI
+deno install -A -g -n cojo https://raw.githubusercontent.com/buriedsignals/cojournalist-os/master/cli/cojo.ts
+cojo config set api_url=https://<project-ref>.supabase.co
+cojo config set supabase_anon_key=<SUPABASE_ANON_KEY>
+cojo config set api_key=<cj_... API key>
+cojo scouts list
+
+# MCP
+# Raw Supabase URL:
+https://<project-ref>.supabase.co/functions/v1/mcp-server
+
+# If you proxy MCP behind your own domain, use that same public URL in the client
+# and set MCP_SERVER_BASE_URL to that exact URL in Edge Function secrets.`;
 
 	const manualSteps = [
 		{ title: 'Install Node 22 LTS', desc: 'Required runtime. Install via nvm (nvm install 22) or Homebrew (brew install node@22).' },
@@ -145,6 +159,15 @@
 						View on GitHub
 					</SharpAction>
 					<p class="repo-note">Full deployment reference in <code>deploy/SETUP.md</code>, <code>automation/SETUP_AGENT.md</code>, and <code>automation/sync-upstream.yml</code>.</p>
+				</SharpPanel>
+
+				<SharpPanel tone="soft" className="manual-highlight">
+					<div class="step-label">Connect agents to your instance</div>
+					<p class="manual-highlight-desc">
+						The CLI and MCP are included in the OSS repo. Configure them with your own Supabase
+						project URL or public proxy; the hosted cojournalist.ai endpoints are only for the SaaS app.
+					</p>
+					<SharpCodeBlock code={selfHostedAgentConfig} ariaLabel="Copy self-hosted agent configuration" />
 				</SharpPanel>
 			</div>
 		{/if}

@@ -78,13 +78,15 @@ export function loadConfig(): ResolvedConfig {
   return cfg as ResolvedConfig;
 }
 
-// Rewrite `/functions/v1/<rest>` → `/<rest>` when talking to legacy /api
-// hosts, while preserving the hosted same-origin broker on
-// `https://www.cojournalist.ai/functions/v1`.
+// Commands build paths as `/functions/v1/<function>` so the same command can
+// talk to raw Supabase hosts and hosted proxy hosts. If the configured base URL
+// already includes `/functions/v1`, strip the duplicate prefix before joining.
 export function resolvePath(path: string, apiUrl: string): string {
   const prefixed = path.startsWith("/") ? path : `/${path}`;
+  if (apiUrl.includes("/functions/v1")) {
+    return prefixed.replace(/^\/functions\/v1(?=\/|$)/, "");
+  }
   if (apiUrl.includes("supabase.co")) return prefixed;
-  if (apiUrl.includes("/functions/v1")) return prefixed;
   return prefixed.replace(/^\/functions\/v1\//, "/");
 }
 
@@ -122,15 +124,24 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!res.ok) {
-    const errMsg =
-      parsed && typeof parsed === "object" && parsed !== null &&
+    const errMsg = parsed && typeof parsed === "object" && parsed !== null &&
         "error" in parsed
-        ? (parsed as { error: unknown }).error
-        : parsed;
+      ? (parsed as { error: unknown }).error
+      : parsed;
     throw new Error(`API error ${res.status}: ${errMsg}`);
   }
 
   return parsed as T;
+}
+
+export function unwrapItems<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    if (Array.isArray(obj.items)) return obj.items as T[];
+    if (Array.isArray(obj.data)) return obj.data as T[];
+  }
+  return [];
 }
 
 // ---- Arg parser (no deps) ------------------------------------------------
@@ -172,7 +183,9 @@ export function isTerminal(): boolean {
   try {
     // Deno 2 exposes isTerminal on the stream
     const stdout = Deno.stdout as unknown as { isTerminal?: () => boolean };
-    return typeof stdout.isTerminal === "function" ? stdout.isTerminal() : false;
+    return typeof stdout.isTerminal === "function"
+      ? stdout.isTerminal()
+      : false;
   } catch {
     return false;
   }

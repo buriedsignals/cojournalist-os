@@ -20,6 +20,11 @@ import { getServiceClient } from "../_shared/supabase.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { AuthError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
+import {
+  getSocialMonitoringCost,
+  refundCredits,
+  SOCIAL_MONITORING_KEYS,
+} from "../_shared/credits.ts";
 
 const LIMIT = 20;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -49,7 +54,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const oneHourAgo = new Date(Date.now() - ONE_HOUR_MS).toISOString();
     const { data: rows, error } = await svc
       .from("apify_run_queue")
-      .select("id, user_id, scout_id, apify_run_id, started_at, status")
+      .select(
+        "id, user_id, scout_id, scout_run_id, platform, apify_run_id, started_at, status",
+      )
       .eq("status", "running")
       .lt("started_at", oneHourAgo)
       .limit(LIMIT);
@@ -117,6 +124,8 @@ interface QueueRow {
   id: string;
   user_id: string;
   scout_id: string;
+  scout_run_id: string | null;
+  platform: string | null;
   apify_run_id: string | null;
   started_at: string | null;
   status: string;
@@ -188,18 +197,11 @@ async function reconcileRow(
     actualStatus === "TIMED_OUT" ||
     actualStatus === "ABORTED"
   ) {
-    const newStatus = actualStatus === "TIMED-OUT" || actualStatus === "TIMED_OUT"
-      ? "timeout"
-      : "failed";
-    const { error } = await svc
-      .from("apify_run_queue")
-      .update({
-        status: newStatus,
-        last_error: actualStatus,
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
-    if (error) throw new Error(error.message);
+    const newStatus =
+      actualStatus === "TIMED-OUT" || actualStatus === "TIMED_OUT"
+        ? "timeout"
+        : "failed";
+    await markTerminal(svc, row, newStatus, actualStatus);
     logEvent({
       level: "info",
       fn: "apify-reconcile",
@@ -215,15 +217,12 @@ async function reconcileRow(
   if (actualStatus === "RUNNING" || actualStatus === "READY") {
     const startedMs = row.started_at ? Date.parse(row.started_at) : NaN;
     if (!isNaN(startedMs) && Date.now() - startedMs > FOUR_HOURS_MS) {
-      const { error } = await svc
-        .from("apify_run_queue")
-        .update({
-          status: "timeout",
-          last_error: "exceeded 4h while apify still RUNNING",
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", row.id);
-      if (error) throw new Error(error.message);
+      await markTerminal(
+        svc,
+        row,
+        "timeout",
+        "exceeded 4h while apify still RUNNING",
+      );
       logEvent({
         level: "warn",
         fn: "apify-reconcile",
@@ -246,4 +245,46 @@ async function reconcileRow(
     status: actualStatus,
   });
   return false;
+}
+
+async function markTerminal(
+  svc: ReturnType<typeof getServiceClient>,
+  row: QueueRow,
+  status: "failed" | "timeout",
+  detail: string,
+): Promise<void> {
+  const completedAt = new Date().toISOString();
+  const { error } = await svc
+    .from("apify_run_queue")
+    .update({
+      status,
+      last_error: detail,
+      completed_at: completedAt,
+    })
+    .eq("id", row.id);
+  if (error) throw new Error(error.message);
+
+  if (row.scout_run_id) {
+    const { error: runErr } = await svc
+      .from("scout_runs")
+      .update({
+        status: "error",
+        error_message: detail.slice(0, 2000),
+        completed_at: completedAt,
+      })
+      .eq("id", row.scout_run_id);
+    if (runErr) throw new Error(runErr.message);
+  }
+
+  if (row.platform) {
+    const operation = SOCIAL_MONITORING_KEYS[row.platform] ??
+      "social_monitoring_instagram";
+    await refundCredits(svc, {
+      userId: row.user_id,
+      cost: getSocialMonitoringCost(row.platform),
+      scoutId: row.scout_id,
+      scoutType: "social",
+      operation,
+    });
+  }
 }

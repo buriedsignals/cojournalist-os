@@ -107,7 +107,7 @@ def test_mcp_proxy_maps_to_mcp_server_path(monkeypatch):
     fake = _FakeClient(
         _FakeResp(
             200,
-            b'{"issuer":"https://cojournalist.ai/mcp"}',
+            b'{"issuer":"https://proj.supabase.co/functions/v1/mcp-server"}',
             {"content-type": "application/json", "cache-control": "max-age=300"},
         ),
     )
@@ -117,11 +117,42 @@ def test_mcp_proxy_maps_to_mcp_server_path(monkeypatch):
         res = client.get("/mcp/.well-known/oauth-authorization-server")
 
     assert res.status_code == 200
-    assert res.json()["issuer"] == "https://cojournalist.ai/mcp"
+    assert res.json()["issuer"] == "http://testserver/mcp"
+    assert res.json()["authorization_endpoint"] == "http://testserver/mcp/authorize"
+    assert res.json()["token_endpoint"] == "http://testserver/mcp/token"
+    assert res.json()["registration_endpoint"] == "http://testserver/mcp/register"
     assert fake.calls[0]["url"] == (
         "https://proj.supabase.co/functions/v1/mcp-server/.well-known/oauth-authorization-server"
     )
     assert res.headers["cache-control"] == "max-age=300"
+
+
+def test_mcp_proxy_rewrites_protected_resource_metadata(monkeypatch):
+    monkeypatch.setattr(public_edge_proxy.settings, "supabase_url", "https://proj.supabase.co")
+    monkeypatch.setattr(public_edge_proxy.settings, "supabase_anon_key", "anon-from-settings")
+    fake = _FakeClient(
+        _FakeResp(
+            200,
+            b'{"resource":"https://proj.supabase.co/functions/v1/mcp-server","authorization_servers":["https://proj.supabase.co/functions/v1/mcp-server"]}',
+            {"content-type": "application/json", "cache-control": "max-age=300"},
+        ),
+    )
+
+    with patch("app.routers.public_edge_proxy.httpx.AsyncClient", return_value=fake):
+        client = _mount()
+        res = client.get("/mcp/.well-known/oauth-protected-resource")
+
+    assert res.status_code == 200
+    assert res.json()["resource"] == "http://testserver/mcp"
+    assert res.json()["authorization_servers"] == ["http://testserver/mcp"]
+    assert res.json()["bearer_methods_supported"] == ["header"]
+    assert res.json()["scopes_supported"] == ["mcp"]
+    assert res.json()["resource_documentation"] == (
+        "https://www.cojournalist.ai/skills/cojournalist.md"
+    )
+    assert fake.calls[0]["url"] == (
+        "https://proj.supabase.co/functions/v1/mcp-server/.well-known/oauth-protected-resource"
+    )
 
 
 def test_proxy_returns_sterile_502_on_upstream_error(monkeypatch):

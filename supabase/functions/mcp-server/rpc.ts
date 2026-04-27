@@ -15,7 +15,7 @@
  *   - Anything else       → JSON-RPC method-not-found error
  *
  * Tool naming follows `verb_noun` to match the public-facing skill doc at
- * https://www.cojournalist.ai/skill.md (e.g. `list_scouts`, `create_scout`).
+ * https://www.cojournalist.ai/skills/cojournalist.md (e.g. `list_scouts`, `create_scout`).
  * When adding a tool, update the skill doc in the same PR — the skill is
  * the advertised contract.
  */

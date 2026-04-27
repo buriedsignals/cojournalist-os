@@ -26,8 +26,9 @@ import {
 import { functionUrl } from "../_shared/_testing.ts";
 
 // Direct imports for unit tests (no network / DB).
-import { signState, verifyState, base64urlEncode } from "./oauth/state.ts";
+import { base64urlEncode, signState, verifyState } from "./oauth/state.ts";
 import { validateVerifier, verifyS256 } from "./oauth/pkce.ts";
+import { metadataHandler, protectedResourceHandler } from "./oauth/metadata.ts";
 
 // ---------------------------------------------------------------------------
 // Ensure MCP_STATE_SECRET is set for the unit tests. Use a deterministic
@@ -39,6 +40,62 @@ if (!Deno.env.get("MCP_STATE_SECRET")) {
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   );
 }
+
+// ---------------------------------------------------------------------------
+// Metadata unit tests
+// ---------------------------------------------------------------------------
+
+Deno.test("metadata: issuer and endpoints use MCP_SERVER_BASE_URL when set", async () => {
+  const original = Deno.env.get("MCP_SERVER_BASE_URL");
+  Deno.env.set("MCP_SERVER_BASE_URL", "https://www.cojournalist.ai/mcp/");
+  try {
+    const res = metadataHandler(
+      new Request(
+        "https://ignored.test/.well-known/oauth-authorization-server",
+      ),
+    );
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.issuer, "https://www.cojournalist.ai/mcp");
+    assertEquals(
+      body.authorization_endpoint,
+      "https://www.cojournalist.ai/mcp/authorize",
+    );
+    assertEquals(body.token_endpoint, "https://www.cojournalist.ai/mcp/token");
+    assertEquals(
+      body.registration_endpoint,
+      "https://www.cojournalist.ai/mcp/register",
+    );
+  } finally {
+    if (original === undefined) Deno.env.delete("MCP_SERVER_BASE_URL");
+    else Deno.env.set("MCP_SERVER_BASE_URL", original);
+  }
+});
+
+Deno.test("metadata: protected resource advertises same MCP resource", async () => {
+  const original = Deno.env.get("MCP_SERVER_BASE_URL");
+  Deno.env.set("MCP_SERVER_BASE_URL", "https://www.cojournalist.ai/mcp/");
+  try {
+    const res = protectedResourceHandler(
+      new Request("https://ignored.test/.well-known/oauth-protected-resource"),
+    );
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.resource, "https://www.cojournalist.ai/mcp");
+    assertEquals(body.authorization_servers, [
+      "https://www.cojournalist.ai/mcp",
+    ]);
+    assertEquals(body.bearer_methods_supported, ["header"]);
+    assertEquals(body.scopes_supported, ["mcp"]);
+    assertEquals(
+      body.resource_documentation,
+      "https://www.cojournalist.ai/skills/cojournalist.md",
+    );
+  } finally {
+    if (original === undefined) Deno.env.delete("MCP_SERVER_BASE_URL");
+    else Deno.env.set("MCP_SERVER_BASE_URL", original);
+  }
+});
 
 // ---------------------------------------------------------------------------
 // PKCE unit tests
@@ -171,7 +228,8 @@ async function mcpReachable(): Promise<boolean> {
 const RUN_HTTP = await mcpReachable();
 
 Deno.test({
-  name: "metadata: GET /.well-known/oauth-authorization-server returns RFC 8414 JSON",
+  name:
+    "metadata: GET /.well-known/oauth-authorization-server returns RFC 8414 JSON",
   ignore: !RUN_HTTP,
   fn: async () => {
     const res = await fetch(
@@ -437,7 +495,9 @@ async function seedCodeRow(): Promise<{
   );
   const url = Deno.env.get("SUPABASE_URL") ?? "http://127.0.0.1:54321";
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY required for seeded tests");
+  if (!key) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY required for seeded tests");
+  }
   const db = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });

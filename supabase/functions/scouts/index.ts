@@ -11,15 +11,20 @@
  *   POST   /scouts/:id/pause    set is_active=false + unschedule cron
  *   POST   /scouts/:id/resume   set is_active=true + (re)schedule cron
  *
- * Scout queries run through getUserClient(user.token) so RLS scopes them to
- * the caller. The scheduling/trigger RPCs are SECURITY DEFINER and invoked
- * via getServiceClient() because they touch cron.job and vault secrets.
+ * Scout queries accept Supabase JWTs and cj_ API keys. API-key callers use
+ * the service client with explicit user_id filters. Scheduling/trigger RPCs
+ * are SECURITY DEFINER and invoked via getServiceClient() because they touch
+ * cron.job and vault secrets.
  */
 
 import { z } from "https://esm.sh/zod@3";
 import { handleCors } from "../_shared/cors.ts";
-import { requireUser, AuthedUser } from "../_shared/auth.ts";
-import { getServiceClient, getUserClient } from "../_shared/supabase.ts";
+import {
+  AuthedUser,
+  getCallerClient,
+  requireUserOrApiKey,
+} from "../_shared/auth.ts";
+import { getServiceClient } from "../_shared/supabase.ts";
 import {
   jsonError,
   jsonFromError,
@@ -157,8 +162,13 @@ const CreateSchema = z
     }
   })
   .refine(
-    (v) => v.type !== "civic" || v.regularity === undefined || v.regularity !== "daily",
-    { message: "civic scouts support weekly or monthly schedules only", path: ["regularity"] },
+    (v) =>
+      v.type !== "civic" || v.regularity === undefined ||
+      v.regularity !== "daily",
+    {
+      message: "civic scouts support weekly or monthly schedules only",
+      path: ["regularity"],
+    },
   );
 
 const UpdateSchema = z
@@ -170,25 +180,32 @@ const UpdateSchema = z
     url: z.string().url().max(2000).nullable().optional(),
     location: z.record(z.unknown()).nullable().optional(),
     source_mode: z.enum(["reliable", "niche"]).nullable().optional(),
-    excluded_domains: z.array(z.string().max(253)).max(100).nullable().optional(),
+    excluded_domains: z.array(z.string().max(253)).max(100).nullable()
+      .optional(),
     regularity: Regularity.nullable().optional(),
     schedule_cron: z.string().min(1).max(200).nullable().optional(),
     day_number: z.number().int().min(0).max(31).optional(),
     time: TimeStr.optional(),
     provider: z.string().max(100).nullable().optional(),
     project_id: z.string().uuid().nullable().optional(),
-    priority_sources: z.array(z.string().max(500)).max(100).nullable().optional(),
+    priority_sources: z.array(z.string().max(500)).max(100).nullable()
+      .optional(),
     is_active: z.boolean().optional(),
     platform: SocialPlatform.nullable().optional(),
     profile_handle: z.string().max(200).nullable().optional(),
     monitor_mode: SocialMonitorMode.nullable().optional(),
     track_removals: z.boolean().optional(),
     root_domain: z.string().max(300).nullable().optional(),
-    tracked_urls: z.array(z.string().url().max(2000)).max(20).nullable().optional(),
+    tracked_urls: z.array(z.string().url().max(2000)).max(20).nullable()
+      .optional(),
   })
   .refine(
-    (v) => v.type !== "civic" || v.regularity == null || v.regularity !== "daily",
-    { message: "civic scouts support weekly or monthly schedules only", path: ["regularity"] },
+    (v) =>
+      v.type !== "civic" || v.regularity == null || v.regularity !== "daily",
+    {
+      message: "civic scouts support weekly or monthly schedules only",
+      path: ["regularity"],
+    },
   );
 
 /** Derive a cron expression from the legacy (regularity, day_number, time)
@@ -225,7 +242,7 @@ Deno.serve(async (req): Promise<Response> => {
 
   let user: AuthedUser;
   try {
-    user = await requireUser(req);
+    user = await requireUserOrApiKey(req);
   } catch (e) {
     return jsonFromError(e);
   }
@@ -283,16 +300,20 @@ Deno.serve(async (req): Promise<Response> => {
 
 async function listScouts(req: Request, user: AuthedUser): Promise<Response> {
   const url = new URL(req.url);
-  const offset = Math.max(0, parseInt(url.searchParams.get("offset") ?? "0", 10));
+  const offset = Math.max(
+    0,
+    parseInt(url.searchParams.get("offset") ?? "0", 10),
+  );
   const limit = Math.min(
     100,
     Math.max(1, parseInt(url.searchParams.get("limit") ?? "50", 10)),
   );
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, count, error } = await db
     .from("scouts")
     .select("*", { count: "exact" })
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -322,7 +343,9 @@ function normalizeScoutBody(raw: unknown): unknown {
     const n = parseInt(out.day_number, 10);
     if (!Number.isNaN(n)) out.day_number = n;
   }
-  if (typeof out.profile_handle === "string" && typeof out.platform === "string") {
+  if (
+    typeof out.profile_handle === "string" && typeof out.platform === "string"
+  ) {
     const platform = out.platform;
     if (
       platform === "instagram" || platform === "x" || platform === "facebook" ||
@@ -382,7 +405,9 @@ async function establishCivicBaseline(
 ): Promise<void> {
   const tracked = normalizeTrackedUrls(scout.tracked_urls);
   if (tracked.length === 0) {
-    throw new ValidationError("civic scouts require tracked_urls before scheduling");
+    throw new ValidationError(
+      "civic scouts require tracked_urls before scheduling",
+    );
   }
 
   for (const url of tracked) {
@@ -458,7 +483,9 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
   const parsed = CreateSchema.safeParse(normalizeScoutBody(body));
   if (!parsed.success) {
     throw new ValidationError(
-      parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+      parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(
+        "; ",
+      ),
     );
   }
 
@@ -475,7 +502,7 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
   const schedule_cron = explicitCron ??
     cronFromParts(rest.regularity, day_number, time);
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("scouts")
     .insert({
@@ -498,7 +525,9 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
     const svc = getServiceClient();
     const baselineScout: BaselineableScout = {
       ...(data as BaselineableScout),
-      tracked_urls: rest.type === "civic" ? rest.tracked_urls ?? data.tracked_urls : data.tracked_urls,
+      tracked_urls: rest.type === "civic"
+        ? rest.tracked_urls ?? data.tracked_urls
+        : data.tracked_urls,
     };
     try {
       if (
@@ -517,7 +546,10 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
           baseline_posts,
         );
       }
-      if (data.type === "civic" && Array.isArray(initial_promises) && initial_promises.length > 0) {
+      if (
+        data.type === "civic" && Array.isArray(initial_promises) &&
+        initial_promises.length > 0
+      ) {
         await seedInitialPromises(svc, data.id, user.id, initial_promises);
       }
     } catch (e) {
@@ -565,7 +597,10 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
           baseline_posts,
         );
       }
-      if (data.type === "civic" && Array.isArray(initial_promises) && initial_promises.length > 0) {
+      if (
+        data.type === "civic" && Array.isArray(initial_promises) &&
+        initial_promises.length > 0
+      ) {
         await seedInitialPromises(svc, data.id, user.id, initial_promises);
       }
     } catch (e) {
@@ -587,11 +622,12 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
 }
 
 async function getScout(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("scouts")
     .select("*")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new NotFoundError("scout");
@@ -612,12 +648,17 @@ async function updateScout(
   const parsed = UpdateSchema.safeParse(normalizeScoutBody(body));
   if (!parsed.success) {
     throw new ValidationError(
-      parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+      parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(
+        "; ",
+      ),
     );
   }
   // Synthesize schedule_cron from legacy fields if explicit one not given.
   const { time, day_number, ...rest } = parsed.data;
-  if (rest.schedule_cron === undefined && (time !== undefined || day_number !== undefined)) {
+  if (
+    rest.schedule_cron === undefined &&
+    (time !== undefined || day_number !== undefined)
+  ) {
     const synth = cronFromParts(rest.regularity ?? undefined, day_number, time);
     if (synth) rest.schedule_cron = synth;
   }
@@ -627,12 +668,13 @@ async function updateScout(
   // Replace parsed.data so the rest of the function sees the cleaned shape.
   (parsed as { data: typeof rest }).data = rest;
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   // Fetch current row so we can diff schedule / is_active
   const { data: current, error: readErr } = await db
     .from("scouts")
     .select("*")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
   if (readErr) throw new Error(readErr.message);
   if (!current) throw new NotFoundError("scout");
@@ -652,6 +694,7 @@ async function updateScout(
     .from("scouts")
     .update(parsed.data)
     .eq("id", id)
+    .eq("user_id", user.id)
     .select("*")
     .maybeSingle();
 
@@ -723,11 +766,12 @@ async function updateScout(
 }
 
 async function deleteScout(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { error, count } = await db
     .from("scouts")
     .delete({ count: "exact" })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw new Error(error.message);
   if (!count) throw new NotFoundError("scout");
 
@@ -754,11 +798,12 @@ async function deleteScout(user: AuthedUser, id: string): Promise<Response> {
 
 async function runScout(user: AuthedUser, id: string): Promise<Response> {
   // Verify the scout exists for this caller (RLS-scoped).
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data: scout, error: readErr } = await db
     .from("scouts")
     .select("id")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
   if (readErr) throw new Error(readErr.message);
   if (!scout) throw new NotFoundError("scout");
@@ -783,11 +828,12 @@ async function runScout(user: AuthedUser, id: string): Promise<Response> {
 }
 
 async function pauseScout(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("scouts")
     .update({ is_active: false })
     .eq("id", id)
+    .eq("user_id", user.id)
     .select("*")
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -812,12 +858,13 @@ async function pauseScout(user: AuthedUser, id: string): Promise<Response> {
 }
 
 async function resumeScout(user: AuthedUser, id: string): Promise<Response> {
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   // chk_active_has_schedule requires schedule_cron when is_active=true.
   const { data: current, error: readErr } = await db
     .from("scouts")
     .select("*")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
   if (readErr) throw new Error(readErr.message);
   if (!current) throw new NotFoundError("scout");
@@ -834,6 +881,7 @@ async function resumeScout(user: AuthedUser, id: string): Promise<Response> {
     .from("scouts")
     .update({ is_active: true })
     .eq("id", id)
+    .eq("user_id", user.id)
     .select("*")
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -918,7 +966,7 @@ async function createScoutFromTemplate(
   };
   if (project_id !== undefined) insertRow.project_id = project_id;
 
-  const db = getUserClient(user.token);
+  const { db } = getCallerClient(user);
   const { data, error } = await db
     .from("scouts")
     .insert(insertRow)
@@ -1001,7 +1049,10 @@ async function testScout(
   // Run preview scrape AND double-probe baseline verification in parallel,
   // mirroring prod: the probe decides whether this scout can use Firecrawl's
   // changeTracking or needs plain + hash dedup at run-time.
-  const tag = `${user.id}#preview-${crypto.randomUUID().slice(0, 8)}`.slice(0, 128);
+  const tag = `${user.id}#preview-${crypto.randomUUID().slice(0, 8)}`.slice(
+    0,
+    128,
+  );
   const probePromise = doubleProbe(url, tag).catch(
     (): "firecrawl" | "firecrawl_plain" => "firecrawl_plain",
   );

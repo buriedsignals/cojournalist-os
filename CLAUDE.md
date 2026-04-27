@@ -236,21 +236,21 @@ Revenue reporting for MuckRock pilot invoicing. Accessible at `/api/admin/` (bro
 ## CLI: `cojo`
 
 Shipping product — a Deno-based CLI that talks to the REST API with a JWT
-bearer token. Releases are code-signed + notarized for macOS (no Gatekeeper
-warnings) and published on the private monorepo via `cli-release.yml`.
+bearer token or `cj_...` API key. Until public release assets exist, install
+directly from the public mirror with Deno.
 
 - Source: `cli/` (see `cli/CLAUDE.md` for full detail)
 - Release tag pattern: `cli-v<MAJOR>.<MINOR>.<PATCH>` — push the tag, CI
   builds + signs + notarizes + publishes the release automatically
 - Pre-release suffixes (marked as prerelease on GitHub): `-rc1`, `-beta1`,
   `-alpha1`
-- Binaries: `cojo-darwin-arm64`, `cojo-darwin-x86_64`, `cojo-linux-arm64`,
-  `cojo-linux-x86_64` — each with a sibling `.sha256` file
-- Install (anyone, no auth):
-  `curl -fsSL https://github.com/buriedsignals/cojournalist-os/releases/latest/download/cojo-<platform> | sudo tee /usr/local/bin/cojo > /dev/null && sudo chmod +x /usr/local/bin/cojo`
-- Release assets live on the public mirror `buriedsignals/cojournalist-os`;
-  workflow runs on the private monorepo (where signing secrets live) and
-  publishes cross-repo via `OSS_RELEASE_PAT`.
+- Current install (anyone, no auth):
+  `deno install -A -g -n cojo https://raw.githubusercontent.com/buriedsignals/cojournalist-os/master/cli/cojo.ts`
+- Planned binaries: `cojo-darwin-arm64`, `cojo-darwin-x86_64`,
+  `cojo-linux-arm64`, `cojo-linux-x86_64` — each with a sibling `.sha256`
+  file after the first public release is published.
+- Release workflow runs on the private monorepo (where signing secrets live)
+  and publishes cross-repo via `OSS_RELEASE_PAT`.
 - Apple secrets (on this repo only) are listed in `cli/CLAUDE.md`. Cert
   expires 2031; Apple Developer Program renews 2026-04-20 ($109/yr);
   renewal decision point 2027-04-15.

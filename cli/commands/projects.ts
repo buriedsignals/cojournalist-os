@@ -1,5 +1,11 @@
 // cojo projects — manage projects
-import { apiFetch, parseArgs, printJSON, printTable } from "../lib/client.ts";
+import {
+  apiFetch,
+  parseArgs,
+  printJSON,
+  printTable,
+  unwrapItems,
+} from "../lib/client.ts";
 
 function usage(): void {
   console.log(
@@ -38,7 +44,7 @@ export async function run(argv: string[]): Promise<void> {
       const data = await apiFetch<Project[] | { data: Project[] }>(
         "/functions/v1/projects",
       );
-      const rows = Array.isArray(data) ? data : (data.data ?? []);
+      const rows = unwrapItems<Project>(data);
       printTable(
         rows as unknown as Record<string, unknown>[],
         ["id", "name", "description", "created_at"],
