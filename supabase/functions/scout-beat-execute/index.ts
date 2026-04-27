@@ -58,6 +58,12 @@ import {
   extractAtomicUnits,
   publishedDateFromScrape,
 } from "../_shared/atomic_extract.ts";
+import {
+  type FactCheckResult,
+  factCheckUnit,
+  isFactCheckEnabled,
+  loadFactCheckConfig,
+} from "../_shared/fact_check.ts";
 import { parseBeatLocation } from "../_shared/beat_location.ts";
 
 const InputSchema = z.object({
@@ -353,10 +359,12 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
     //     as a fallback when the LLM can't extract one
     let insertedCount = 0;
     let mergedExistingCount = 0;
+    let abstainedCount = 0;
     const insertedStatements: string[] = [];
     const newsStatements: string[] = [];
     const govStatements: string[] = [];
     const runEmbeddings: number[][] = [];
+    const factCheckConfig = loadFactCheckConfig();
 
     for (let i = 0; i < succeeded.length; i++) {
       const src = succeeded[i];
@@ -416,6 +424,31 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
         const occurredAt = normalizeDate(u.occurred_at) ?? scrapePublishedDate;
         const unitType = u.type as CanonicalUnitType;
 
+        // Fact-check via Abstain-R1 (no-op when endpoint not configured).
+        let fcResult: FactCheckResult = {
+          fact_checked: false,
+          confidence_score: null,
+          abstained: false,
+          abstain_reason: null,
+        };
+        if (isFactCheckEnabled(factCheckConfig)) {
+          try {
+            fcResult = await factCheckUnit(u.statement, factCheckConfig, {
+              sourceDomain: deriveSourceDomain(src.source_url),
+              occurredAt,
+            });
+            if (fcResult.abstained) abstainedCount += 1;
+          } catch (e) {
+            logEvent({
+              level: "warn",
+              fn: "scout-beat-execute",
+              event: "fact_check_failed",
+              scout_id: scoutId,
+              msg: e instanceof Error ? e.message : String(e),
+            });
+          }
+        }
+
         try {
           const result = await upsertCanonicalUnit(db, {
             userId: scout.user_id as string,
@@ -440,6 +473,10 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
             metadata: {
               category: govUrlSet.has(src.source_url) ? "government" : "news",
             },
+            factChecked: fcResult.fact_checked,
+            confidenceScore: fcResult.confidence_score,
+            abstained: fcResult.abstained,
+            abstainReason: fcResult.abstain_reason,
           });
 
           if (result.createdCanonical) {
@@ -518,6 +555,7 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
       sources_scraped: succeeded.length,
       articles_count: insertedCount,
       merged_existing_count: mergedExistingCount,
+      ...(abstainedCount > 0 ? { abstained_count: abstainedCount } : {}),
     });
 
     // Notify user when new, non-duplicate units landed. Build separate article

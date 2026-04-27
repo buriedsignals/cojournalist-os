@@ -36,6 +36,12 @@ import {
 } from "../_shared/firecrawl.ts";
 import { EMBEDDING_MODEL_TAG, geminiEmbed } from "../_shared/gemini.ts";
 import { extractAtomicUnits } from "../_shared/atomic_extract.ts";
+import {
+  type FactCheckResult,
+  factCheckUnit,
+  isFactCheckEnabled,
+  loadFactCheckConfig,
+} from "../_shared/fact_check.ts";
 import { isWithinRunDuplicate } from "../_shared/dedup.ts";
 import { filterSubpageUrls } from "../_shared/subpage-filter.ts";
 import {
@@ -835,6 +841,7 @@ async function insertExtractedUnits(
   let inserted = 0;
   let mergedExisting = 0;
   const insertedStatements: string[] = [];
+  const factCheckConfig = loadFactCheckConfig();
   let firstMatchedUrl: string | null = null;
   let firstMatchedTitle: string | null = null;
 
@@ -851,6 +858,24 @@ async function insertExtractedUnits(
     // already-kept unit in *this* extraction batch.
     if (isWithinRunDuplicate(embedding, runEmbeddings)) continue;
     runEmbeddings.push(embedding);
+
+    // Fact-check via Abstain-R1 (no-op when endpoint not configured).
+    let fcResult: FactCheckResult = {
+      fact_checked: false,
+      confidence_score: null,
+      abstained: false,
+      abstain_reason: null,
+    };
+    if (isFactCheckEnabled(factCheckConfig)) {
+      try {
+        fcResult = await factCheckUnit(u.statement, factCheckConfig, {
+          sourceDomain,
+          occurredAt: normalizeDate(u.occurred_at),
+        });
+      } catch {
+        // Fact-check failure is non-fatal — unit proceeds unchecked.
+      }
+    }
 
     const result = await upsertCanonicalUnit(svc, {
       userId: scout.user_id,
@@ -873,6 +898,10 @@ async function insertExtractedUnits(
       projectId: scout.project_id ?? null,
       rawCaptureId,
       metadata,
+      factChecked: fcResult.fact_checked,
+      confidenceScore: fcResult.confidence_score,
+      abstained: fcResult.abstained,
+      abstainReason: fcResult.abstain_reason,
     });
 
     if (result.createdCanonical) {

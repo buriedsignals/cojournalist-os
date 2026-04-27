@@ -29,6 +29,10 @@ export interface CanonicalUnitInput {
   projectId?: string | null;
   rawCaptureId?: string | null;
   metadata?: Record<string, unknown> | null;
+  factChecked?: boolean;
+  confidenceScore?: number | null;
+  abstained?: boolean;
+  abstainReason?: string | null;
 }
 
 export interface CanonicalUpsertResult {
@@ -165,6 +169,10 @@ export async function upsertCanonicalUnit(
     p_project_id: input.projectId ?? null,
     p_raw_capture_id: input.rawCaptureId ?? null,
     p_metadata: input.metadata ?? {},
+    p_fact_checked: input.factChecked ?? false,
+    p_confidence_score: input.confidenceScore ?? null,
+    p_abstained: input.abstained ?? false,
+    p_abstain_reason: input.abstainReason ?? null,
   };
 
   const { data, error } = await db.rpc("upsert_canonical_unit", payload);
