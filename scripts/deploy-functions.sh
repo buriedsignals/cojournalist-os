@@ -20,7 +20,6 @@ FUNCTIONS=(
   reflections
   user
   ingest
-  export-claude
   openapi-spec
   scout-templates
   civic-test

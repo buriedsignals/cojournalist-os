@@ -32,7 +32,7 @@ function normalizePulseSearchError(response: Response, result: Record<string, un
 		'Failed to search pulse'
 	);
 }
-import { buildApiUrl } from '$lib/config/api';
+import { buildApiUrl, buildFastApiUrl } from '$lib/config/api';
 import { normalizeScoutType } from '$lib/utils/scouts';
 
 // ---------------------------------------------------------------------------
@@ -92,6 +92,62 @@ export async function apiRequest<T>(
 	}
 
 	return response.json();
+}
+
+/**
+ * Generic authenticated request for the residual FastAPI service on Render.
+ * Use this only for endpoints that intentionally remain under /api instead of
+ * the Supabase Edge Functions gateway.
+ */
+export async function fastApiRequest<T>(
+	method: string,
+	path: string,
+	body?: unknown
+): Promise<T> {
+	const { authStore } = await import('$lib/stores/auth');
+	const token = await authStore.getToken();
+	const headers: Record<string, string> = {
+		...JSON_HEADERS,
+		...(token ? { Authorization: `Bearer ${token}` } : {})
+	};
+
+	const response = await fetch(buildFastApiUrl(path), {
+		method,
+		headers,
+		...(body !== undefined ? { body: JSON.stringify(body) } : {})
+	});
+
+	if (!response.ok) {
+		const error = await response.json().catch(() => ({}));
+		throw new Error(
+			normalizeErrorDetail(
+				(error as { detail?: unknown; error?: unknown }).detail ??
+					(error as { error?: unknown }).error,
+				`API error: ${response.status}`
+			)
+		);
+	}
+
+	return response.json();
+}
+
+export interface FeedbackPayload {
+	title: string;
+	type: 'bug' | 'feature' | 'other';
+	description?: string;
+	device?: string;
+	browser?: string;
+	screenshot_base64?: string;
+	screenshot_filename?: string;
+	screenshot_content_type?: string;
+}
+
+export interface FeedbackResponse {
+	url: string;
+}
+
+export async function submitFeedback(payload: FeedbackPayload): Promise<FeedbackResponse> {
+	return fastApiRequest<FeedbackResponse>('POST', '/feedback', payload);
 }
 
 /**

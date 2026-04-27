@@ -71,3 +71,16 @@ export const buildApiUrl = (path: string) => {
 	const normalizedPath = path.startsWith('/') ? path : `/${path}`;
 	return `${API_BASE_URL}${normalizedPath}`;
 };
+
+/**
+ * Build a URL for the residual FastAPI service that still runs on Render.
+ *
+ * Most product APIs now live behind Supabase Edge Functions and use
+ * buildApiUrl(). A few SaaS-only endpoints, including Linear feedback, still
+ * live in FastAPI at the same-origin /api prefix in production and behind the
+ * Vite /api proxy in local development.
+ */
+export const buildFastApiUrl = (path: string) => {
+	const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+	return `${DEFAULT_API_PREFIX}${normalizedPath}`;
+};

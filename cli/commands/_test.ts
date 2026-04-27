@@ -454,6 +454,61 @@ Deno.test("scouts add — forwards civic, schedule, and source-discovery fields"
   });
 });
 
+Deno.test("scouts add — forwards topic for scheduled web scouts", async () => {
+  await withTempHome(async () => {
+    writeConfigFile({
+      api_url: "https://www.cojournalist.ai/functions/v1",
+      api_key: "cj_test",
+      supabase_anon_key: "anon",
+    });
+
+    let observedBody: Record<string, unknown> | null = null;
+    const origFetch = globalThis.fetch;
+    const origLog = console.log;
+    globalThis.fetch =
+      ((_input: string | URL | Request, init?: RequestInit) => {
+        observedBody = JSON.parse(String(init?.body ?? "{}"));
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: "scout_1" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }) as typeof fetch;
+    console.log = () => {};
+
+    try {
+      await runScouts([
+        "add",
+        "--name",
+        "Scheduled page baseline",
+        "--type",
+        "web",
+        "--url",
+        "https://example.com",
+        "--topic",
+        "baseline-fixture",
+        "--criteria",
+        "Track visible page changes.",
+        "--cron",
+        "0 23 * * *",
+      ]);
+    } finally {
+      globalThis.fetch = origFetch;
+      console.log = origLog;
+    }
+
+    assert(observedBody !== null, "fetch was not called");
+    const body = observedBody as Record<string, unknown>;
+    assertEquals(body.name, "Scheduled page baseline");
+    assertEquals(body.type, "web");
+    assertEquals(body.url, "https://example.com");
+    assertEquals(body.topic, "baseline-fixture");
+    assertEquals(body.criteria, "Track visible page changes.");
+    assertEquals(body.schedule_cron, "0 23 * * *");
+  });
+});
+
 Deno.test("ingest text — sends API-compatible text field", async () => {
   await withTempHome(async () => {
     writeConfigFile({

@@ -7,10 +7,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('$lib/config/api', () => ({
 	API_BASE_URL: '/api',
-	buildApiUrl: (path: string) => `/api${path.startsWith('/') ? path : '/' + path}`
+	buildApiUrl: (path: string) => `/api${path.startsWith('/') ? path : '/' + path}`,
+	buildFastApiUrl: (path: string) => `/api${path.startsWith('/') ? path : '/' + path}`
 }));
 
-import { apiClient } from '$lib/api-client';
+import { apiClient, submitFeedback } from '$lib/api-client';
 
 // ---- Test helpers ----
 
@@ -415,6 +416,31 @@ describe('updateUserPreferences', () => {
 			excluded_domains: undefined,
 			health_notifications_enabled: undefined
 		});
+	});
+});
+
+// ===========================================================================
+// submitFeedback
+// ===========================================================================
+
+describe('submitFeedback', () => {
+	it('routes feedback through the residual FastAPI /api prefix', async () => {
+		fetchSpy = mockFetchResponse({ url: 'https://linear.app/buriedsignals/issue/CJ-1' });
+		vi.stubGlobal('fetch', fetchSpy);
+
+		await submitFeedback({
+			title: 'Support button test',
+			type: 'bug',
+			description: 'Regression coverage'
+		});
+
+		expect(fetchSpy).toHaveBeenCalledWith(
+			'/api/feedback',
+			expect.objectContaining({
+				method: 'POST',
+				headers: expect.objectContaining({ 'Content-Type': 'application/json' })
+			})
+		);
 	});
 });
 
