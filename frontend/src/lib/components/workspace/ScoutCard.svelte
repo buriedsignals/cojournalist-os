@@ -34,7 +34,6 @@
 
 	$: locDisplay = locationDisplay(scout.location);
 	$: topicTags = (scout.topic || '').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 3);
-	$: descriptionText = scout.description || scout.criteria || null;
 
 	function timeSince(iso: string | null | undefined): string | null {
 		if (!iso) return null;
@@ -181,11 +180,6 @@
 				</span>
 			</div>
 		{/if}
-		{#if descriptionText}
-			<div class="scout-meta-item scout-description-item">
-				<span class="scout-meta-text scout-meta-text-description" title={descriptionText}>{descriptionText}</span>
-			</div>
-		{/if}
 		{#if normalizedType === 'web' && scout.url}
 			<div class="scout-meta-item scout-url">
 				<Globe size={14} />
@@ -221,7 +215,7 @@
 	.scout-card {
 		padding: 0.875rem 1.125rem;
 		cursor: pointer;
-		min-height: 180px;
+		min-height: 152px;
 	}
 
 	.scout-card-name {
@@ -254,10 +248,6 @@
 	.scout-meta-item :global(svg) {
 		flex: 0 0 auto;
 		margin-top: 0.125rem;
-	}
-
-	.scout-description-item {
-		display: block;
 	}
 
 	.scout-topic-item {
@@ -299,17 +289,6 @@
 	.scout-meta-text {
 		min-width: 0;
 		overflow: hidden;
-	}
-
-	.scout-meta-text-description {
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		text-overflow: ellipsis;
-	}
-
-	.scout-meta-text-description {
-		-webkit-line-clamp: 3;
-		line-clamp: 3;
 	}
 
 	.scout-url {
