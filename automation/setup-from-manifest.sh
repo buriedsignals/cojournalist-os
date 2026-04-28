@@ -22,7 +22,6 @@ need() {
   fi
 }
 jqv() { jq -r "$1 // empty" "$MANIFEST"; }
-sql_quote() { printf "%s" "$1" | sed "s/'/''/g"; }
 
 need jq
 need git
@@ -189,22 +188,23 @@ seed_signup_allowlist() {
     warn "No Supabase project ref; seed signup allowlist manually."
     return
   fi
-  SQL="truncate table public.signup_email_allowlist;
-insert into public.signup_email_allowlist (kind, value, reason)
-values ('email', lower('$(sql_quote "$ADMIN_EMAIL")'), 'initial admin')
-on conflict (kind, value) do update set reason = excluded.reason;
-"
+  if [ ! -x "automation/adopt-signup-allowlist.sh" ]; then
+    warn "automation/adopt-signup-allowlist.sh not found; seed signup allowlist manually."
+    return
+  fi
+
   IFS=',' read -r -a domains <<< "$SIGNUP_DOMAINS"
   for domain in "${domains[@]}"; do
     clean="$(printf '%s' "$domain" | tr '[:upper:]' '[:lower:]' | sed 's/^@//')"
     if [ -n "$clean" ]; then
-      SQL="${SQL}
-insert into public.signup_email_allowlist (kind, value, reason)
-values ('domain', '$(sql_quote "$clean")', 'newsroom signup domain')
-on conflict (kind, value) do update set reason = excluded.reason;"
+      SUPABASE_URL="$SUPABASE_URL" \
+      SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_KEY" \
+        automation/adopt-signup-allowlist.sh \
+          --admin "$ADMIN_EMAIL" \
+          --domain "$clean" \
+          --project-ref "$SUPABASE_PROJECT_REF"
     fi
   done
-  $SUPABASE_CLI db execute --sql "$SQL"
 }
 
 set_supabase_secrets() {

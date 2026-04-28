@@ -79,8 +79,8 @@ The user needs:
    npm run build`, then push the static build to the chosen host.
 8. **Install the sync workflow** — copy `automation/sync-upstream.yml` into
    `.github/workflows/` in the user's fork so upstream releases land as PRs.
-   Optionally set `RENDER_DEPLOY_HOOK`, `SUPABASE_PROJECT_REF`, and
-   `SUPABASE_ACCESS_TOKEN` so merges auto-apply migrations and redeploy.
+   The workflow reports migrations and configured secrets; operators apply
+   migrations and deploy Edge Functions after reviewing the PR.
 9. **Verify** — hit the Supabase functions health endpoint, then the frontend
    URL. Create the first user account.
 
@@ -113,6 +113,8 @@ The user needs:
 | `automation/setup-from-manifest.sh` | Manifest-driven bootstrap script |
 | `automation/setup.sh` | Legacy interactive bootstrap script |
 | `automation/sync-upstream.yml` | GitHub Action for upstream sync |
+| `automation/selfhost-doctor.sh` | Existing-install preflight |
+| `automation/adopt-signup-allowlist.sh` | Moves local signup policy into the upstream allowlist |
 | `deploy/SETUP.md` | Deployment-specific reference |
 | `supabase/` | Migrations + Edge Functions the skill will deploy |
 | `frontend/` | SvelteKit app — requires Node 22 for `npm ci` + `npm run build` |

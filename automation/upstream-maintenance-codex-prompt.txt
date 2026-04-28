@@ -22,6 +22,8 @@ Please do this:
    - If the current directory is not a Git worktree, search one level down
      for a nested checkout and continue there. Do not initialize a new repo
      over an existing deployment directory.
+   - If `automation/selfhost-doctor.sh` exists, run it before merging and
+     treat unresolved conflicts as blockers.
 
 2. Prepare upstream.
    - If there is no `upstream` remote, add:
@@ -42,6 +44,10 @@ Please do this:
    - Merge `upstream/master` into the branch.
    - Resolve conflicts conservatively.
    - Never replace local secrets or deployment-specific env files with upstream defaults.
+   - If `supabase/config.toml` has a local signup hook, do not replace it
+     blindly. Use `automation/adopt-signup-allowlist.sh --domain <domain>
+     --admin <email>` when the operator provides the newsroom domain/admin,
+     then switch to `hook_restrict_signup_by_allowlist`.
    - If migrations changed, note them clearly.
 
 5. Install or refresh the weekly upstream sync workflow.

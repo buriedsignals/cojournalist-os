@@ -157,6 +157,15 @@ scripts/dev/browser-smoke.sh oss-demo
 
 The smoke script uses the current Chrome session through `browser-harness`. It must not type credentials. It opens the workspace, clicks `New Scout`, opens Page/Beat/Social/Civic panels, closes Agents/Preferences, and fails on console errors containing `void 0 is not a function`.
 
+### Supabase test discipline
+
+Keep Supabase integration tests small and direct. Do not build fixture-heavy local Supabase environments just to satisfy one env-gated test.
+
+- For valuable function tests that need real Supabase services, use the local CLI stack and source `supabase status -o env` for `API_URL`, anon/publishable key, and service-role key.
+- Runtime smoke tests must be explicitly gated (for example `COJO_SELFHOST_RUNTIME_SMOKE=1`) and guarded against accidental production targets unless the test deliberately opts into remote.
+- Prefer local-only auth/API/database checks over external scrape, LLM, email, or Apify calls in CI.
+- If a test cannot run, state the exact missing service or env and either wire it from the CLI or remove the test. Avoid vague "needs SUPABASE_URL/API_URL" notes.
+
 ---
 
 AI-powered local news monitoring platform. Users create "scouts" that monitor websites, local news, or search queries on schedules, receiving email notifications when criteria are met. Scouts can be scoped by **location** (geo-targeted) or **topic** (keyword-based), or both.

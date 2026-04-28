@@ -8,6 +8,7 @@
 	let mounted = false;
 	let featureListEl: HTMLElement;
 	const isSupabaseDeployment = import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase';
+	const selfHostLoginNote = (import.meta.env.PUBLIC_SELF_HOST_LOGIN_NOTE ?? '').trim();
 	const showSupabaseAuth = () =>
 		isSupabaseDeployment && !(false || false);
 
@@ -148,7 +149,9 @@
 										{isSignup ? 'Set up your admin account' : 'Sign in to your account'}
 									{/if}
 								</p>
-								{#if IS_LOCAL_DEMO_MODE}
+								{#if selfHostLoginNote}
+									<p class="auth-mode-note">{selfHostLoginNote}</p>
+								{:else if IS_LOCAL_DEMO_MODE}
 									<p class="auth-mode-note">Local demo workspace. Example scouts stay local and never hit hosted auth.</p>
 								{/if}
 

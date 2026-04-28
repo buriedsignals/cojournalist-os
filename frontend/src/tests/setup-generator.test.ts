@@ -117,6 +117,7 @@ describe('setup generator', () => {
 		expect(script).toContain('automation/setup-from-manifest.sh');
 		expect(prompt).toContain('Do not ask me to paste secrets into chat.');
 		expect(prompt).toContain('Install the upstream sync workflow by default');
+		expect(prompt).toContain('maintenance reporting');
 		expect(onboarding).toContain('https://newsroomref.supabase.co/functions/v1');
 		expect(onboarding).toContain('If you use ChatGPT in the browser');
 		expect(onboarding).toContain('click Agents');

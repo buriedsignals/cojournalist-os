@@ -7,15 +7,30 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      SYNC_BRANCH: cojournalist/sync-upstream
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout fork
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Verify GitHub CLI
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "::error::GitHub CLI is required to open the upstream sync PR."
+            exit 1
+          fi
+          if ! gh auth status >/dev/null 2>&1; then
+            echo "::error::GitHub CLI is not authenticated. Ensure GITHUB_TOKEN is available to this workflow."
+            exit 1
+          fi
 
       - name: Configure git
         run: |
@@ -27,59 +42,121 @@ jobs:
           git remote add upstream https://github.com/buriedsignals/cojournalist-os.git || true
           git fetch upstream master
 
-      - name: Detect new migrations
-        id: migrations
+      - name: Inspect upstream changes
+        id: inspect
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
-          NEW_MIGRATIONS=$(git diff --name-only HEAD upstream/master -- supabase/migrations/ | sort)
+          UPSTREAM_COMMIT="$(git rev-parse upstream/master)"
+          NEW_MIGRATIONS="$(git diff --name-only HEAD upstream/master -- supabase/migrations/ | sort)"
+
+          {
+            echo "upstream_commit=$UPSTREAM_COMMIT"
+            echo "migration_files<<EOF"
+            echo "$NEW_MIGRATIONS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
           if [ -n "$NEW_MIGRATIONS" ]; then
             echo "has_new_migrations=true" >> "$GITHUB_OUTPUT"
-            echo "migration_files<<EOF" >> "$GITHUB_OUTPUT"
-            echo "$NEW_MIGRATIONS" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
           else
             echo "has_new_migrations=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Merge upstream
-        run: git merge upstream/master --no-edit -m "sync: merge upstream $(date -u +%Y-%m-%d)"
-
-      - name: Push merged changes
-        run: git push origin master
-
-      - name: Apply new Supabase migrations
-        if: steps.migrations.outputs.has_new_migrations == 'true'
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-        run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
-            echo "::warning::SUPABASE_ACCESS_TOKEN or SUPABASE_PROJECT_REF not set. Apply these migrations manually:"
-            echo "${{ steps.migrations.outputs.migration_files }}"
-            exit 0
+          if [ -n "$SUPABASE_PROJECT_REF" ]; then
+            echo "has_supabase_project_ref=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_supabase_project_ref=false" >> "$GITHUB_OUTPUT"
           fi
 
-          npm install -g supabase
-          supabase link --project-ref "$SUPABASE_PROJECT_REF"
-          supabase db push
-
-      - name: Trigger optional Render redeploy
-        if: success()
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-        run: |
-          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK")
-            if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-              echo "::warning::Render deploy hook returned HTTP $HTTP_CODE"
-            fi
+          if [ -n "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "has_supabase_access_token=true" >> "$GITHUB_OUTPUT"
           else
-            echo "No RENDER_DEPLOY_HOOK configured. Skip optional FastAPI/frontend redeploy."
+            echo "has_supabase_access_token=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "has_render_deploy_hook=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_render_deploy_hook=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Merge upstream into sync branch
+        id: merge
+        run: |
+          BASE_COMMIT="$(git rev-parse HEAD)"
+          git checkout -B "$SYNC_BRANCH"
+          git merge upstream/master --no-edit -m "sync: merge upstream $(date -u +%Y-%m-%d)"
+          HEAD_COMMIT="$(git rev-parse HEAD)"
+
+          echo "base_commit=$BASE_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "head_commit=$HEAD_COMMIT" >> "$GITHUB_OUTPUT"
+
+          if [ "$BASE_COMMIT" = "$HEAD_COMMIT" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push sync branch
+        if: steps.merge.outputs.has_changes == 'true'
+        run: git push --force-with-lease origin "$SYNC_BRANCH"
+
+      - name: Write PR body
+        if: steps.merge.outputs.has_changes == 'true'
+        run: |
+          cat > /tmp/sync-upstream-pr.md <<EOF
+          ## Upstream Sync
+
+          - Upstream branch: \`master\`
+          - Upstream commit: \`${{ steps.inspect.outputs.upstream_commit }}\`
+          - Sync branch: \`$SYNC_BRANCH\`
+
+          ## Migrations
+
+          New migration files:
+
+          \`\`\`
+          ${{ steps.inspect.outputs.migration_files }}
+          \`\`\`
+
+          Apply migrations and deploy Edge Functions manually after reviewing this PR. See \`docs/oss/automation.md\` for the existing-install command sequence.
+
+          ## Deployment Secrets
+
+          - SUPABASE_PROJECT_REF configured: ${{ steps.inspect.outputs.has_supabase_project_ref }}
+          - SUPABASE_ACCESS_TOKEN configured: ${{ steps.inspect.outputs.has_supabase_access_token }}
+          - RENDER_DEPLOY_HOOK configured: ${{ steps.inspect.outputs.has_render_deploy_hook }}
+          EOF
+
+      - name: Open or update upstream sync PR
+        if: steps.merge.outputs.has_changes == 'true'
+        run: |
+          PR_NUMBER="$(gh pr list --head "$SYNC_BRANCH" --base master --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr edit "$PR_NUMBER" \
+              --title "sync: merge upstream coJournalist OSS" \
+              --body-file /tmp/sync-upstream-pr.md
+          else
+            gh pr create \
+              --base master \
+              --head "$SYNC_BRANCH" \
+              --title "sync: merge upstream coJournalist OSS" \
+              --body-file /tmp/sync-upstream-pr.md
           fi
 
       - name: Summary
         run: |
-          echo "## Sync Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Sync Upstream" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Upstream branch: master" >> "$GITHUB_STEP_SUMMARY"
-          echo "- New migrations: ${{ steps.migrations.outputs.has_new_migrations }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Merged at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Upstream commit: ${{ steps.inspect.outputs.upstream_commit }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Changes found: ${{ steps.merge.outputs.has_changes }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- New migrations: ${{ steps.inspect.outputs.has_new_migrations }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.merge.outputs.has_changes }}" = "true" ]; then
+            echo "- PR branch: $SYNC_BRANCH" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- No PR opened; fork is already up to date." >> "$GITHUB_STEP_SUMMARY"
+          fi

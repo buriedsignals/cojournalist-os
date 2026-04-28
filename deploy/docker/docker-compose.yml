@@ -149,6 +149,7 @@ services:
         PUBLIC_SUPABASE_URL: http://localhost:8000
         PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
         PUBLIC_MAPTILER_API_KEY: ${PUBLIC_MAPTILER_API_KEY:-}
+        PUBLIC_SELF_HOST_LOGIN_NOTE: ${PUBLIC_SELF_HOST_LOGIN_NOTE:-}
     depends_on:
       - backend
     ports:

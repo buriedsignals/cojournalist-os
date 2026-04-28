@@ -101,10 +101,12 @@ PUBLIC_DEPLOYMENT_TARGET=supabase
 PUBLIC_SUPABASE_URL=...
 PUBLIC_SUPABASE_ANON_KEY=...
 PUBLIC_MAPTILER_API_KEY=...
+PUBLIC_SELF_HOST_LOGIN_NOTE=Use your @example.org newsroom email.
 EOF
 ```
 
 The OSS frontend defaults to `PUBLIC_SUPABASE_URL/functions/v1`, so you do not need to point it at same-origin `/api`.
+`PUBLIC_SELF_HOST_LOGIN_NOTE` is optional; leave it blank to keep the default login copy.
 
 ### 6. Build and deploy the frontend
 
@@ -155,9 +157,17 @@ git commit -m "ci: install sync-upstream"
 git push origin master
 ```
 
-The workflow merges `upstream/master` into your fork and can optionally:
-- run `supabase db push` if `SUPABASE_PROJECT_REF` and `SUPABASE_ACCESS_TOKEN` are set
-- trigger a Render redeploy if `RENDER_DEPLOY_HOOK` is set
+The workflow opens or updates a PR from `cojournalist/sync-upstream` to `master`.
+It lists changed migrations and configured deployment secrets in the PR body,
+but it does not apply migrations or redeploy services.
+
+After reviewing and merging an upstream sync PR, run:
+
+```bash
+automation/selfhost-doctor.sh
+supabase db push
+supabase functions deploy --all
+```
 
 ## Optional FastAPI Add-on
 

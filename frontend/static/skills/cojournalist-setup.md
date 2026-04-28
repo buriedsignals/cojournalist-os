@@ -92,12 +92,17 @@ When a newsroom asks for current OSS updates, use
 
 Before merging upstream:
 
+- run `automation/selfhost-doctor.sh` from the checkout or parent deployment
+  directory
 - if the starting directory is not a Git worktree, look for a nested checkout
   such as `cojournalist-os/`
 - set a repository-local Git identity if `user.name` or `user.email` is missing
 - keep local `.env`, `frontend/.env.production`, Supabase config, and local
   migrations out of the upstream merge commit unless the operator explicitly
   asks to commit them
+- if `supabase/config.toml` uses a local signup hook, run
+  `automation/adopt-signup-allowlist.sh --domain <domain> --admin <email>`
+  before switching to the upstream allowlist hook
 - do not run `supabase db push` while untracked or locally modified migration
   files exist; list them and ask the operator to review
 - if `gh` or GitHub HTTPS credentials are missing, prepare the branch locally

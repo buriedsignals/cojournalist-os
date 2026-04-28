@@ -61,6 +61,9 @@ services:
       # Geocoding
       - key: PUBLIC_MAPTILER_API_KEY
         sync: false
+      # Optional copy shown below the self-host login subtitle
+      - key: PUBLIC_SELF_HOST_LOGIN_NOTE
+        sync: false
 
       # Internal service key for optional FastAPI integration
       - key: INTERNAL_SERVICE_KEY

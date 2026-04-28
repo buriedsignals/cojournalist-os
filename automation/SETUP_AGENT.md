@@ -76,12 +76,11 @@ supabase secrets set \
 
 6. Seed the signup allowlist created by the migrations:
 
-```sql
-TRUNCATE TABLE public.signup_email_allowlist;
-INSERT INTO public.signup_email_allowlist (kind, value, reason)
-VALUES
-  ('email', lower('<ADMIN_EMAIL>'), 'initial admin'),
-  ('domain', lower('<ALLOWED_DOMAIN>'), 'newsroom signup domain');
+```bash
+automation/adopt-signup-allowlist.sh \
+  --admin <ADMIN_EMAIL> \
+  --domain <ALLOWED_DOMAIN> \
+  --project-ref <project-ref>
 ```
 
 7. Write the project `.env` with the Supabase and frontend values:
@@ -90,6 +89,7 @@ VALUES
 - `PUBLIC_SUPABASE_URL=<SUPABASE_URL>`
 - `PUBLIC_SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>`
 - `PUBLIC_MAPTILER_API_KEY=<PUBLIC_MAPTILER_API_KEY>`
+- optional: `PUBLIC_SELF_HOST_LOGIN_NOTE=Use your @example.org newsroom email.`
 
 8. Build and deploy the frontend:
 
@@ -111,11 +111,14 @@ git commit -m "ci: install sync-upstream GitHub Action"
 git push origin master
 ```
 
-Tell the operator to set these GitHub secrets so future maintenance can run
-without manual intervention:
+Tell the operator to set these GitHub secrets so future maintenance can report
+deployment readiness without secret values in chat:
 - `SUPABASE_PROJECT_REF`
 - `SUPABASE_ACCESS_TOKEN`
 - optional: `RENDER_DEPLOY_HOOK`
+
+The sync workflow opens an upstream-sync PR and reports migrations. It does not
+run `supabase db push` or deploy functions automatically.
 
 ## Guardrails
 
@@ -126,6 +129,9 @@ without manual intervention:
 - Install the sync workflow by default and push it to `origin master`.
 - Do not ask the user to paste secrets into AI chat. Prefer the generated
   `cojournalist-setup.json` manifest and `automation/setup-from-manifest.sh`.
+- For existing deployments, run `automation/selfhost-doctor.sh` before merging
+  upstream. Do not re-clone, overwrite `.env`, or accept upstream
+  `supabase/config.toml` over a local auth hook without adopting the allowlist.
 
 ## Verification
 

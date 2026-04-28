@@ -178,7 +178,7 @@ export function buildAgentManifestPrompt(manifestPath = 'cojournalist-setup.json
 		'Do not ask me to paste secrets into chat.',
 		`Read ${manifestPath} from disk, validate that it is version 1, and run automation/setup-from-manifest.sh with that file.`,
 		'Install the upstream sync workflow by default so this fork can receive coJournalist OSS maintenance updates.',
-		'After setup, verify .github/workflows/sync-upstream.yml exists and tell the operator which GitHub secrets are still needed for automatic migrations.',
+		'After setup, verify .github/workflows/sync-upstream.yml exists and tell the operator which GitHub secrets are available for maintenance reporting.',
 		'Use the Supabase project URL, API base, MCP URL, and skill URL from the manifest-generated deployment only.',
 		'Do not connect CLI, MCP, or REST clients to cojournalist.ai unless the manifest explicitly says this is the hosted SaaS.'
 	].join('\n');

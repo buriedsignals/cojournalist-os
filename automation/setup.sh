@@ -43,7 +43,6 @@ log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
-sql_escape() { printf "%s" "$1" | sed "s/'/''/g"; }
 
 prompt_required() {
     local var_name="$1"
@@ -261,21 +260,18 @@ setup_supabase_managed() {
 
     # Seed signup allowlist for the before-user-created auth hook.
     log_info "Seeding signup allowlist..."
-    SQL="TRUNCATE TABLE public.signup_email_allowlist;
-INSERT INTO public.signup_email_allowlist (kind, value, reason)
-VALUES ('email', lower('$(sql_escape "$ADMIN_EMAILS")'), 'initial admin')
-ON CONFLICT (kind, value) DO UPDATE SET reason = excluded.reason;"
     IFS=',' read -r -a allowed_domains <<< "$SIGNUP_ALLOWED_DOMAINS"
     for domain in "${allowed_domains[@]}"; do
         clean_domain="$(printf "%s" "$domain" | tr '[:upper:]' '[:lower:]' | sed 's/^@//' | xargs)"
         if [ -n "$clean_domain" ]; then
-            SQL="${SQL}
-INSERT INTO public.signup_email_allowlist (kind, value, reason)
-VALUES ('domain', '$(sql_escape "$clean_domain")', 'newsroom signup domain')
-ON CONFLICT (kind, value) DO UPDATE SET reason = excluded.reason;"
+            SUPABASE_URL="$SUPABASE_URL" \
+            SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_KEY" \
+                automation/adopt-signup-allowlist.sh \
+                    --admin "$ADMIN_EMAILS" \
+                    --domain "$clean_domain" \
+                    --project-ref "$SUPABASE_PROJECT_REF"
         fi
     done
-    $SUPABASE_CLI db execute --sql "$SQL"
     log_success "Signup allowlist seeded"
 
     # Deploy Edge Functions
@@ -486,10 +482,11 @@ install_sync_action() {
     # Copy the sync action
     cp automation/sync-upstream.yml .github/workflows/sync-upstream.yml
 
-    # If deploying to Render, ask for deploy hook URL
+    # If deploying to Render, optionally record the deploy hook as a secret so
+    # upstream sync PRs can report deployment readiness without printing values.
     if [ "${deploy_choice:-}" = "1" ]; then
         echo ""
-        echo "  To enable automatic Render deploys on sync:"
+        echo "  Optional: record the Render deploy hook for upstream sync PR reporting."
         echo "  Go to Render Dashboard -> Your Service -> Settings -> Deploy Hook"
         echo ""
         prompt_optional RENDER_DEPLOY_HOOK "Render deploy hook URL"
