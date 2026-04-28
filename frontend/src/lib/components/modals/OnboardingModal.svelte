@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import LocationAutocomplete from '$lib/components/ui/LocationAutocomplete.svelte';
 	import { SUPPORTED_LANGUAGES, isSupported } from '$lib/i18n/constants';
 	import * as m from '$lib/paraglide/messages';
@@ -11,10 +11,7 @@
 	export let saving = false;
 	export let errorMessage: string | null = null;
 	export let initialTimezone: string | null = null;
-
-	const dispatch = createEventDispatcher<{
-		save: { timezone: string; location: GeocodedLocation | null; preferred_language: string };
-	}>();
+	export let onSave: (detail: { timezone: string; location: GeocodedLocation | null; preferred_language: string }) => void = () => {};
 
 	let detectedTimezone: string | null = null;
 	let selectedTimezone: string = initialTimezone ?? '';
@@ -46,8 +43,8 @@
 		selectedTimezone = initialTimezone;
 	}
 
-	function handleLocationSelect(event: CustomEvent<GeocodedLocation>) {
-		selectedLocation = event.detail;
+	function handleLocationSelect(location: GeocodedLocation) {
+		selectedLocation = location;
 	}
 
 	function handleLocationClear() {
@@ -57,7 +54,7 @@
 	function handleSubmit(event: Event) {
 		event.preventDefault();
 		if (!selectedTimezone) return;
-		dispatch('save', { timezone: selectedTimezone, location: selectedLocation, preferred_language: selectedLanguage });
+		onSave({ timezone: selectedTimezone, location: selectedLocation, preferred_language: selectedLanguage });
 	}
 </script>
 
@@ -114,8 +111,8 @@
 				<LocationAutocomplete
 					{selectedLocation}
 					placeholder={m.onboarding_locationPlaceholder()}
-					on:select={handleLocationSelect}
-					on:clear={handleLocationClear}
+					onSelect={handleLocationSelect}
+					onClear={handleLocationClear}
 				/>
 			</div>
 

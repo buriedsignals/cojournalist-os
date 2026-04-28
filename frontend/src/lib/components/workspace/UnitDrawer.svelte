@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { X, ExternalLink, Trash2 } from 'lucide-svelte';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
@@ -14,15 +13,12 @@
 	export let actionLoading: 'verify' | 'reject' | null = null;
 	export let confirmingDelete = false;
 	export let deleting = false;
-
-	const dispatch = createEventDispatcher<{
-		close: void;
-		verify: { id: string };
-		reject: { id: string };
-		requestDelete: { id: string };
-		cancelDelete: { id: string };
-		confirmDelete: { id: string };
-	}>();
+	export let onClose: () => void = () => {};
+	export let onVerify: (id: string) => void = () => {};
+	export let onReject: (id: string) => void = () => {};
+	export let onRequestDelete: (id: string) => void = () => {};
+	export let onCancelDelete: (id: string) => void = () => {};
+	export let onConfirmDelete: (id: string) => void = () => {};
 
 	let activeTab: DrawerTab = DEFAULT_TAB;
 
@@ -103,32 +99,32 @@
 	}
 
 	function handleClose() {
-		dispatch('close');
+		onClose();
 	}
 
 	function handleVerify() {
 		if (!unit || actionLoading) return;
-		dispatch('verify', { id: unit.id });
+		onVerify(unit.id);
 	}
 
 	function handleReject() {
 		if (!unit || actionLoading) return;
-		dispatch('reject', { id: unit.id });
+		onReject(unit.id);
 	}
 
 	function handleRequestDelete() {
 		if (!unit || actionLoading || deleting) return;
-		dispatch('requestDelete', { id: unit.id });
+		onRequestDelete(unit.id);
 	}
 
 	function handleCancelDelete() {
 		if (!unit || deleting) return;
-		dispatch('cancelDelete', { id: unit.id });
+		onCancelDelete(unit.id);
 	}
 
 	function handleConfirmDelete() {
 		if (!unit || deleting) return;
-		dispatch('confirmDelete', { id: unit.id });
+		onConfirmDelete(unit.id);
 	}
 </script>
 

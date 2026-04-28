@@ -60,6 +60,17 @@ cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
+### Full-stack launchers
+
+```bash
+./start.sh saas      # Docker backend + Docker frontend on http://localhost:5173
+./start.sh oss-demo  # local Supabase demo frontend on http://localhost:4173
+```
+
+`./start.sh saas` is the Docker full-stack path. The canonical private-repo
+daily workflow remains `cd frontend && npm run dev` so local MuckRock auth keeps
+the documented localhost broker contract.
+
 ### Frontend
 
 ```bash
@@ -77,7 +88,7 @@ The private repo now has two explicit local auth modes:
 - `npm run dev`: local frontend + local FastAPI auth broker, but authenticated against the hosted Supabase project so localhost shows your real account data before deploy.
 - `npm run dev:hosted-broker`: diagnostic mode that keeps the frontend local but uses the already-deployed broker path.
 - `npm run dev:supabase-local-demo`: disposable local Supabase email/password login for checking the onboarding/demo UI without touching hosted auth.
-- Local demo mode keeps the example workspace local-only. Demo unit verify/delete interactions are simulated in-memory so the signup/demo flow still behaves like production onboarding, but scout creation/scheduling remains disabled.
+- Local demo mode keeps the example workspace local-only. Demo unit verify/delete interactions are simulated in-memory so the signup/demo flow still behaves like production onboarding, while the same workspace controls remain visible for UI smoke testing.
 - Local MuckRock dev is pinned to `http://localhost:5173/auth/callback`, and Vite proxies `/api/auth/*` to the local FastAPI process on `127.0.0.1:8000` so the browser never has to round-trip through Render just to finish login.
 
 The raw/manual path still exists for OSS-style development. Set the following in
@@ -193,6 +204,24 @@ Adding a new scout type touches many files. The checklist:
 - Add Pydantic schemas in `backend/app/schemas/`
 - Add the execute endpoint mapping in `supabase/functions/execute-scout/index.ts`
 - Add frontend components in `frontend/src/lib/components/`
+
+---
+
+## Scout Topics Are Tags
+
+Scout topics are semantically independent tags. The UI stores them as one
+comma-separated string when creating or updating a scout, but display, filtering,
+counts, and suggestions must split that string into individual tags.
+
+Use `frontend/src/lib/utils/topics.ts` for this logic:
+
+- `parseTopicTags()` for display and form chips
+- `collectTopicCounts()` for filter dropdowns and suggestions
+- `topicMatches()` for workspace filtering
+
+Do not compare `scout.topic` as one opaque string in UI filtering code. For
+example, `housing, real estate, Pontresina` must filter under `housing`,
+`real estate`, and `Pontresina` independently.
 
 ---
 

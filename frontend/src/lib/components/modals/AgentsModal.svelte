@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { X, Eye, Copy, Check, Code2, Download } from 'lucide-svelte';
 	import AgentSelect from '$lib/components/ui/AgentSelect.svelte';
 	import AgentSetup from '$lib/components/ui/AgentSetup.svelte';
@@ -15,6 +15,7 @@
 	export let open = false;
 	/** Optional starting view — 'api' jumps straight to the REST panel. */
 	export let initialView: 'agents' | 'api' = 'agents';
+	export let onClose: () => void = () => {};
 
 	const STORAGE_KEY = 'cojo:lastAgent';
 	const PATH_STORAGE_KEY = 'cojo:lastPath';
@@ -39,10 +40,8 @@
 	// Prompt adapts to both the agent (skill save location) and path (CLI vs MCP instructions).
 	$: skillPrompt = getSkillPrompt(agent, path, agentTarget);
 
-	const dispatch = createEventDispatcher<{ close: void }>();
-
 	function close() {
-		dispatch('close');
+		onClose();
 	}
 
 	function handleBackdrop(event: MouseEvent) {
@@ -55,8 +54,8 @@
 		if (event.key === 'Escape') close();
 	}
 
-	function handleAgentChange(e: CustomEvent<AgentSlug>) {
-		agent = e.detail;
+	function handleAgentChange(next: AgentSlug) {
+		agent = next;
 		try {
 			localStorage.setItem(STORAGE_KEY, agent);
 		} catch {
@@ -140,7 +139,7 @@
 			<div class="agents-body">
 				<div class="toolbar">
 					{#if view === 'agents'}
-						<AgentSelect value={agent} on:change={handleAgentChange} />
+						<AgentSelect value={agent} onChange={handleAgentChange} />
 					{:else}
 						<button
 							type="button"

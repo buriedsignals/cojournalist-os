@@ -1,14 +1,13 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { ChevronDown } from 'lucide-svelte';
 	import { AGENTS, type AgentSlug } from '$lib/utils/agent-icons';
 
 	export let value: AgentSlug = 'claude-code';
+	export let onChange: (value: AgentSlug) => void = () => {};
 
 	let open = false;
 	let wrap: HTMLDivElement;
-
-	const dispatch = createEventDispatcher<{ change: AgentSlug }>();
 
 	$: current = AGENTS.find((a) => a.slug === value) ?? AGENTS[0];
 
@@ -16,7 +15,7 @@
 		open = false;
 		if (slug !== value) {
 			value = slug;
-			dispatch('change', slug);
+			onChange(slug);
 		}
 	}
 

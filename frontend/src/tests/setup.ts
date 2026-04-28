@@ -31,3 +31,12 @@ if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localSto
 		configurable: true
 	});
 }
+
+if (typeof Element !== 'undefined' && typeof Element.prototype.animate !== 'function') {
+	Element.prototype.animate = function () {
+		return {
+			cancel: () => {},
+			finished: Promise.resolve()
+		} as unknown as Animation;
+	};
+}

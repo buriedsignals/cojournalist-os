@@ -1,21 +1,18 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { MapPin, X, Loader2, Clock, Globe } from 'lucide-svelte';
 	import { env } from '$env/dynamic/public';
 	import type { GeocodedLocation } from '$lib/types';
 	import { getRecentLocations, addRecentLocation } from '$lib/stores/recent-locations';
 	import * as m from '$lib/paraglide/messages';
 
-	const dispatch = createEventDispatcher<{
-		select: GeocodedLocation;
-		clear: void;
-		global: void;
-	}>();
-
 	export let selectedLocation: GeocodedLocation | null = null;
 	export let placeholder: string = 'Search for a city or country...';
 	export let showGlobalOption: boolean = false;
 	export let isGlobal: boolean = false;
+	export let onSelect: (location: GeocodedLocation) => void = () => {};
+	export let onClear: () => void = () => {};
+	export let onGlobal: () => void = () => {};
 
 	let searchQuery = '';
 	let suggestions: MapTilerFeature[] = [];
@@ -158,7 +155,7 @@
 		showDropdown = false;
 		addRecentLocation(location);
 		recentLocations = getRecentLocations();
-		dispatch('select', location);
+		onSelect(location);
 	}
 
 	/**
@@ -175,7 +172,7 @@
 		searchQuery = '';
 		suggestions = [];
 		showDropdown = false;
-		dispatch('clear');
+		onClear();
 	}
 
 	function selectGlobal() {
@@ -184,12 +181,12 @@
 		suggestions = [];
 		showDropdown = false;
 		isGlobal = true;
-		dispatch('global');
+		onGlobal();
 	}
 
 	function clearGlobal() {
 		isGlobal = false;
-		dispatch('clear');
+		onClear();
 	}
 
 	function handleClickOutside(event: MouseEvent) {

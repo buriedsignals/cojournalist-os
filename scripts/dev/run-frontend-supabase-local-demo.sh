@@ -3,6 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/frontend"
+FRONTEND_HOST="${FRONTEND_HOST:-127.0.0.1}"
+FRONTEND_PORT="${FRONTEND_PORT:-4173}"
+FRONTEND_STRICT_PORT="${FRONTEND_STRICT_PORT:-true}"
 
 cd "$ROOT_DIR"
 
@@ -31,4 +34,9 @@ export PUBLIC_SUPABASE_URL="$LOCAL_SUPABASE_URL"
 export PUBLIC_SUPABASE_ANON_KEY="$LOCAL_SUPABASE_PUBLISHABLE_KEY"
 export VITE_API_URL="${LOCAL_SUPABASE_URL}/functions/v1"
 
-exec npm run dev:raw -- --host 127.0.0.1 --port 4173 "$@"
+vite_args=(--host "$FRONTEND_HOST" --port "$FRONTEND_PORT")
+if [[ "$FRONTEND_STRICT_PORT" == "true" ]]; then
+	vite_args+=(--strictPort)
+fi
+
+exec npm run dev:raw -- "${vite_args[@]}" "$@"

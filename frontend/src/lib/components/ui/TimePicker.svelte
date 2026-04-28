@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Clock } from 'lucide-svelte';
-	import { createEventDispatcher } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	export let hour = 12;
@@ -9,19 +8,6 @@
 	export let timezoneLabel = 'your timezone';
 	export let showLabel = true;
 
-	const dispatch = createEventDispatcher<{ change: { hour: number; minute: number; period: 'AM' | 'PM'; time24h: string } }>();
-
-	// Computed 24h time (null-safe)
-	$: time24h = (() => {
-		let h = hour ?? 12;
-		const m = minute ?? 0;
-		if (period === 'AM' && h === 12) h = 0;
-		else if (period === 'PM' && h !== 12) h += 12;
-		return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-	})();
-
-	// Dispatch change event when values change
-	$: dispatch('change', { hour, minute: minute ?? 0, period, time24h });
 </script>
 
 <div class="time-picker">

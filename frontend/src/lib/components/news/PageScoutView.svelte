@@ -8,9 +8,8 @@
 	import TogglePicker from '$lib/components/ui/TogglePicker.svelte';
 	import ScoutScheduleModal from '$lib/components/modals/ScoutScheduleModal.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher<{ scheduled: { scoutType: 'web' } }>();
+	export let onScheduled: (detail: { scoutType: 'web' }) => void = () => {};
 
 	// Test state
 	let url = '';
@@ -184,8 +183,8 @@
 						step1Label={m.webScout_runScraper()}
 						step1LoadingLabel={m.common_testing()}
 						step2Enabled={!!testResult}
-						on:step1={handleTestScraper}
-						on:step2={() => showScheduleModal = true}
+						onStep1={handleTestScraper}
+						onStep2={() => showScheduleModal = true}
 					/>
 				{:else}
 					<button
@@ -226,8 +225,8 @@
 	provider={detectedProvider}
 	scoutName={scoutName.trim()}
 	contentHash={contentHash}
-	on:close={() => showScheduleModal = false}
-	on:success={() => {
+	onClose={() => showScheduleModal = false}
+	onSuccess={() => {
 		url = '';
 		criteria = '';
 		criteriaMode = 'any';
@@ -237,7 +236,7 @@
 		detectedProvider = undefined;
 		contentHash = undefined;
 		showScheduleModal = false;
-		dispatch('scheduled', { scoutType: 'web' });
+		onScheduled({ scoutType: 'web' });
 	}}
 />
 

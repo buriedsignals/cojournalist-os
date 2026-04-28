@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	export let targetSelector: string;
@@ -8,8 +8,8 @@
 	export let currentStep: number;
 	export let totalSteps: number;
 	export let isLastStep = false;
-
-	const dispatch = createEventDispatcher<{ next: void; done: void }>();
+	export let onNext: () => void = () => {};
+	export let onDone: () => void = () => {};
 
 	let tooltipEl: HTMLDivElement;
 	let position = { top: 0, left: 0 };
@@ -53,9 +53,9 @@
 
 	function handleClick() {
 		if (isLastStep) {
-			dispatch('done');
+			onDone();
 		} else {
-			dispatch('next');
+			onNext();
 		}
 	}
 

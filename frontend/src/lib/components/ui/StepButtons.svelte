@@ -15,13 +15,9 @@
 	/** Optional icon component rendered before step 1 label (only when not loading) */
 	export let step1Icon: ConstructorOfATypedSvelteComponent | null = null;
 
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher<{
-		step1: void;
-		step2: void;
-		step3: void;
-	}>();
+	export let onStep1: () => void = () => {};
+	export let onStep2: () => void = () => {};
+	export let onStep3: () => void = () => {};
 
 	$: hasStep3 = step3Label !== '';
 </script>
@@ -30,7 +26,7 @@
 	<!-- Step 1 -->
 	<button
 		class="btn-primary w-full relative justify-center!"
-		on:click={() => dispatch('step1')}
+		on:click={onStep1}
 		disabled={step1Disabled}
 	>
 		<span class="step-badge absolute left-4">1</span>
@@ -53,7 +49,7 @@
 	<button
 		class="btn-secondary w-full relative justify-center! transition-all duration-300 {step2Enabled ? 'ring-2 ring-purple-500/30' : 'opacity-50'}"
 		disabled={!step2Enabled}
-		on:click={() => dispatch('step2')}
+		on:click={onStep2}
 	>
 		<span class="step-badge absolute left-4" class:step-active={step2Enabled}>2</span>
 		<span class="flex items-center gap-2">
@@ -77,7 +73,7 @@
 		<button
 			class="btn-secondary w-full relative justify-center! transition-all duration-300 {step3Enabled ? 'ring-2 ring-purple-500/30' : 'opacity-50'}"
 			disabled={!step3Enabled}
-			on:click={() => dispatch('step3')}
+			on:click={onStep3}
 		>
 			<span class="step-badge absolute left-4" class:step-active={step3Enabled}>3</span>
 			<span class="flex items-center gap-2">

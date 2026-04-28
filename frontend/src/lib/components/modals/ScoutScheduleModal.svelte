@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { X, Globe, ScanSearch, Tag, MapPin, Bell, CheckCircle, Mail, Filter, Ban, Star, Users, Landmark } from 'lucide-svelte';
 	import { fade } from 'svelte/transition';
 	import type { GeocodedLocation, RegularityType, ScoutType, ScrapeChannel, ActiveJobsResponse } from '$lib/types';
@@ -9,6 +9,7 @@
 	import LocationAutocomplete from '$lib/components/ui/LocationAutocomplete.svelte';
 	import TopicChips from '$lib/components/ui/TopicChips.svelte';
 	import { getScoutCost } from '$lib/utils/scouts';
+	import { collectTopicCounts } from '$lib/utils/topics';
 	import * as m from '$lib/paraglide/messages';
 
 	export let open = false;
@@ -37,17 +38,14 @@
 	export let root_domain: string = '';
 	export let tracked_urls: string[] = [];
 	export let initialPromises: Array<{ promise_text: string; context: string; source_url: string; source_date: string; due_date?: string; date_confidence: string; criteria_match: boolean }> = [];
+	export let onClose: () => void = () => {};
+	export let onSuccess: (detail: { name: string; scoutType: ScoutType }) => void = () => {};
 
 	// Flat cost from getScoutCost (pulse: 7). Matches the server-of-record in
 	// scout-beat-execute/index.ts:153, which ignores sourceMode/location. The
 	// prod UI used to override to 10 for pulse+niche+location, but that was
 	// cosmetic — actual decrement was always 7. We keep one source of truth.
 	$: perRunCost = getScoutCost(scoutType, scoutType === 'social' ? platform : undefined);
-
-	const dispatch = createEventDispatcher<{
-		close: void;
-		success: { name: string; scoutType: ScoutType };
-	}>();
 
 	// Form state
 	let regularity: RegularityType = scoutType === 'civic' ? 'monthly' : scoutType === 'social' ? 'weekly' : scoutType === 'pulse' ? 'daily' : 'weekly';
@@ -81,7 +79,7 @@
 		try {
 			const response: ActiveJobsResponse = await apiClient.getActiveJobs();
 			const allScouts = response.scrapers || [];
-			existingTopics = [...new Set(allScouts.filter(s => s.topic).map(s => s.topic!))].sort();
+			existingTopics = collectTopicCounts(allScouts).map(({ topic }) => topic);
 		} catch (_e) {
 			// Non-critical
 		}
@@ -297,7 +295,7 @@
 		schedulePromise.then(() => {
 			scheduleSuccess = true;
 			isSubmitting = false;
-			dispatch('success', { name: scoutName, scoutType });
+			onSuccess({ name: scoutName, scoutType });
 			authStore.refreshUser();
 		}).catch((error) => {
 			isSubmitting = false;
@@ -306,7 +304,7 @@
 	}
 
 	function handleClose() {
-		dispatch('close');
+		onClose();
 		if (scoutType !== 'web') scoutName = '';
 		errorMessage = '';
 		scheduleSuccess = false;
@@ -320,8 +318,8 @@
 		}
 	}
 
-	function handleLocationSelect(event: CustomEvent<GeocodedLocation>) {
-		selectedLocation = event.detail;
+	function handleLocationSelect(location: GeocodedLocation) {
+		selectedLocation = location;
 	}
 
 	function handleLocationClear() {
@@ -457,8 +455,8 @@
 							<span class="form-label">{m.filter_locationLabel()}</span>
 							<LocationAutocomplete
 								selectedLocation={selectedLocation}
-								on:select={handleLocationSelect}
-								on:clear={handleLocationClear}
+								onSelect={handleLocationSelect}
+								onClear={handleLocationClear}
 							/>
 						</div>
 					{/if}

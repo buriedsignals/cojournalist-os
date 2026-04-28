@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { Crosshair, Radar, Users, Landmark } from 'lucide-svelte';
 	import { authStore } from '$lib/stores/auth';
@@ -7,46 +6,40 @@
 
 	export let open = false;
 	export let sidebarCollapsed = false;
+	export let onSelect: (type: 'web' | 'pulse' | 'social' | 'civic') => void = () => {};
+	export let onClose: () => void = () => {};
 
 	$: isPro = import.meta.env.PUBLIC_DEPLOYMENT_TARGET === 'supabase' || ($authStore.user?.tier ?? 'free') !== 'free';
 
-	const dispatch = createEventDispatcher<{
-		trackPage: void;
-		beatScout: void;
-		profileScout: void;
-		civicScout: void;
-		close: void;
-	}>();
-
 	function handleTrackPage() {
-		dispatch('trackPage');
-		dispatch('close');
+		onSelect('web');
+		onClose();
 	}
 
 	function handleBeatScout() {
-		dispatch('beatScout');
-		dispatch('close');
+		onSelect('pulse');
+		onClose();
 	}
 
 	function handleProfileScout() {
-		dispatch('profileScout');
-		dispatch('close');
+		onSelect('social');
+		onClose();
 	}
 
 	function handleCivicScout() {
 		if (!isPro) {
-			dispatch('close');
+			onClose();
 			return; // unlimited in self-hosted
 			return;
 		}
-		dispatch('civicScout');
-		dispatch('close');
+		onSelect('civic');
+		onClose();
 	}
 
 	function handleClickOutside(event: MouseEvent) {
 		const target = event.target as HTMLElement;
 		if (!target.closest('.new-scout-dropdown')) {
-			dispatch('close');
+			onClose();
 		}
 	}
 </script>

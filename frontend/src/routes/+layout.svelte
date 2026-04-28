@@ -120,8 +120,8 @@ function markTimezoneVerified(userId?: string | null) {
 		};
 	});
 
-async function handleOnboardingSave(event: CustomEvent<{ timezone: string; location: GeocodedLocation | null; preferred_language: string }>) {
-	const { timezone, location, preferred_language } = event.detail;
+async function handleOnboardingSave(detail: { timezone: string; location: GeocodedLocation | null; preferred_language: string }) {
+	const { timezone, location, preferred_language } = detail;
 	timezoneSaving = true;
 	timezoneError = null;
 	const requiresInitialization = needsInitialization;
@@ -178,11 +178,11 @@ function handleVideoReady() {
 		saving={timezoneSaving}
 		errorMessage={timezoneError}
 		initialTimezone={$authStore.user?.timezone ?? null}
-		on:save={handleOnboardingSave}
+		onSave={handleOnboardingSave}
 	/>
 
 	<OnboardingVideoModal
 		open={videoModalOpen}
-		on:ready={handleVideoReady}
+		onReady={handleVideoReady}
 	/>
 {/if}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, onDestroy } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { Search } from 'lucide-svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import UnitRow from './UnitRow.svelte';
@@ -18,8 +18,15 @@
 	export let unitDeleteCandidateId: string | null = null;
 	export let deletingUnitId: string | null = null;
 	export let verifyingUnitId: string | null = null;
-
-	const dispatch = createEventDispatcher();
+	export let onFilterChange: (filter: 'needs_review' | 'all') => void = () => {};
+	export let onSearch: (query: string) => void = () => {};
+	export let onOpenUnit: (unit: Unit) => void = () => {};
+	export let onVerify: (id: string) => void = () => {};
+	export let onReject: (id: string) => void = () => {};
+	export let onRequestDelete: (id: string) => void = () => {};
+	export let onCancelDelete: (id: string) => void = () => {};
+	export let onConfirmDelete: (id: string) => void = () => {};
+	export let onLoadMore: () => void = () => {};
 
 	$: headerTitle = scopedToScout ? `${scopedToScout.name} · Inbox` : 'Inbox';
 	$: searchActive = searchQuery.trim().length > 0;
@@ -29,44 +36,20 @@
 
 	function handleFilter(next: 'needs_review' | 'all') {
 		if (next === filter) return;
-		dispatch('filterChange', { filter: next });
-	}
-
-	function handleOpen(event: CustomEvent<{ unit: Unit }>) {
-		dispatch('openUnit', { unit: event.detail.unit });
-	}
-
-	function handleVerify(event: CustomEvent<{ id: string }>) {
-		dispatch('verify', { id: event.detail.id });
-	}
-
-	function handleReject(event: CustomEvent<{ id: string }>) {
-		dispatch('reject', { id: event.detail.id });
-	}
-
-	function handleRequestDelete(event: CustomEvent<{ id: string }>) {
-		dispatch('requestDelete', { id: event.detail.id });
-	}
-
-	function handleCancelDelete(event: CustomEvent<{ id: string }>) {
-		dispatch('cancelDelete', { id: event.detail.id });
-	}
-
-	function handleConfirmDelete(event: CustomEvent<{ id: string }>) {
-		dispatch('confirmDelete', { id: event.detail.id });
+		onFilterChange(next);
 	}
 
 	function handleSearchInput(event: Event) {
 		const query = (event.currentTarget as HTMLInputElement).value;
 		clearTimeout(searchTimer);
 		searchTimer = setTimeout(() => {
-			dispatch('search', { query });
+			onSearch(query);
 		}, 300);
 	}
 
 	function clearSearch() {
 		clearTimeout(searchTimer);
-		dispatch('search', { query: '' });
+		onSearch('');
 	}
 
 	// --- IntersectionObserver infinite scroll ---
@@ -81,7 +64,7 @@
 			(entries) => {
 				for (const entry of entries) {
 					if (entry.isIntersecting && hasMore && !loading) {
-						dispatch('loadMore');
+						onLoadMore();
 					}
 				}
 			},
@@ -206,12 +189,12 @@
 					deleting={deletingUnitId === unit.id}
 					verifying={verifyingUnitId === unit.id}
 					showSearchMatch={searchActive}
-					on:open={handleOpen}
-					on:verify={handleVerify}
-					on:reject={handleReject}
-					on:requestDelete={handleRequestDelete}
-					on:cancelDelete={handleCancelDelete}
-					on:confirmDelete={handleConfirmDelete}
+					onOpen={onOpenUnit}
+					onVerify={onVerify}
+					onReject={onReject}
+					onRequestDelete={onRequestDelete}
+					onCancelDelete={onCancelDelete}
+					onConfirmDelete={onConfirmDelete}
 				/>
 			{/each}
 			<div class="scroll-sentinel" use:attachObserver></div>

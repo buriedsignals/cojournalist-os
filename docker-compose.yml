@@ -21,6 +21,9 @@ services:
       - DEFAULT_USER_CREDITS=100
       - DEFAULT_USER_TIMEZONE=UTC
       - DEBUG=True
+      - LOCAL_MUCKROCK_AUTH_BROKER=true
+      - OAUTH_REDIRECT_BASE=http://localhost:5173
+      - APP_POST_LOGIN_REDIRECT=https://www.cojournalist.ai/auth/callback
       - PYTHONUNBUFFERED=1
       - APIFY_API_TOKEN=${APIFY_API_TOKEN}
       - LLM_MODEL=${LLM_MODEL:-qwen/qwen3.5-flash-02-23}
@@ -36,8 +39,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    env_file:
-      - ./.env
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -53,14 +54,19 @@ services:
       - ./frontend/svelte.config.js:/app/svelte.config.js
       - ./frontend/vite.config.ts:/app/vite.config.ts
       - ./frontend/tsconfig.json:/app/tsconfig.json
-      - ./frontend/tailwind.config.js:/app/tailwind.config.js
-      - ./frontend/postcss.config.js:/app/postcss.config.js
-      - /app/node_modules
     environment:
       - BACKEND_URL=http://backend:8000
       # PUBLIC_* vars must be explicit for SvelteKit's $env/dynamic/public
+      - PUBLIC_DEPLOYMENT_TARGET=supabase
+      - PUBLIC_MUCKROCK_ENABLED=true
+      - PUBLIC_LOCAL_DEMO_MODE=false
+      - PUBLIC_MUCKROCK_BROKER_URL=http://localhost:5173/api/auth/login
+      - PUBLIC_MUCKROCK_POST_LOGIN_REDIRECT=http://localhost:5173/auth/callback
+      - PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - VITE_API_URL=${SUPABASE_URL}/functions/v1
       - PUBLIC_MAPTILER_API_KEY=${PUBLIC_MAPTILER_API_KEY}
-    command: npm run dev -- --host 0.0.0.0
+    command: npm run dev:raw -- --host 0.0.0.0 --port 5173 --strictPort
     depends_on:
       - backend
     networks:

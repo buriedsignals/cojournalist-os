@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { CheckCircle, Clock, XCircle } from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 	import * as m from '$lib/paraglide/messages';
@@ -14,11 +13,10 @@
 	export let showButton = false;
 	export let buttonText = 'Continue';
 	export let hintText = 'This may take a moment';
-
-	const dispatch = createEventDispatcher<{ action: void }>();
+	export let onAction: () => void = () => {};
 
 	function handleAction() {
-		dispatch('action');
+		onAction();
 	}
 </script>
 

@@ -1,4 +1,4 @@
-FROM mirror.gcr.io/node:20-alpine
+FROM mirror.gcr.io/node:22-alpine
 
 WORKDIR /app
 
@@ -25,4 +25,4 @@ RUN echo "PUBLIC_DEPLOYMENT_TARGET=${PUBLIC_DEPLOYMENT_TARGET}" > .env \
 EXPOSE 5173
 
 # Command will be overridden by docker-compose
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["npm", "run", "dev:raw", "--", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]

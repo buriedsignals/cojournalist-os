@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Tag, X } from 'lucide-svelte';
+	import { parseTopicTags } from '$lib/utils/topics';
 	import * as m from '$lib/paraglide/messages';
 
 	export let topic: string = '';
@@ -13,7 +14,7 @@
 	let currentInput = '';
 
 	// Parse comma-separated topic string into array of chips
-	$: topicChips = topic.split(',').map(t => t.trim()).filter(Boolean);
+	$: topicChips = parseTopicTags(topic);
 
 	// Filter suggestions based on current input, excluding already-added topics
 	$: filteredTopics = existingTopics.filter(

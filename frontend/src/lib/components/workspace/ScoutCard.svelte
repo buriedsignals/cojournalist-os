@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { Globe, MapPin, Tag, Calendar, Play, Trash2, X, Check } from 'lucide-svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import DemoBadge from '$lib/components/ui/DemoBadge.svelte';
 	import { truncateUrl, getScoutTypeDisplay, normalizeScoutType } from '$lib/utils/scouts';
+	import { parseTopicTags } from '$lib/utils/topics';
 	import { tooltip } from '$lib/utils/tooltip';
 	import type { Scout } from '$lib/types/workspace';
 
@@ -13,14 +13,11 @@
 	export let confirmingDelete = false;
 	export let deleting = false;
 	export let demo = false;
-
-	const dispatch = createEventDispatcher<{
-		open: { scout: Scout };
-		run: { id: string };
-		requestDelete: { id: string };
-		confirmDelete: { id: string };
-		cancelDelete: { id: string };
-	}>();
+	export let onOpen: (scout: Scout) => void = () => {};
+	export let onRun: (id: string) => void = () => {};
+	export let onRequestDelete: (id: string) => void = () => {};
+	export let onConfirmDelete: (id: string) => void = () => {};
+	export let onCancelDelete: (id: string) => void = () => {};
 
 	$: cfg = getScoutTypeDisplay(scout.type);
 	$: normalizedType = normalizeScoutType(scout.type);
@@ -33,7 +30,7 @@
 	}
 
 	$: locDisplay = locationDisplay(scout.location);
-	$: topicTags = (scout.topic || '').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 3);
+	$: topicTags = parseTopicTags(scout.topic).slice(0, 3);
 
 	function timeSince(iso: string | null | undefined): string | null {
 		if (!iso) return null;
@@ -77,7 +74,7 @@
 	})();
 
 	function handleCardClick() {
-		dispatch('open', { scout });
+		onOpen(scout);
 	}
 
 	function handleKey(e: KeyboardEvent) {
@@ -118,7 +115,7 @@
 				</div>
 			{:else}
 				<button
-					on:click|stopPropagation={() => dispatch('run', { id: scout.id })}
+					on:click|stopPropagation={() => onRun(scout.id)}
 					class="scout-shell-icon-btn run-btn"
 					aria-label="Run now"
 					use:tooltip={'Run now'}
@@ -132,7 +129,7 @@
 						<Spinner size="sm" />
 					{:else}
 						<button
-							on:click|stopPropagation={() => dispatch('cancelDelete', { id: scout.id })}
+							on:click|stopPropagation={() => onCancelDelete(scout.id)}
 							class="scout-shell-confirm-btn cancel"
 							aria-label="Cancel"
 						>
@@ -140,7 +137,7 @@
 						</button>
 						<span class="scout-shell-confirm-label">Delete?</span>
 						<button
-							on:click|stopPropagation={() => dispatch('confirmDelete', { id: scout.id })}
+							on:click|stopPropagation={() => onConfirmDelete(scout.id)}
 							class="scout-shell-confirm-btn confirm"
 							aria-label="Yes"
 						>
@@ -150,7 +147,7 @@
 				</div>
 			{:else}
 				<button
-					on:click|stopPropagation={() => dispatch('requestDelete', { id: scout.id })}
+					on:click|stopPropagation={() => onRequestDelete(scout.id)}
 					class="scout-shell-icon-btn trash-btn"
 					aria-label="Delete scout"
 				>

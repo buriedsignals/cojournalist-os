@@ -7,9 +7,8 @@
 	import ScoutScheduleModal from '$lib/components/modals/ScoutScheduleModal.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { buildApiUrl } from '$lib/config/api';
-	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher<{ scheduled: { scoutType: 'social' } }>();
+	export let onScheduled: (detail: { scoutType: 'social' }) => void = () => {};
 
 	// Form state
 	let platform: 'instagram' | 'x' | 'facebook' | 'tiktok' = 'instagram';
@@ -227,8 +226,8 @@
 						step1Label={m.socialScout_verifyButton()}
 						step1LoadingLabel={m.common_testing()}
 						step2Enabled={verifySuccess}
-						on:step1={handleVerifyProfile}
-						on:step2={() => showScheduleModal = true}
+						onStep1={handleVerifyProfile}
+						onStep2={() => showScheduleModal = true}
 					/>
 				{:else}
 					<button
@@ -288,8 +287,8 @@
 	{trackRemovals}
 	scoutName=""
 	baselinePosts={baselinePosts}
-	on:close={() => showScheduleModal = false}
-	on:success={() => {
+	onClose={() => showScheduleModal = false}
+	onSuccess={() => {
 		handle = '';
 		criteria = '';
 		monitorMode = 'summarize';
@@ -301,7 +300,7 @@
 		previewPosts = [];
 		scanWarning = '';
 		showScheduleModal = false;
-		dispatch('scheduled', { scoutType: 'social' });
+		onScheduled({ scoutType: 'social' });
 	}}
 />
 

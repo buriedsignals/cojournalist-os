@@ -1,14 +1,11 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-
 	export let value: string;
 	export let options: { value: string; label: string; description: string }[];
-
-	const dispatch = createEventDispatcher<{ change: string }>();
+	export let onChange: (value: string) => void = () => {};
 
 	function select(option: string) {
 		value = option;
-		dispatch('change', option);
+		onChange(option);
 	}
 </script>
 

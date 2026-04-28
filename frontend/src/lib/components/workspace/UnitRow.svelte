@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { ExternalLink, Check, Trash2, X } from 'lucide-svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import type { Unit } from '$lib/types/workspace';
@@ -14,17 +13,14 @@
 	export let deleting = false;
 	export let verifying = false;
 	export let showSearchMatch = false;
+	export let onOpen: (unit: Unit) => void = () => {};
+	export let onVerify: (id: string) => void = () => {};
+	export let onReject: (id: string) => void = () => {};
+	export let onRequestDelete: (id: string) => void = () => {};
+	export let onCancelDelete: (id: string) => void = () => {};
+	export let onConfirmDelete: (id: string) => void = () => {};
 
 	$: isDemo = isDemoUnit(unit);
-
-	const dispatch = createEventDispatcher<{
-		open: { unit: Unit };
-		verify: { id: string };
-		reject: { id: string };
-		requestDelete: { id: string };
-		cancelDelete: { id: string };
-		confirmDelete: { id: string };
-	}>();
 
 	// --- Derived state ---
 
@@ -66,42 +62,42 @@
 	$: searchPillClass = searchMatch ? searchMatchClass(searchMatch.category) : null;
 
 	function handleRowClick() {
-		dispatch('open', { unit });
+		onOpen(unit);
 	}
 
 	function handleKey(event: KeyboardEvent) {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
-			dispatch('open', { unit });
+			onOpen(unit);
 		}
 	}
 
 	function handleVerify(event: MouseEvent) {
 		if (verifying || deleting) return;
 		event.stopPropagation();
-		dispatch('verify', { id: unit.id });
+		onVerify(unit.id);
 	}
 
 	function handleReject(event: MouseEvent) {
 		if (verifying || deleting) return;
 		event.stopPropagation();
-		dispatch('reject', { id: unit.id });
+		onReject(unit.id);
 	}
 
 	function handleRequestDelete(event: MouseEvent) {
 		if (verifying || deleting) return;
 		event.stopPropagation();
-		dispatch('requestDelete', { id: unit.id });
+		onRequestDelete(unit.id);
 	}
 
 	function handleCancelDelete(event: MouseEvent) {
 		event.stopPropagation();
-		dispatch('cancelDelete', { id: unit.id });
+		onCancelDelete(unit.id);
 	}
 
 	function handleConfirmDelete(event: MouseEvent) {
 		event.stopPropagation();
-		dispatch('confirmDelete', { id: unit.id });
+		onConfirmDelete(unit.id);
 	}
 </script>
 

@@ -22,9 +22,8 @@
 	import { easeOutProgress, formatEstimatedTime, PULSE_EXPECTED_DURATION_MS } from '$lib/utils/progress-timer';
 	import { buildBeatScoutScheduleDraft, buildBeatScoutSearchRequest } from './beat-scout';
 	import * as m from '$lib/paraglide/messages';
-	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher<{ scheduled: { scoutType: 'pulse' } }>();
+	export let onScheduled: (detail: { scoutType: 'pulse' }) => void = () => {};
 
 	// Custom renderer to show external link icon instead of link text
 	const renderer = new Renderer();
@@ -236,8 +235,8 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	}
 
 	// Location handlers
-	function handleLocationSelect(event: CustomEvent<GeocodedLocation>) {
-		locationStore.setLocation(event.detail);
+	function handleLocationSelect(location: GeocodedLocation) {
+		locationStore.setLocation(location);
 	}
 
 	function handleLocationClear() {
@@ -329,8 +328,8 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 						<div class="field-label">{m.filter_locationLabel()}</div>
 						<LocationAutocomplete
 							selectedLocation={selectedLocation}
-							on:select={handleLocationSelect}
-							on:clear={handleLocationClear}
+							onSelect={handleLocationSelect}
+							onClear={handleLocationClear}
 						/>
 					</div>
 				{:else}
@@ -362,8 +361,8 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 						<p class="field-hint">{m.beatScout_optionalLocationLabel()}</p>
 						<LocationAutocomplete
 							selectedLocation={selectedLocation}
-							on:select={handleLocationSelect}
-							on:clear={handleLocationClear}
+							onSelect={handleLocationSelect}
+							onClear={handleLocationClear}
 						/>
 					</div>
 				{/if}
@@ -509,8 +508,8 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 					step1LoadingLabel={m.common_searching()}
 					step1Icon={Sparkles}
 					step2Enabled={searchCompleted && canSearch}
-					on:step1={handleSearch}
-					on:step2={() => showScheduleModal = true}
+					onStep1={handleSearch}
+					onStep2={() => showScheduleModal = true}
 				/>
 			</FormPanel>
 		</div>
@@ -670,10 +669,10 @@ EXCLUDE: Breaking news already covered in the news section, press releases witho
 	{sourceMode}
 	excludedDomains={parsedExcludedDomains}
 	prioritySources={parsedPrioritySources}
-	on:close={() => showScheduleModal = false}
-	on:success={() => {
+	onClose={() => showScheduleModal = false}
+	onSuccess={() => {
 		showScheduleModal = false;
-		dispatch('scheduled', { scoutType: 'pulse' });
+		onScheduled({ scoutType: 'pulse' });
 	}}
 />
 

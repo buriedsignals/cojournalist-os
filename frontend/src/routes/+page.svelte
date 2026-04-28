@@ -25,6 +25,7 @@
 	import AgentsModal from '$lib/components/modals/AgentsModal.svelte';
 	import { Bot } from 'lucide-svelte';
 	import { getScoutCost } from '$lib/utils/scouts';
+	import { collectTopicCounts, topicMatches } from '$lib/utils/topics';
 	import {
 		isDemoId,
 		isDemoUnit,
@@ -113,10 +114,8 @@
 		retiringDemoWorkspace = false;
 	}
 
-	async function handleScheduled(
-		event: CustomEvent<{ scoutType: 'pulse' | 'web' | 'social' | 'civic' }>,
-	) {
-		pendingNewScoutType = event.detail.scoutType;
+	async function handleScheduled(detail: { scoutType: 'pulse' | 'web' | 'social' | 'civic' }) {
+		pendingNewScoutType = detail.scoutType;
 		activePanel = 'workspace';
 		if (pendingWatchdog) clearTimeout(pendingWatchdog);
 		pendingWatchdog = setTimeout(() => {
@@ -137,18 +136,6 @@
 	function openPanel(type: ActivePanel) {
 		activePanel = type;
 		newScoutOpen = false;
-	}
-
-	function handleNewScout(event: CustomEvent) {
-		const type = event.type as string;
-		const panelMap: Record<string, ActivePanel> = {
-			trackPage: 'web',
-			beatScout: 'pulse',
-			profileScout: 'social',
-			civicScout: 'civic'
-		};
-		const panel = panelMap[type];
-		if (panel) openPanel(panel);
 	}
 
 	function closePanel() {
@@ -215,21 +202,17 @@
 	})();
 
 	$: topicOptions = (() => {
-		const counts: Record<string, number> = {};
-		for (const s of scoutsState.scouts) {
-			if (s.topic) counts[s.topic] = (counts[s.topic] || 0) + 1;
-		}
-		const entries = Object.entries(counts).sort(([a], [b]) => a.localeCompare(b));
+		const entries = collectTopicCounts(scoutsState.scouts);
 		if (entries.length === 0) return [{ value: '', label: 'No topics' }];
 		return [
 			{ value: '', label: 'All topics' },
-			...entries.map(([t, count]) => ({ value: t, label: t, count }))
+			...entries.map(({ topic, count }) => ({ value: topic, label: topic, count }))
 		];
 	})();
 
 	$: dimensionFiltered = scoutsState.scouts
 		.filter((s) => !selectedLocation || locationDisplay(s.location) === selectedLocation)
-		.filter((s) => !selectedTopic || s.topic === selectedTopic);
+		.filter((s) => topicMatches(s.topic, selectedTopic));
 
 	$: scoutNameOptions = [
 		{ value: '', label: 'All scouts' },
@@ -270,8 +253,7 @@
 	});
 
 	// -------- handlers --------
-	function handleScoutOpen(e: CustomEvent<{ scout: Scout }>) {
-		const scout = e.detail.scout;
+	function handleScoutOpen(scout: Scout) {
 		unitDeleteCandidateId = null;
 		unitActionError = null;
 		selectionStore.selectScout(scout.id);
@@ -360,34 +342,34 @@
 		selectedScoutName = v || null;
 		if (v) {
 			const match = scoutsState.scouts.find((s) => s.name === v);
-			if (match) handleScoutOpen(new CustomEvent('open', { detail: { scout: match } }));
+			if (match) handleScoutOpen(match);
 		} else {
 			handleBackToAll();
 		}
 	}
 
 	// -------- unit row interactions --------
-	async function handleOpenUnit(e: CustomEvent<{ unit: Unit }>) {
+	async function handleOpenUnit(unit: Unit) {
 		unitDeleteCandidateId = null;
 		unitActionError = null;
-		activeUnit = e.detail.unit;
-		selectionStore.selectUnit(e.detail.unit.id);
+		activeUnit = unit;
+		selectionStore.selectUnit(unit.id);
 		drawerStore.open();
 	}
 
-	async function handleVerify(e: CustomEvent<{ id: string }>) {
+	async function handleVerify(id: string) {
 		unitActionError = null;
-		unitActionLoadingId = e.detail.id;
+		unitActionLoadingId = id;
 		drawerActionLoading = 'verify';
 		try {
-			const unit = unitsState.units.find((candidate) => candidate.id === e.detail.id);
+			const unit = unitsState.units.find((candidate) => candidate.id === id);
 			if (unit && isDemoUnit(unit)) {
 				await simulateDemoMutation();
-				verifyDemoUnit(e.detail.id);
+				verifyDemoUnit(id);
 				return;
 			}
-			const updated = await workspaceApi.promoteUnit(e.detail.id);
-			unitsStore.patchUnit(e.detail.id, updated);
+			const updated = await workspaceApi.promoteUnit(id);
+			unitsStore.patchUnit(id, updated);
 			drawerStore.closeAndClear();
 			activeUnit = null;
 		} catch (err) {
@@ -398,19 +380,19 @@
 		}
 	}
 
-	async function handleReject(e: CustomEvent<{ id: string }>) {
+	async function handleReject(id: string) {
 		unitActionError = null;
-		unitActionLoadingId = e.detail.id;
+		unitActionLoadingId = id;
 		drawerActionLoading = 'reject';
 		try {
-			const unit = unitsState.units.find((candidate) => candidate.id === e.detail.id);
+			const unit = unitsState.units.find((candidate) => candidate.id === id);
 			if (unit && isDemoUnit(unit)) {
 				await simulateDemoMutation();
-				rejectDemoUnit(e.detail.id);
+				rejectDemoUnit(id);
 				return;
 			}
-			const updated = await workspaceApi.rejectUnit(e.detail.id);
-			unitsStore.patchUnit(e.detail.id, updated);
+			const updated = await workspaceApi.rejectUnit(id);
+			unitsStore.patchUnit(id, updated);
 			drawerStore.closeAndClear();
 			activeUnit = null;
 		} catch (err) {
@@ -426,19 +408,18 @@
 		activeUnit = null;
 	}
 
-	function handleRequestUnitDelete(e: CustomEvent<{ id: string }>) {
-		unitDeleteCandidateId = e.detail.id;
+	function handleRequestUnitDelete(id: string) {
+		unitDeleteCandidateId = id;
 		unitActionError = null;
 	}
 
-	function handleCancelUnitDelete(e?: CustomEvent<{ id: string }>) {
-		if (!e || unitDeleteCandidateId === e.detail.id) {
+	function handleCancelUnitDelete(id?: string) {
+		if (!id || unitDeleteCandidateId === id) {
 			unitDeleteCandidateId = null;
 		}
 	}
 
-	async function handleConfirmUnitDelete(e: CustomEvent<{ id: string }>) {
-		const id = e.detail.id;
+	async function handleConfirmUnitDelete(id: string) {
 		deletingUnitId = id;
 		unitActionError = null;
 		try {
@@ -484,10 +465,6 @@
 				<span class="logo-dot"></span>
 				<span class="logo-text">coJournalist</span>
 			</div>
-			{#if IS_LOCAL_DEMO_MODE}
-				<div class="demo-mode-pill" role="note">Local demo mode</div>
-			{/if}
-			{#if !IS_LOCAL_DEMO_MODE}
 			<div class="new-scout-wrap">
 				<button
 					class="new-scout-btn"
@@ -507,15 +484,10 @@
 				<NewScoutDropdown
 					open={newScoutOpen}
 					sidebarCollapsed={false}
-					on:close={() => (newScoutOpen = false)}
-					on:trackPage={handleNewScout}
-					on:beatScout={handleNewScout}
-					on:profileScout={handleNewScout}
-					on:civicScout={handleNewScout}
+					onClose={() => (newScoutOpen = false)}
+					onSelect={openPanel}
 				/>
 			</div>
-			{/if}
-			{#if !IS_LOCAL_DEMO_MODE}
 			<button
 				class="agents-btn"
 				on:click|stopPropagation={() => (agentsOpen = true)}
@@ -524,7 +496,6 @@
 				<Bot size={14} />
 				<span>Agents</span>
 			</button>
-			{/if}
 			{#if activePanel !== 'workspace'}
 				<button class="back-to-workspace" on:click={closePanel} type="button">
 					<Home size={14} />
@@ -548,11 +519,9 @@
 						{#if $authStore.user?.email}
 							<p class="user-menu-email">{$authStore.user.email}</p>
 						{/if}
-						{#if !IS_LOCAL_DEMO_MODE}
 						<button class="user-menu-item" role="menuitem" on:click={() => { userMenuOpen = false; preferencesOpen = true; }}>
 							Preferences
 						</button>
-						{/if}
 						<a href="/docs" class="user-menu-item" role="menuitem" on:click={() => (userMenuOpen = false)}>Docs</a>
 						<a href="/terms" class="user-menu-item" role="menuitem" on:click={() => (userMenuOpen = false)}>Terms</a>
 						<button class="user-menu-item user-menu-danger" role="menuitem" on:click={handleSignOut}>
@@ -596,13 +565,13 @@
 			<!-- Scout creation panel (inline, reactive) -->
 			<div class="panel-content">
 				{#if activePanel === 'pulse'}
-					<BeatScoutView initialMode="beat" on:scheduled={handleScheduled} />
+					<BeatScoutView initialMode="beat" onScheduled={handleScheduled} />
 				{:else if activePanel === 'web'}
-					<PageScoutView on:scheduled={handleScheduled} />
+					<PageScoutView onScheduled={handleScheduled} />
 				{:else if activePanel === 'social'}
-					<SocialScoutView on:scheduled={handleScheduled} />
+					<SocialScoutView onScheduled={handleScheduled} />
 				{:else if activePanel === 'civic'}
-					<CivicScoutView on:scheduled={handleScheduled} />
+					<CivicScoutView onScheduled={handleScheduled} />
 				{/if}
 			</div>
 		{:else if !bootstrapped}
@@ -619,11 +588,11 @@
 				confirmingDelete={deleteCandidateId === focusedScout.id}
 				deleting={deletingId === focusedScout.id}
 				totalScouts={scoutsState.scouts.length}
-				on:back={handleBackToAll}
-				on:run={(e) => handleRunScout(e.detail.id)}
-				on:requestDelete={(e) => handleRequestDelete(e.detail.id)}
-				on:cancelDelete={handleCancelDelete}
-				on:confirmDelete={(e) => handleConfirmDelete(e.detail.id)}
+				onBack={handleBackToAll}
+				onRun={handleRunScout}
+				onRequestDelete={handleRequestDelete}
+				onCancelDelete={handleCancelDelete}
+				onConfirmDelete={handleConfirmDelete}
 			/>
 		{:else if scoutsState.scouts.length === 0 && pendingNewScoutType}
 			<!-- FIRST-SCOUT LOADING — empty array but we know one is on its way -->
@@ -689,11 +658,11 @@
 								running={runningScoutId === scout.id}
 								confirmingDelete={deleteCandidateId === scout.id}
 								deleting={deletingId === scout.id}
-								on:open={handleScoutOpen}
-								on:run={(e) => handleRunScout(e.detail.id)}
-								on:requestDelete={(e) => handleRequestDelete(e.detail.id)}
-								on:cancelDelete={handleCancelDelete}
-								on:confirmDelete={(e) => handleConfirmDelete(e.detail.id)}
+								onOpen={handleScoutOpen}
+								onRun={handleRunScout}
+								onRequestDelete={handleRequestDelete}
+								onCancelDelete={handleCancelDelete}
+								onConfirmDelete={handleConfirmDelete}
 							/>
 						{/each}
 					</div>
@@ -719,15 +688,15 @@
 				searchQuery={unitsState.searchQuery}
 				searchPlaceholder={focusedScout ? 'Search this inbox' : 'Search all inbox units'}
 				isSearching={unitsState.loading && unitsState.searchQuery.length > 0}
-				on:filterChange={(e) => (feedFilter = e.detail.filter)}
-				on:search={(e) => handleSearch(e.detail.query)}
-				on:openUnit={handleOpenUnit}
-				on:verify={handleVerify}
-				on:reject={handleReject}
-				on:requestDelete={handleRequestUnitDelete}
-				on:cancelDelete={handleCancelUnitDelete}
-				on:confirmDelete={handleConfirmUnitDelete}
-				on:loadMore={handleLoadMore}
+				onFilterChange={(next) => (feedFilter = next)}
+				onSearch={handleSearch}
+				onOpenUnit={handleOpenUnit}
+				onVerify={handleVerify}
+				onReject={handleReject}
+				onRequestDelete={handleRequestUnitDelete}
+				onCancelDelete={handleCancelUnitDelete}
+				onConfirmDelete={handleConfirmUnitDelete}
+				onLoadMore={handleLoadMore}
 				unitDeleteCandidateId={unitDeleteCandidateId}
 				deletingUnitId={deletingUnitId}
 				{verifyingUnitId}
@@ -744,22 +713,22 @@
 		actionLoading={drawerActionLoading}
 		confirmingDelete={unitDeleteCandidateId === activeUnit?.id}
 		deleting={deletingUnitId === activeUnit?.id}
-		on:close={handleDrawerClose}
-		on:verify={handleVerify}
-		on:reject={handleReject}
-		on:requestDelete={handleRequestUnitDelete}
-		on:cancelDelete={handleCancelUnitDelete}
-		on:confirmDelete={handleConfirmUnitDelete}
+		onClose={handleDrawerClose}
+		onVerify={handleVerify}
+		onReject={handleReject}
+		onRequestDelete={handleRequestUnitDelete}
+		onCancelDelete={handleCancelUnitDelete}
+		onConfirmDelete={handleConfirmUnitDelete}
 	/>
 
 	<PreferencesModal
 		open={preferencesOpen}
-		on:close={() => preferencesOpen = false}
+		onClose={() => preferencesOpen = false}
 	/>
 
 	<AgentsModal
 		open={agentsOpen}
-		on:close={() => (agentsOpen = false)}
+		onClose={() => (agentsOpen = false)}
 	/>
 
 </div>
@@ -809,21 +778,6 @@
 		font-weight: 600;
 		color: var(--color-ink);
 		letter-spacing: -0.01em;
-	}
-
-	.demo-mode-pill {
-		display: inline-flex;
-		align-items: center;
-		height: 28px;
-		padding: 0 0.75rem;
-		font-family: var(--font-mono);
-		font-size: 0.625rem;
-		font-weight: 600;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--color-primary-deep);
-		background: var(--color-primary-soft);
-		border: 1px solid var(--color-primary);
 	}
 
 	.new-scout-wrap {

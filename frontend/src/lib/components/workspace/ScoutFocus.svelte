@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { MapPin, Tag, Calendar, Play, Trash2, ArrowLeft, X, Check, Globe, AtSign } from 'lucide-svelte';
 	import Spinner from '$lib/components/ui/Spinner.svelte';
 	import DemoBadge from '$lib/components/ui/DemoBadge.svelte';
 	import { getScoutTypeDisplay, normalizeScoutType, truncateUrl } from '$lib/utils/scouts';
+	import { parseTopicTags } from '$lib/utils/topics';
 	import type { Scout } from '$lib/types/workspace';
 
 	export let scout: Scout;
@@ -12,14 +12,11 @@
 	export let deleting = false;
 	export let totalScouts = 0;
 	export let demo = false;
-
-	const dispatch = createEventDispatcher<{
-		back: void;
-		run: { id: string };
-		requestDelete: { id: string };
-		confirmDelete: { id: string };
-		cancelDelete: { id: string };
-	}>();
+	export let onBack: () => void = () => {};
+	export let onRun: (id: string) => void = () => {};
+	export let onRequestDelete: (id: string) => void = () => {};
+	export let onConfirmDelete: (id: string) => void = () => {};
+	export let onCancelDelete: (id: string) => void = () => {};
 
 	$: cfg = getScoutTypeDisplay(scout.type);
 	$: normalizedType = normalizeScoutType(scout.type);
@@ -32,7 +29,7 @@
 	}
 
 	$: locDisplay = locationDisplay(scout.location);
-	$: topicTags = (scout.topic || '').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 3);
+	$: topicTags = parseTopicTags(scout.topic).slice(0, 3);
 	$: descriptionText = scout.description || scout.criteria || null;
 	$: trackedUrls = Array.isArray(scout.tracked_urls)
 		? scout.tracked_urls.filter((url): url is string => typeof url === 'string' && url.length > 0)
@@ -130,7 +127,7 @@
 		return { variant: 'neutral' as const, label: 'No new findings' };
 	})();
 
-	function handleBack() { dispatch('back'); }
+	function handleBack() { onBack(); }
 </script>
 
 <div class="scout-focus-wrapper">
@@ -161,7 +158,7 @@
 				{:else}
 					<button
 						class="scout-shell-icon-btn run-btn"
-						on:click={() => dispatch('run', { id: scout.id })}
+						on:click={() => onRun(scout.id)}
 						aria-label="Run now"
 					>
 						<Play size={14} />
@@ -172,11 +169,11 @@
 						{#if deleting}
 							<Spinner size="sm" />
 						{:else}
-							<button class="scout-shell-confirm-btn cancel" on:click={() => dispatch('cancelDelete', { id: scout.id })} aria-label="Cancel">
+							<button class="scout-shell-confirm-btn cancel" on:click={() => onCancelDelete(scout.id)} aria-label="Cancel">
 								<X size={12} />
 							</button>
 							<span class="scout-shell-confirm-label">Delete?</span>
-							<button class="scout-shell-confirm-btn confirm" on:click={() => dispatch('confirmDelete', { id: scout.id })} aria-label="Yes">
+							<button class="scout-shell-confirm-btn confirm" on:click={() => onConfirmDelete(scout.id)} aria-label="Yes">
 								<Check size={12} />
 							</button>
 						{/if}
@@ -184,7 +181,7 @@
 				{:else}
 					<button
 						class="scout-shell-icon-btn trash-btn"
-						on:click={() => dispatch('requestDelete', { id: scout.id })}
+						on:click={() => onRequestDelete(scout.id)}
 						aria-label="Delete"
 					>
 						<Trash2 size={14} />

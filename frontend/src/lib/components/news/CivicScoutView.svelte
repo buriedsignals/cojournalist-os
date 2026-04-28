@@ -7,10 +7,9 @@
 	import ScoutScheduleModal from '$lib/components/modals/ScoutScheduleModal.svelte';
 	import { apiClient } from '$lib/api-client';
 	import type { ScoutType } from '$lib/types';
-	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher<{ scheduled: { scoutType: 'civic' } }>();
 	import * as m from '$lib/paraglide/messages';
+	export let onScheduled: (detail: { scoutType: 'civic' }) => void = () => {};
 
 	// Step state: domain (initial) → results (after search, shows criteria + schedule)
 	let hasResults = false;
@@ -220,9 +219,9 @@
 							step2Label={m.civic_testExtraction()}
 							step3Enabled={testSuccess}
 							step3Label={m.pulse_scheduleScout()}
-							on:step1={handleDiscover}
-							on:step2={handleTestAndSchedule}
-							on:step3={handleOpenSchedule}
+							onStep1={handleDiscover}
+							onStep2={handleTestAndSchedule}
+							onStep3={handleOpenSchedule}
 						>
 							<div slot="between-step2-step3">
 								{#if hasResults && canSchedule}
@@ -344,10 +343,10 @@
 	tracked_urls={scheduledTrackedUrls}
 	criteria={criteria}
 	initialPromises={testResult?.sample_promises ?? []}
-	on:close={() => showScheduleModal = false}
-	on:success={() => {
+	onClose={() => showScheduleModal = false}
+	onSuccess={() => {
 		showScheduleModal = false;
-		dispatch('scheduled', { scoutType: 'civic' });
+		onScheduled({ scoutType: 'civic' });
 	}}
 />
 

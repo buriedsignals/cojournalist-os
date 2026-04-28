@@ -59,6 +59,19 @@ Svelte stores in `lib/stores/`:
 **Key Methods:**
 - `searchPulse()` - Beat Scout search with optional criteria (historical method name; POST /pulse/search)
 
+## Scout Topics
+
+Scout topics are independent tags, even though the API/UI payload stores them as
+a comma-separated string. Use `src/lib/utils/topics.ts` whenever rendering,
+filtering, counting, or suggesting topics:
+
+- `parseTopicTags()` for display/chips
+- `collectTopicCounts()` for filter dropdowns and suggestions
+- `topicMatches()` for workspace filtering
+
+Do not compare `scout.topic` as a single opaque string in frontend filtering.
+`housing, real estate, Pontresina` must behave as three separate tags.
+
 ## Environment Variables (Build-time)
 
 These must be set during Docker build:

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { Settings, CheckCircle, ExternalLink } from 'lucide-svelte';
 	import { fade } from 'svelte/transition';
 	import { authStore } from '$lib/stores/auth';
@@ -9,8 +8,7 @@
 	import * as m from '$lib/paraglide/messages';
 
 	export let open = false;
-
-	const dispatch = createEventDispatcher<{ close: void }>();
+	export let onClose: () => void = () => {};
 
 	let selectedLanguage = '';
 	let selectedTimezone = '';
@@ -60,7 +58,7 @@
 			}
 
 			if (Object.keys(params).length === 0) {
-				dispatch('close');
+				onClose();
 				return;
 			}
 
@@ -80,7 +78,7 @@
 	}
 
 	function handleCancel() {
-		dispatch('close');
+		onClose();
 	}
 
 	function handleBackdropClick(event: MouseEvent) {

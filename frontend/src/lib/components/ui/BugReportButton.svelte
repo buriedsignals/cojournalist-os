@@ -1,11 +1,10 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	const dispatch = createEventDispatcher();
+	export let onOpen: () => void = () => {};
 
 	function openBugReport() {
-		dispatch('open');
+		onOpen();
 	}
 </script>
 

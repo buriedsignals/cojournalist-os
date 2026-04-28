@@ -1,21 +1,19 @@
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	export let open = false;
-
-	const dispatch = createEventDispatcher<{ ready: void }>();
+	export let onReady: () => void = () => {};
 
 	let dialogEl: HTMLDivElement;
 	let videoLoaded = false;
 
 	function handleReady() {
-		dispatch('ready');
+		onReady();
 	}
 
 	function handleSkip() {
 		// Allow users to skip if they can't watch the video
-		dispatch('ready');
+		onReady();
 	}
 
 	function handleKeydown(event: KeyboardEvent) {

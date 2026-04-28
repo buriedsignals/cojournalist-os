@@ -679,21 +679,9 @@
 		line-height: 1.4;
 	}
 
-	.auth-signup-link {
-		font-family: var(--font-mono);
-		font-size: 0.6875rem;
-		font-weight: 500;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--color-ink-muted);
-		text-decoration: none;
-		padding: 0.375rem 0.5rem;
-		transition: color 150ms ease;
-	}
+	
 
-	.auth-signup-link:hover {
-		color: var(--color-primary);
-	}
+	
 
 	.auth-subtitle {
 		color: var(--color-ink-muted);

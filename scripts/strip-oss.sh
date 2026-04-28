@@ -178,7 +178,7 @@ rewrite(
         ),
         (r"\n\t\t\t\t\t\t<a href=\"/pricing\" class=\"user-menu-item\" role=\"menuitem\" on:click=\{\(\) => \(userMenuOpen = false\)\}>Pricing</a>", "", 0),
         (
-            r"\n\t<UpgradeModal\n\t\topen=\{showUpgradeModal\}\n\t\tcurrentCredits=\{\$authStore\.user\?\.credits \?\? 0\}\n\t\trequiredCredits=\{upgradeRequired\}\n\t\toperationType=\"monitoring\"\n\t\ton:close=\{\(\) => \(showUpgradeModal = false\)\}\n\t/>\n",
+            r"\n\t<UpgradeModal\n\t\topen=\{showUpgradeModal\}\n\t\tcurrentCredits=\{\$authStore\.user\?\.credits \?\? 0\}\n\t\trequiredCredits=\{upgradeRequired\}\n\t\toperationType=\"monitoring\"\n\t\tonClose=\{\(\) => \(showUpgradeModal = false\)\}\n\t/>\n",
             "\n",
             0,
         ),
@@ -197,7 +197,7 @@ rewrite(
             re.DOTALL,
         ),
         (
-            r"\n<UpgradeModal\n\topen=\{showUpgradeModal\}\n\tcurrentCredits=\{\$authStore\.user\?\.credits \?\? 0\}\n\trequiredCredits=\{upgradeRequiredCredits\}\n\toperationType=\"scout scheduling\"\n\ton:close=\{\(\) => \(showUpgradeModal = false\)\}\n/>\n",
+            r"\n<UpgradeModal\n\topen=\{showUpgradeModal\}\n\tcurrentCredits=\{\$authStore\.user\?\.credits \?\? 0\}\n\trequiredCredits=\{upgradeRequiredCredits\}\n\toperationType=\"scout scheduling\"\n\tonClose=\{\(\) => \(showUpgradeModal = false\)\}\n/>\n",
             "\n",
             0,
         ),
@@ -217,7 +217,7 @@ import re
 p = Path("frontend/src/routes/+layout.svelte")
 text = p.read_text()
 text = re.sub(
-    r"\n\{#if \$page\.url\.pathname !== '/login'\}\n\t<BugReportButton on:open=\{\(\) => \(feedbackModalOpen = true\)\} />\n\t<FeedbackModal\n\t\topen=\{feedbackModalOpen\}\n\t\ton:close=\{\(\) => \(feedbackModalOpen = false\)\}\n\t/>\n\{/if\}\n",
+    r"\n\{#if \$page\.url\.pathname !== '/login'\}\n\t<BugReportButton onOpen=\{\(\) => \(feedbackModalOpen = true\)\} />\n\t<FeedbackModal\n\t\topen=\{feedbackModalOpen\}\n\t\tonClose=\{\(\) => \(feedbackModalOpen = false\)\}\n\t/>\n\{/if\}\n",
     "\n",
     text,
     flags=re.MULTILINE,
@@ -302,8 +302,8 @@ PY
 # -------------------------------------------------------------------
 
 # docs/+page.svelte: pricing links + MuckRock mention in prose
-sed_if_exists -i 's|<a href="/pricing">|<a href="#">|g' frontend/src/routes/docs/+page.svelte
-sed_if_exists -i 's|href="/pricing"|href="#"|g' frontend/src/routes/docs/+page.svelte
+sed_if_exists -i 's|<a href="/pricing">|<a href="/">|g' frontend/src/routes/docs/+page.svelte
+sed_if_exists -i 's|href="/pricing"|href="/"|g' frontend/src/routes/docs/+page.svelte
 sed_if_exists -i 's|sign in with MuckRock OAuth\. Free tier starts with 100 credits/month\.|sign in with your email address.|' frontend/src/routes/docs/+page.svelte
 
 # +page.svelte (home/workspace): credits-pill + user-menu pricing links
@@ -354,6 +354,8 @@ src = re.sub(r'//[^\n]*[Mm]uck[Rr]ock[^\n]*', '', src)
 src = re.sub(r'\.muckrock-toggle\s*\{[^}]*\}', '', src)
 src = re.sub(r'\.muckrock-toggle\s+input\s*\{[^}]*\}', '', src)
 src = re.sub(r'\.muckrock-toggle:hover\s*\{[^}]*\}', '', src)
+src = re.sub(r'\.auth-signup-link\s*\{[^}]*\}', '', src)
+src = re.sub(r'\.auth-signup-link:hover\s*\{[^}]*\}', '', src)
 # Collapse the PUBLIC_MUCKROCK_ENABLED conditional to always pick the
 # email/password branch for OSS. The validator greps for the literal
 # string 'MuckRock' so we must avoid that identifier in OSS source.

@@ -166,7 +166,7 @@
 				</ul>
 				<div class="sidebar-foot">
 					<a href="/swagger">API reference</a>
-					<a href="#">Pricing</a>
+					<a href="/">Pricing</a>
 					<a href="/faq">FAQ</a>
 					<a href="/skills">Skills</a>
 					<a href="/docs.txt">docs.txt</a>
@@ -464,7 +464,7 @@
 						Credits are the unit of cost. Every scout run decrements the credit balance on the
 						project (individual users) or organisation (team plans). Free tier: 100/month. Pro:
 						1,000/month. Team: 5,000/month shared. See
-						<a href="#">pricing</a> and the <a href="#ref-costs">cost table</a>.
+						<a href="/">pricing</a> and the <a href="#ref-costs">cost table</a>.
 					</p>
 				</section>
 
@@ -744,7 +744,7 @@ cojo units delete <unit-id>`}</code></pre>
 					</div>
 					<p>
 						Monthly budget = (cost per run) × (runs per month). A daily Page Scout = 30 credits/mo;
-						a weekly Civic Scout = up to 40 credits/mo (less when a week passes with no new council documents — those runs refund the 10 credits automatically). Plan math lives on the <a href="#">pricing page</a>.
+						a weekly Civic Scout = up to 40 credits/mo (less when a week passes with no new council documents — those runs refund the 10 credits automatically). Plan math lives on the <a href="/">pricing page</a>.
 					</p>
 				</section>
 
@@ -772,7 +772,7 @@ cojo units delete <unit-id>`}</code></pre>
 					<h2>Getting help</h2>
 					<ul class="flat-list">
 						<li><a href="/faq">FAQ</a> — licensing, self-hosting, editorial workflow</li>
-						<li><a href="#">Pricing</a> — plans, credits, team seats</li>
+						<li><a href="/">Pricing</a> — plans, credits, team seats</li>
 						<li>
 							<a href="https://github.com/buriedsignals/cojournalist-os/issues" target="_blank" rel="noopener noreferrer"
 								>Open an issue</a

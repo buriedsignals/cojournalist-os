@@ -137,6 +137,26 @@ Also confirm manually:
 - `/docs` and `/skills` stay on localhost
 - `GET /api/auth/login` on localhost 302s to MuckRock with `redirect_uri=http://localhost:5173/api/auth/callback`
 
+### Local launch and browser smoke scripts
+
+Use these when you need a reproducible local UI check:
+
+```bash
+./start.sh saas      # Docker backend + Docker frontend at http://localhost:5173
+./start.sh oss-demo  # Local Supabase demo frontend at http://localhost:4173
+```
+
+`cd frontend && npm run dev` remains the canonical daily private-repo SaaS workflow. `./start.sh saas` is the Docker full-stack path and must preserve the local broker contract above.
+
+After the app is running and the browser is manually signed in if needed, use browser-harness smoke checks:
+
+```bash
+scripts/dev/browser-smoke.sh saas
+scripts/dev/browser-smoke.sh oss-demo
+```
+
+The smoke script uses the current Chrome session through `browser-harness`. It must not type credentials. It opens the workspace, clicks `New Scout`, opens Page/Beat/Social/Civic panels, closes Agents/Preferences, and fails on console errors containing `void 0 is not a function`.
+
 ---
 
 AI-powered local news monitoring platform. Users create "scouts" that monitor websites, local news, or search queries on schedules, receiving email notifications when criteria are met. Scouts can be scoped by **location** (geo-targeted) or **topic** (keyword-based), or both.
@@ -266,6 +286,8 @@ directly from the public mirror with Deno.
 | `civic` | Civic Scout | Monitor council meetings for promises | Domain + confirmed URLs | When promises found |
 
 **Location Scout vs Beat Scout:** Both use the same backend `beat` pipeline. Location Scout defaults to **niche** sources (local blogs, community sites); Beat Scout defaults to **reliable** sources (established outlets). Source mode is togglable in both. Location Scout requires a location and optionally accepts criteria; Beat Scout requires criteria only.
+
+**Scout topics are tags:** The UI stores multiple topics as a comma-separated string when saving a scout, but those values are semantically independent tags. Frontend display, filters, counts, and suggestions must use `frontend/src/lib/utils/topics.ts` (`parseTopicTags`, `collectTopicCounts`, `topicMatches`) rather than comparing `scout.topic` as one opaque string.
 
 **Page Scout change detection:** Uses Firecrawl `changeTracking` with per-scout `tag` parameter. Each scout has its own baseline. See `docs/features/web-scouts.md`.
 
