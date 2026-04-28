@@ -25,6 +25,7 @@ function usage(): void {
       "                   [--monitor-mode summarize|criteria] [--track-removals true|false]",
       "",
       "  Topic tags are short comma-separated labels, not long criteria. Use 1-3.",
+      "  Beat and civic scouts support weekly or monthly schedules only.",
       "",
       "  update <id> [--name <name>] [--topic <tag,tag>] [--description <text>]",
       "              [--criteria <text>] [--url <url>] [--cron <expr>]",
@@ -116,6 +117,39 @@ function topicFlag(
   return tags.join(", ");
 }
 
+function cronIsNoMoreFrequentThanWeekly(cron: string): boolean {
+  const trimmed = cron.trim();
+  if (!trimmed) return true;
+  const macro = trimmed.toLowerCase();
+  if (["@weekly", "@monthly", "@yearly", "@annually"].includes(macro)) {
+    return true;
+  }
+  if (["@daily", "@hourly", "@reboot"].includes(macro)) return false;
+
+  const parts = trimmed.split(/\s+/);
+  if (parts.length !== 5) return true;
+  const [, , dayOfMonth, , dayOfWeek] = parts;
+  const single = (field: string) =>
+    field !== "*" && field !== "?" && !/[,\-/]/.test(field);
+  if (single(dayOfMonth) && dayOfWeek === "*") return true;
+  if (dayOfMonth === "*" && single(dayOfWeek)) return true;
+  return false;
+}
+
+function validateSchedulePolicy(
+  type: string,
+  regularity?: string,
+  cron?: string,
+): void {
+  if (type !== "beat" && type !== "civic") return;
+  if (
+    regularity === "daily" || (cron && !cronIsNoMoreFrequentThanWeekly(cron))
+  ) {
+    console.error(`${type} scouts support weekly or monthly schedules only`);
+    Deno.exit(1);
+  }
+}
+
 function jsonObjectFlag(
   flags: Record<string, string | boolean>,
   key: string,
@@ -190,6 +224,7 @@ export async function run(argv: string[]): Promise<void> {
       const trackedUrls = listFlag(flags, "tracked-urls");
       const day = numberFlag(flags, "day");
       const trackRemovals = boolFlag(flags, "track-removals");
+      validateSchedulePolicy(flags.type, regularity, cron);
 
       if (url) body.url = url;
       if (criteria) body.criteria = criteria;

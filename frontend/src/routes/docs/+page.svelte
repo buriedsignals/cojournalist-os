@@ -125,10 +125,12 @@
 </svelte:head>
 
 <div class="docs">
-	<SharpAction href={backHref} className="mobile-back" ariaLabel="Back">
-		<ArrowLeft size={14} />
-		<span>Back</span>
-	</SharpAction>
+	<div class="mobile-back-wrap">
+		<SharpAction href={backHref} ariaLabel="Back">
+			<ArrowLeft size={14} />
+			<span>Back</span>
+		</SharpAction>
+	</div>
 
 	<div class="layout">
 		<aside class="sidebar" aria-label="Documentation table of contents">
@@ -289,8 +291,8 @@
 								<p>
 									Click <strong>+ New scout</strong> in the sidebar. Pick a type (start with Page
 									Scout or Beat Scout), name it, paste a URL, criteria, or a geography, and schedule it
-									(daily / weekly / monthly). Scheduling saves the current page as the baseline; only
-									later changes create inbox units.
+									(Page Scouts can run daily; Beat and Civic Scouts run weekly or monthly).
+									Scheduling saves the current page as the baseline; only later changes create inbox units.
 								</p>
 							</div>
 						</li>
@@ -324,8 +326,8 @@
 					<h2>Scouts</h2>
 					<p>
 						Scouts are the unit of monitoring. Each one has a type (determines the pipeline), a
-						schedule (daily/weekly/monthly), and a project it belongs to. Per-run credit costs
-						depend on type — see the
+						schedule, and a project it belongs to. Page Scouts may run daily; Beat and Civic
+						Scouts are capped at weekly/monthly schedules. Per-run credit costs depend on type — see the
 						<a href="#ref-costs">credit table</a>.
 					</p>
 
@@ -385,6 +387,7 @@
 						sources; in topic-driven use cases it can focus on more established outlets. Use it to
 						watch a town, a district, or a topic such as <em>housing supply decisions</em>,
 						<em>state AG activity</em>, or <em>FCC filings</em>.
+						Beat Scout schedules are weekly or monthly; daily runs are intentionally rejected.
 					</p>
 
 					<h3 id="scout-social">Social Scout</h3>
@@ -734,7 +737,7 @@ cojo units delete <unit-id>`}</code></pre>
 							</thead>
 							<tbody>
 								<tr><td>Page Scout run (<code>web</code>)</td><td>1</td></tr>
-								<tr><td>Beat Scout run (<code>beat</code>)</td><td>7</td></tr>
+								<tr><td>Beat Scout run (<code>beat</code>, weekly or monthly only)</td><td>7</td></tr>
 								<tr><td>Social Scout — Instagram / X / TikTok</td><td>2</td></tr>
 								<tr><td>Social Scout — Facebook</td><td>15</td></tr>
 								<tr><td>Civic Scout run (weekly or monthly only)</td><td>10 <small>(refunded when a run queues 0 docs)</small></td></tr>
@@ -744,7 +747,8 @@ cojo units delete <unit-id>`}</code></pre>
 					</div>
 					<p>
 						Monthly budget = (cost per run) × (runs per month). A daily Page Scout = 30 credits/mo;
-						a weekly Civic Scout = up to 40 credits/mo (less when a week passes with no new council documents — those runs refund the 10 credits automatically). Plan math lives on the <a href="/">pricing page</a>.
+						a weekly Beat Scout = 28 credits/mo, and a weekly Civic Scout = up to 40 credits/mo
+						(less when a week passes with no new council documents — those runs refund the 10 credits automatically). Plan math lives on the <a href="/">pricing page</a>.
 					</p>
 				</section>
 
@@ -813,11 +817,11 @@ cojo units delete <unit-id>`}</code></pre>
 		color: var(--color-ink);
 	}
 
-	:global(.mobile-back) {
+	.mobile-back-wrap {
 		margin-top: 1rem;
 		margin-left: 1.5rem;
 	}
-	@media (min-width: 960px) { :global(.mobile-back) { display: none; } }
+	@media (min-width: 960px) { .mobile-back-wrap { display: none; } }
 
 	:global(.sidebar-back) {
 		margin-bottom: 1.5rem;

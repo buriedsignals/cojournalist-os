@@ -8,6 +8,10 @@ AI-curated digest with multi-language search and fact-level deduplication.
 
 The beat pipeline surfaces niche sources, community blogs, and underreported stories. It supports location-only, criteria-only, or combined location+criteria scoping. Scheduled creation runs a baseline-only pass first: current findings are deduped and hidden from the inbox, the scout gets `baseline_established_at`, and later Run Now/cron executions notify only on new material.
 
+Beat Scouts can run weekly or monthly. Daily schedules are intentionally
+rejected because this pipeline fans out across search, filtering, extraction,
+and deduplication; weekly is the highest supported frequency.
+
 **Beat Scout modes:**
 - **Geography-scoped Beat Scout** — requires a location, optionally accepts criteria. Often used with **niche** sources.
 - **Topic-scoped Beat Scout** — requires criteria, no location. Often used with **reliable** sources.

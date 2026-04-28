@@ -85,6 +85,24 @@ Before treating a self-hosted install as ready:
 - verify MCP `initialize` and `tools/list` against the self-hosted MCP URL
 - verify a read-only CLI call with a `cj_...` API key
 
+## Upstream maintenance checks
+
+When a newsroom asks for current OSS updates, use
+`automation/upstream-maintenance-codex-prompt.txt`.
+
+Before merging upstream:
+
+- if the starting directory is not a Git worktree, look for a nested checkout
+  such as `cojournalist-os/`
+- set a repository-local Git identity if `user.name` or `user.email` is missing
+- keep local `.env`, `frontend/.env.production`, Supabase config, and local
+  migrations out of the upstream merge commit unless the operator explicitly
+  asks to commit them
+- do not run `supabase db push` while untracked or locally modified migration
+  files exist; list them and ask the operator to review
+- if `gh` or GitHub HTTPS credentials are missing, prepare the branch locally
+  and give exact `git push`, `gh pr create`, and `gh secret set` commands
+
 ## Canonical location
 
 Canonical URL: `https://www.cojournalist.ai/skills/cojournalist-setup.md`

@@ -211,6 +211,29 @@ Deno.test("scouts: beat fields round-trip and legacy pulse alias maps to beat", 
   }
 });
 
+Deno.test("scouts: beat scouts reject daily schedules", async () => {
+  const user = await createTestUser();
+  try {
+    const createRes = await fetch(functionUrl("scouts"), {
+      method: "POST",
+      headers: headers(user.token),
+      body: JSON.stringify({
+        name: "Daily Beat",
+        scout_type: "pulse",
+        criteria: "housing policy",
+        topic: "housing",
+        regularity: "daily",
+        time: "08:00",
+      }),
+    });
+    assertEquals(createRes.status, 400);
+    const body = await createRes.json();
+    assertMatch(body.error, /weekly or monthly/i);
+  } finally {
+    await user.cleanup();
+  }
+});
+
 Deno.test("scouts: social fields persist and seed post snapshot baseline", async () => {
   const user = await createTestUser();
   try {

@@ -70,7 +70,7 @@ export function getScoutTypeDisplay(type: ScoutTypeLike | null | undefined): Sco
 
 /** Credit costs per scout type (see supabase/functions/_shared/credits.ts:CREDIT_COSTS) */
 export const SCOUT_COSTS: Record<ScoutType, number> = {
-	// Civic: weekly/monthly only, refunded when a run queues zero docs.
+	// Beat and civic scouts are capped at weekly/monthly schedules.
 	civic: 10,
 	pulse: 7,
 	social: 2, // Base cost (Instagram/X/TikTok). Facebook is 15.

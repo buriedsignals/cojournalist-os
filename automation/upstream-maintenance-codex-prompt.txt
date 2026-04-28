@@ -19,6 +19,9 @@ Please do this:
    - Run `git status --short`.
    - Run `git remote -v`.
    - Confirm whether this is a fork/clone of coJournalist.
+   - If the current directory is not a Git worktree, search one level down
+     for a nested checkout and continue there. Do not initialize a new repo
+     over an existing deployment directory.
 
 2. Prepare upstream.
    - If there is no `upstream` remote, add:
@@ -29,6 +32,11 @@ Please do this:
 3. Create a maintenance branch.
    - Use a branch name like:
      `cojournalist/upstream-maintenance-YYYY-MM-DD`
+   - Before merging, make sure this repository has a local commit identity.
+     If `git config user.name` or `git config user.email` is empty, set a
+     repository-local automation identity such as:
+     `git config user.name "coJournalist Maintenance"`
+     `git config user.email "maintenance@cojournalist.local"`
 
 4. Pull current upstream updates once.
    - Merge `upstream/master` into the branch.
@@ -53,6 +61,9 @@ Please do this:
 7. Apply the current update locally if safe.
    - If this deployment uses Supabase Cloud and the Supabase CLI is authenticated, run migrations with `supabase db push`.
    - Deploy Edge Functions with `supabase functions deploy --all` if Supabase is linked and credentials are available.
+   - Do not run `supabase db push` when the worktree contains untracked or
+     locally modified migration files. Stop, list those files, and ask the
+     operator to review whether they are local-only deployment migrations.
    - If credentials are missing, stop and give exact commands for the operator to run locally.
 
 8. Verify.

@@ -48,7 +48,7 @@
 	$: perRunCost = getScoutCost(scoutType, scoutType === 'social' ? platform : undefined);
 
 	// Form state
-	let regularity: RegularityType = scoutType === 'civic' ? 'monthly' : scoutType === 'social' ? 'weekly' : scoutType === 'pulse' ? 'daily' : 'weekly';
+	let regularity: RegularityType = scoutType === 'civic' ? 'monthly' : 'weekly';
 	let dayNumber = 1;
 	let hour = 8;
 	let minute = 0;
@@ -142,6 +142,8 @@
 	];
 
 	$: info = scoutTypeInfo[scoutType];
+	$: if ((scoutType === 'pulse' || scoutType === 'social') && regularity === 'daily') regularity = 'weekly';
+	$: if (scoutType === 'civic' && regularity !== 'monthly') regularity = 'monthly';
 	$: monthlyCost = regularity === 'daily' ? perRunCost * 30 : regularity === 'weekly' ? perRunCost * 4 : perRunCost;
 
 	$: preFormDisclaimers = scoutType === 'web'
@@ -509,7 +511,7 @@
 							class="form-select"
 							disabled={scoutType === 'civic'}
 						>
-							{#if scoutType !== 'social' && scoutType !== 'civic'}
+							{#if scoutType === 'web'}
 								<option value="daily">{m.schedule_daily()}</option>
 							{/if}
 							{#if scoutType !== 'civic'}

@@ -43,6 +43,7 @@ import {
 import { logEvent } from "../_shared/log.ts";
 import { shapeScoutResponse } from "../_shared/db.ts";
 import { normalizeSocialHandle } from "../_shared/social_profiles.ts";
+import { schedulePolicyError } from "../_shared/schedule_policy.ts";
 import {
   doubleProbe,
   firecrawlChangeTrackingScrape,
@@ -198,16 +199,15 @@ const CreateSchema = z
         });
       }
     }
-  })
-  .refine(
-    (v) =>
-      v.type !== "civic" || v.regularity === undefined ||
-      v.regularity !== "daily",
-    {
-      message: "civic scouts support weekly or monthly schedules only",
-      path: ["regularity"],
-    },
-  );
+    const scheduleError = schedulePolicyError(v.type, v.regularity);
+    if (scheduleError) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["regularity"],
+        message: scheduleError,
+      });
+    }
+  });
 
 const UpdateSchema = z
   .object({
@@ -238,14 +238,16 @@ const UpdateSchema = z
     tracked_urls: z.array(z.string().url().max(2000)).max(20).nullable()
       .optional(),
   })
-  .refine(
-    (v) =>
-      v.type !== "civic" || v.regularity == null || v.regularity !== "daily",
-    {
-      message: "civic scouts support weekly or monthly schedules only",
-      path: ["regularity"],
-    },
-  );
+  .superRefine((v, ctx) => {
+    const scheduleError = schedulePolicyError(v.type, v.regularity);
+    if (scheduleError) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["regularity"],
+        message: scheduleError,
+      });
+    }
+  });
 
 /** Derive a cron expression from the legacy (regularity, day_number, time)
  *  triple the UI's "Set Up Page Scout" modal still sends. day_number is
@@ -660,6 +662,12 @@ async function createScout(req: Request, user: AuthedUser): Promise<Response> {
   } = parsed.data;
   const schedule_cron = explicitCron ??
     cronFromParts(rest.regularity, day_number, time);
+  const scheduleError = schedulePolicyError(
+    rest.type,
+    rest.regularity,
+    schedule_cron,
+  );
+  if (scheduleError) throw new ValidationError(scheduleError);
 
   const { db } = getCallerClient(user);
   const { data, error } = await db
@@ -835,6 +843,7 @@ async function updateScout(
 
   const nextScout = { ...current, ...parsed.data } as BaselineableScout & {
     schedule_cron?: string | null;
+    regularity?: string | null;
     is_active?: boolean | null;
     topic?: string | null;
     location?: Record<string, unknown> | null;
@@ -844,6 +853,12 @@ async function updateScout(
       "scouts require either location or 1-3 short topic tags",
     );
   }
+  const scheduleError = schedulePolicyError(
+    nextScout.type,
+    nextScout.regularity ?? undefined,
+    nextScout.schedule_cron ?? undefined,
+  );
+  if (scheduleError) throw new ValidationError(scheduleError);
   const willBeActive = nextScout.is_active === true;
   const willHaveSchedule = typeof nextScout.schedule_cron === "string" &&
     nextScout.schedule_cron.length > 0;

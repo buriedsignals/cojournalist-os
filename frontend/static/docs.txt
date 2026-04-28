@@ -13,6 +13,7 @@ coJournalist lets journalists create scheduled scouts that monitor pages, local 
 - **Verification**: the editorial checkpoint that promotes a lead into a citeable fact.
 - **Credits**: the cost model for hosted runs.
 - **Projects**: the container for scouts and exports.
+- **Schedules**: Page Scouts can run daily; Beat and Civic Scouts run weekly or monthly.
 
 ## Integration surfaces
 
@@ -40,6 +41,7 @@ coJournalist lets journalists create scheduled scouts that monitor pages, local 
 
 - Page, Beat, Social, and Civic scouts are the public concepts.
 - Beat Scout may be scoped by topic or geography, but the geography-scoped flow is not a separate public surface.
+- Beat Scout weekly is the highest supported frequency; daily Beat Scout schedules are rejected.
 - Agents can help monitor, search, export, and summarize.
 - Verification remains a hard boundary before publication.
 - Hosted and self-hosted are both supported, but the hosted app is the primary public entrypoint.

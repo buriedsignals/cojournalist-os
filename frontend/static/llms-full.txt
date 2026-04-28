@@ -23,7 +23,7 @@ The product story exposed on the public site is:
 | Scout | What it watches | Typical use |
 |---|---|---|
 | Page Scout | One URL for meaningful changes | press rooms, dockets, filings, policy pages |
-| Beat Scout | A beat by topic or geography | housing, procurement, climate, education, towns, districts, regions |
+| Beat Scout | A beat by topic or geography; weekly/monthly only | housing, procurement, climate, education, towns, districts, regions |
 | Social Scout | Social profiles, including deletions | politicians, agencies, campaign accounts |
 | Civic Scout | Councils, agendas, minutes, and PDFs | promises, decisions, deadlines, dollar figures |
 
@@ -68,7 +68,7 @@ Verification is a hard product boundary. Agents can help search and summarize, b
 Public docs currently describe these per-run costs:
 
 - Page Scout: 1 credit
-- Beat Scout: 7 credits
+- Beat Scout: 7 credits; weekly is the highest supported frequency
 - Social Scout: 2 credits for most platforms, 15 for Facebook
 - Civic Scout: 10 credits in the docs cost table
 
