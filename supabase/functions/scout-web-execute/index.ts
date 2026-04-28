@@ -43,7 +43,10 @@ import {
   loadFactCheckConfig,
 } from "../_shared/fact_check.ts";
 import { isWithinRunDuplicate } from "../_shared/dedup.ts";
-import { filterSubpageUrls } from "../_shared/subpage-filter.ts";
+import {
+  filterSubpageUrls,
+  hasDeterministicListingSignal,
+} from "../_shared/subpage-filter.ts";
 import {
   type CanonicalUnitType,
   deriveSourceDomain,
@@ -422,20 +425,45 @@ async function runPipeline(
   // 5. Extract units and insert non-dupes.
   // Always run extraction; criteria narrows focus when set.
   const hasCriteria = !!scout.criteria?.trim();
-  const extracted = await extractAtomicUnits({
-    title: scrape.title ?? null,
-    content: markdown,
-    sourceUrl: scout.url,
-    publishedDate: null,
-    language:
-      (scout as { preferred_language?: string | null }).preferred_language ??
-        "en",
-    criteria: hasCriteria ? scout.criteria : null,
-    maxUnits: 8,
-    contentLimit: PROMPT_CONTENT_MAX,
-    timeoutMs: PRIMARY_EXTRACTION_TIMEOUT_MS,
-  });
-  const indexIsListingPage = extracted.isListingPage;
+  const phaseBLinks = scrape.rawHtml
+    ? extractLinksFromHtml(scrape.rawHtml, scout.url)
+    : [];
+  const phaseBCandidates = phaseBLinks.length > 0
+    ? filterSubpageUrls(phaseBLinks.map(([url]) => url), scout.url)
+    : [];
+  const deterministicListingPage = hasDeterministicListingSignal(
+    scout.url,
+    phaseBCandidates,
+  );
+
+  const extracted = deterministicListingPage
+    ? { units: [], isListingPage: true }
+    : await extractAtomicUnits({
+      title: scrape.title ?? null,
+      content: markdown,
+      sourceUrl: scout.url,
+      publishedDate: null,
+      language:
+        (scout as { preferred_language?: string | null }).preferred_language ??
+          "en",
+      criteria: hasCriteria ? scout.criteria : null,
+      maxUnits: 8,
+      contentLimit: PROMPT_CONTENT_MAX,
+      timeoutMs: PRIMARY_EXTRACTION_TIMEOUT_MS,
+    });
+  const indexIsListingPage = deterministicListingPage ||
+    extracted.isListingPage;
+
+  if (deterministicListingPage) {
+    logEvent({
+      level: "info",
+      fn: "scout-web-execute",
+      event: "phase_b_deterministic_listing",
+      scout_id: scout.id,
+      run_id: runId,
+      candidates: phaseBCandidates.length,
+    });
+  }
 
   let inserted = 0;
   let mergedExisting = 0;
@@ -470,13 +498,14 @@ async function runPipeline(
   // =========================================================================
   // Phase B — follow listing subpages
   // =========================================================================
-  if (indexIsListingPage && scrape.rawHtml) {
+  if (indexIsListingPage && phaseBCandidates.length > 0) {
     try {
       const subpageResult = await runPhaseB(
         svc,
         scout,
         runId,
-        scrape.rawHtml,
+        phaseBLinks,
+        phaseBCandidates,
         Date.now() + PHASE_B_TOTAL_BUDGET_MS,
       );
       inserted += subpageResult.totalInserted;
@@ -627,7 +656,8 @@ async function runPhaseB(
   svc: SupabaseClient,
   scout: ScoutRow,
   runId: string,
-  rawHtml: string,
+  links: [string, string][],
+  candidateUrls: string[],
   deadlineMs: number,
 ): Promise<{
   linksFound: number;
@@ -642,13 +672,6 @@ async function runPhaseB(
   firstMatchedUrl: string | null;
   firstMatchedTitle: string | null;
 }> {
-  // 1. Extract links
-  const links = extractLinksFromHtml(rawHtml, scout.url);
-
-  // 2. Filter: path-prefix, traversal block, domain validation (pure fn)
-  const candidateUrls = links.map(([url]) => url);
-  const filtered = filterSubpageUrls(candidateUrls, scout.url);
-
   // 3. Dedup against already-seen subpage URLs from stored units
   const { data: seenRows } = await svc
     .from("unit_occurrences")
@@ -659,11 +682,11 @@ async function runPhaseB(
     (seenRows ?? []).map((r) => r.normalized_source_url as string),
   );
 
-  const fresh = filtered.filter((url) => {
+  const fresh = candidateUrls.filter((url) => {
     const normalized = normalizeSourceUrl(url);
     return normalized ? !seen.has(normalized) : true;
   });
-  const previouslySeen = filtered.filter((url) => {
+  const previouslySeen = candidateUrls.filter((url) => {
     const normalized = normalizeSourceUrl(url);
     return normalized ? seen.has(normalized) : false;
   });

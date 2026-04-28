@@ -20,6 +20,7 @@ import { getServiceClient, SupabaseClient } from "../_shared/supabase.ts";
 import { jsonError, jsonFromError, jsonOk } from "../_shared/responses.ts";
 import { AuthError } from "../_shared/errors.ts";
 import { logEvent } from "../_shared/log.ts";
+import { classifyCivicQueueFailure } from "../_shared/civic_queue_state.ts";
 import { normalizeDate } from "../_shared/date_utils.ts";
 import { firecrawlScrape } from "../_shared/firecrawl.ts";
 import {
@@ -168,16 +169,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    const failureState = classifyCivicQueueFailure(claimed.attempts);
     try {
       await svc
         .from("civic_extraction_queue")
         .update({
-          status: "failed",
+          status: failureState.status,
           last_error: msg.slice(0, ERROR_MAX),
           updated_at: new Date().toISOString(),
         })
         .eq("id", queueId);
-      await markLinkedRunFailedIfSettled(svc, claimed, msg);
+      if (failureState.terminal) {
+        await markLinkedRunFailedIfSettled(svc, claimed, msg);
+      }
     } catch (markErr) {
       logEvent({
         level: "error",
@@ -190,9 +194,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     logEvent({
       level: "error",
       fn: "civic-extract-worker",
-      event: "failed",
+      event: failureState.terminal ? "failed" : "retry_scheduled",
       queue_id: queueId,
       scout_id: claimed.scout_id,
+      attempts: claimed.attempts,
       msg,
     });
     return jsonFromError(e);

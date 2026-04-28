@@ -56,19 +56,23 @@ Sends `sendPageScoutAlert` on new non-duplicate units. On error:
 `incrementAndMaybeNotify` + `refund_credits` RPC.
 
 **Phase B — subpage-follow (listing pages only).** When extraction returns
-`isListingPage: true`, the pipeline enters Phase B: extracts links from the
+`isListingPage: true`, or the index has a strong deterministic listing signal
+(the index URL is not article-like and exposes at least 3 safe same-host
+article candidates), the pipeline enters Phase B: extracts links from the
 index's `rawHtml` via `extractLinksFromHtml`, filters via
-`filterSubpageUrls()` (`_shared/subpage-filter.ts` — path-prefix + traversal
-block + domain validator), deduplicates against `information_units.source_url`
-for this scout, caps at 10 fresh URLs, scrapes each with a stagger delay, and
-runs `extractAtomicUnits()` on each article body. Single-hop invariant:
-subpages that themselves return `isListingPage: true` are skipped, not
-recursed. No new DB column; seen-URL set derived from existing units.
+`filterSubpageUrls()` (`_shared/subpage-filter.ts` — strict child paths plus
+clear same-host article routes such as `...-ld.NNN`, numeric IDs, and
+`.html/.php/.aspx`; traversal/static/cross-host/local URLs rejected),
+deduplicates against `information_units.source_url` for this scout, caps at
+10 fresh URLs, scrapes each with a stagger delay, and runs
+`extractAtomicUnits()` on each article body. Single-hop invariant: subpages
+that themselves return `isListingPage: true` are skipped, not recursed. No new
+DB column; seen-URL set derived from existing units.
 
 **Step 6b algorithm:**
 ```
 1. links      ← extractLinksFromHtml(rawHtml, scout.url)    # host-lock
-2. candidates ← filterSubpageUrls(links, scout.url)          # path-prefix + traversal + domain
+2. candidates ← filterSubpageUrls(links, scout.url)          # child paths + safe same-host articles
 3. seen       ← SELECT DISTINCT source_url FROM information_units WHERE scout_id = $1
 4. fresh      ← (candidates − seen)[0 : 10]                  # CAP = 10
 5. for url in fresh (sequential, staggered):
@@ -134,7 +138,10 @@ with a language-forced system prompt (matches the scout's
 passed as filter data to the user prompt (not instructions). Inserts
 `raw_captures`, canonical `information_units`, `unit_occurrences`, and
 `promises`, then fires `sendCivicAlert` only when a new canonical promise
-unit is created.
+unit is created. Failed processing attempts 1-2 are reset to `pending`; attempt
+3 becomes terminal `failed`. Linked `scout_runs` are marked error only after
+all pending/processing work for that run is settled and a row reaches terminal
+failure.
 
 ### `civic-test` — Dev tooling
 Runs a single civic extraction without scheduling for iterating on prompts/schemas.
@@ -245,7 +252,7 @@ Legacy placeholder; the default `/` routing target. Returns a health-check respo
 | `credits.ts` | `CREDIT_COSTS`, `decrementOrThrow`, `InsufficientCreditsError`, `insufficientCreditsResponse`, `SOCIAL_MONITORING_KEYS`, `EXTRACTION_KEYS`, `getSocialMonitoringCost`, `getExtractionCost`, `calculateMonitoringCost` |
 | `muckrock.ts` | `MuckrockClient` with `fetchUserData`, `fetchOrgData` |
 | `entitlements.ts` | `resolveTier`, `applyAdminOverride`, `applyUserEvent`, `applyIndividualOrgChange`, `applyTeamOrgTopup`, `cancelTeamOrg`, `upsertUserCredits`, `upsertUserPreferences`, `seedTeamOrg` |
-| `subpage-filter.ts` | `filterSubpageUrls(links, indexUrl)` — pure Phase B filter: path-prefix under index, traversal block, domain validator. Tested in `_shared/subpage_filter_test.ts`. |
+| `subpage-filter.ts` | `filterSubpageUrls(links, indexUrl)` — pure Phase B filter: path-prefix under index, safe same-host article routes, traversal/static block, domain validator. Tested in `_shared/subpage_filter_test.ts`. |
 
 ## Auth models
 

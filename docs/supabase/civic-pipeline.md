@@ -128,8 +128,9 @@ LOOP
     civic_extraction_queue UPDATE status=done, raw_capture_id, completed_at
     append_processed_pdf_url_capped(scout_id, source_url, 100)  # 00031
   CATCH:
-    civic_extraction_queue UPDATE status=pending, error_message
-    (next claim will increment attempts; at 3, failsafe marks failed)
+    civic_extraction_queue UPDATE status=pending for attempts 1-2
+    civic_extraction_queue UPDATE status=failed for attempt 3+
+    linked scout_runs marked error only after terminal failure and no active sibling rows
 END LOOP
 ```
 
@@ -165,7 +166,7 @@ cleanup_civic_queue (03:25 UTC)
 
 1. **Workers never double-process a row.** `FOR UPDATE SKIP LOCKED` is the guarantee.
 2. **Stuck rows self-heal within 40 minutes.** Failsafe runs every 10m, grace is 30m.
-3. **Max 3 attempts per URL.** Beyond that it's `failed` and needs manual intervention.
+3. **Max 3 attempts per URL.** Worker failures on attempts 1-2 reset the row to `pending`; attempt 3 marks it `failed` and needs manual intervention.
 4. **`scouts.processed_pdf_urls` is a ring buffer, cap 100, appended only after successful extraction.** Prevents re-enqueueing pages already successfully processed, without an unbounded array. Failing scrapes stay out of the set so the queue retry path can actually retry them (3 attempts capped by `civic_queue_failsafe`). `append_processed_pdf_url_capped(scout_id, url, cap)` (migration 00031) is the idempotent helper.
 5. **Only newly created canonical promise units trigger the immediate civic alert.** Rediscoveries from Civic/Page/Beat attach provenance and update the tracker but do not create a second inbox card or a second alert.
 
