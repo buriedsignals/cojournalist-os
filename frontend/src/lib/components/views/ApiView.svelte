@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Copy, Check, Plus, Trash2, ExternalLink, Key } from 'lucide-svelte';
 	import { apiClient } from '$lib/api-client';
+	import { getSupabaseProjectRef } from '$lib/utils/agent-targets';
 	import * as m from '$lib/paraglide/messages';
 
 	// --- State ---
@@ -40,13 +41,22 @@
 		: isSupabase
 			? `${supabaseUrl}/functions/v1/openapi-spec`
 			: `${origin}/api/openapi.json`;
+	const projectRef = isSupabase ? getSupabaseProjectRef(supabaseUrl) : null;
+	const targetLabel = hostedBroker
+		? 'cojournalist.ai'
+		: projectRef
+			? `Supabase project ${projectRef}`
+			: isSupabase
+				? 'Supabase project not configured'
+				: origin;
 	// Swagger UI: Supabase has no auto-generated /api/docs, so we serve our own
 	// SvelteKit route (/swagger) that loads swagger-ui-dist from CDN and points at specUrl.
 	// Route name deliberately avoids the `/api` prefix so the Vite dev proxy doesn't
 	// catch it and forward to the FastAPI backend.
 	const swaggerUrl = hostedBroker || isSupabase ? '/swagger' : '/api/docs';
 
-	const AGENT_INSTRUCTIONS = `Base URL: ${apiBase}
+	const AGENT_INSTRUCTIONS = `Active target: ${targetLabel}
+Base URL: ${apiBase}
 API Spec: ${specUrl}
 Auth: Bearer <your-api-key>`;
 
@@ -138,6 +148,13 @@ Auth: Bearer <your-api-key>`;
 							<span>{m.api_copy()}</span>
 						{/if}
 					</button>
+				</div>
+				<div class="target-summary">
+					<span>Active API target</span>
+					<code>{apiBase}</code>
+					{#if projectRef}
+						<small>Project ref: {projectRef}</small>
+					{/if}
 				</div>
 				<pre class="agent-code">{AGENT_INSTRUCTIONS}</pre>
 			</div>
@@ -325,6 +342,33 @@ Auth: Bearer <your-api-key>`;
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: var(--color-ink);
+	}
+
+	.target-summary {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.625rem 0.875rem;
+		border-bottom: 1px solid var(--color-border);
+		background: var(--color-surface);
+	}
+
+	.target-summary span,
+	.target-summary small {
+		font-size: 0.6875rem;
+		font-weight: 500;
+		color: var(--color-ink-subtle);
+	}
+
+	.target-summary code {
+		min-width: 0;
+		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, monospace;
+		font-size: 0.6875rem;
+		color: var(--color-ink);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.agent-code {

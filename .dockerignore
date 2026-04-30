@@ -1,0 +1,40 @@
+.git
+.gitignore
+README.md
+LICENSE
+.vscode
+.idea
+
+# Frontend
+frontend/node_modules
+frontend/.svelte-kit
+frontend/build
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+# NOTE: frontend/.env.production is committed and MUST reach the build
+# context. Vite reads it during `npm run build` to substitute
+# `import.meta.env.PUBLIC_*` references in the bundle. The previous
+# `frontend/.env.*` glob excluded it, leaving import.meta.env.PUBLIC_SUPABASE_URL
+# undefined → "" → broken Supabase client (2026-04-21 cutover bug).
+
+# Backend
+backend/__pycache__
+backend/app/__pycache__
+backend/.env
+backend/.env.*
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+
+# Development files
+Dockerfile.dev
+docker-compose.yml
+*.md
+!requirements.txt
+!frontend/static/skill.md
+!frontend/static/skills/
+!frontend/static/skills/*.md

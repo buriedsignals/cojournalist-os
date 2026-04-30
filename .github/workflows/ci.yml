@@ -1,0 +1,243 @@
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npm run build
+        env:
+          PUBLIC_MAPTILER_API_KEY: "placeholder"
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx svelte-kit sync
+      - run: cd frontend && npm test
+
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - run: pip install pytest pytest-asyncio
+      - run: cd backend && python -m pytest tests/unit/ -v
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npm run check
+
+  selfhost-maintenance:
+    name: Self-host maintenance tooling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Shell syntax
+        run: bash -n automation/selfhost-doctor.sh automation/adopt-signup-allowlist.sh automation/setup-from-manifest.sh automation/setup.sh
+
+      - name: Deno formatting
+        run: deno fmt --check automation/selfhost_maintenance_test.ts supabase/functions/_shared/selfhost_runtime_smoke_test.ts
+
+      - name: Maintenance script behavior
+        run: deno test --allow-read --allow-write --allow-run --allow-env automation/selfhost_maintenance_test.ts
+
+      - name: Runtime smoke compiles without local env
+        run: deno test --allow-env --allow-net supabase/functions/_shared/selfhost_runtime_smoke_test.ts
+
+      - name: Workflow YAML parses
+        run: ruby -e 'require "yaml"; YAML.load_file("automation/sync-upstream.yml"); puts "sync-upstream yaml ok"'
+
+  oss-mirror-check:
+    name: OSS mirror validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Strip SaaS-only code
+        run: bash scripts/strip-oss.sh
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: cd frontend && npm ci
+
+      - name: Verify public setup assets survive strip
+        run: |
+          test -f automation/SETUP_AGENT.md
+          test -f automation/setup.sh
+          test -f automation/selfhost-doctor.sh
+          test -f automation/adopt-signup-allowlist.sh
+          test -f automation/selfhost_maintenance_test.ts
+          test -f automation/sync-upstream.yml
+          test -f deploy/SETUP.md
+          test -f deploy/render/render.yaml
+
+      - name: Build stripped frontend
+        run: cd frontend && npm run build
+        env:
+          PUBLIC_MAPTILER_API_KEY: "placeholder"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Validate backend boots after strip
+        run: |
+          pip install -r backend/requirements.txt
+          cd backend
+          DEPLOYMENT_TARGET=supabase python -c "from app.main import app; print('OSS boot test passed')"
+
+  selfhost-runtime-smoke:
+    name: Self-host local runtime smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase
+        run: |
+          supabase start
+          supabase db reset --local --yes
+          supabase status -o env | tee /tmp/cojo-supabase.env
+
+      - name: Wait for Edge Functions
+        run: |
+          # shellcheck disable=SC1091
+          source /tmp/cojo-supabase.env
+          for _ in {1..60}; do
+            status="$(curl -sS -o /tmp/cojo-functions-health.txt -w '%{http_code}' "${API_URL}/functions/v1/scouts" || true)"
+            if [ "$status" = "401" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker logs supabase_edge_runtime_cojournalist || true
+          cat /tmp/cojo-functions-health.txt || true
+          exit 1
+
+      - name: Run local self-host smoke
+        run: |
+          set -a
+          # shellcheck disable=SC1091
+          source /tmp/cojo-supabase.env
+          set +a
+          COJO_SELFHOST_RUNTIME_SMOKE=1 deno test --allow-env --allow-net supabase/functions/_shared/selfhost_runtime_smoke_test.ts
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
+
+  cli-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run CLI unit tests (offline)
+        run: cd cli && deno test --allow-read --allow-write --allow-env --allow-net commands/_test.ts
+
+  cli-smoke:
+    name: cojo live smoke
+    runs-on: ubuntu-latest
+    # Only runs when the test secrets are populated. Tom adds these at his
+    # discretion in repo settings → Secrets and variables → Actions.
+    if: ${{ vars.COJO_SMOKE_ENABLED == 'true' }}
+    needs: cli-test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run cojo live smoke tests
+        env:
+          COJO_TEST_API_URL: ${{ secrets.COJO_TEST_API_URL }}
+          COJO_TEST_API_KEY: ${{ secrets.COJO_TEST_API_KEY }}
+          COJO_TEST_SUPABASE_ANON_KEY: ${{ secrets.COJO_TEST_SUPABASE_ANON_KEY }}
+        run: cd cli && deno test --allow-read --allow-write --allow-env --allow-net commands/_smoke.test.ts
+
+  audit-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install pip-audit
+      - run: pip-audit -r backend/requirements.txt
+
+  audit-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npm audit --audit-level=high
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: TruffleHog scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified

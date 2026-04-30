@@ -49,7 +49,7 @@ Or override per-launch with env vars:
 
 | Variable | Default | Required |
 |---|---|---|
-| `COJOURNALIST_API_URL` | `https://gfmdziplticfoakhrfpt.supabase.co` | no |
+| `COJOURNALIST_API_URL` | `https://www.cojournalist.ai` | no |
 | `COJOURNALIST_API_KEY` | — | yes |
 | `COJOURNALIST_SUPABASE_ANON_KEY` | — | yes, when `api_url` is a Supabase host |
 

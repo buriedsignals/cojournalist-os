@@ -28,12 +28,16 @@ sed_if_exists() {
 
 echo "=== Stripping SaaS-only code ==="
 
+HOSTED_SUPABASE_REF="gfmdziplticfoak"
+HOSTED_SUPABASE_REF="${HOSTED_SUPABASE_REF}hrfpt"
+
 # AWS infrastructure was removed in the v2 migration — nothing to strip here.
 # (aws/ and backend/app/adapters/aws/ no longer exist in the SaaS source tree.)
 
 # Backend: remove SaaS-only auth broker (MuckRock OAuth)
 rm -f backend/app/routers/auth.py
 rm -f backend/app/routers/local_auth.py
+rm -f backend/app/routers/muckrock_proxy.py
 rm -f backend/app/services/muckrock_client.py
 rm -f backend/app/services/muckrock_client.py
 rm -f backend/tests/unit/auth/test_auth_router.py
@@ -81,6 +85,7 @@ rm -rf docs/muckrock/
 rm -rf docs/billing/
 rm -rf docs/benchmarks/
 rm -rf docs/research/
+rm -rf docs/supabase/
 rm -f docs/architecture/license-key-infrastructure.md
 rm -f docs/architecture/aws-architecture.md
 rm -f docs/architecture/records-and-deduplication.md
@@ -396,6 +401,52 @@ rm -f scripts/dev/run-frontend-muckrock-local.sh
 rm -f scripts/dev/run-frontend-muckrock-hosted.sh
 
 # -------------------------------------------------------------------
+# OSS deployment defaults must be generated per newsroom. Never ship the
+# hosted coJournalist Supabase project as a baked frontend/CLI target.
+# -------------------------------------------------------------------
+cat > frontend/.env.production <<'ENVEOF'
+PUBLIC_DEPLOYMENT_TARGET=supabase
+PUBLIC_SUPABASE_URL=https://project-ref.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=
+VITE_API_URL=https://project-ref.supabase.co/functions/v1
+PUBLIC_MAPTILER_API_KEY=
+PUBLIC_MUCKROCK_ENABLED=false
+PUBLIC_LOCAL_DEMO_MODE=false
+ENVEOF
+
+sed_if_exists -i "s|https://${HOSTED_SUPABASE_REF}.supabase.co|https://project-ref.supabase.co|g" frontend/.env.local.example
+sed_if_exists -i 's|PUBLIC_SUPABASE_ANON_KEY=.*|PUBLIC_SUPABASE_ANON_KEY=<public anon key>|' frontend/.env.local.example
+
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("Dockerfile")
+if p.exists():
+    text = p.read_text()
+    start = text.find("ENV PUBLIC_DEPLOYMENT_TARGET=supabase")
+    end = text.find("# MapTiler key stays as ARG", start)
+    if start != -1 and end != -1:
+        replacement = """ARG PUBLIC_DEPLOYMENT_TARGET=supabase
+ARG PUBLIC_SUPABASE_URL=''
+ARG PUBLIC_SUPABASE_ANON_KEY=''
+ARG VITE_API_URL=''
+ARG PUBLIC_MUCKROCK_ENABLED=false
+ARG PUBLIC_LOCAL_DEMO_MODE=false
+ENV PUBLIC_DEPLOYMENT_TARGET=${PUBLIC_DEPLOYMENT_TARGET}
+ENV PUBLIC_SUPABASE_URL=${PUBLIC_SUPABASE_URL}
+ENV PUBLIC_SUPABASE_ANON_KEY=${PUBLIC_SUPABASE_ANON_KEY}
+ENV VITE_API_URL=${VITE_API_URL}
+ENV PUBLIC_MUCKROCK_ENABLED=${PUBLIC_MUCKROCK_ENABLED}
+ENV PUBLIC_LOCAL_DEMO_MODE=${PUBLIC_LOCAL_DEMO_MODE}
+"""
+        text = text[:start] + replacement + text[end:]
+        p.write_text(text)
+PY
+
+sed_if_exists -i "s|https://${HOSTED_SUPABASE_REF}.supabase.co/functions/v1|https://www.cojournalist.ai/functions/v1|g" supabase/functions/openapi-spec/spec.json
+sed_if_exists -i "s|${HOSTED_SUPABASE_REF}|<project-ref>|g" scripts/deploy-functions.sh
+
+# -------------------------------------------------------------------
 # Validate: no SaaS-only references remain
 # -------------------------------------------------------------------
 echo "=== Validating OSS build ==="
@@ -423,6 +474,17 @@ fi
 
 if [ -d "backend/app/routers/threat_modeling" ]; then
   echo "ERROR: threat_modeling directory found in OSS build"
+  FAIL=1
+fi
+
+if grep -r "$HOSTED_SUPABASE_REF" \
+  --exclude-dir=".git" \
+  --exclude-dir="node_modules" \
+  --exclude-dir=".svelte-kit" \
+  --exclude-dir="build" \
+  --exclude-dir="tests" \
+  . 2>/dev/null; then
+  echo "ERROR: hosted coJournalist Supabase project ref found in OSS build"
   FAIL=1
 fi
 

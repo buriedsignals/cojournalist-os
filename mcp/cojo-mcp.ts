@@ -13,7 +13,7 @@
  *
  * Config precedence (per key): env var > ~/.cojournalist/config.json.
  * Accepted env vars:
- *   COJOURNALIST_API_URL (default: https://gfmdziplticfoakhrfpt.supabase.co)
+ *   COJOURNALIST_API_URL (default: https://www.cojournalist.ai)
  *   COJOURNALIST_API_KEY (required)
  *   COJOURNALIST_SUPABASE_ANON_KEY (required when api_url is a Supabase host)
  */
@@ -38,7 +38,7 @@ forwards each request to https://<api_url>/functions/v1/mcp-server/ with
 your cj_… API key.
 
 Configure with the cojo CLI before first use:
-  cojo config set api_url=https://gfmdziplticfoakhrfpt.supabase.co
+  cojo config set api_url=https://<project-ref>.supabase.co
   cojo config set supabase_anon_key=<public anon key>
   cojo config set api_key=cj_<your api key>
 

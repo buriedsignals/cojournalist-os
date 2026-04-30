@@ -26,6 +26,7 @@ const repoRoot = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 const doctorScript = `${repoRoot}/automation/selfhost-doctor.sh`;
 const adoptScript = `${repoRoot}/automation/adopt-signup-allowlist.sh`;
 const workflowPath = `${repoRoot}/automation/sync-upstream.yml`;
+const hostedSupabaseRef = "gfmdziplticfoak" + "hrfpt";
 
 async function run(
   command: string,
@@ -105,6 +106,85 @@ uri = "pg-functions://postgres/public/hook_restrict_signup_to_meier_domain"
   assertIncludes(
     result.stdout,
     "Custom Supabase signup hook detected",
+    "doctor stdout",
+  );
+});
+
+Deno.test("selfhost doctor passes generated newsroom Supabase config", async () => {
+  const tmp = await Deno.makeTempDir();
+  await initRepo(tmp);
+  await Deno.mkdir(`${tmp}/frontend`, { recursive: true });
+  await Deno.writeTextFile(
+    `${tmp}/.env`,
+    "SUPABASE_URL=https://newsroom-project.supabase.co\n",
+  );
+  await Deno.writeTextFile(
+    `${tmp}/frontend/.env.production`,
+    [
+      "PUBLIC_DEPLOYMENT_TARGET=supabase",
+      "PUBLIC_SUPABASE_URL=https://newsroom-project.supabase.co",
+      "PUBLIC_SUPABASE_ANON_KEY=anon_test",
+      "VITE_API_URL=https://newsroom-project.supabase.co/functions/v1",
+      "PUBLIC_LOCAL_DEMO_MODE=false",
+      "",
+    ].join("\n"),
+  );
+  await Deno.writeTextFile(
+    `${tmp}/supabase/config.toml`,
+    `[auth.hook.before_user_created]
+enabled = true
+uri = "pg-functions://postgres/public/hook_restrict_signup_by_allowlist"
+`,
+  );
+
+  const result = await run("bash", [doctorScript], tmp);
+
+  assert(result.code === 0, result.stderr || result.stdout);
+  assertIncludes(result.stdout, "No blocking issues found", "doctor stdout");
+});
+
+Deno.test("selfhost doctor blocks hosted Supabase refs in frontend env", async () => {
+  const tmp = await Deno.makeTempDir();
+  await initRepo(tmp);
+  await Deno.mkdir(`${tmp}/frontend`, { recursive: true });
+  await Deno.writeTextFile(
+    `${tmp}/frontend/.env.production`,
+    `PUBLIC_SUPABASE_URL=https://${hostedSupabaseRef}.supabase.co\n`,
+  );
+
+  const result = await run("bash", [doctorScript], tmp);
+
+  assert(result.code !== 0, "hosted Supabase ref should block doctor");
+  assertIncludes(
+    result.stdout,
+    "Hosted coJournalist Supabase project ref found",
+    "doctor stdout",
+  );
+});
+
+Deno.test("selfhost doctor blocks root/frontend Supabase URL mismatch", async () => {
+  const tmp = await Deno.makeTempDir();
+  await initRepo(tmp);
+  await Deno.mkdir(`${tmp}/frontend`, { recursive: true });
+  await Deno.writeTextFile(
+    `${tmp}/.env`,
+    "SUPABASE_URL=https://root-project.supabase.co\n",
+  );
+  await Deno.writeTextFile(
+    `${tmp}/frontend/.env.production`,
+    [
+      "PUBLIC_SUPABASE_URL=https://frontend-project.supabase.co",
+      "VITE_API_URL=https://frontend-project.supabase.co/functions/v1",
+      "",
+    ].join("\n"),
+  );
+
+  const result = await run("bash", [doctorScript], tmp);
+
+  assert(result.code !== 0, "mismatched Supabase URLs should block doctor");
+  assertIncludes(
+    result.stdout,
+    "does not match frontend/.env.production PUBLIC_SUPABASE_URL",
     "doctor stdout",
   );
 });

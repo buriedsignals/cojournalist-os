@@ -9,7 +9,7 @@
 		getSkillPrompt,
 		type InstallPath
 	} from '$lib/utils/agent-recipes';
-	import { resolveAgentTargetContext } from '$lib/utils/agent-targets';
+	import { getSupabaseProjectRef, resolveAgentTargetContext } from '$lib/utils/agent-targets';
 	import type { AgentSlug } from '$lib/utils/agent-icons';
 
 	export let open = false;
@@ -39,6 +39,10 @@
 	$: recipe = agentRecipes.recipes[path] ?? agentRecipes.recipes[agentRecipes.default]!;
 	// Prompt adapts to both the agent (skill save location) and path (CLI vs MCP instructions).
 	$: skillPrompt = getSkillPrompt(agent, path, agentTarget);
+	$: targetProjectRef =
+		agentTarget.deploymentKind === 'supabase'
+			? getSupabaseProjectRef(import.meta.env.PUBLIC_SUPABASE_URL)
+			: null;
 
 	function close() {
 		onClose();
@@ -206,6 +210,13 @@
 						<div class="skill-head">
 							<span class="skill-eyebrow">Step 1 · 1-click setup</span>
 							<h3>Paste this into your first message</h3>
+							<div class="target-summary">
+								<span>Active target</span>
+								<code>{agentTarget.apiBaseUrl}</code>
+								{#if targetProjectRef}
+									<small>Project ref: {targetProjectRef}</small>
+								{/if}
+							</div>
 							<p>
 								It tells your AI to fetch <code>skill.md</code>, install the
 								<code>{path === 'cli' ? 'cojo CLI' : 'remote MCP server'}</code>, and verify the connection —
@@ -534,6 +545,31 @@
 		color: var(--color-ink);
 		margin: 0 0 0.25rem 0;
 		letter-spacing: -0.01em;
+	}
+	.target-summary {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 0 0 0.625rem;
+		padding: 0.5rem 0.625rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+	}
+	.target-summary span,
+	.target-summary small {
+		font-size: 0.6875rem;
+		font-weight: 500;
+		color: var(--color-ink-subtle);
+	}
+	.target-summary code {
+		min-width: 0;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		color: var(--color-ink);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.skill-head p {
 		font-size: 0.875rem;

@@ -64,7 +64,7 @@ class _FakeSupabaseAdmin:
         self.generate_link_calls.append(params)
         return SimpleNamespace(
             properties=SimpleNamespace(
-                action_link="https://gfmdziplticfoakhrfpt.supabase.co/auth/v1/verify?token=abc&type=magiclink",
+                action_link="https://newsroom-project.supabase.co/auth/v1/verify?token=abc&type=magiclink",
             ),
         )
 

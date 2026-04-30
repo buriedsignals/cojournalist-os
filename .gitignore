@@ -1,0 +1,97 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Supabase local runtime artifacts
+supabase/.branches/
+supabase/.temp/
+supabase/functions/deno.lock
+
+# Operator notes with secrets (for Tom only, never committed)
+TOM.md
+cojournalist-pat.txt
+supabase-keys.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Node
+node_modules/
+.npm
+*.log
+npm-debug.log*
+
+# SvelteKit
+.svelte-kit/
+build/
+.output/
+
+# Paraglide (generated i18n files)
+frontend/src/lib/paraglide/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# AI tool configs
+.claude/
+.agents/
+
+# Firecrawl cache
+.firecrawl/
+
+# CLI + MCP release artifacts
+cli/dist/
+mcp/dist/
+
+# pytest
+.pytest_cache/
+
+# Git worktrees
+.worktrees/
+
+# MuckRock migration (sensitive credentials)
+muckrock-migration/
+muckrock-credentials.txt
+
+# Stripe CLI skills
+skills/
+!frontend/static/skills/
+!frontend/static/skills/*.md
+!frontend/src/routes/skills/
+!frontend/src/routes/skills/**
+skills-lock.json
+test.md
+
+# Docker volume mount stubs (real files in automation/ and deploy/)
+backend/app/SETUP.md
+backend/app/SETUP_AGENT.md
+backend/app/render.yaml
+backend/app/setup.sh
+backend/app/sync-upstream.yml
+backend/app/setup-skill.md
+# Local-only files
+threats.md
+docs/superpowers/
+
+# Generated EF bundles (regenerate via scripts/bundle-ef.ts)
+supabase/functions/*/_bundled.ts

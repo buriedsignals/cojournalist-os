@@ -236,7 +236,7 @@
 	$: demoActive = IS_LOCAL_DEMO_MODE || isDemoWorkspace(scoutsState.scouts);
 	onMount(async () => {
 		await Promise.all([scoutsStore.load(), unitsStore.load(null)]);
-		if (!IS_LOCAL_DEMO_MODE && shouldSeedDemoWorkspace($scoutsStore.scouts)) {
+		if (!IS_LOCAL_DEMO_MODE && shouldSeedDemoWorkspace($scoutsStore.scouts, $scoutsStore.error)) {
 			scoutsStore.seedDemo();
 			unitsStore.seedDemo();
 		}

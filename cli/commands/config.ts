@@ -1,5 +1,10 @@
 // cojo config — manage ~/.cojournalist/config.json
-import { configPath, readConfigFile, writeConfigFile } from "../lib/client.ts";
+import {
+  configPath,
+  readConfigFile,
+  warnIfKnownHostedSupabaseTarget,
+  writeConfigFile,
+} from "../lib/client.ts";
 
 const VALID_KEYS = [
   "api_url",
@@ -53,6 +58,7 @@ export function run(argv: string[]): void {
 
   if (sub === "show") {
     const cfg = readConfigFile();
+    warnIfKnownHostedSupabaseTarget(cfg.api_url);
     const display: Record<string, string> = {};
     for (const k of VALID_KEYS) {
       const v = cfg[k];

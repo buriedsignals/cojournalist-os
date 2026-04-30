@@ -39,6 +39,17 @@ export function isHostedCojournalistHost(hostname: string | undefined): boolean 
 	return Boolean(hostname && HOSTED_HOSTS.has(hostname));
 }
 
+export function getSupabaseProjectRef(supabaseUrl: string | undefined): string | null {
+	if (!supabaseUrl) return null;
+	try {
+		const { hostname } = new URL(trimSlash(supabaseUrl));
+		const match = hostname.match(/^([a-z0-9-]+)\.supabase\.co$/i);
+		return match?.[1] ?? null;
+	} catch {
+		return null;
+	}
+}
+
 export function resolveAgentTargetContext(input: ResolveTargetInput = {}): AgentTargetContext {
 	const origin = trimSlash(input.origin || HOSTED_AGENT_TARGET.appUrl);
 	const supabaseUrl = trimSlash(input.supabaseUrl || '');
@@ -67,4 +78,3 @@ export function resolveAgentTargetContext(input: ResolveTargetInput = {}): Agent
 		customMcpUrl: customMcpUrl || undefined
 	};
 }
-

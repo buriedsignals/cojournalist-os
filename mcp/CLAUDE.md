@@ -87,7 +87,7 @@ CI injects the version string into `mcp/lib/version.ts` via `sed` before
 - `supabase_anon_key` — **required** when `api_url` is a Supabase host.
   Sent as the `apikey:` header. Without it, Kong rejects the request.
 - `api_url` — bare host. Trailing slash stripped. Default
-  `https://gfmdziplticfoakhrfpt.supabase.co` if unset.
+  `https://www.cojournalist.ai` if unset.
 
 Env-var overrides: `COJOURNALIST_API_URL`, `COJOURNALIST_API_KEY`,
 `COJOURNALIST_SUPABASE_ANON_KEY` — same names the CLI already uses.

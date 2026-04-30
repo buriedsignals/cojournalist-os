@@ -10,7 +10,7 @@
     }
   },
   "servers": [
-    { "url": "https://gfmdziplticfoakhrfpt.supabase.co/functions/v1", "description": "Production" },
+    { "url": "https://www.cojournalist.ai/functions/v1", "description": "Production" },
     { "url": "/functions/v1", "description": "Relative (when proxied by the app)" }
   ],
   "security": [{ "bearerAuth": [], "anonKey": [] }],

@@ -16,7 +16,7 @@ export interface BridgeConfig {
   supabaseAnonKey: string;
 }
 
-const DEFAULT_API_URL = "https://gfmdziplticfoakhrfpt.supabase.co";
+const DEFAULT_API_URL = "https://www.cojournalist.ai";
 
 function expandHome(p: string): string {
   if (!p.startsWith("~")) return p;

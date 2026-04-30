@@ -190,8 +190,11 @@ export function isDemoWorkspace(scouts: DemoScoutLike[]): boolean {
 	return !demoDismissed() && scouts.length > 0 && scouts.every((scout) => isDemoScout(scout));
 }
 
-export function shouldSeedDemoWorkspace(scouts: DemoScoutLike[]): boolean {
-	return !demoDismissed() && scouts.length === 0;
+export function shouldSeedDemoWorkspace(
+	scouts: DemoScoutLike[],
+	loadError: string | null | undefined = null
+): boolean {
+	return !loadError && !demoDismissed() && scouts.length === 0;
 }
 
 export function shouldRetireDemoWorkspace(scouts: DemoScoutLike[]): boolean {

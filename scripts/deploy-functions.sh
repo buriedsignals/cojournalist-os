@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# Deploy all v2 Edge Functions to the cojournalist cloud project.
+# Deploy all v2 Edge Functions to a Supabase project.
 # Pre-requisite: `supabase login` (interactive — one time).
 #
 #   bash scripts/deploy-functions.sh
 #
 set -euo pipefail
 
-PROJECT_REF="${PROJECT_REF:-gfmdziplticfoakhrfpt}"
+PROJECT_REF="${PROJECT_REF:-}"
+if [ -z "$PROJECT_REF" ]; then
+  echo "Set PROJECT_REF to the target Supabase project ref before deploying functions." >&2
+  exit 2
+fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 

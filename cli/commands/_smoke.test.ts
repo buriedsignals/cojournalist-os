@@ -2,7 +2,7 @@
 // against a test API key. Skipped unless all of these env vars are set
 // in CI (or locally for ad-hoc runs):
 //
-//   COJO_TEST_API_URL          — e.g. https://gfmdziplticfoakhrfpt.supabase.co/functions/v1
+//   COJO_TEST_API_URL          — e.g. https://<project-ref>.supabase.co/functions/v1
 //   COJO_TEST_API_KEY          — cj_… key with read-only test scope
 //   COJO_TEST_SUPABASE_ANON_KEY — Supabase project anon key
 //

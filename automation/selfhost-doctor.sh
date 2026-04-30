@@ -2,6 +2,8 @@
 set -euo pipefail
 
 EXPECTED_AUTH_HOOK="pg-functions://postgres/public/hook_restrict_signup_by_allowlist"
+HOSTED_SUPABASE_REF="gfmdziplticfoak"
+HOSTED_SUPABASE_REF="${HOSTED_SUPABASE_REF}hrfpt"
 
 info() { printf "INFO: %s\n" "$1"; }
 ok() { printf "OK: %s\n" "$1"; }
@@ -89,6 +91,72 @@ extract_auth_hook_enabled() {
   ' "$config_file"
 }
 
+env_file_value() {
+  local file="$1"
+  local key="$2"
+  local line value
+  [ -f "$file" ] || return 1
+  line="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" | tail -n 1 || true)"
+  [ -n "$line" ] || return 1
+  value="${line#*=}"
+  printf "%s" "$value" | sed \
+    -e 's/^[[:space:]]*//' \
+    -e 's/[[:space:]]*$//' \
+    -e 's/^"//' \
+    -e 's/"$//' \
+    -e "s/^'//" \
+    -e "s/'$//"
+}
+
+normalize_url() {
+  printf "%s" "$1" | sed -e 's/[[:space:]]//g' -e 's:/*$::'
+}
+
+scan_hosted_supabase_refs() {
+  local file matches
+  local files=(
+    ".env"
+    ".env.production"
+    "frontend/.env.production"
+    "frontend/.env.local"
+    "frontend/build/_app/env.js"
+    "cojournalist-setup.json"
+    "generated-cli-instructions.txt"
+  )
+  for file in "${files[@]}"; do
+    [ -f "$file" ] || continue
+    if grep -q "$HOSTED_SUPABASE_REF" "$file"; then
+      matches="$(grep -n "$HOSTED_SUPABASE_REF" "$file" | cut -d: -f1 | paste -sd, -)"
+      blocker "Hosted coJournalist Supabase project ref found in $file line(s): $matches. Regenerate this deployment config for the newsroom project."
+    fi
+  done
+}
+
+check_frontend_supabase_consistency() {
+  local root_url frontend_url vite_api_url expected_api
+  root_url="$(env_file_value ".env" "SUPABASE_URL" || true)"
+  if [ -z "$root_url" ]; then
+    root_url="$(env_file_value ".env" "PUBLIC_SUPABASE_URL" || true)"
+  fi
+  frontend_url="$(env_file_value "frontend/.env.production" "PUBLIC_SUPABASE_URL" || true)"
+  vite_api_url="$(env_file_value "frontend/.env.production" "VITE_API_URL" || true)"
+
+  root_url="$(normalize_url "$root_url")"
+  frontend_url="$(normalize_url "$frontend_url")"
+  vite_api_url="$(normalize_url "$vite_api_url")"
+
+  if [ -n "$root_url" ] && [ -n "$frontend_url" ] && [ "$root_url" != "$frontend_url" ]; then
+    blocker "Root .env Supabase URL ($root_url) does not match frontend/.env.production PUBLIC_SUPABASE_URL ($frontend_url). Regenerate deployment files before deploying."
+  fi
+
+  if [ -n "$frontend_url" ] && [ -n "$vite_api_url" ]; then
+    expected_api="${frontend_url}/functions/v1"
+    if [ "$vite_api_url" != "$expected_api" ]; then
+      blocker "frontend/.env.production VITE_API_URL ($vite_api_url) does not point at PUBLIC_SUPABASE_URL ($frontend_url)."
+    fi
+  fi
+}
+
 if ! command -v git >/dev/null 2>&1; then
   echo "BLOCKER: git is required." >&2
   exit 1
@@ -131,6 +199,9 @@ if [ -n "$UNTRACKED_MIGRATIONS" ]; then
   print_status_block "Untracked Supabase migrations:" "$UNTRACKED_MIGRATIONS"
   warn "Review these before running supabase db push; they may be local-only deployment migrations."
 fi
+
+scan_hosted_supabase_refs
+check_frontend_supabase_consistency
 
 USER_NAME="$(git config user.name || true)"
 USER_EMAIL="$(git config user.email || true)"

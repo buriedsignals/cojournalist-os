@@ -29,6 +29,7 @@ describe('demo seed helpers', () => {
 	it('recognizes a full seeded workspace as demo', () => {
 		expect(isDemoWorkspace(DEMO_SCOUTS)).toBe(true);
 		expect(shouldSeedDemoWorkspace([])).toBe(true);
+		expect(shouldSeedDemoWorkspace([], 'Failed to load scouts')).toBe(false);
 		expect(shouldRetireDemoWorkspace([{ id: 'real-1', name: 'Real scout' }])).toBe(true);
 	});
 

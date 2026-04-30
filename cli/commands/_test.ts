@@ -9,6 +9,8 @@ import {
 import {
   apiFetch,
   configPath,
+  hostedSupabaseTargetWarning,
+  KNOWN_HOSTED_SUPABASE_PROJECT_REF,
   loadConfig,
   printTable,
   readConfigFile,
@@ -123,7 +125,7 @@ Deno.test("printTable — empty rows prints (no rows)", () => {
 });
 
 Deno.test("resolvePath — bare Supabase URL keeps /functions/v1/ prefix", () => {
-  const api = "https://gfmdziplticfoakhrfpt.supabase.co";
+  const api = "https://newsroom-project.supabase.co";
   assertEquals(
     resolvePath("/functions/v1/scouts", api),
     "/functions/v1/scouts",
@@ -136,7 +138,7 @@ Deno.test("resolvePath — bare Supabase URL keeps /functions/v1/ prefix", () =>
 
 Deno.test("resolvePath — base URL with /functions/v1 strips duplicate prefix", () => {
   const hosted = "https://www.cojournalist.ai/functions/v1";
-  const supabase = "https://gfmdziplticfoakhrfpt.supabase.co/functions/v1";
+  const supabase = "https://newsroom-project.supabase.co/functions/v1";
   assertEquals(resolvePath("/functions/v1/scouts", hosted), "/scouts");
   assertEquals(resolvePath("/functions/v1/scouts", supabase), "/scouts");
 });
@@ -207,6 +209,28 @@ Deno.test("loadConfig — throws if api_url missing", async () => {
     writeConfigFile({ api_key: "cj_test_key" });
     assertThrows(() => loadConfig(), Error, "api_url not set");
   });
+});
+
+Deno.test("hosted Supabase target warning only fires inside self-host checkout", async () => {
+  const tmp = await Deno.makeTempDir({ prefix: "cojo-selfhost-cli-" });
+  try {
+    await Deno.mkdir(`${tmp}/supabase/functions`, { recursive: true });
+    await Deno.mkdir(`${tmp}/frontend`, { recursive: true });
+    const warning = hostedSupabaseTargetWarning(
+      `https://${KNOWN_HOSTED_SUPABASE_PROJECT_REF}.supabase.co/functions/v1`,
+      tmp,
+    );
+    assertStringIncludes(warning ?? "", "self-host checkout");
+    assertEquals(
+      hostedSupabaseTargetWarning(
+        "https://newsroom-project.supabase.co/functions/v1",
+        tmp,
+      ),
+      null,
+    );
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
 });
 
 Deno.test("apiFetch — uses api_key over auth_token, sends apikey header for Supabase", async () => {

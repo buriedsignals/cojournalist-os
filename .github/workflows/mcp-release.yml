@@ -1,0 +1,219 @@
+name: MCP Bridge Release
+
+on:
+  push:
+    tags: ["mcp-v*"]
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: "Version string to inject (dev builds only; release assets need a real mcp-v* tag)"
+        required: false
+        default: "0.0.0-manual"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.repository == 'buriedsignals/coJournalist'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS legs are best-effort — see cli-release.yml for the full
+          # rationale (Apple notary stalls + 10× runner billing multiplier).
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset: cojo-mcp-darwin-arm64
+            task: compile-mac-arm
+            required: false
+          - os: macos-13
+            target: x86_64-apple-darwin
+            asset: cojo-mcp-darwin-x86_64
+            task: compile-mac-x86
+            required: false
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: cojo-mcp-linux-x86_64
+            task: compile-linux-x86
+            required: true
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            asset: cojo-mcp-linux-arm64
+            task: compile-linux-arm
+            required: true
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ !matrix.required }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Inject VERSION
+        shell: bash
+        run: |
+          REF="${GITHUB_REF_NAME:-}"
+          if [[ "$REF" == mcp-v* ]]; then
+            TAG="${REF#mcp-v}"
+          else
+            TAG="${{ github.event.inputs.version_override || '0.0.0-manual' }}"
+          fi
+          echo "Injecting VERSION=$TAG"
+          if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i "" "s/export const VERSION = .*/export const VERSION = \"$TAG\";/" mcp/lib/version.ts
+          else
+            sed -i "s/export const VERSION = .*/export const VERSION = \"$TAG\";/" mcp/lib/version.ts
+          fi
+          cat mcp/lib/version.ts
+
+      - name: Run tests
+        working-directory: mcp
+        run: deno task test
+
+      - name: Compile binary
+        working-directory: mcp
+        run: deno task ${{ matrix.task }}
+
+      # ---- macOS signing + notarization --------------------------------------
+      - name: Import signing certificate
+        if: startsWith(matrix.target, 'aarch64-apple-darwin') || startsWith(matrix.target, 'x86_64-apple-darwin')
+        env:
+          CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          echo "$CERT_P12" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          rm /tmp/cert.p12
+
+      - name: Codesign binary
+        if: startsWith(matrix.target, 'aarch64-apple-darwin') || startsWith(matrix.target, 'x86_64-apple-darwin')
+        env:
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          codesign --sign "$IDENTITY" \
+            --options runtime \
+            --timestamp \
+            --force \
+            mcp/dist/${{ matrix.asset }}
+          codesign --verify --verbose mcp/dist/${{ matrix.asset }}
+
+      - name: Notarize binary
+        if: startsWith(matrix.target, 'aarch64-apple-darwin') || startsWith(matrix.target, 'x86_64-apple-darwin')
+        env:
+          API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        timeout-minutes: 25
+        run: |
+          set -euo pipefail
+          mkdir -p ~/private_keys
+          echo "$API_KEY_P8" > ~/private_keys/AuthKey_${API_KEY_ID}.p8
+          ZIP=mcp/dist/${{ matrix.asset }}.zip
+          ditto -c -k --keepParent mcp/dist/${{ matrix.asset }} "$ZIP"
+
+          # Split `submit` from status polling — `--wait` long-polls Apple's
+          # notary.v2 endpoint and drops intermittently (see electron/notarize
+          # #179, tauri-apps #8630). Submit returns the UUID fast, then we
+          # poll `notarytool info` ourselves with retries.
+          SUBMIT_OUT=$(xcrun notarytool submit "$ZIP" \
+            --key ~/private_keys/AuthKey_${API_KEY_ID}.p8 \
+            --key-id "$API_KEY_ID" \
+            --issuer "$API_ISSUER_ID" \
+            --output-format json)
+          echo "submit: $SUBMIT_OUT"
+          UUID=$(echo "$SUBMIT_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+          echo "submission UUID: $UUID"
+
+          STATUS=""
+          for i in $(seq 1 40); do
+            sleep 30
+            INFO=$(xcrun notarytool info "$UUID" \
+              --key ~/private_keys/AuthKey_${API_KEY_ID}.p8 \
+              --key-id "$API_KEY_ID" \
+              --issuer "$API_ISSUER_ID" \
+              --output-format json || true)
+            STATUS=$(echo "$INFO" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null || echo "")
+            echo "[$((i*30))s] status: ${STATUS:-?}"
+            if [ "$STATUS" = "Accepted" ]; then
+              break
+            fi
+            if [ "$STATUS" = "Invalid" ] || [ "$STATUS" = "Rejected" ]; then
+              echo "notarization failed — fetching log"
+              xcrun notarytool log "$UUID" \
+                --key ~/private_keys/AuthKey_${API_KEY_ID}.p8 \
+                --key-id "$API_KEY_ID" \
+                --issuer "$API_ISSUER_ID" || true
+              rm -f "$ZIP"
+              rm -rf ~/private_keys
+              exit 1
+            fi
+          done
+
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "notarization did not finish in 20 minutes (last status: ${STATUS:-unknown})"
+            rm -f "$ZIP"
+            rm -rf ~/private_keys
+            exit 1
+          fi
+
+          rm -f "$ZIP"
+          rm -rf ~/private_keys
+      # ------------------------------------------------------------------------
+
+      - name: Compute sha256
+        shell: bash
+        working-directory: mcp/dist
+        run: |
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
+          else
+            shasum -a 256 "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
+          fi
+          cat "${{ matrix.asset }}.sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: |
+            mcp/dist/${{ matrix.asset }}
+            mcp/dist/${{ matrix.asset }}.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: build
+    # Publish whatever required (Linux) builds produced. macOS legs are
+    # best-effort and attach via a rerun once Apple's notary is healthy.
+    if: |
+      always() &&
+      startsWith(github.ref, 'refs/tags/mcp-v') &&
+      github.repository == 'buriedsignals/coJournalist'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List release assets
+        run: ls -la dist/
+
+      - name: Create GitHub release on public mirror
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: buriedsignals/cojournalist-os
+          token: ${{ secrets.OSS_RELEASE_PAT }}
+          tag_name: ${{ github.ref_name }}
+          target_commitish: main
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}

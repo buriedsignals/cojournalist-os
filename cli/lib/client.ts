@@ -11,6 +11,8 @@ export interface Config {
   supabase_anon_key?: string;
 }
 
+export const KNOWN_HOSTED_SUPABASE_PROJECT_REF = "gfmdziplticfoak" + "hrfpt";
+
 export function configDir(): string {
   const home = Deno.env.get("HOME");
   if (!home) throw new Error("HOME environment variable is not set");
@@ -34,6 +36,46 @@ export function readConfigFile(): Config {
 export function writeConfigFile(cfg: Config): void {
   Deno.mkdirSync(configDir(), { recursive: true });
   Deno.writeTextFileSync(configPath(), JSON.stringify(cfg, null, 2) + "\n");
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return Deno.statSync(path).isDirectory;
+  } catch {
+    return false;
+  }
+}
+
+export function isKnownHostedSupabaseTarget(apiUrl: string | undefined): boolean {
+  return Boolean(apiUrl?.includes(KNOWN_HOSTED_SUPABASE_PROJECT_REF));
+}
+
+export function isSelfHostCheckout(cwd = Deno.cwd()): boolean {
+  return isDirectory(`${cwd}/supabase/functions`) && isDirectory(`${cwd}/frontend`);
+}
+
+export function hostedSupabaseTargetWarning(
+  apiUrl: string | undefined,
+  cwd = Deno.cwd(),
+): string | null {
+  if (!isKnownHostedSupabaseTarget(apiUrl) || !isSelfHostCheckout(cwd)) {
+    return null;
+  }
+  return "This cojo CLI is running from a self-host checkout but api_url points at " +
+    `the hosted coJournalist Supabase project (${KNOWN_HOSTED_SUPABASE_PROJECT_REF}). ` +
+    "Set api_url to your newsroom Supabase project before creating or listing scouts.";
+}
+
+let warnedHostedSupabaseTarget = false;
+
+export function warnIfKnownHostedSupabaseTarget(
+  apiUrl: string | undefined,
+  cwd = Deno.cwd(),
+): void {
+  const warning = hostedSupabaseTargetWarning(apiUrl, cwd);
+  if (!warning || warnedHostedSupabaseTarget) return;
+  warnedHostedSupabaseTarget = true;
+  console.error(`[warning] ${warning}`);
 }
 
 // Resolved config — guaranteed to have an api_url and *some* credential
@@ -77,6 +119,7 @@ export function loadConfig(): ResolvedConfig {
         "an `apikey:` header. Run: cojo config set supabase_anon_key=<anon key>",
     );
   }
+  warnIfKnownHostedSupabaseTarget(cfg.api_url);
   return cfg as ResolvedConfig;
 }
 
