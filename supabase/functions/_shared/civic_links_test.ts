@@ -8,6 +8,7 @@ import {
   extractCivicLinksFromHtml,
   extractCivicLinksFromPages,
   filterCivicDiscoveryCandidates,
+  isCivicScrapableUrl,
 } from "./civic_links.ts";
 
 Deno.test("extractCivicLinksFromHtml extracts same-domain document links and strips fragments", () => {
@@ -33,8 +34,31 @@ Deno.test("extractCivicLinksFromHtml extracts same-domain document links and str
       anchorText: "Protokolle",
     },
     {
-      url: "https://gemeinde.zermatt.ch/pdf/protokoll/2025/vollprotokoll_2025-03-19.pdf",
+      url:
+        "https://gemeinde.zermatt.ch/pdf/protokoll/2025/vollprotokoll_2025-03-19.pdf",
       anchorText: "Vollprotokoll",
+    },
+  ]);
+});
+
+Deno.test("extractCivicLinksFromHtml rejects asset links with query strings", () => {
+  const html = `
+    <a href="/calendar/agenda.gif?download=1">Agenda image</a>
+    <a href="/media/meeting.mp4">Meeting video</a>
+    <a href="/meetings/minutes.pdf?download=1">Minutes PDF</a>
+    <a href="/council/minutes">Minutes page</a>
+  `;
+
+  const links = extractCivicLinksFromHtml(html, "https://city.example.org");
+
+  assertEquals(links, [
+    {
+      url: "https://city.example.org/meetings/minutes.pdf?download=1",
+      anchorText: "Minutes PDF",
+    },
+    {
+      url: "https://city.example.org/council/minutes",
+      anchorText: "Minutes page",
     },
   ]);
 });
@@ -82,11 +106,13 @@ Deno.test("filterCivicDiscoveryCandidates rejects dead /pdf listing paths but ke
 Deno.test("classifyCivicMeetingUrls uses keyword stage for pdf minutes links", async () => {
   const urls = await classifyCivicMeetingUrls([
     {
-      url: "https://gemeinde.zermatt.ch/pdf/protokoll/2025/vollprotokoll_2025-03-19.pdf",
+      url:
+        "https://gemeinde.zermatt.ch/pdf/protokoll/2025/vollprotokoll_2025-03-19.pdf",
       anchorText: "Vollprotokoll 19.03.2025",
     },
     {
-      url: "https://gemeinde.zermatt.ch/pdf/protokoll/2024/beschlussprotokoll_2024-12-11.pdf",
+      url:
+        "https://gemeinde.zermatt.ch/pdf/protokoll/2024/beschlussprotokoll_2024-12-11.pdf",
       anchorText: "Beschlussprotokoll 11.12.2024",
     },
   ]);
@@ -94,4 +120,40 @@ Deno.test("classifyCivicMeetingUrls uses keyword stage for pdf minutes links", a
   assertEquals(urls.length, 2);
   assertExists(urls[0].match(/2025-03-19/));
   assertExists(urls[1].match(/2024-12-11/));
+});
+
+Deno.test("classifyCivicMeetingUrls excludes unsupported asset URLs before keyword matching", async () => {
+  const urls = await classifyCivicMeetingUrls([
+    {
+      url: "https://city.example.org/calendar/agenda.gif?download=1",
+      anchorText: "Council agenda",
+    },
+    {
+      url: "https://city.example.org/council/agenda/2026-05-01",
+      anchorText: "Council agenda",
+    },
+  ]);
+
+  assertEquals(urls, [
+    "https://city.example.org/council/agenda/2026-05-01",
+  ]);
+});
+
+Deno.test("isCivicScrapableUrl rejects image, video, and archive assets", () => {
+  assertEquals(
+    isCivicScrapableUrl("https://city.example.org/minutes.pdf?download=1"),
+    true,
+  );
+  assertEquals(
+    isCivicScrapableUrl("https://city.example.org/agenda.gif?download=1"),
+    false,
+  );
+  assertEquals(
+    isCivicScrapableUrl("https://city.example.org/council/meeting.mp4"),
+    false,
+  );
+  assertEquals(
+    isCivicScrapableUrl("https://city.example.org/archive/minutes.zip"),
+    false,
+  );
 });

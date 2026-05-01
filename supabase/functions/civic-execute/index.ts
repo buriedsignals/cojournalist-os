@@ -33,6 +33,7 @@ import { firecrawlChangeTrackingScrape } from "../_shared/firecrawl.ts";
 import {
   classifyCivicMeetingUrls,
   extractCivicLinksFromPages,
+  isCivicScrapableUrl,
 } from "../_shared/civic_links.ts";
 import { incrementAndMaybeNotify } from "../_shared/scout_failures.ts";
 import {
@@ -193,6 +194,16 @@ async function execute(scoutId: string, runIdIn?: string): Promise<Response> {
 
     for (const url of tracked) {
       if (queuedCount >= MAX_DOCS_PER_RUN) break;
+      if (!isCivicScrapableUrl(url)) {
+        logEvent({
+          level: "warn",
+          fn: "civic-execute",
+          event: "tracked_url_skipped_unsupported_asset",
+          scout_id: scoutId,
+          url,
+        });
+        continue;
+      }
       const tag = `civic-${scout.id}-${await shortHash(url)}`;
       let result;
       try {
@@ -387,8 +398,12 @@ async function loadQueuedSourceUrls(
   }
   const urls = Array.isArray(data)
     ? data
-        .map((r) => normalizeCivicUrl(String((r as { source_url?: string }).source_url ?? "")))
-        .filter((s): s is string => Boolean(s))
+      .map((r) =>
+        normalizeCivicUrl(
+          String((r as { source_url?: string }).source_url ?? ""),
+        )
+      )
+      .filter((s): s is string => Boolean(s))
     : [];
   return new Set<string>(urls);
 }

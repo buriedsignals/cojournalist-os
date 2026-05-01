@@ -18,7 +18,7 @@ function firecrawlApiKey(): string {
 export interface ScrapeResult {
   markdown: string;
   html?: string;
-  rawHtml?: string;
+  rawHtml?: string | null;
   title?: string;
   requested_url?: string;
   source_url: string;
@@ -212,6 +212,7 @@ export interface ChangeTrackingResult extends ScrapeResult {
 }
 
 export interface ChangeTrackingOptions {
+  formats?: Array<"markdown" | "html" | "rawHtml">;
   onlyMainContent?: boolean;
   /** Firecrawl server-side timeout in ms. Default 120_000. */
   timeoutMs?: number;
@@ -288,7 +289,7 @@ export async function firecrawlChangeTrackingScrape(
       },
       body: JSON.stringify({
         url,
-        formats: ["markdown", "rawHtml", {
+        formats: [...(opts.formats ?? ["markdown", "rawHtml"]), {
           type: "changeTracking",
           tag: safeTag,
         }],
@@ -329,4 +330,191 @@ export async function firecrawlChangeTrackingScrape(
     visibility: ct.visibility,
     previous_scrape_at: ct.previousScrapeAt,
   };
+}
+
+export type PrimaryScrapeStrategy =
+  | "combined"
+  | "combined_retry"
+  | "split"
+  | "markdown_only_fallback";
+
+export interface PrimaryPageScrapeResult extends ScrapeResult {
+  change_status?: ChangeTrackingResult["change_status"];
+  visibility?: ChangeTrackingResult["visibility"];
+  previous_scrape_at?: string;
+  scrape_strategy: PrimaryScrapeStrategy;
+  scrape_attempts: number;
+  scrape_warning?: string;
+}
+
+interface PrimaryPageScrapeDeps {
+  scrape: typeof firecrawlScrape;
+  changeTrackingScrape: typeof firecrawlChangeTrackingScrape;
+  sleep: (ms: number) => Promise<void>;
+}
+
+const DEFAULT_PRIMARY_DEPS: PrimaryPageScrapeDeps = {
+  scrape: firecrawlScrape,
+  changeTrackingScrape: firecrawlChangeTrackingScrape,
+  sleep: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
+export interface PrimaryPageScrapeOptions {
+  url: string;
+  changeTrackingTag?: string;
+  onlyMainContent?: boolean;
+  timeoutMs?: number;
+  abortAfterMs?: number;
+  retryDelayMs?: number;
+  deps?: Partial<PrimaryPageScrapeDeps>;
+}
+
+export async function scrapePrimaryPageResilient(
+  opts: PrimaryPageScrapeOptions,
+): Promise<PrimaryPageScrapeResult> {
+  const deps: PrimaryPageScrapeDeps = {
+    ...DEFAULT_PRIMARY_DEPS,
+    ...opts.deps,
+  };
+  const baseOpts = {
+    onlyMainContent: opts.onlyMainContent,
+    timeoutMs: opts.timeoutMs,
+    abortAfterMs: opts.abortAfterMs,
+  };
+  const retryDelayMs = opts.retryDelayMs ?? 2_000;
+  const warnings: string[] = [];
+  let attempts = 0;
+
+  const combined = async () => {
+    attempts++;
+    if (opts.changeTrackingTag) {
+      return await deps.changeTrackingScrape(
+        opts.url,
+        opts.changeTrackingTag,
+        baseOpts,
+      );
+    }
+    return await deps.scrape(opts.url, {
+      ...baseOpts,
+      formats: ["markdown", "rawHtml"],
+    });
+  };
+
+  let firstError: unknown;
+  try {
+    const result = await combined();
+    return withPrimaryMetadata(result, "combined", attempts);
+  } catch (e) {
+    firstError = e;
+    if (!isTransientFirecrawlError(e)) throw e;
+    warnings.push(warningForFirecrawlError(e, "combined"));
+  }
+
+  if (retryDelayMs > 0) await deps.sleep(retryDelayMs);
+  try {
+    const result = await combined();
+    return withPrimaryMetadata(
+      result,
+      "combined_retry",
+      attempts,
+      warnings,
+    );
+  } catch (e) {
+    if (!isTransientFirecrawlError(e)) throw e;
+    warnings.push(warningForFirecrawlError(e, "combined_retry"));
+  }
+
+  let markdownResult: ScrapeResult | ChangeTrackingResult;
+  try {
+    attempts++;
+    markdownResult = opts.changeTrackingTag
+      ? await deps.changeTrackingScrape(opts.url, opts.changeTrackingTag, {
+        ...baseOpts,
+        formats: ["markdown"],
+      })
+      : await deps.scrape(opts.url, { ...baseOpts, formats: ["markdown"] });
+  } catch (e) {
+    if (firstError instanceof Error) throw firstError;
+    throw e;
+  }
+
+  if (!markdownResult.markdown?.trim()) {
+    throw new ApiError("firecrawl returned empty markdown", 502);
+  }
+
+  try {
+    attempts++;
+    const rawHtmlResult = await deps.scrape(opts.url, {
+      ...baseOpts,
+      formats: ["rawHtml"],
+    });
+    return withPrimaryMetadata(
+      {
+        ...markdownResult,
+        rawHtml: rawHtmlResult.rawHtml ?? null,
+        html: rawHtmlResult.html ?? markdownResult.html,
+        title: markdownResult.title ?? rawHtmlResult.title,
+        source_url: markdownResult.source_url || rawHtmlResult.source_url,
+        requested_url: markdownResult.requested_url ??
+          rawHtmlResult.requested_url,
+      },
+      "split",
+      attempts,
+      warnings,
+    );
+  } catch (e) {
+    warnings.push(warningForFirecrawlError(e, "raw_html"));
+    return withPrimaryMetadata(
+      { ...markdownResult, rawHtml: null },
+      "markdown_only_fallback",
+      attempts,
+      warnings,
+    );
+  }
+}
+
+function withPrimaryMetadata(
+  result: ScrapeResult | ChangeTrackingResult,
+  scrapeStrategy: PrimaryScrapeStrategy,
+  scrapeAttempts: number,
+  warnings: string[] = [],
+): PrimaryPageScrapeResult {
+  const change = result as ChangeTrackingResult;
+  return {
+    ...result,
+    change_status: change.change_status,
+    visibility: change.visibility,
+    previous_scrape_at: change.previous_scrape_at,
+    scrape_strategy: scrapeStrategy,
+    scrape_attempts: scrapeAttempts,
+    scrape_warning: warnings.length > 0 ? warnings.join(",") : undefined,
+  };
+}
+
+export function isTransientFirecrawlError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/SCRAPE_UNSUPPORTED_FILE_ERROR/i.test(message)) return false;
+  if (/aborted|timeout|timed out|network/i.test(message)) return true;
+
+  const upstreamStatus = message.match(/failed:\s*(\d{3})/)?.[1];
+  if (upstreamStatus) {
+    const status = Number(upstreamStatus);
+    return status === 429 || status >= 500;
+  }
+
+  if (error instanceof ApiError) {
+    return error.status === 429 || error.status === 504 ||
+      error.status >= 500;
+  }
+  return false;
+}
+
+function warningForFirecrawlError(error: unknown, phase: string): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/aborted/i.test(message)) return `${phase}_aborted`;
+  if (/timeout|timed out/i.test(message)) return `${phase}_timeout`;
+  const upstreamStatus = message.match(/failed:\s*(\d{3})/)?.[1];
+  if (upstreamStatus) return `${phase}_${upstreamStatus}`;
+  if (error instanceof ApiError) return `${phase}_${error.status}`;
+  return `${phase}_failed`;
 }

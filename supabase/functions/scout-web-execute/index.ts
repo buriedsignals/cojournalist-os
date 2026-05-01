@@ -31,8 +31,8 @@ import { logEvent } from "../_shared/log.ts";
 import { normalizeDate } from "../_shared/date_utils.ts";
 import {
   type ChangeTrackingResult,
-  firecrawlChangeTrackingScrape,
   firecrawlScrape,
+  scrapePrimaryPageResilient,
 } from "../_shared/firecrawl.ts";
 import { EMBEDDING_MODEL_TAG, geminiEmbed } from "../_shared/gemini.ts";
 import { extractAtomicUnits } from "../_shared/atomic_extract.ts";
@@ -350,26 +350,35 @@ async function runPipeline(
   let scrapeTitle: string | null = null;
 
   let rawHtml: string | null = null;
+  let scrapeStrategy = "combined";
+  let scrapeWarning: string | undefined;
 
   if (scout.provider === "firecrawl_plain") {
-    const plain = await firecrawlScrape(scout.url, {
+    const plain = await scrapePrimaryPageResilient({
+      url: scout.url,
       timeoutMs: PRIMARY_SCRAPE_TIMEOUT_MS,
       abortAfterMs: PRIMARY_SCRAPE_ABORT_AFTER_MS,
     });
     markdown = plain.markdown ?? "";
     rawHtml = plain.rawHtml ?? null;
     scrapeTitle = plain.title ?? null;
+    scrapeStrategy = plain.scrape_strategy;
+    scrapeWarning = plain.scrape_warning;
     changeStatus = await hashChangeStatus(svc, scout.id, markdown);
   } else {
     try {
-      const ct = await firecrawlChangeTrackingScrape(scout.url, tag, {
+      const ct = await scrapePrimaryPageResilient({
+        url: scout.url,
+        changeTrackingTag: tag,
         timeoutMs: PRIMARY_SCRAPE_TIMEOUT_MS,
         abortAfterMs: PRIMARY_SCRAPE_ABORT_AFTER_MS,
       });
       markdown = ct.markdown ?? "";
       rawHtml = ct.rawHtml ?? null;
       scrapeTitle = ct.title ?? null;
-      changeStatus = ct.change_status;
+      scrapeStrategy = ct.scrape_strategy;
+      scrapeWarning = ct.scrape_warning;
+      changeStatus = ct.change_status ?? "new";
     } catch (e) {
       logEvent({
         level: "warn",
@@ -378,15 +387,31 @@ async function runPipeline(
         scout_id: scout.id,
         msg: e instanceof Error ? e.message : String(e),
       });
-      const plain = await firecrawlScrape(scout.url, {
+      const plain = await scrapePrimaryPageResilient({
+        url: scout.url,
         timeoutMs: PRIMARY_SCRAPE_TIMEOUT_MS,
         abortAfterMs: PRIMARY_SCRAPE_ABORT_AFTER_MS,
       });
       markdown = plain.markdown ?? "";
       rawHtml = plain.rawHtml ?? null;
       scrapeTitle = plain.title ?? null;
+      scrapeStrategy = `plain_${plain.scrape_strategy}`;
+      scrapeWarning = plain.scrape_warning;
       changeStatus = await hashChangeStatus(svc, scout.id, markdown);
     }
+  }
+
+  if (scrapeStrategy !== "combined" || scrapeWarning) {
+    logEvent({
+      level: "info",
+      fn: "scout-web-execute",
+      event: "primary_scrape_resilience",
+      scout_id: scout.id,
+      run_id: runId,
+      strategy: scrapeStrategy,
+      warning: scrapeWarning ?? null,
+      raw_html_available: !!rawHtml?.trim(),
+    });
   }
 
   if (changeStatus === "same") {
@@ -453,6 +478,18 @@ async function runPipeline(
     });
   const indexIsListingPage = deterministicListingPage ||
     extracted.isListingPage;
+
+  if (indexIsListingPage && !rawHtml?.trim()) {
+    logEvent({
+      level: "warn",
+      fn: "scout-web-execute",
+      event: "phase_b_skipped_raw_html_unavailable",
+      scout_id: scout.id,
+      run_id: runId,
+      strategy: scrapeStrategy,
+      warning: scrapeWarning ?? null,
+    });
+  }
 
   if (deterministicListingPage) {
     logEvent({
