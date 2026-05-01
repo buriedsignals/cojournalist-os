@@ -6,6 +6,7 @@ import {
 import { ApiError } from "./errors.ts";
 import {
   isTransientFirecrawlError,
+  firecrawlScrape,
   scrapePrimaryPageResilient,
   type ScrapeResult,
 } from "./firecrawl.ts";
@@ -35,6 +36,37 @@ Deno.test("scrapePrimaryPageResilient returns combined strategy on first success
   assertEquals(result.markdown, "body");
   assertEquals(result.scrape_strategy, "combined");
   assertEquals(result.scrape_attempts, 1);
+});
+
+Deno.test("firecrawlScrape preserves metadata for publication-date fallback", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: {
+              markdown: "body",
+              metadata: {
+                title: "Example",
+                sourceURL: "https://example.com/story",
+                publishedTime: "2026-04-30T12:00:00Z",
+              },
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )) as typeof fetch;
+    Deno.env.set("FIRECRAWL_API_KEY", "fc-test");
+
+    const result = await firecrawlScrape("https://example.com/story");
+
+    assertEquals(result.metadata?.publishedTime, "2026-04-30T12:00:00Z");
+    assertEquals(result.source_url, "https://example.com/story");
+  } finally {
+    globalThis.fetch = originalFetch;
+    Deno.env.delete("FIRECRAWL_API_KEY");
+  }
 });
 
 Deno.test("scrapePrimaryPageResilient retries transient combined failures", async () => {

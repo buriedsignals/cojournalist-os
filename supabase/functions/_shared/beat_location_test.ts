@@ -21,14 +21,28 @@ Deno.test("parseBeatLocation keeps country-only selections as country scope", ()
 
 Deno.test("parseBeatLocation keeps city selections intact", () => {
   const parsed = parseBeatLocation({
-    displayName: "London, United Kingdom",
-    city: "London",
-    country: "GB",
+    displayName: "Bozeman, Montana, United States",
+    city: "Bozeman",
+    state: "MT",
+    country: "US",
     locationType: "city",
   });
 
-  assertEquals(parsed.city, "London");
-  assertEquals(parsed.countryCode, "GB");
+  assertEquals(parsed.city, "Bozeman");
+  assertEquals(parsed.country, "Montana, United States");
+  assertEquals(parsed.countryCode, "US");
+});
+
+Deno.test("parseBeatLocation preserves MapTiler region selections from the UI", () => {
+  const parsed = parseBeatLocation({
+    displayName: "Ontario, Canada",
+    country: "CA",
+    locationType: "state",
+  });
+
+  assertEquals(parsed.city, "Ontario");
+  assertEquals(parsed.country, "Canada");
+  assertEquals(parsed.countryCode, "CA");
 });
 
 Deno.test("buildBeatLocationMatcher accepts UK coverage and rejects Montreal drift", () => {

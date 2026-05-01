@@ -35,7 +35,10 @@ import {
   scrapePrimaryPageResilient,
 } from "../_shared/firecrawl.ts";
 import { EMBEDDING_MODEL_TAG, geminiEmbed } from "../_shared/gemini.ts";
-import { extractAtomicUnits } from "../_shared/atomic_extract.ts";
+import {
+  extractAtomicUnits,
+  sourcePublishedDate,
+} from "../_shared/atomic_extract.ts";
 import {
   type FactCheckResult,
   factCheckUnit,
@@ -350,6 +353,7 @@ async function runPipeline(
   let scrapeTitle: string | null = null;
 
   let rawHtml: string | null = null;
+  let scrapeMetadata: Record<string, unknown> | undefined;
   let scrapeStrategy = "combined";
   let scrapeWarning: string | undefined;
 
@@ -362,6 +366,7 @@ async function runPipeline(
     markdown = plain.markdown ?? "";
     rawHtml = plain.rawHtml ?? null;
     scrapeTitle = plain.title ?? null;
+    scrapeMetadata = plain.metadata;
     scrapeStrategy = plain.scrape_strategy;
     scrapeWarning = plain.scrape_warning;
     changeStatus = await hashChangeStatus(svc, scout.id, markdown);
@@ -376,6 +381,7 @@ async function runPipeline(
       markdown = ct.markdown ?? "";
       rawHtml = ct.rawHtml ?? null;
       scrapeTitle = ct.title ?? null;
+      scrapeMetadata = ct.metadata;
       scrapeStrategy = ct.scrape_strategy;
       scrapeWarning = ct.scrape_warning;
       changeStatus = ct.change_status ?? "new";
@@ -395,6 +401,7 @@ async function runPipeline(
       markdown = plain.markdown ?? "";
       rawHtml = plain.rawHtml ?? null;
       scrapeTitle = plain.title ?? null;
+      scrapeMetadata = plain.metadata;
       scrapeStrategy = `plain_${plain.scrape_strategy}`;
       scrapeWarning = plain.scrape_warning;
       changeStatus = await hashChangeStatus(svc, scout.id, markdown);
@@ -432,7 +439,9 @@ async function runPipeline(
     change_status: changeStatus,
     title: scrapeTitle,
     rawHtml,
+    metadata: scrapeMetadata,
   };
+  const primaryPublishedDate = sourcePublishedDate({ scrape });
 
   // 4. Insert raw_capture for the scraped index content. Phase B subpages get
   // their own capture rows so units can trace back to the exact article URL.
@@ -467,7 +476,7 @@ async function runPipeline(
       title: scrape.title ?? null,
       content: markdown,
       sourceUrl: scout.url,
-      publishedDate: null,
+      publishedDate: primaryPublishedDate,
       language:
         (scout as { preferred_language?: string | null }).preferred_language ??
           "en",
@@ -519,6 +528,7 @@ async function runPipeline(
     scrape.title ?? null,
     sourceDomain,
     contentHash,
+    primaryPublishedDate,
     {
       change_status: scrape.change_status,
       phase: "primary",
@@ -765,12 +775,13 @@ async function runPhaseB(
       }
       const subSourceUrl = subScrape.source_url || subUrl;
       const subSourceDomain = deriveSourceDomain(subSourceUrl);
+      const subPublishedDate = sourcePublishedDate({ scrape: subScrape });
 
       const subExtracted = await extractAtomicUnits({
         title: subScrape.title ?? null,
         content: subScrape.markdown,
         sourceUrl: subSourceUrl,
-        publishedDate: null,
+        publishedDate: subPublishedDate,
         language: scout.preferred_language ?? "en",
         criteria: scout.criteria ?? null,
         maxUnits: 8,
@@ -809,6 +820,7 @@ async function runPhaseB(
         subScrape.title ?? null,
         subSourceDomain,
         subContentHash,
+        subPublishedDate,
         {
           phase: "subpage",
           parent_source_url: scout.url,
@@ -906,6 +918,7 @@ async function insertExtractedUnits(
   sourceTitle: string | null,
   sourceDomain: string | null,
   contentSha256: string | null,
+  sourcePublishedDateFallback: string | null = null,
   metadata: Record<string, unknown> | null = null,
 ): Promise<{
   insertedCount: number;
@@ -957,7 +970,8 @@ async function insertExtractedUnits(
       try {
         fcResult = await factCheckUnit(u.statement, factCheckConfig, {
           sourceDomain,
-          occurredAt: normalizeDate(u.occurred_at),
+          occurredAt: normalizeDate(u.occurred_at) ??
+            sourcePublishedDateFallback,
         });
       } catch {
         // Fact-check failure is non-fatal — unit proceeds unchecked.
@@ -975,7 +989,7 @@ async function insertExtractedUnits(
       sourceDomain,
       sourceTitle,
       contextExcerpt: u.context_excerpt ?? null,
-      occurredAt: normalizeDate(u.occurred_at),
+      occurredAt: normalizeDate(u.occurred_at) ?? sourcePublishedDateFallback,
       extractedAt: new Date().toISOString(),
       sourceType: "scout",
       contentSha256,

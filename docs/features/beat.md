@@ -39,10 +39,11 @@ Both flows expose a source mode toggle so users can switch between niche and rel
 │           │                                                      │
 │           ▼                                                      │
 │  Step 2: Direct Search (Firecrawl)                               │
-│  ├─ Execute all queries concurrently (max 5 parallel)            │
-│  ├─ Sources: niche=["news","web"], reliable=["news"]             │
-│  ├─ URL dedup + homepage/index/standing page rejection           │
-│  └─ Optional: exclude_urls for cross-category dedup              │
+│  ├─ Execute explicit source passes concurrently                  │
+│  ├─ Location/combined: web pass per query                         │
+│  ├─ Topic-only: web + news + recent-web passes per query          │
+│  ├─ Discovery queries: web only                                   │
+│  └─ Firecrawl filters invalid URLs and excluded domains           │
 │           │                                                      │
 │           ▼                                                      │
 │  Step 2.5: PDF OCR Enrichment                                    │
@@ -98,7 +99,7 @@ Both flows expose a source mode toggle so users can switch between niche and rel
 | File | Location | Purpose |
 |------|----------|---------|
 | `scout-beat-execute/index.ts` | `supabase/functions/` | Beat scout entrypoint. Branches on `priority_sources`: explicit → direct scrape; empty → full 8-stage pipeline. Parallel news + government category fan-out when criteria + location are both set. Two-section email (news + gov) via `sendBeatAlert`. |
-| `_shared/beat_pipeline.ts` | `supabase/functions/` | Ported legacy pipeline: `generateQueries` (LLM multilingual), `runSearches` (Firecrawl fan-out), `applyDateFilter` + `capUndatedResults` (14/28/90d windows + two-bucket caps), `isLikelyTourismContent` (niche+location+news prefilter), `dedupeByEmbedding` (cosine + rarity + +8 local-language bonus), `clusterFilter` (niche only), `aiFilterResults` (LLM picks top-N), `generateBeatSummary` (bulleted email summary). |
+| `_shared/beat_pipeline.ts` | `supabase/functions/` | Ported legacy pipeline: `generateQueries` (LLM multilingual), `runSearches` (explicit Firecrawl web/news/recent-web passes), `applyDateFilter` + `capUndatedResults` (14/28/90d windows + two-bucket caps), `isLikelyTourismContent` (niche+location+news prefilter), `dedupeByEmbedding` (cosine + rarity + +8 local-language bonus), `clusterFilter` (niche only), `aiFilterResults` (LLM picks top-N), `generateBeatSummary` (bulleted email summary). |
 | `beat-search/index.ts` | `supabase/functions/` | Preview endpoint — synchronous version of the pipeline for the New Scout modal's "Start Search" button. No credit charge, no persistence. |
 
 ### Legacy (v1 FastAPI) — for reference during cutover only
@@ -127,7 +128,12 @@ The v2 port preserves all 8 pipeline stages with these clarifications:
 ## Deduplication Mechanisms
 
 ### Layer 1: URL Deduplication + Quality Filters
+- Firecrawl Search is the external-search boundary. `_shared/firecrawl.ts` normalizes both legacy flat results and current `web`/`news` result groups into one `SearchHit` shape with `url`, `title`, `description`, `date`, and `source`.
+- The beat pipeline sends `ignoreInvalidURLs: true` and `excludeDomains` to Firecrawl so obvious bad URLs and blocked domains are removed before local filtering.
+- Topic-only scouts use separate calls for web, news, and recent-web because Firecrawl's `tbs` recency control applies to web search, not news search. Discovery queries stay web-only.
+- `scrapeOptions` is not enabled during search fan-out because Firecrawl charges search plus scrape credits when search results are scraped inline; extraction remains a later, narrowed stage.
 - Simple URL-based dedup during search aggregation
+- Source dates are normalized through `_shared/atomic_extract.ts::sourcePublishedDate`: Firecrawl scrape metadata first, visible date near the top of scraped markdown second, Firecrawl search date last. This feeds extraction prompts and `information_units.occurred_at` fallback, but it is not a hard relevance gate.
 - **Homepage/index rejection**: bare `/`, `/blog`, `/news` etc. are dropped (`is_index_or_homepage`)
 - **Standing page rejection**: institutional/section pages with short paths and no numeric IDs (`is_likely_standing_page`) — catches gov landing pages, stats dashboards, agenda indexes
 - Removes exact duplicate URLs from multiple queries

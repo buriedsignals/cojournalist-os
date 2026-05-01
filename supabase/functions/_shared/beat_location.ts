@@ -33,9 +33,14 @@ export function parseBeatLocation(v: unknown): BeatLocationShape {
   const rec = v as Record<string, unknown>;
   const displayName = pickString(rec.displayName, rec.display_name, rec.label);
   const locationType = pickString(rec.locationType, rec.location_type);
+  const displayPrimary = displayName?.split(",")[0]?.trim() || null;
+  // LocationAutocomplete sends MapTiler region/subregion selections as
+  // locationType="state" with no city; keep the display region as the
+  // searchable location name.
   const city = locationType === "country"
     ? null
-    : pickString(rec.city);
+    : pickString(rec.city) ??
+      (locationType === "state" ? displayPrimary : null);
   const rawCountry = pickString(rec.country, rec.country_name);
   const explicitCountryCode = pickString(rec.country_code, rec.countryCode);
   const displayCountry = displayName && city && displayName.includes(",")

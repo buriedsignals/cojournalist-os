@@ -56,7 +56,7 @@ import { Article, sendBeatAlert } from "../_shared/notifications.ts";
 import { incrementAndMaybeNotify } from "../_shared/scout_failures.ts";
 import {
   extractAtomicUnits,
-  publishedDateFromScrape,
+  sourcePublishedDate,
 } from "../_shared/atomic_extract.ts";
 import {
   type FactCheckResult,
@@ -293,6 +293,10 @@ async function execute(
         maxDiscoveredSources,
       );
     }
+    const beatHitByUrl = new Map<string, BeatHit>();
+    for (const hit of [...newsBeatHits, ...govBeatHits]) {
+      if (hit.url) beatHitByUrl.set(hit.url, hit);
+    }
 
     if (finalUrls.length === 0) {
       // Empty pipeline outcome (no discovered URLs) — record a no-op success
@@ -431,7 +435,12 @@ async function execute(
     for (let i = 0; i < succeeded.length; i++) {
       const src = succeeded[i];
       const captureId = rawCaptureIds[i];
-      const scrapePublishedDate = publishedDateFromScrape(src);
+      const searchHit = beatHitByUrl.get(src.requested_url ?? src.source_url) ??
+        beatHitByUrl.get(src.source_url);
+      const sourceDate = sourcePublishedDate({
+        scrape: src,
+        searchDate: searchHit?.date,
+      });
       const extractionConfig = scope === "location"
         ? { maxUnits: 2, contentLimit: 2200 }
         : { maxUnits: 3, contentLimit: 3000 };
@@ -442,7 +451,7 @@ async function execute(
           title: src.title ?? null,
           content: src.markdown ?? "",
           sourceUrl: src.source_url,
-          publishedDate: scrapePublishedDate,
+          publishedDate: sourceDate,
           language: preferredLanguage,
           criteria: searchCriteria,
           maxUnits: extractionConfig.maxUnits,
@@ -482,8 +491,9 @@ async function execute(
         if (isWithinRunDuplicate(embedding, runEmbeddings)) continue;
         runEmbeddings.push(embedding);
 
-        // occurred_at priority: LLM-extracted → Firecrawl metadata → null.
-        const occurredAt = normalizeDate(u.occurred_at) ?? scrapePublishedDate;
+        // occurred_at priority: LLM-extracted → Firecrawl scrape metadata →
+        // Firecrawl search date → null.
+        const occurredAt = normalizeDate(u.occurred_at) ?? sourceDate;
         const unitType = u.type as CanonicalUnitType;
 
         // Fact-check via Abstain-R1 (no-op when endpoint not configured).

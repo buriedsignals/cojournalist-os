@@ -20,6 +20,7 @@
 import { geminiExtract } from "./gemini.ts";
 import type { ScrapeResult } from "./firecrawl.ts";
 import { compressContext, logCompressionStats } from "./taco_compress.ts";
+import { normalizeDate } from "./date_utils.ts";
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: "English",
@@ -276,5 +277,74 @@ export function publishedDateFromScrape(
       if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
     }
   }
+  const markdown = (scrape as Record<string, unknown>).markdown;
+  if (typeof markdown === "string") {
+    return visibleDateFromMarkdown(markdown);
+  }
   return null;
+}
+
+export function sourcePublishedDate(opts: {
+  scrape?:
+    | ScrapeResult
+    | ({ metadata?: Record<string, unknown> } & Record<string, unknown>)
+    | null;
+  searchDate?: string | null;
+}): string | null {
+  const scrapeDate = opts.scrape ? publishedDateFromScrape(opts.scrape) : null;
+  return scrapeDate ?? normalizeDate(opts.searchDate ?? null);
+}
+
+function visibleDateFromMarkdown(markdown: string): string | null {
+  const head = markdown.slice(0, 2500);
+  const iso = head.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (iso?.[1]) return iso[1];
+
+  const monthFirst = head.match(
+    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),\s+(\d{4})\b/i,
+  );
+  if (monthFirst) {
+    return formatVisibleDate(monthFirst[3], monthFirst[1], monthFirst[2]);
+  }
+
+  const dayFirst = head.match(
+    /\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{4})\b/i,
+  );
+  if (dayFirst) {
+    return formatVisibleDate(dayFirst[3], dayFirst[2], dayFirst[1]);
+  }
+  return null;
+}
+
+function formatVisibleDate(
+  yearRaw: string,
+  monthRaw: string,
+  dayRaw: string,
+): string | null {
+  const month = monthNumber(monthRaw);
+  const day = Number(dayRaw);
+  const year = Number(yearRaw);
+  if (!month || !day || !year || day < 1 || day > 31) return null;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${
+    String(day).padStart(2, "0")
+  }`;
+}
+
+function monthNumber(monthRaw: string): number | null {
+  const key = monthRaw.toLowerCase().slice(0, 3);
+  const months: Record<string, number> = {
+    jan: 1,
+    feb: 2,
+    mar: 3,
+    apr: 4,
+    may: 5,
+    jun: 6,
+    jul: 7,
+    aug: 8,
+    sep: 9,
+    oct: 10,
+    nov: 11,
+    dec: 12,
+  };
+  return months[key] ?? null;
 }

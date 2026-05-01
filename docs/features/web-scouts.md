@@ -126,6 +126,10 @@ When the user schedules a Page Scout, the server establishes the baseline before
 
 If a listing/index page changes and Phase B follows matching subpages, the configured scout URL remains the index URL, but each extracted unit and its raw capture are attributed to the exact article/subpage URL that produced the fact.
 
+## Source Dates
+
+Page Scout uses the shared `_shared/atomic_extract.ts::sourcePublishedDate` helper before extracting and inserting information units. The helper tries Firecrawl scrape metadata first, then a visible publication date near the top of markdown, then returns `null`. Extracted facts still prefer the LLM-provided event date, but `information_units.occurred_at` falls back to this source publication date when the fact has no more specific date.
+
 ## Database Records
 
 ### EXEC# Records (Execution History)

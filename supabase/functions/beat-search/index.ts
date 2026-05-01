@@ -55,6 +55,7 @@ import {
   parseBeatLocation,
 } from "../_shared/beat_location.ts";
 import { buildBeatCriteriaRule } from "../_shared/beat_criteria.ts";
+import { sourcePublishedDate } from "../_shared/atomic_extract.ts";
 
 const LocationSchema = z.object({
   displayName: z.string().optional(),
@@ -296,7 +297,9 @@ async function runSearch(
   const locationMatcher = buildBeatLocationMatcher(parsedLocation);
   const aggregated = scrapedOk
     .map(({ hit, scrape }) =>
-      `=== SOURCE: ${hit.url}\nTITLE: ${scrape.title ?? hit.title ?? ""}\n\n${
+      `=== SOURCE: ${hit.url}\nTITLE: ${scrape.title ?? hit.title ?? ""}\nSEARCH_DATE: ${hit.date ?? "unknown"}\nSOURCE_DATE: ${
+        sourcePublishedDate({ scrape, searchDate: hit.date }) ?? "unknown"
+      }\n\n${
         (scrape.markdown ?? "").slice(0, MARKDOWN_PER_HIT)
       }\n`
     )
@@ -341,7 +344,7 @@ async function runSearch(
         source: safeDomain(hit.url) ?? "",
         summary: (scrape.markdown ?? "").slice(0, 240).replace(/\s+/g, " ")
           .trim(),
-        date: null,
+        date: sourcePublishedDate({ scrape, searchDate: hit.date }),
         imageUrl: null,
         verified: false,
       })),
@@ -359,7 +362,10 @@ async function runSearch(
     ? extraction.articles
     : [];
   const rawSourceTextByUrl = new Map<string, string>();
+  const scrapedByUrl = new Map<string, { hit: BeatHit; scrape: ScrapeResult }>();
   for (const { hit, scrape } of scrapedOk) {
+    scrapedByUrl.set(hit.url, { hit, scrape });
+    scrapedByUrl.set(scrape.source_url, { hit, scrape });
     rawSourceTextByUrl.set(
       hit.url,
       [
@@ -406,12 +412,19 @@ async function runSearch(
       continue;
     }
     seenUrls.add(a.url);
+    const source = scrapedByUrl.get(a.url);
+    const fallbackDate = source
+      ? sourcePublishedDate({
+        scrape: source.scrape,
+        searchDate: source.hit.date,
+      })
+      : null;
     articles.push({
       title: String(a.title ?? "").slice(0, 300) || a.url,
       url: a.url,
       source: a.source ?? safeDomain(a.url) ?? "",
       summary: String(a.summary ?? ""),
-      date: normalizeDate(a.date ?? null),
+      date: normalizeDate(a.date ?? null) ?? fallbackDate,
       imageUrl: null,
       verified: true,
     });

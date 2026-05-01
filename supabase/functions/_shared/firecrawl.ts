@@ -20,6 +20,7 @@ export interface ScrapeResult {
   html?: string;
   rawHtml?: string | null;
   title?: string;
+  metadata?: Record<string, unknown>;
   requested_url?: string;
   source_url: string;
   fetched_at: string;
@@ -104,6 +105,7 @@ export async function firecrawlScrape(
     html: d.html,
     rawHtml: d.rawHtml ?? null,
     title: d.metadata?.title,
+    metadata,
     requested_url: url,
     source_url: sourceUrl,
     fetched_at: new Date().toISOString(),
@@ -115,6 +117,19 @@ export interface SearchHit {
   title?: string;
   description?: string;
   markdown?: string;
+  date?: string | null;
+  source?: "web" | "news";
+}
+
+export interface FirecrawlSearchOptions {
+  limit?: number;
+  scrape?: boolean;
+  lang?: string;
+  country?: string;
+  sources?: Array<"web" | "news">;
+  tbs?: string;
+  ignoreInvalidURLs?: boolean;
+  excludeDomains?: string[];
 }
 
 /**
@@ -124,15 +139,18 @@ export interface SearchHit {
  */
 export async function firecrawlSearch(
   query: string,
-  opts: { limit?: number; scrape?: boolean; lang?: string; country?: string } =
-    {},
+  opts: FirecrawlSearchOptions = {},
 ): Promise<SearchHit[]> {
   const body: Record<string, unknown> = {
     query,
     limit: Math.min(Math.max(1, opts.limit ?? 10), 20),
+    ignoreInvalidURLs: opts.ignoreInvalidURLs ?? true,
   };
+  if (opts.sources?.length) body.sources = opts.sources;
   if (opts.lang) body.lang = opts.lang;
   if (opts.country) body.country = opts.country;
+  if (opts.tbs) body.tbs = opts.tbs;
+  if (opts.excludeDomains?.length) body.excludeDomains = opts.excludeDomains;
   if (opts.scrape) {
     body.scrapeOptions = { formats: ["markdown"], onlyMainContent: true };
   }
@@ -152,16 +170,35 @@ export async function firecrawlSearch(
     );
   }
   const j = await res.json();
-  const hits = Array.isArray(j?.data)
-    ? j.data
-    : Array.isArray(j?.data?.web)
-    ? j.data.web
-    : [];
-  return hits.map((h: Record<string, unknown>) => ({
+  const data = j?.data;
+  const hits: Array<Record<string, unknown> & { _source?: "web" | "news" }> =
+    Array.isArray(data)
+      ? data.map((h: Record<string, unknown>) => ({ ...h, _source: "web" }))
+      : [
+        ...((Array.isArray(data?.web) ? data.web : []) as Record<
+          string,
+          unknown
+        >[]).map((h) => ({ ...h, _source: "web" as const })),
+        ...((Array.isArray(data?.news) ? data.news : []) as Record<
+          string,
+          unknown
+        >[]).map((h) => ({ ...h, _source: "news" as const })),
+      ];
+  return hits.map((h) => ({
     url: String(h.url ?? ""),
     title: typeof h.title === "string" ? h.title : undefined,
-    description: typeof h.description === "string" ? h.description : undefined,
+    description: typeof h.description === "string"
+      ? h.description
+      : typeof h.snippet === "string"
+      ? h.snippet
+      : undefined,
     markdown: typeof h.markdown === "string" ? h.markdown : undefined,
+    date: typeof h.date === "string"
+      ? h.date
+      : typeof h.publishedDate === "string"
+      ? h.publishedDate
+      : null,
+    source: h._source,
   })).filter((h: SearchHit) => h.url.length > 0);
 }
 
@@ -317,12 +354,14 @@ export async function firecrawlChangeTrackingScrape(
   }
   const body = await res.json();
   const d = body?.data ?? {};
+  const metadata = d.metadata ?? {};
   const ct = d.changeTracking ?? {};
   return {
     markdown: d.markdown ?? "",
     html: d.html,
     rawHtml: d.rawHtml ?? null,
     title: d.metadata?.title,
+    metadata,
     source_url: url,
     fetched_at: new Date().toISOString(),
     change_status:
