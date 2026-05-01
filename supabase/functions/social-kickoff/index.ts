@@ -40,6 +40,7 @@ import {
   buildSocialProfileUrl,
   normalizeSocialHandle,
 } from "../_shared/social_profiles.ts";
+import { repairMissingSocialBaseline } from "../_shared/baseline_repair.ts";
 
 const KickoffSchema = z.object({
   scout_id: z.string().uuid(),
@@ -117,7 +118,7 @@ async function startApifyRun(
   // 1. Load scout.
   const { data: scout, error: scoutErr } = await svc
     .from("scouts")
-    .select("id, user_id, platform, profile_handle")
+    .select("id, user_id, platform, profile_handle, baseline_established_at")
     .eq("id", scoutId)
     .maybeSingle();
   if (scoutErr) throw new Error(scoutErr.message);
@@ -170,6 +171,19 @@ async function startApifyRun(
       })
       .eq("id", runId);
     throw new ValidationError(detail);
+  }
+
+  if (!scout.baseline_established_at) {
+    const repair = await repairMissingSocialBaseline(svc, scoutId);
+    if (repair.repaired) {
+      logEvent({
+        level: "info",
+        fn: "social-kickoff",
+        event: "baseline_backfilled_from_social_snapshot",
+        scout_id: scoutId,
+        repaired_at: repair.repairedAt,
+      });
+    }
   }
 
   // 2b. Decrement credits before spending money on Apify, after baseline

@@ -65,6 +65,7 @@ import {
   loadFactCheckConfig,
 } from "../_shared/fact_check.ts";
 import { parseBeatLocation } from "../_shared/beat_location.ts";
+import { repairMissingBeatBaseline } from "../_shared/baseline_repair.ts";
 
 const InputSchema = z.object({
   scout_id: z.string().uuid(),
@@ -161,8 +162,28 @@ async function execute(
   let chargedCredits = false;
 
   if (!baselineOnly && !scout.baseline_established_at) {
+    const repair = await repairMissingBeatBaseline(db, scoutId);
+    if (repair.repaired) {
+      logEvent({
+        level: "info",
+        fn: "scout-beat-execute",
+        event: "baseline_backfilled_from_successful_run",
+        scout_id: scoutId,
+        repaired_at: repair.repairedAt,
+      });
+      scout.baseline_established_at = repair.repairedAt;
+    }
+  }
+
+  if (!baselineOnly && !scout.baseline_established_at) {
     const msg =
       "beat scout has no baseline; recreate or reschedule the scout so creation can establish one before Run Now";
+    logEvent({
+      level: "warn",
+      fn: "scout-beat-execute",
+      event: "missing_baseline_no_repair_source",
+      scout_id: scoutId,
+    });
     await db
       .from("scout_runs")
       .update({
@@ -401,7 +422,10 @@ async function execute(
     const govStatements: string[] = [];
     const runEmbeddings: number[][] = [];
     const baselineUnitIds = new Set<string>();
-    const surfacedArticles = new Map<string, Article & { category: "news" | "government" }>();
+    const surfacedArticles = new Map<
+      string,
+      Article & { category: "news" | "government" }
+    >();
     const factCheckConfig = loadFactCheckConfig();
 
     for (let i = 0; i < succeeded.length; i++) {
@@ -527,9 +551,7 @@ async function execute(
                 url: src.source_url,
                 summary: "",
                 source: safeDomain(src.source_url) ?? "",
-                category: govUrlSet.has(src.source_url)
-                  ? "government"
-                  : "news",
+                category: govUrlSet.has(src.source_url) ? "government" : "news",
               });
             }
             if (insertedStatements.length < 10) {
