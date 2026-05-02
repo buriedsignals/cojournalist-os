@@ -92,21 +92,22 @@ async function resolveMagicLinkToken(actionLink: string): Promise<string> {
 }
 
 export async function createTestUser(): Promise<TestUser> {
-  const email = `test-${crypto.randomUUID()}@example.com`;
+  const email = `test-${crypto.randomUUID()}@cojournalist.test`;
   const password = "test-pw-" + crypto.randomUUID();
   const service = serviceClient();
   const anon = anonClient();
 
-  const { data: signUpData, error: signUpErr } = await anon.auth.signUp({
+  const { data: created, error: createErr } = await service.auth.admin.createUser({
     email,
     password,
+    email_confirm: true,
   });
-  if (signUpErr) {
-    throw new Error(`failed to sign up test user: ${signUpErr.message}`);
+  if (createErr) {
+    throw new Error(`failed to create test user: ${createErr.message}`);
   }
-  const userId = signUpData.user?.id;
+  const userId = created.user?.id;
   if (!userId) {
-    throw new Error("failed to sign up test user: missing user id");
+    throw new Error("failed to create test user: missing user id");
   }
 
   const { error: creditsErr } = await service.from("credit_accounts").upsert({
@@ -120,17 +121,14 @@ export async function createTestUser(): Promise<TestUser> {
     throw new Error(`failed to seed credit account: ${creditsErr.message}`);
   }
 
-  let token = signUpData.session?.access_token ?? "";
-  if (!token) {
-    const { data: signInData, error: signInErr } = await anon.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (signInErr) {
-      throw new Error(`failed to sign in test user: ${signInErr.message}`);
-    }
-    token = signInData.session?.access_token ?? "";
+  const { data: signInData, error: signInErr } = await anon.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (signInErr) {
+    throw new Error(`failed to sign in test user: ${signInErr.message}`);
   }
+  const token = signInData.session?.access_token ?? "";
   if (!token) {
     throw new Error("failed to acquire test user token");
   }

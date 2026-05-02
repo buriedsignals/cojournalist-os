@@ -4,7 +4,7 @@
  *
  * Stage flow:
  *   1. generateQueries           — LLM query gen (multilingual, category-aware)
- *   2. runSearches               — Firecrawl /search source passes per query
+ *   2. runSearches               — explicit Firecrawl web search per query
  *   3. applyDateFilter           — date window + staleness floor (90d)
  *   4. capUndatedResults         — two-bucket cap (news vs discovery)
  *   5. tourismPrefilter          — drop travel/tourism hits (niche+location only)
@@ -24,7 +24,6 @@ import { geminiEmbed, geminiExtract } from "./gemini.ts";
 import { firecrawlSearch, SearchHit } from "./firecrawl.ts";
 import { logEvent } from "./log.ts";
 import { cosineSimilarity } from "./dedup.ts";
-import { buildBeatLocationMatcher } from "./beat_location.ts";
 import { buildBeatCriteriaRule } from "./beat_criteria.ts";
 import { compressContext, logCompressionStats } from "./taco_compress.ts";
 
@@ -45,6 +44,10 @@ export interface BeatQueryPlan {
   queries: string[];
   discovery_queries: string[];
   local_domains: string[];
+  canonical_query?: string;
+  localized_query?: string;
+  required_concepts?: string[];
+  weak_terms?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +122,10 @@ const QUERY_SCHEMA = {
     queries: { type: "array", items: { type: "string" } },
     discovery_queries: { type: "array", items: { type: "string" } },
     local_domains: { type: "array", items: { type: "string" } },
+    canonical_query: { type: "string" },
+    localized_query: { type: "string" },
+    required_concepts: { type: "array", items: { type: "string" } },
+    weak_terms: { type: "array", items: { type: "string" } },
   },
   required: ["primary_language", "queries"],
 } as const;
@@ -151,19 +158,25 @@ Topic criteria: "${opts.criteria}"
 2. GENERATE ${numQueries} search queries focused only on this topic.
    - Do NOT add city, country, regional, or local terms unless they are explicitly present in the criteria.
    - Include core topic terms and close synonyms from the criteria.
+   - For compound topics, preserve every major concept in each query; do not broaden to just one generic side of the topic.
    - Prefer queries that surface recent substantive reporting, trade coverage, policy developments, or industry news.
    - Avoid evergreen explainers, vendor marketing, generic tool lists, and academic-only queries unless the criteria asks for them.
-3. GENERATE up to 5 discovery queries for specialized credible sources covering this topic.
-Return JSON: { "primary_language": "<iso>", "queries": [...], "discovery_queries": [...], "local_domains": [] }`;
+3. IDENTIFY required_concepts: the major concepts that must all be represented for a result to be relevant.
+4. IDENTIFY weak_terms: broad terms that are insufficient by themselves.
+5. GENERATE up to 5 discovery queries for specialized credible sources covering this topic.
+Return JSON: { "primary_language": "<iso>", "canonical_query": "<best concise query>", "localized_query": "<same as canonical if no translation needed>", "required_concepts": [...], "weak_terms": [...], "queries": [...], "discovery_queries": [...], "local_domains": [] }`;
   } else if (opts.criteria && opts.category !== "government") {
     prompt = `You are a topic-focused researcher. For ${locationLabel}:
 
 1. DETERMINE the PRIMARY local language (Montreal→fr, Barcelona→es, Zurich→de).
 2. GENERATE ${numQueries} search queries focused on "${opts.criteria}" in this location.
    - Mix local-language AND English for broad coverage.
+   - If "${opts.criteria}" is not in the local language, translate the key criteria terms and include those translated terms in some queries.
    - ${locHint}.
    - Natural journalist phrasing; varied angles (policy, industry, impact).
-Return JSON: { "primary_language": "<iso>", "queries": [...], "discovery_queries": [...], "local_domains": [...] }`;
+3. IDENTIFY required_concepts: topic and location concepts that must all be represented for a result to be relevant.
+4. IDENTIFY weak_terms: broad topic/location terms that are insufficient by themselves.
+Return JSON: { "primary_language": "<iso>", "canonical_query": "<English or source-language concise query>", "localized_query": "<local-language query>", "required_concepts": [...], "weak_terms": [...], "queries": [...], "discovery_queries": [...], "local_domains": [...] }`;
   } else if (opts.category === "government") {
     const critClause = opts.criteria ? ` related to "${opts.criteria}"` : "";
     prompt = `You are a local government affairs researcher. For ${locationLabel}:
@@ -173,7 +186,8 @@ Return JSON: { "primary_language": "<iso>", "queries": [...], "discovery_queries
    Topics: city council decisions, municipal services, elections, permits, officials announcements.
 3. GENERATE 5 discovery queries for official public sector websites (municipal, police, schools, hospitals).
    - ${locHint}. Use natural local phrasing.
-Return JSON: { "primary_language": "<iso>", "queries": [...], "discovery_queries": [...], "local_domains": [...] }`;
+4. IDENTIFY required_concepts and weak_terms for later relevance filtering.
+Return JSON: { "primary_language": "<iso>", "canonical_query": "<concise government query>", "localized_query": "<local-language query>", "required_concepts": [...], "weak_terms": [...], "queries": [...], "discovery_queries": [...], "local_domains": [...] }`;
   } else {
     prompt = `You are a local information researcher. For ${locationLabel}:
 
@@ -182,7 +196,8 @@ Return JSON: { "primary_language": "<iso>", "queries": [...], "discovery_queries
    - ${locHint}.
 3. GENERATE 5 discovery queries for LOCAL COMMUNITY content (event calendars, neighborhood forums, civic groups, independent blogs).
    Do NOT generate tourism or travel queries.
-Return JSON: { "primary_language": "<iso>", "queries": [...], "discovery_queries": [...], "local_domains": [...] }`;
+4. IDENTIFY required_concepts and weak_terms for later relevance filtering.
+Return JSON: { "primary_language": "<iso>", "canonical_query": "<concise local-information query>", "localized_query": "<local-language query>", "required_concepts": [...], "weak_terms": [...], "queries": [...], "discovery_queries": [...], "local_domains": [...] }`;
   }
 
   return {
@@ -205,6 +220,18 @@ export async function generateQueries(opts: GenerateOpts): Promise<BeatQueryPlan
       queries: Array.isArray(res.queries) ? res.queries.slice(0, numQueries) : [],
       discovery_queries: Array.isArray(res.discovery_queries) ? res.discovery_queries.slice(0, 5) : [],
       local_domains: Array.isArray(res.local_domains) ? res.local_domains.slice(0, 10) : [],
+      canonical_query: typeof res.canonical_query === "string"
+        ? res.canonical_query.slice(0, 240)
+        : undefined,
+      localized_query: typeof res.localized_query === "string"
+        ? res.localized_query.slice(0, 240)
+        : undefined,
+      required_concepts: Array.isArray(res.required_concepts)
+        ? res.required_concepts.filter((c): c is string => typeof c === "string" && c.trim().length > 0).slice(0, 8)
+        : [],
+      weak_terms: Array.isArray(res.weak_terms)
+        ? res.weak_terms.filter((c): c is string => typeof c === "string" && c.trim().length > 0).slice(0, 8)
+        : [],
     };
   } catch (e) {
     logEvent({
@@ -225,6 +252,10 @@ export async function generateQueries(opts: GenerateOpts): Promise<BeatQueryPlan
       queries,
       discovery_queries: [],
       local_domains: [],
+      canonical_query: opts.criteria ?? queries[0],
+      localized_query: queries[0],
+      required_concepts: criteriaTokens(opts.criteria ?? queries[0]).slice(0, 8),
+      weak_terms: [],
     };
   }
 }
@@ -237,6 +268,7 @@ export interface SearchOpts {
   plan: BeatQueryPlan;
   scope?: BeatScope;
   lang?: string;
+  location?: string;
   country?: string;
   searchLimit?: number;
   concurrency?: number;
@@ -255,30 +287,19 @@ interface SearchJob {
 /**
  * Fan out Firecrawl /search and merge URL-deduped hits.
  *
- * Firecrawl documents `sources`, `tbs`, and `scrapeOptions` as source-specific
- * search controls. Keep this stage explicit: normal queries run web search;
- * global topic scouts add separate news and recent-web passes because `tbs`
- * applies to web search, not news. Discovery queries stay web-only so named
- * source queries are not diluted by broad news search.
+ * Live audit (2026-05-02) showed explicit web search was the only source
+ * strategy that passed all global, localized, and civic-style scenarios. News
+ * and recent-web remain useful diagnostics but are not safe default retrieval
+ * sources because they dilute locality and compound-topic relevance.
  */
 export async function runSearches(opts: SearchOpts): Promise<BeatHit[]> {
   const { plan } = opts;
-  const isGlobalTopic = opts.scope === "topic";
-  const searchLimit = opts.searchLimit ?? (isGlobalTopic ? 5 : 10);
-  const newsJobs: SearchJob[] = plan.queries.flatMap((q) => [
-    { query: q, pass: "news" as const, sources: ["web"] as const },
-    ...(isGlobalTopic
-      ? [
-        { query: q, pass: "news" as const, sources: ["news"] as const },
-        {
-          query: q,
-          pass: "news" as const,
-          sources: ["web"] as const,
-          tbs: "qdr:m,sbd:1",
-        },
-      ]
-      : []),
-  ]);
+  const searchLimit = opts.searchLimit ?? 10;
+  const newsJobs: SearchJob[] = plan.queries.map((q) => ({
+    query: q,
+    pass: "news" as const,
+    sources: ["web"] as const,
+  }));
   const discoveryJobs: SearchJob[] = plan.discovery_queries.map((q) => ({
     query: q,
     pass: "discovery" as const,
@@ -294,6 +315,7 @@ export async function runSearches(opts: SearchOpts): Promise<BeatHit[]> {
       const res = await firecrawlSearch(job.query, {
         limit: searchLimit,
         lang: opts.lang,
+        location: opts.location,
         country: opts.country,
         sources: [...job.sources],
         tbs: job.tbs,
@@ -370,7 +392,10 @@ export async function discoverBeatHits(
   const rawHits = await runSearches({
     plan,
     scope: opts.scope,
-    lang: opts.preferredLanguage,
+    lang: plan.primary_language || opts.preferredLanguage,
+    location: (opts.city || opts.country)
+      ? buildLocationLabel(opts.city, opts.country)
+      : undefined,
     country: opts.countryCode ?? undefined,
     excludedDomains: opts.excludedDomains,
   });
@@ -392,22 +417,6 @@ export async function discoverBeatHits(
     (opts.city || opts.country)
   ) {
     hits = hits.filter((h) => !isLikelyTourismContent(h));
-  }
-  if (hits.length === 0) {
-    return { hits: [], plan, rawHits, queriesUsed };
-  }
-
-  const locationMatcher = buildBeatLocationMatcher({
-    city: opts.city,
-    country: opts.country,
-    countryCode: opts.countryCode,
-  });
-  if (locationMatcher) {
-    hits = hits.filter((hit) =>
-      locationMatcher(
-        [hit.title, hit.description, hit.url].filter(Boolean).join(" "),
-      )
-    );
   }
   if (hits.length === 0) {
     return { hits: [], plan, rawHits, queriesUsed };
@@ -440,6 +449,10 @@ export async function discoverBeatHits(
     category: opts.category,
     sourceMode: opts.sourceMode,
     criteria: opts.criteria,
+    requiredConcepts: plan.required_concepts,
+    weakTerms: plan.weak_terms,
+    canonicalQuery: plan.canonical_query,
+    localizedQuery: plan.localized_query,
     excludedDomains: opts.excludedDomains,
     maxResults,
   });
@@ -712,6 +725,10 @@ export interface AiFilterOpts {
   category: BeatCategory;
   sourceMode: BeatSourceMode;
   criteria?: string | null;
+  requiredConcepts?: string[];
+  weakTerms?: string[];
+  canonicalQuery?: string | null;
+  localizedQuery?: string | null;
   excludedDomains?: string[];
   maxResults: number;
 }
@@ -747,24 +764,113 @@ const TOPIC_TOKEN_STOPWORDS = new Set([
   "with",
 ]);
 
-function meaningfulTopicTokens(criteria: string | null | undefined): Set<string> {
-  const tokens = new Set<string>();
-  for (const raw of (criteria ?? "").toLowerCase().split(/[^a-z0-9]+/)) {
+const WEAK_TOPIC_TOKENS = new Set([
+  "ai",
+  "artificial",
+  "intelligence",
+  "policy",
+  "policies",
+  "tech",
+  "technology",
+  "use",
+  "uses",
+  "using",
+]);
+
+interface TopicSignals {
+  tokens: Set<string>;
+  strongTokens: Set<string>;
+}
+
+function criteriaTokens(criteria: string | null | undefined): string[] {
+  const tokens: string[] = [];
+  for (const raw of (criteria ?? "").toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
     if (!raw || TOPIC_TOKEN_STOPWORDS.has(raw)) continue;
     if (raw.length < 3 && raw !== "ai") continue;
-    tokens.add(raw);
+    tokens.push(raw);
   }
   return tokens;
 }
 
-function topicOverlapScore(hit: BeatHit, tokens: Set<string>): number {
-  if (tokens.size === 0) return 0;
-  const haystack = [hit.title, hit.description, hit.url].filter(Boolean).join(" ").toLowerCase();
+function meaningfulTopicTokens(
+  criteria: string | null | undefined,
+  requiredConcepts: string[] = [],
+): Set<string> {
+  return new Set([
+    ...criteriaTokens(criteria),
+    ...requiredConcepts.flatMap((concept) => criteriaTokens(concept)),
+  ]);
+}
+
+function buildTopicSignals(
+  criteria: string | null | undefined,
+  requiredConcepts: string[] = [],
+  weakTerms: string[] = [],
+): TopicSignals {
+  const tokens = meaningfulTopicTokens(criteria, requiredConcepts);
+  const weak = new Set([
+    ...WEAK_TOPIC_TOKENS,
+    ...weakTerms.flatMap((term) => criteriaTokens(term)),
+  ]);
+  const strongTokens = new Set<string>();
+  for (const token of tokens) {
+    if (!weak.has(token)) strongTokens.add(token);
+  }
+  return { tokens, strongTokens };
+}
+
+function tokenSetOverlapScore(haystack: string, tokens: Set<string>): number {
   let score = 0;
   for (const token of tokens) {
     if (haystack.includes(token)) score++;
   }
   return score;
+}
+
+function hitText(hit: BeatHit): string {
+  return [hit.title, hit.description, hit.url].filter(Boolean).join(" ").toLowerCase();
+}
+
+function isGlobalTopicMatch(hit: BeatHit, signals: TopicSignals): boolean {
+  if (signals.tokens.size === 0) return true;
+  const haystack = hitText(hit);
+  const totalOverlap = tokenSetOverlapScore(haystack, signals.tokens);
+  const strongOverlap = tokenSetOverlapScore(haystack, signals.strongTokens);
+  if (signals.strongTokens.size > 0) {
+    return strongOverlap > 0 && totalOverlap > 0;
+  }
+  return totalOverlap > 0;
+}
+
+function filterGlobalTopicCandidates(
+  hits: BeatHit[],
+  criteria: string | null | undefined,
+  requiredConcepts: string[] = [],
+  weakTerms: string[] = [],
+): BeatHit[] {
+  const signals = buildTopicSignals(criteria, requiredConcepts, weakTerms);
+  if (signals.tokens.size === 0) return hits;
+  const filtered = hits.filter((hit) => isGlobalTopicMatch(hit, signals));
+  if (filtered.length === 0 && signals.strongTokens.size > 0) return [];
+  return filtered.length > 0 ? filtered : hits;
+}
+
+function topicBackfillMinOverlap(tokens: Set<string>): number {
+  if (tokens.size === 0) return 0;
+  const strongCount = [...tokens].filter((token) => !WEAK_TOPIC_TOKENS.has(token)).length;
+  return strongCount <= 1 ? 1 : 2;
+}
+
+function topicBackfillMatch(
+  hit: BeatHit,
+  signals: TopicSignals,
+  minOverlap: number,
+): boolean {
+  if (!isGlobalTopicMatch(hit, signals)) return false;
+  if (minOverlap <= 1) return true;
+  const haystack = hitText(hit);
+  return tokenSetOverlapScore(haystack, signals.tokens) >= minOverlap ||
+    tokenSetOverlapScore(haystack, signals.strongTokens) >= minOverlap;
 }
 
 export async function aiFilterResults(
@@ -787,17 +893,27 @@ export async function aiFilterResults(
       return true;
     });
   }
-  const candidates = filtered.slice(0, 60);
-  if (candidates.length === 0) return [];
-
-  const rawArticlesBlock = candidates
-    .map((h, i) => `${i}. ${h.title ?? "No title"}\n   ${(h.description ?? "").slice(0, 150)}\n   URL: ${h.url}`)
-    .join("\n");
-  const { text: articlesBlock, stats: filterStats } = compressContext(rawArticlesBlock);
-  logCompressionStats("beat-pipeline-filter", undefined, filterStats);
   const location = opts.cityName && opts.countryName
     ? `${opts.cityName}, ${opts.countryName}`
     : opts.cityName || opts.countryName || "";
+  const isGlobalTopic = Boolean(!location && opts.criteria && opts.category !== "government");
+  const candidates = (isGlobalTopic
+    ? filterGlobalTopicCandidates(
+      filtered,
+      opts.criteria,
+      opts.requiredConcepts,
+      opts.weakTerms,
+    )
+    : filtered).slice(0, 60);
+  if (candidates.length === 0) return [];
+
+  const rawArticlesBlock = candidates
+    .map((h, i) =>
+      `${i}. ${h.title ?? "No title"}\n   ${(h.description ?? "").slice(0, 150)}\n   URL: ${h.url}\n   DATE: ${h.date ?? "unknown"}\n   QUERY: ${h.query ?? "unknown"}`
+    )
+    .join("\n");
+  const { text: articlesBlock, stats: filterStats } = compressContext(rawArticlesBlock);
+  logCompressionStats("beat-pipeline-filter", undefined, filterStats);
   const criteriaLine = opts.criteria ? `USER CRITERIA: "${opts.criteria}"\n` : "";
   const criteriaRule = buildBeatCriteriaRule(opts.criteria);
   const categoryLine = opts.category === "government"
@@ -813,11 +929,30 @@ export async function aiFilterResults(
   const locationRule = location
     ? `Location strictness: keep only articles primarily about ${location}. If an article is mainly about another city, region, or country, reject it even if the topic matches. For country targets, do not substitute same-language or same-topic coverage from another country.`
     : "";
+  const compoundRule = !location && opts.criteria
+    ? "Compound-topic strictness: identify every major concept in the user's criteria. Keep an article only when the full compound topic is a primary subject. Reject articles that match only a broad/generic concept from the criteria."
+    : "";
+  const conceptLine = opts.requiredConcepts?.length
+    ? `Required concepts: ${opts.requiredConcepts.join(", ")}. A kept result should satisfy all required concepts or be rejected.\n`
+    : "";
+  const weakLine = opts.weakTerms?.length
+    ? `Weak terms: ${opts.weakTerms.join(", ")}. Matching only these terms is not enough.\n`
+    : "";
+  const queryLine = [opts.canonicalQuery, opts.localizedQuery]
+    .filter((q): q is string => typeof q === "string" && q.trim().length > 0)
+    .filter((q, i, arr) => arr.indexOf(q) === i)
+    .map((q) => `Query plan: ${q}`)
+    .join("\n");
   const minTopicResults = !location && opts.criteria && opts.category !== "government"
     ? Math.min(3, opts.maxResults, candidates.length)
     : 0;
-  const topicTokens = meaningfulTopicTokens(opts.criteria);
-  const topicFloorMinOverlap = topicTokens.size <= 2 ? 1 : 2;
+  const topicTokens = meaningfulTopicTokens(opts.criteria, opts.requiredConcepts);
+  const topicSignals = buildTopicSignals(
+    opts.criteria,
+    opts.requiredConcepts,
+    opts.weakTerms,
+  );
+  const topicFloorMinOverlap = topicBackfillMinOverlap(topicTokens);
   const resultFloorLine = minTopicResults > 0
     ? `If at least ${minTopicResults} candidates are plausibly about the user's topic, keep at least ${minTopicResults}; do not require local relevance for this global topic scout.`
     : "";
@@ -828,7 +963,7 @@ export async function aiFilterResults(
 
   const prompt =
     `Pick the most relevant ${opts.maxResults} articles for ${audience}.\n\n` +
-    `${criteriaLine}${criteriaRule}\n${categoryLine}\n${langLine}\n${locationRule}\n${resultFloorLine}\n\n` +
+    `${criteriaLine}${conceptLine}${weakLine}${queryLine}\n${criteriaRule}\n${categoryLine}\n${langLine}\n${locationRule}\n${compoundRule}\n${resultFloorLine}\n\n` +
     `Return JSON { "keep": [<indices>] } listing the indices (0-based) of articles to keep, ` +
     `in priority order, at most ${opts.maxResults}.\n\nCANDIDATES:\n${articlesBlock}`;
   const systemInstruction = location
@@ -842,17 +977,19 @@ export async function aiFilterResults(
     const keep = Array.isArray(res.keep) ? res.keep : [];
     const picked: BeatHit[] = [];
     for (const idx of keep) {
-      if (idx >= 0 && idx < candidates.length) picked.push(candidates[idx]);
+      if (idx >= 0 && idx < candidates.length) {
+        const candidate = candidates[idx];
+        if (!isGlobalTopic || isGlobalTopicMatch(candidate, topicSignals)) {
+          picked.push(candidate);
+        }
+      }
       if (picked.length >= opts.maxResults) break;
     }
     if (picked.length < minTopicResults) {
       const pickedUrls = new Set(picked.map((h) => h.url));
       for (const candidate of candidates) {
         if (pickedUrls.has(candidate.url)) continue;
-        if (
-          topicTokens.size > 0 &&
-          topicOverlapScore(candidate, topicTokens) < topicFloorMinOverlap
-        ) {
+        if (!topicBackfillMatch(candidate, topicSignals, topicFloorMinOverlap)) {
           continue;
         }
         picked.push(candidate);

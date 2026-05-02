@@ -72,6 +72,7 @@ Deno.test(
         type: "beat",
         regularity: "weekly",
         schedule_cron: "0 6 * * 1",
+        baseline_established_at: new Date().toISOString(),
         priority_sources: [],
       })
       .select("id")
@@ -84,7 +85,9 @@ Deno.test(
       body: JSON.stringify({ scout_id: scout.id }),
     });
     assertEquals(res.status, 400);
-    await res.body?.cancel();
+    const body = await res.json();
+    assertEquals(body.code, "validation_error");
+    assertEquals(body.error, "beat scout requires location, criteria, or topic");
 
     await db.from("scouts").delete().eq("id", scout.id);
   } finally {
@@ -125,6 +128,7 @@ Deno.test({
           regularity: "weekly",
           schedule_cron: "0 6 * * 1",
           criteria: "any newsworthy development",
+          baseline_established_at: new Date().toISOString(),
           priority_sources: [
             "https://example.com",
             "https://www.iana.org/help/example-domains",
@@ -139,8 +143,8 @@ Deno.test({
         headers: svcHeaders(),
         body: JSON.stringify({ scout_id: scout.id }),
       });
-      assertEquals(res.status, 200);
       const body = await res.json();
+      assertEquals(res.status, 200, JSON.stringify(body));
       assertEquals(body.status, "ok");
       assertExists(body.run_id);
       // sources_scraped could be <2 if one fails; just assert it's a number.
@@ -169,6 +173,7 @@ Deno.test({
           type: "beat",
           regularity: "weekly",
           schedule_cron: "0 6 * * 1",
+          baseline_established_at: new Date().toISOString(),
           location: {
             displayName: "London, United Kingdom",
             city: "London",
@@ -186,7 +191,7 @@ Deno.test({
         body: JSON.stringify({ scout_id: scout.id }),
       });
       const body = await res.json();
-      assertEquals(res.status, 200);
+      assertEquals(res.status, 200, JSON.stringify(body));
       assertEquals(typeof body.status, "string");
 
       await db.from("scouts").delete().eq("id", scout.id);

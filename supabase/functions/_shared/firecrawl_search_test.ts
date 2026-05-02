@@ -37,6 +37,8 @@ Deno.test("firecrawlSearch normalizes web and news response shapes", async () =>
     const hits = await firecrawlSearch("ai journalism", {
       sources: ["web", "news"],
       tbs: "qdr:m,sbd:1",
+      location: "Sweden",
+      country: "SE",
       ignoreInvalidURLs: true,
       excludeDomains: ["youtube.com"],
     });
@@ -47,6 +49,8 @@ Deno.test("firecrawlSearch normalizes web and news response shapes", async () =>
       ignoreInvalidURLs: true,
       sources: ["web", "news"],
       tbs: "qdr:m,sbd:1",
+      location: "Sweden",
+      country: "SE",
       excludeDomains: ["youtube.com"],
     });
     assertEquals(hits, [

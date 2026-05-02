@@ -125,6 +125,7 @@ export interface FirecrawlSearchOptions {
   limit?: number;
   scrape?: boolean;
   lang?: string;
+  location?: string;
   country?: string;
   sources?: Array<"web" | "news">;
   tbs?: string;
@@ -148,6 +149,7 @@ export async function firecrawlSearch(
   };
   if (opts.sources?.length) body.sources = opts.sources;
   if (opts.lang) body.lang = opts.lang;
+  if (opts.location) body.location = opts.location;
   if (opts.country) body.country = opts.country;
   if (opts.tbs) body.tbs = opts.tbs;
   if (opts.excludeDomains?.length) body.excludeDomains = opts.excludeDomains;

@@ -150,6 +150,37 @@ const RENEWABLE_TERMS = [
   "hydrogen",
 ];
 
+const AI_TERMS = [
+  "ai",
+  "artificial intelligence",
+  "generative ai",
+];
+
+const JOURNALISM_TERMS = [
+  "journalism",
+  "artificial intelligence journalism",
+  "newsroom",
+  "newsrooms",
+  "journalist",
+  "journalists",
+  "reporter",
+  "reporters",
+  "editor",
+  "editors",
+  "media",
+  "publisher",
+  "publishers",
+];
+
+const AI_JOURNALISM_DRIFT_TERMS = [
+  "pentagon",
+  "classified networks",
+  "oscars",
+  "orange county school board",
+  "lawton council",
+  "camping ordinance",
+];
+
 const UK_TERMS = [
   "united kingdom",
   "uk",
@@ -207,6 +238,20 @@ const CANARIES: Scenario[] = [
     },
     executionAudit: {
       requiredGroups: [HOUSING_TERMS],
+    },
+  },
+  {
+    name: "topic-only:ai-journalism",
+    criteria: "AI in journalism newsrooms reporters editors media organizations",
+    sourceMode: "reliable",
+    preferredLanguage: "en",
+    previewAudit: {
+      requiredGroups: [AI_TERMS, JOURNALISM_TERMS],
+      forbiddenTerms: AI_JOURNALISM_DRIFT_TERMS,
+    },
+    executionAudit: {
+      requiredGroups: [AI_TERMS, JOURNALISM_TERMS],
+      forbiddenTerms: AI_JOURNALISM_DRIFT_TERMS,
     },
   },
   {
