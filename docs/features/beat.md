@@ -32,18 +32,20 @@ Both flows expose a source mode toggle so users can switch between niche and rel
 │                                                                  │
 │  Step 1: Query Generation (query_generator.py)                   │
 │  ├─ LLM generates queries in local language + English            │
-│  ├─ News category: also generates discovery_queries              │
-│  │   (community events, jobs, civic groups, local blogs)         │
+│  ├─ Also returns canonical/localized query text                  │
+│  ├─ Also returns required_concepts and weak_terms for filtering  │
+│  ├─ News category: can generate discovery_queries                │
+│  │   (community events, civic groups, local blogs)               │
 │  ├─ Government category: discovery_queries for public sector     │
 │  └─ Categories: news, government, analysis                       │
 │           │                                                      │
 │           ▼                                                      │
 │  Step 2: Direct Search (Firecrawl)                               │
-│  ├─ Execute explicit source passes concurrently                  │
-│  ├─ Location/combined: web pass per query                         │
-│  ├─ Topic-only: web + news + recent-web passes per query          │
-│  ├─ Discovery queries: web only                                   │
-│  └─ Firecrawl filters invalid URLs and excluded domains           │
+│  ├─ Execute generated queries concurrently                       │
+│  ├─ Explicit Firecrawl sources: ["web"] only                     │
+│  ├─ Forward location/country when present                        │
+│  ├─ Discovery queries also use web only                          │
+│  └─ Firecrawl filters invalid URLs and excluded domains          │
 │           │                                                      │
 │           ▼                                                      │
 │  Step 2.5: PDF OCR Enrichment                                    │
@@ -66,11 +68,13 @@ Both flows expose a source mode toggle so users can switch between niche and rel
 │           ▼                                                      │
 │  Step 5: Cluster + Tourism Filter (niche only)                   │
 │  ├─ Drop mainstream news (cluster_size >= 3)                     │
-│  └─ Drop tourism/travel content (niche+location+news only)       │
+│  └─ Drop tourism/travel content (niche+location+news category)   │
 │           │                                                      │
 │           ▼                                                      │
-│  Step 6: AI Filtering (GPT-4o-mini)                              │
-│  ├─ Filter by relevance to location/topic                        │
+│  Step 6: AI Filtering (Gemini)                                   │
+│  ├─ Filter by relevance to location/topic/criteria               │
+│  ├─ Enforce required concepts for compound topics                │
+│  ├─ Treat weak terms as insufficient alone                       │
 │  ├─ Target: 5-6 (niche) or 6-8 (reliable) articles              │
 │  ├─ Niche: HARD REJECT tourism/travel at top of prompt           │
 │  ├─ Priority: community blogs, civic groups, indie publications  │
@@ -99,7 +103,7 @@ Both flows expose a source mode toggle so users can switch between niche and rel
 | File | Location | Purpose |
 |------|----------|---------|
 | `scout-beat-execute/index.ts` | `supabase/functions/` | Beat scout entrypoint. Branches on `priority_sources`: explicit → direct scrape; empty → full 8-stage pipeline. Parallel news + government category fan-out when criteria + location are both set. Two-section email (news + gov) via `sendBeatAlert`. |
-| `_shared/beat_pipeline.ts` | `supabase/functions/` | Ported legacy pipeline: `generateQueries` (LLM multilingual), `runSearches` (explicit Firecrawl web/news/recent-web passes), `applyDateFilter` + `capUndatedResults` (14/28/90d windows + two-bucket caps), `isLikelyTourismContent` (niche+location+news prefilter), `dedupeByEmbedding` (cosine + rarity + +8 local-language bonus), `clusterFilter` (niche only), `aiFilterResults` (LLM picks top-N), `generateBeatSummary` (bulleted email summary). |
+| `_shared/beat_pipeline.ts` | `supabase/functions/` | Authoritative pipeline: `generateQueries` (LLM multilingual query plan, canonical/localized query, required concepts, weak terms), `runSearches` (explicit Firecrawl `sources: ["web"]` only), `applyDateFilter` + `capUndatedResults` (14/28/90d windows + two-bucket caps), `isLikelyTourismContent` (niche+location+news-category prefilter), `dedupeByEmbedding` (cosine + rarity + +8 local-language bonus), `clusterFilter` (niche only), `aiFilterResults` (LLM relevance gate with compound-topic strictness), `generateBeatSummary` (bulleted email summary). |
 | `beat-search/index.ts` | `supabase/functions/` | Preview endpoint — synchronous version of the pipeline for the New Scout modal's "Start Search" button. No credit charge, no persistence. |
 
 ### Legacy (v1 FastAPI) — for reference during cutover only
@@ -130,7 +134,8 @@ The v2 port preserves all 8 pipeline stages with these clarifications:
 ### Layer 1: URL Deduplication + Quality Filters
 - Firecrawl Search is the external-search boundary. `_shared/firecrawl.ts` normalizes both legacy flat results and current `web`/`news` result groups into one `SearchHit` shape with `url`, `title`, `description`, `date`, and `source`.
 - The beat pipeline sends `ignoreInvalidURLs: true` and `excludeDomains` to Firecrawl so obvious bad URLs and blocked domains are removed before local filtering.
-- Topic-only scouts use separate calls for web, news, and recent-web because Firecrawl's `tbs` recency control applies to web search, not news search. Discovery queries stay web-only.
+- Production Beat Scout search uses explicit Firecrawl `sources: ["web"]` for both primary and discovery queries. Do not rely on Firecrawl defaults.
+- Do not add `news`, `recent-web`, or `web+news` back to the default path without rerunning the quality audit and updating this document. The 2026-05-02 audit found `news` and `recent-web` were the main sources of locality drift and one-concept topic drift, especially for non-English and civic-style beats.
 - `scrapeOptions` is not enabled during search fan-out because Firecrawl charges search plus scrape credits when search results are scraped inline; extraction remains a later, narrowed stage.
 - Simple URL-based dedup during search aggregation
 - Source dates are normalized through `_shared/atomic_extract.ts::sourcePublishedDate`: Firecrawl scrape metadata first, visible date near the top of scraped markdown second, Firecrawl search date last. This feeds extraction prompts and `information_units.occurred_at` fallback, but it is not a hard relevance gate.
@@ -168,7 +173,7 @@ When multiple articles cover the same story, the system picks the best one using
 
 ### Layer 2.5: Cluster + Tourism Filter (niche only)
 - **Cluster filter**: drops mainstream news articles with cluster_size >= 3
-- **Tourism filter**: rejects travel blogs and tourism guides by domain/title patterns (niche + location + news only, via `is_likely_tourism_content`)
+- **Tourism filter**: rejects travel blogs and tourism guides by domain/title patterns (niche + location + news category only, via `is_likely_tourism_content`)
 
 ### Layer 3: Fact-Level Deduplication
 - Extracts atomic facts from articles
@@ -187,10 +192,38 @@ When multiple articles cover the same story, the system picks the best one using
 
 ## Source Modes
 
-| Mode | Sources | Discovery | Date Window | AI Target | Domain Cap |
+Source mode changes ranking, filtering, and target count. It does **not** change the default Firecrawl source set; both modes use explicit web search.
+
+| Mode | Retrieval source | Discovery | Date Window | AI Target | Domain Cap |
 |------|---------|-----------|-------------|-----------|------------|
-| **niche** | news + web | LLM-generated discovery queries | 14d (28d fallback) | 5-6 | 2/domain |
-| **reliable** | news only | None | 14d (28d fallback) | 6-8 | 3/domain |
+| **niche** | web only | LLM-generated discovery queries | 14d (28d fallback) | 5-6 | 2/domain |
+| **reliable** | web only | Limited discovery, depending on generated query plan | 14d (28d fallback) | 6-8 | 3/domain |
+
+## Search Relevance Guardrails
+
+The production default is intentionally simpler than the earlier fan-out design:
+
+- Use explicit Firecrawl `sources: ["web"]` for all generated and discovery queries.
+- Forward Firecrawl `location`/`country` when the scout has geography.
+- Let the LLM query plan translate/localize queries for non-English locations instead of hardcoding country-specific terms.
+- Pass `canonical_query`, `localized_query`, `required_concepts`, and `weak_terms` from query generation into the AI relevance filter.
+- For compound topics, the AI filter must require all major concepts. A result matching only a weak generic term such as `AI`, `policy`, `technology`, or `media` is not enough.
+- Measure quality by relevance/locality/manual review, not by result count alone.
+
+The regression that motivated this rule: a topic-only Beat Scout for `AI in journalism` returned broad AI stories about the Pentagon, Oscars rules, school boards, and city councils. Those results matched generic `AI` terms but not the journalism/newsroom concept. The fix is covered by the live benchmark canary `topic-only:ai-journalism`.
+
+Audit evidence lives in `docs/benchmarks/beat-scout-search-audit-2026-05-02.md`. Summary:
+
+| Permutation | LLM pass | Warn | Fail | Conclusion |
+|---|---:|---:|---:|---|
+| `default` | 13 | 0 | 0 | Equivalent to explicit web in audit context |
+| `web` | 13 | 0 | 0 | Production default |
+| `news` | 5 | 5 | 3 | Do not use as default |
+| `web+news` | 10 | 3 | 0 | Better than news alone, still dilutes locality/relevance |
+| `recent-web` | 6 | 6 | 1 | Unstable; often pulls social/wrong-locality items |
+| `recent-web+news` | 5 | 7 | 1 | Unstable |
+
+Future experiments may reintroduce `news` only as a separately ranked freshness lane with its own relevance gate and audit evidence. It should not be blindly merged into the default result set.
 
 ### Recency Config by Scope
 
@@ -249,14 +282,28 @@ Run the Supabase-era Beat health benchmark to exercise the real discovery path:
 deno run --allow-env --allow-net --allow-read=. scripts/benchmark-beat.ts
 deno run --allow-env --allow-net --allow-read=. scripts/benchmark-beat.ts --scout-id <existing-beat-scout-uuid>
 deno run --allow-env --allow-net --allow-read=. scripts/benchmark-beat.ts --timeout-min 8
+deno run --allow-env --allow-net --allow-read=. scripts/benchmark-beat.ts --scenario ai-journalism --timeout-min 10 --verbose
 ```
 
-The default run checks five canaries (location-only, topic-only, topic+country,
+The default run checks six canaries (location-only, two topic-only, topic+country,
 topic+city, second topic+country) through both preview search and scheduled
 execution. It retries a canary once on likely transient infra failures such as a
 run timeout or zero-result response, but still fails hard on semantic drift.
 `--scout-id` replays one existing Beat scout configuration on a temporary
 benchmark user to validate backward compatibility without touching the original scout.
+`--scenario` filters by scenario name so operators can rerun a single canary
+after a production deploy.
+
+The AI journalism canary is the regression sentinel for broad-topic drift. It
+requires both AI and journalism/media concepts and rejects the earlier broad-AI
+drift terms.
+
+When this pipeline changes, deploy both functions that import `_shared/beat_pipeline.ts`:
+
+```bash
+supabase functions deploy scout-beat-execute --project-ref <project-ref> --no-verify-jwt
+supabase functions deploy beat-search --project-ref <project-ref> --no-verify-jwt
+```
 
 ## Related Docs
 
