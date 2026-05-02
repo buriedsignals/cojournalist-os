@@ -230,6 +230,7 @@ const CANARIES: Scenario[] = [
   },
   {
     name: "topic-only:housing-policy",
+    topic: "housing policy",
     criteria: "housing policy",
     sourceMode: "reliable",
     preferredLanguage: "en",
@@ -242,6 +243,7 @@ const CANARIES: Scenario[] = [
   },
   {
     name: "topic-only:ai-journalism",
+    topic: "AI journalism",
     criteria: "AI in journalism newsrooms reporters editors media organizations",
     sourceMode: "reliable",
     preferredLanguage: "en",
@@ -322,15 +324,17 @@ function mustEnv(name: string): string {
 
 function parseArgs() {
   let scoutId: string | null = null;
+  let scenarioPattern: string | null = null;
   let timeoutMs = DEFAULT_TIMEOUT_MS;
   let verbose = false;
   for (let i = 0; i < Deno.args.length; i++) {
     const arg = Deno.args[i];
     if (arg === "--scout-id") scoutId = Deno.args[++i] ?? null;
+    else if (arg === "--scenario") scenarioPattern = Deno.args[++i] ?? null;
     else if (arg === "--timeout-min") timeoutMs = parseInt(Deno.args[++i], 10) * 60_000;
     else if (arg === "--verbose") verbose = true;
   }
-  return { scoutId, timeoutMs, verbose };
+  return { scoutId, scenarioPattern, timeoutMs, verbose };
 }
 
 async function createBenchmarkUser(): Promise<BenchmarkUser> {
@@ -758,12 +762,19 @@ function printResult(result: Result) {
   );
 }
 
-const { scoutId, timeoutMs, verbose } = parseArgs();
+const { scoutId, scenarioPattern, timeoutMs, verbose } = parseArgs();
 const benchmarkUser = await createBenchmarkUser();
 
 try {
   await seedCredits(benchmarkUser.id);
-  const scenarios = scoutId ? [await cloneScenarioFromScout(scoutId)] : CANARIES;
+  const scenarios = scoutId
+    ? [await cloneScenarioFromScout(scoutId)]
+    : scenarioPattern
+    ? CANARIES.filter((scenario) => scenario.name.includes(scenarioPattern))
+    : CANARIES;
+  if (scenarios.length === 0) {
+    throw new Error(`no benchmark scenarios matched ${scenarioPattern}`);
+  }
 
   console.log(
     `Running Beat Scout live audit as temp user ${benchmarkUser.email} (${benchmarkUser.id})`,
